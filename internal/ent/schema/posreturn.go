@@ -25,8 +25,7 @@ func (POSReturn) Fields() []ent.Field {
 		field.UUID("order_id", uuid.UUID{}).
 			Comment("Original order being returned"),
 		field.String("return_number").
-			NotEmpty().
-			Unique(),
+			NotEmpty(),
 		field.Enum("return_type").
 			Values("refund", "exchange", "store_credit").
 			Default("refund"),
@@ -80,6 +79,12 @@ func (POSReturn) Edges() []ent.Edge {
 
 func (POSReturn) Indexes() []ent.Index {
 	return []ent.Index{
+		// return_number is unique PER TENANT, not globally — sequences start at "000001" for
+		// every tenant, so a bare field-level .Unique() on return_number (removed 2026-08-05
+		// after a live cross-tenant collision: codevertex-demo's first-ever return couldn't be
+		// created because boi-enterprises already held "000001") would eventually collide for
+		// any two tenants. This composite index is the only uniqueness constraint that belongs
+		// here.
 		index.Fields("tenant_id", "return_number").Unique(),
 		index.Fields("tenant_id", "order_id"),
 	}

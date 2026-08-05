@@ -2098,7 +2098,7 @@ var (
 		{Name: "tenant_id", Type: field.TypeUUID},
 		{Name: "outlet_id", Type: field.TypeUUID},
 		{Name: "order_id", Type: field.TypeUUID},
-		{Name: "return_number", Type: field.TypeString, Unique: true},
+		{Name: "return_number", Type: field.TypeString},
 		{Name: "return_type", Type: field.TypeEnum, Enums: []string{"refund", "exchange", "store_credit"}, Default: "refund"},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected", "completed"}, Default: "pending"},
 		{Name: "reason", Type: field.TypeString, Nullable: true},
