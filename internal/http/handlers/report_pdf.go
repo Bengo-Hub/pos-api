@@ -394,7 +394,13 @@ func (h *ReportPDFHandler) ResetSummary(w http.ResponseWriter, r *http.Request) 
 	}
 	byCat := make(map[string]*catAgg)
 	var itemsSold, totalTaxable, totalNontaxable, totalTax, grandTotal float64
+	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
+	// generated for one tenant's orders, which may not be KES.
+	currency := "KES"
 	for _, o := range orders {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
 		grandTotal += o.TotalAmount
 		for _, l := range o.Edges.Lines {
 			// POSOrderLine.Category is the real, always-populated column — see the same
@@ -494,10 +500,11 @@ func (h *ReportPDFHandler) ResetSummary(w http.ResponseWriter, r *http.Request) 
 	sort.Slice(serverPairs, func(i, j int) bool { return serverPairs[i].Label < serverPairs[j].Label })
 
 	report := h.newReport(ctx, tid, oid, "Reset Summary Report", "Z / Reset", from, to, false)
+	report.Currency = currency
 	report.Cards = []docs.Card{
-		{Label: "Tendering Total", Value: "KES " + fmtAmount(tenderTotal), Sub: fmt.Sprintf("%d order(s)", len(orders))},
+		{Label: "Tendering Total", Value: currency + " " + fmtAmount(tenderTotal), Sub: fmt.Sprintf("%d order(s)", len(orders))},
 		{Label: "Items Sold", Value: fmtQty(itemsSold), Sub: fmt.Sprintf("%d item type(s)", len(byCat))},
-		{Label: "Voids", Value: fmtQty(voidQty), Sub: "KES " + fmtAmount(voidAmount)},
+		{Label: "Voids", Value: fmtQty(voidQty), Sub: currency + " " + fmtAmount(voidAmount)},
 	}
 	report.Sections = []docs.Section{
 		{Kind: docs.SectionKeyValue, Title: "Tender Summary", Pairs: tenderRows},
@@ -558,7 +565,13 @@ func (h *ReportPDFHandler) SalesByItemType(w http.ResponseWriter, r *http.Reques
 	byCat := make(map[string]map[string]*itemAgg)
 	catTotals := make(map[string]float64)
 	var grandTotal float64
+	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
+	// generated for one tenant's orders, which may not be KES.
+	currency := "KES"
 	for _, o := range orders {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
 		for _, l := range o.Edges.Lines {
 			// POSOrderLine.Category is the real, always-populated column — see the same
 			// fix in reports.go SalesByCategory (l.Metadata never carries "category").
@@ -626,9 +639,10 @@ func (h *ReportPDFHandler) SalesByItemType(w http.ResponseWriter, r *http.Reques
 		Pairs: []docs.KV{{Label: "All Item Types", Value: fmtAmount(grandTotal), Bold: true, Rule: true}},
 	})
 	// Chart of each group's amount.
-	sections = append(sections, docs.Section{Kind: docs.SectionChart, Title: "Sales by Item Type", ValueUnit: "KES", Bars: bars})
+	sections = append(sections, docs.Section{Kind: docs.SectionChart, Title: "Sales by Item Type", ValueUnit: currency, Bars: bars})
 
 	report := h.newReport(ctx, tid, oid, "Sales by Item Type", "", from, to, false)
+	report.Currency = currency
 	report.Sections = sections
 	h.write(w, r, report, "sales-by-item-type")
 }
@@ -647,7 +661,7 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 	oid := h.outletScope(r)
 	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
 
-	orders, err := h.completedOrders(ctx, tid, oid, from, to, false)
+	orders, err := h.completedOrders(ctx, tid, oid, from, to, true)
 	if err != nil {
 		h.log.Error("daily-sales: orders query failed", zap.Error(err))
 		jsonError(w, "failed to generate daily sales", http.StatusInternalServerError)
@@ -655,13 +669,22 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type dayRow struct {
-		orders          int
-		net, tax, gross float64
+		orders                int
+		net, tax, gross, cost float64
 	}
+	// Same cost/attribution machinery as MostProfitableItems/SalesByHour/GetSummary, so the
+	// Gross Profit card here always agrees with the on-screen dashboard and other reports.
+	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
 	buckets := make(map[string]*dayRow)
 	var totOrders int
-	var totNet, totTax, totGross float64
+	var totNet, totTax, totGross, totCost float64
+	// Same per-order Currency override pattern as MostProfitablePDF/MostProfitableItems — a
+	// report is generated for one tenant's orders, which may not be KES.
+	currency := "KES"
 	for _, o := range orders {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
 		day := o.CreatedAt.UTC().Format("2006-01-02")
 		if buckets[day] == nil {
 			buckets[day] = &dayRow{}
@@ -674,6 +697,11 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 		totNet += o.Subtotal
 		totTax += o.TaxTotal
 		totGross += o.TotalAmount
+		for _, al := range AttributeOrderLines(o) {
+			cost := costBySKU[al.SKU] * al.Quantity
+			buckets[day].cost += cost
+			totCost += cost
+		}
 	}
 	days := make([]string, 0, len(buckets))
 	for d := range buckets {
@@ -689,18 +717,21 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 			docs.Text(fmtAmount(b.net)),
 			docs.Text(fmtAmount(b.tax)),
 			docs.Text(fmtAmount(b.gross)),
+			docs.Text(fmtAmount(b.gross - b.cost)),
 		})
 	}
-	var avgTicket float64
-	if totOrders > 0 {
-		avgTicket = totGross / float64(totOrders)
+	grossProfit := totGross - totCost
+	marginPct := 0.0
+	if totGross != 0 {
+		marginPct = grossProfit / totGross * 100
 	}
 
 	report := h.newReport(ctx, tid, oid, "Daily Sales", "", from, to, false)
+	report.Currency = currency
 	report.Cards = []docs.Card{
-		{Label: "Gross Revenue", Value: "KES " + fmtAmount(totGross), Sub: fmt.Sprintf("%d order(s)", totOrders)},
+		{Label: "Gross Revenue", Value: currency + " " + fmtAmount(totGross), Sub: fmt.Sprintf("%d order(s)", totOrders)},
 		{Label: "Orders", Value: strconv.Itoa(totOrders)},
-		{Label: "Avg Ticket", Value: "KES " + fmtAmount(avgTicket)},
+		{Label: "Gross Profit", Value: currency + " " + fmtAmount(grossProfit), Sub: fmt.Sprintf("%.1f%% margin", marginPct)},
 	}
 	report.Sections = []docs.Section{{
 		Kind:  docs.SectionTable,
@@ -711,6 +742,7 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 			{Header: "Net", Weight: 1.2, Money: true},
 			{Header: "VAT", Weight: 1.2, Money: true},
 			{Header: "Gross", Weight: 1.2, Money: true},
+			{Header: "Profit", Weight: 1.2, Money: true},
 		},
 		Rows: rows,
 		Total: []docs.Cell{
@@ -719,6 +751,7 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 			docs.BoldText(fmtAmount(totNet)),
 			docs.BoldText(fmtAmount(totTax)),
 			docs.BoldText(fmtAmount(totGross)),
+			docs.BoldText(fmtAmount(grossProfit)),
 		},
 	}}
 	h.write(w, r, report, "daily-sales")
@@ -764,7 +797,13 @@ func (h *ReportPDFHandler) ShiftReportPDF(w http.ResponseWriter, r *http.Request
 	}
 	orderIDs := make([]uuid.UUID, 0, len(orders))
 	var totalRevenue, totalTax, totalDiscount float64
+	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
+	// generated for one tenant's orders, which may not be KES.
+	currency := "KES"
 	for _, o := range orders {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
 		orderIDs = append(orderIDs, o.ID)
 		totalRevenue += o.TotalAmount
 		totalTax += o.TaxTotal
@@ -797,10 +836,11 @@ func (h *ReportPDFHandler) ShiftReportPDF(w http.ResponseWriter, r *http.Request
 	}
 
 	report := h.newReport(ctx, tid, shiftOutletID, "Shift Report", "X Report", session.OpenedAt.UTC(), timeOrNow(session.ClosedAt), false)
+	report.Currency = currency
 	report.Cards = []docs.Card{
-		{Label: "Net Sales", Value: "KES " + fmtAmount(totalRevenue-totalRefunds), Sub: fmt.Sprintf("%d order(s)", len(orders))},
-		{Label: "Refunds", Value: "KES " + fmtAmount(totalRefunds)},
-		{Label: "Cash Variance", Value: "KES " + fmtAmount(variance)},
+		{Label: "Net Sales", Value: currency + " " + fmtAmount(totalRevenue-totalRefunds), Sub: fmt.Sprintf("%d order(s)", len(orders))},
+		{Label: "Refunds", Value: currency + " " + fmtAmount(totalRefunds)},
+		{Label: "Cash Variance", Value: currency + " " + fmtAmount(variance)},
 	}
 	report.Sections = []docs.Section{
 		{Kind: docs.SectionKeyValue, Title: "Shift", Pairs: []docs.KV{
@@ -870,7 +910,13 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 		voids             int
 	}
 	buckets := make(map[uuid.UUID]*staffBucket)
+	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
+	// generated for one tenant's orders, which may not be KES.
+	currency := "KES"
 	for _, o := range completed {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
 		if buckets[o.UserID] == nil {
 			buckets[o.UserID] = &staffBucket{}
 		}
@@ -943,10 +989,11 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 	}
 
 	report := h.newReport(ctx, tid, oid, "Sales by Staff", "", from, to, true)
+	report.Currency = currency
 	report.Cards = []docs.Card{
-		{Label: "Total Revenue", Value: "KES " + fmtAmount(totRevenue)},
+		{Label: "Total Revenue", Value: currency + " " + fmtAmount(totRevenue)},
 		{Label: "Orders", Value: strconv.Itoa(totOrders)},
-		{Label: "Avg Ticket", Value: "KES " + fmtAmount(totAvg)},
+		{Label: "Avg Ticket", Value: currency + " " + fmtAmount(totAvg)},
 		{Label: "Voids", Value: strconv.Itoa(totVoids)},
 	}
 	report.Sections = []docs.Section{
@@ -971,7 +1018,7 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 				docs.BoldText(fmtAmount(totAvg)),
 			},
 		},
-		{Kind: docs.SectionChart, Title: "Revenue by Server", ValueUnit: "KES", Bars: bars},
+		{Kind: docs.SectionChart, Title: "Revenue by Server", ValueUnit: currency, Bars: bars},
 	}
 	h.write(w, r, report, "sales-by-staff")
 }
@@ -1008,7 +1055,13 @@ func (h *ReportPDFHandler) TaxReportPDF(w http.ResponseWriter, r *http.Request) 
 	}
 	buckets := make(map[bucketKey]*taxBucket)
 	var totalTaxable, totalTax float64
+	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
+	// generated for one tenant's orders, which may not be KES.
+	currency := "KES"
 	for _, o := range orders {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
 		for _, l := range o.Edges.Lines {
 			rate := 0.0
 			if l.TaxRate != nil {
@@ -1047,6 +1100,7 @@ func (h *ReportPDFHandler) TaxReportPDF(w http.ResponseWriter, r *http.Request) 
 	}
 
 	report := h.newReport(ctx, tid, oid, "Tax Report", "eTIMS / VAT", from, to, false)
+	report.Currency = currency
 	report.Sections = []docs.Section{{
 		Kind:  docs.SectionTable,
 		Title: "Tax by Code & Rate",

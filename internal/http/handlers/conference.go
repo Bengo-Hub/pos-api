@@ -104,7 +104,8 @@ func (h *HotelHandler) CreateEventBooking(w http.ResponseWriter, r *http.Request
 		in.ConferenceDays = 1
 	}
 	if in.Currency == "" {
-		in.Currency = "KES"
+		oid, _ := uuid.Parse(httpware.GetOutletID(r.Context()))
+		in.Currency = resolveOutletCurrency(r.Context(), h.client, oid)
 	}
 
 	// Enforce the max_conference_events plan limit (counted per calendar month, matching

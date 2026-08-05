@@ -512,7 +512,7 @@ func (h *LayawayHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 			ReferenceType:      "pos_layaway_cancel",
 			Reference:          plan.ID.String(),
 			Amount:             amt,
-			Currency:           "KES",
+			Currency:           resolveOutletCurrency(r.Context(), h.db, plan.OutletID),
 			Reason:             "layaway_cancelled",
 			RefundChannel:      refundChannel,
 			CustomerIdentifier: plan.CustomerPhone,
@@ -640,7 +640,7 @@ func (h *LayawayHandler) Complete(w http.ResponseWriter, r *http.Request) {
 		SetTaxTotal(0).
 		SetDiscountTotal(0).
 		SetTotalAmount(totalFloat).
-		SetCurrency("KES").
+		SetCurrency(resolveOutletCurrency(ctx, h.db, plan.OutletID)).
 		SetOrderSubtype(posorder.OrderSubtypeRetail).
 		SetMetadata(map[string]any{"source": "layaway", "layaway_plan_id": planID.String()}).
 		SetNillableCustomerPhone(func() *string {

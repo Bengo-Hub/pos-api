@@ -130,7 +130,7 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 			ReferenceID: editID.String(), OrderID: order.ID.String(), OrderNumber: order.OrderNumber,
 			OutletID: order.OutletID.String(), SellingScheme: "credit",
 			Amount: incrementalAmount, TaxAmount: incrementalTax, CreditAmount: incrementalAmount, CostAmount: incrementalCost,
-			Currency: "KES", CrmContactID: crmContactID, CustomerIdentifier: customerIdentifier, CustomerName: customerName,
+			Currency: order.Currency, CrmContactID: crmContactID, CustomerIdentifier: customerIdentifier, CustomerName: customerName,
 			UserID: req.RequestedBy.String(), Description: "Edit Sale increase — " + order.OrderNumber,
 		}); err != nil {
 			s.log.Warn("edit increase: treasury GL post failed (non-fatal; can be reconciled)",
@@ -199,7 +199,9 @@ func (s *Service) createAddendumOrder(ctx context.Context, tenantID uuid.UUID, o
 
 	addendum, err := s.orderSvc.CreateOrder(ctx, orders.CreateOrderRequest{
 		TenantID: tenantID, TenantSlug: req.TenantSlug, OutletID: order.OutletID, UserID: req.RequestedBy,
-		Currency: "KES", Lines: lines, OrderSubtype: "retail", Source: "back_office",
+		// An addendum sub-order must always match its parent's currency, not the outlet's
+		// currently-configured one (which could theoretically have changed since the sale).
+		Currency: order.Currency, Lines: lines, OrderSubtype: "retail", Source: "back_office",
 		CustomerName: customerName, CustomerPhone: customerPhone,
 		Metadata: map[string]any{
 			"related_order_id": order.ID.String(),

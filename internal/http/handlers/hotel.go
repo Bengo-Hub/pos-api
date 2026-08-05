@@ -174,7 +174,8 @@ func (h *HotelHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if input.Currency == "" {
-		input.Currency = "KES"
+		outletID, _ := uuid.Parse(input.OutletID)
+		input.Currency = resolveOutletCurrency(r.Context(), h.client, outletID)
 	}
 	roomType := entroom.RoomType(input.RoomType)
 	if input.RoomType == "" {
@@ -802,7 +803,8 @@ func (h *HotelHandler) CreateFacility(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if input.Currency == "" {
-		input.Currency = "KES"
+		outletID, _ := uuid.Parse(input.OutletID)
+		input.Currency = resolveOutletCurrency(r.Context(), h.client, outletID)
 	}
 	facilityType := entfacility.FacilityType(input.FacilityType)
 	if input.FacilityType == "" {

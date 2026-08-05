@@ -532,6 +532,20 @@ func (s *Service) outletFallbackTaxRate(ctx context.Context, outletID uuid.UUID)
 	return s.taxRate
 }
 
+// outletCurrency returns the outlet's configured ISO 4217 currency (OutletSetting.currency —
+// the same Settings > General field the till reads via usePOSSettings), else the service-level
+// env default. Same query shape as outletFallbackTaxRate — the single place order-creation and
+// every money-movement call site derived from an order (refunds, exchanges, reversals, layaway)
+// should resolve currency from, instead of each hardcoding "KES" independently.
+func (s *Service) outletCurrency(ctx context.Context, outletID uuid.UUID) string {
+	if set, err := s.client.OutletSetting.Query().
+		Where(entoutletsetting.OutletID(outletID)).
+		Only(ctx); err == nil && set != nil && set.Currency != "" {
+		return set.Currency
+	}
+	return s.defaultCurrency
+}
+
 // calculateTotalsWithTaxes computes order totals from per-line tax resolutions, mirroring the
 // till's cart math exactly (pos-ui src/lib/pos/cart-tax.ts): subtotal is the gross rung-up
 // amount; TaxTotal is only the tax ADDED on top (exclusive lines + flat fallback for lines with
@@ -610,7 +624,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 
 	currency := req.Currency
 	if currency == "" {
-		currency = s.defaultCurrency
+		currency = s.outletCurrency(ctx, req.OutletID)
 	}
 	orderNumber := req.OrderNumber
 	if orderNumber == "" {

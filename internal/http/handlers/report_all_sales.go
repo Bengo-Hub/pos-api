@@ -400,7 +400,13 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 
 	rows := make([][]docs.Cell, 0, len(list))
 	var sumSubtotal, sumDiscount, sumTax, sumTotal, sumPaid, sumDue float64
+	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
+	// generated for one tenant's orders, which may not be KES.
+	currency := "KES"
 	for _, o := range list {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
 		// Settled method — identical derivation to the list view (enrichOrderList).
 		methods := map[string]struct{}{}
 		for _, pay := range o.Edges.Payments {
@@ -504,13 +510,14 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 	}
 
 	report := h.newReport(ctx, tid, h.outletScope(r), "All Sales", "Every sale in the selected filters — audit detail", from, to, true)
+	report.Currency = currency
 	report.Cards = []docs.Card{
 		{Label: "Sales", Value: strconv.Itoa(total)},
-		{Label: "Gross", Value: "KES " + fmtAmount(sumSubtotal)},
-		{Label: "Discounts", Value: "KES " + fmtAmount(sumDiscount)},
-		{Label: "Net Total", Value: "KES " + fmtAmount(sumTotal)},
-		{Label: "Paid", Value: "KES " + fmtAmount(sumPaid)},
-		{Label: "Outstanding", Value: "KES " + fmtAmount(sumDue)},
+		{Label: "Gross", Value: currency + " " + fmtAmount(sumSubtotal)},
+		{Label: "Discounts", Value: currency + " " + fmtAmount(sumDiscount)},
+		{Label: "Net Total", Value: currency + " " + fmtAmount(sumTotal)},
+		{Label: "Paid", Value: currency + " " + fmtAmount(sumPaid)},
+		{Label: "Outstanding", Value: currency + " " + fmtAmount(sumDue)},
 	}
 	note := ""
 	if total > len(list) {

@@ -83,37 +83,42 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 		outletFilters = append(outletFilters, ownPred)
 	}
 
-	queryRevenue := func(from, to time.Time) (float64, int, error) {
+	// WithLines() so the same order fetch can also feed the gross-profit calculation below
+	// (AttributeOrderLines + resolveUnitCostsBySKU — the exact cost/profit machinery
+	// MostProfitableItems/SalesByHour already use) without a second query.
+	queryOrders := func(from, to time.Time) ([]*ent.POSOrder, float64, error) {
 		preds := append([]predicate.POSOrder{
 			posorder.TenantID(tid),
 			posorder.StatusEQ("completed"),
 			effectiveDateGTE(from),
 			effectiveDateLT(to),
 		}, outletFilters...)
-		orders, qErr := h.db.POSOrder.Query().Where(preds...).All(r.Context())
+		orders, qErr := h.db.POSOrder.Query().Where(preds...).WithLines().All(r.Context())
 		if qErr != nil {
-			return 0, 0, qErr
+			return nil, 0, qErr
 		}
 		var total float64
 		for _, o := range orders {
 			total += o.TotalAmount
 		}
-		return total, len(orders), nil
+		return orders, total, nil
 	}
 
-	todayRev, todayOrders, err := queryRevenue(todayStart, now)
+	todayOrderList, todayRev, err := queryOrders(todayStart, now)
 	if err != nil {
 		h.log.Error("summary: today revenue query failed", zap.Error(err))
 		jsonError(w, "failed to generate summary", http.StatusInternalServerError)
 		return
 	}
+	todayOrders := len(todayOrderList)
 
-	yesterdayRev, yesterdayOrders, err := queryRevenue(yesterdayStart, todayStart)
+	yesterdayOrderList, yesterdayRev, err := queryOrders(yesterdayStart, todayStart)
 	if err != nil {
 		h.log.Error("summary: yesterday revenue query failed", zap.Error(err))
 		jsonError(w, "failed to generate summary", http.StatusInternalServerError)
 		return
 	}
+	yesterdayOrders := len(yesterdayOrderList)
 
 	activeShifts, err := h.db.POSDeviceSession.Query().
 		Where(
@@ -153,15 +158,53 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 		Aggregate(ent.Sum(posorderline.FieldQuantity)).
 		Float64(r.Context())
 
+	// Gross profit (revenue - COGS) — the headline "how did today actually go" number owners
+	// check, replacing the old average-basket-value card that told them nothing about
+	// profitability. Same void-aware attribution + real per-sku cost resolution (GOODS
+	// cost_price vs RECIPE cost_per_portion) as MostProfitableItems/SalesByHour, so this figure
+	// never disagrees with those reports.
+	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
+	// Same per-order Currency override pattern as MostProfitableItems/MostProfitablePDF — the
+	// dashboard must label these figures with the tenant's actual currency, not assume KES.
+	currency := "KES"
+	var todayCost, yesterdayCost float64
+	for _, o := range todayOrderList {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
+		for _, al := range AttributeOrderLines(o) {
+			todayCost += costBySKU[al.SKU] * al.Quantity
+		}
+	}
+	for _, o := range yesterdayOrderList {
+		for _, al := range AttributeOrderLines(o) {
+			yesterdayCost += costBySKU[al.SKU] * al.Quantity
+		}
+	}
+	grossProfit := todayRev - todayCost
+	grossMarginPct := 0.0
+	if todayRev != 0 {
+		grossMarginPct = grossProfit / todayRev * 100
+	}
+	yesterdayGrossProfit := yesterdayRev - yesterdayCost
+	grossProfitGrowth := 0.0
+	if yesterdayGrossProfit > 0 {
+		grossProfitGrowth = (grossProfit - yesterdayGrossProfit) / yesterdayGrossProfit * 100
+	}
+
 	jsonOK(w, map[string]any{
-		"total_revenue":  todayRev,
-		"total_orders":   todayOrders,
-		"avg_ticket":     avgTicket,
-		"active_staff":   activeShifts,
-		"items_sold":     itemsSold,
-		"revenue_growth": revenueGrowth,
-		"orders_growth":  ordersGrowth,
-		"as_of":          now.Format(time.RFC3339),
+		"total_revenue":       todayRev,
+		"total_orders":        todayOrders,
+		"avg_ticket":          avgTicket,
+		"active_staff":        activeShifts,
+		"items_sold":          itemsSold,
+		"revenue_growth":      revenueGrowth,
+		"orders_growth":       ordersGrowth,
+		"gross_profit":        grossProfit,
+		"gross_margin_pct":    grossMarginPct,
+		"gross_profit_growth": grossProfitGrowth,
+		"currency":            currency,
+		"as_of":               now.Format(time.RFC3339),
 	})
 }
 
@@ -190,7 +233,7 @@ func (h *ReportsHandler) SalesSummary(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	orders, err := q.All(r.Context())
+	orders, err := q.WithLines().All(r.Context())
 	if err != nil {
 		h.log.Error("sales summary query failed", zap.Error(err))
 		jsonError(w, "failed to generate sales summary", http.StatusInternalServerError)
@@ -198,7 +241,12 @@ func (h *ReportsHandler) SalesSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var totalRevenue, totalTax, totalDiscount float64
+	// Same per-order Currency override pattern as MostProfitableItems/MostProfitablePDF.
+	currency := "KES"
 	for _, o := range orders {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
 		totalRevenue += o.TotalAmount
 		totalTax += o.TaxTotal
 		totalDiscount += o.DiscountTotal
@@ -209,14 +257,32 @@ func (h *ReportsHandler) SalesSummary(w http.ResponseWriter, r *http.Request) {
 		avgOrderValue = totalRevenue / float64(len(orders))
 	}
 
+	// Gross profit for the range — same cost/attribution machinery as GetSummary/
+	// MostProfitableItems/SalesByHour (resolveUnitCostsBySKU + AttributeOrderLines).
+	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
+	var totalCost float64
+	for _, o := range orders {
+		for _, al := range AttributeOrderLines(o) {
+			totalCost += costBySKU[al.SKU] * al.Quantity
+		}
+	}
+	grossProfit := totalRevenue - totalCost
+	grossMarginPct := 0.0
+	if totalRevenue != 0 {
+		grossMarginPct = grossProfit / totalRevenue * 100
+	}
+
 	jsonOK(w, map[string]any{
-		"from":            from.Format(time.RFC3339),
-		"to":              to.Format(time.RFC3339),
-		"order_count":     len(orders),
-		"total_revenue":   totalRevenue,
-		"total_tax":       totalTax,
-		"total_discount":  totalDiscount,
-		"avg_order_value": avgOrderValue,
+		"from":             from.Format(time.RFC3339),
+		"to":               to.Format(time.RFC3339),
+		"order_count":      len(orders),
+		"total_revenue":    totalRevenue,
+		"total_tax":        totalTax,
+		"total_discount":   totalDiscount,
+		"avg_order_value":  avgOrderValue,
+		"gross_profit":     grossProfit,
+		"gross_margin_pct": grossMarginPct,
+		"currency":         currency,
 	})
 }
 
@@ -640,6 +706,7 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 			effectiveDateGTE(from),
 			effectiveDateLTE(to),
 		).
+		WithLines().
 		All(r.Context())
 	if err != nil {
 		h.log.Error("export report query failed", zap.Error(err))
@@ -653,10 +720,18 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 		Revenue    float64
 		Tax        float64
 		Net        float64
+		Cost       float64
 	}
 
+	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
 	buckets := make(map[string]*dayRow)
+	// Same per-order Currency override pattern as MostProfitableItems/MostProfitablePDF — the
+	// column headers below must reflect the tenant's actual currency, not assume KES.
+	currency := "KES"
 	for _, o := range orders {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
 		day := o.CreatedAt.UTC().Format("2006-01-02")
 		if _, ok := buckets[day]; !ok {
 			buckets[day] = &dayRow{Date: day}
@@ -665,6 +740,9 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 		buckets[day].Revenue += o.TotalAmount
 		buckets[day].Tax += o.TaxTotal
 		buckets[day].Net += o.Subtotal
+		for _, al := range AttributeOrderLines(o) {
+			buckets[day].Cost += costBySKU[al.SKU] * al.Quantity
+		}
 	}
 
 	// Build rows in date order
@@ -685,7 +763,13 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 
 	cw := csv.NewWriter(w)
-	_ = cw.Write([]string{"Date", "Orders", "Net Sales (KES)", "VAT (KES)", "Gross Revenue (KES)"})
+	_ = cw.Write([]string{
+		"Date", "Orders",
+		fmt.Sprintf("Net Sales (%s)", currency),
+		fmt.Sprintf("VAT (%s)", currency),
+		fmt.Sprintf("Gross Revenue (%s)", currency),
+		fmt.Sprintf("Gross Profit (%s)", currency),
+	})
 	for _, row := range rows {
 		_ = cw.Write([]string{
 			row.Date,
@@ -693,6 +777,7 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 			fmt.Sprintf("%.2f", row.Net),
 			fmt.Sprintf("%.2f", row.Tax),
 			fmt.Sprintf("%.2f", row.Revenue),
+			fmt.Sprintf("%.2f", row.Revenue-row.Cost),
 		})
 	}
 	cw.Flush()

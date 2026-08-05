@@ -2120,6 +2120,24 @@ func resolveTenantSlug(r *http.Request, client *ent.Client) string {
 	return tenantSlug
 }
 
+// resolveOutletCurrency returns the outlet's configured ISO 4217 currency (OutletSetting.currency
+// — the same Settings > General field the till reads via usePOSSettings), falling back to "KES"
+// only when the outlet has none configured. Package-level so every handler that writes a
+// money-movement record NOT going through orders.Service.CreateOrder (refunds, exchanges,
+// reversals, layaway, treasury proxy calls) can resolve the tenant's real currency the same way
+// orders.Service.outletCurrency does for order creation, instead of each hardcoding "KES".
+func resolveOutletCurrency(ctx context.Context, client *ent.Client, outletID uuid.UUID) string {
+	if outletID == uuid.Nil {
+		return "KES"
+	}
+	if set, err := client.OutletSetting.Query().
+		Where(entoutletsetting.OutletID(outletID)).
+		Only(ctx); err == nil && set != nil && set.Currency != "" {
+		return set.Currency
+	}
+	return "KES"
+}
+
 // fetchInventoryCategories proxies inventory-api categories and decodes them, tolerating both the
 // wrapped ({"data":[...]}) and bare-array response forms.
 func (h *CatalogHandler) fetchInventoryCategories(ctx context.Context, tenantSlug string) ([]inventoryCategory, error) {

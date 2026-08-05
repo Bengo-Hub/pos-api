@@ -100,6 +100,9 @@ func (h *ReportPDFHandler) ControlledSubstanceExport(w http.ResponseWriter, r *h
 	}
 
 	report := h.newReport(ctx, tid, oid, "Controlled Substance Register", "Regulator export", from, to, true)
+	// No currency override here (intentionally left at newReport's "KES" default): this register
+	// is dispensing quantities only (ControlledSubstanceLog has no Currency field and the report
+	// has no money Cards/columns), so there's no per-tenant currency to resolve against.
 	report.Cards = []docs.Card{
 		{Label: "Dispensing Events", Value: strconv.Itoa(len(logs))},
 		{Label: "Total Quantity", Value: fmtAmount(totalQty)},

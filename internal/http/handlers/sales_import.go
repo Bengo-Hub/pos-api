@@ -235,7 +235,8 @@ func (h *POSOrderHandler) importRow(
 		OutletID:        outletID,
 		UserID:          userID,
 		ClientReference: clientRef,
-		Currency:        "KES",
+		// Currency omitted — CreateOrder resolves the outlet's configured currency
+		// (OutletSetting.currency) when the request doesn't specify one.
 		Lines:           lines,
 		Metadata:        meta,
 		OrderSubtype:    "retail",

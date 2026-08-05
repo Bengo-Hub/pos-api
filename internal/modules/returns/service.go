@@ -376,6 +376,12 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 
 		crmContactID, customerName, customerIdentifier := orders.ResolveOrderCustomer(ctx, s.client, tenantID, ret.OrderID)
 
+		// A refund must settle in the ORIGINAL sale's currency, not a hardcoded assumption.
+		currency := "KES"
+		if origOrder, oerr := s.client.POSOrder.Get(ctx, ret.OrderID); oerr == nil && origOrder.Currency != "" {
+			currency = origOrder.Currency
+		}
+
 		refundResp, refundErr := s.treasuryClient.CreateRefund(ctx, tenantSlug, returnID.String(), treasury.RefundRequest{
 			SourceService:      "pos",
 			ReferenceID:        returnID.String(),
@@ -384,7 +390,7 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 			Amount:             settleAmount,
 			TaxAmount:          taxAmount,
 			Cost:               costAmount,
-			Currency:           "KES",
+			Currency:           currency,
 			Reason:             ret.Reason,
 			RefundChannel:      refundChannel,
 			CrmContactID:       crmContactID,

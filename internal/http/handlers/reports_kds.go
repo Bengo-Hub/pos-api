@@ -208,6 +208,19 @@ func (h *ReportPDFHandler) SalesByKDSStationDoc(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
+	// generated for one tenant's orders, which may not be KES. computeKDSStationBreakdown doesn't
+	// surface Currency on its aggregated rows, so resolve it from a lightweight second pass over
+	// the same tenant/outlet/date-range orders it queries internally.
+	currency := "KES"
+	if ordersForCurrency, cerr := h.completedOrders(ctx, tid, oid, from, to, false); cerr == nil {
+		for _, o := range ordersForCurrency {
+			if o.Currency != "" {
+				currency = o.Currency
+			}
+		}
+	}
+
 	var grandRevenue float64
 	tableRows := make([][]docs.Cell, 0, len(rows))
 	bars := make([]docs.Bar, 0, len(rows))
@@ -227,8 +240,9 @@ func (h *ReportPDFHandler) SalesByKDSStationDoc(w http.ResponseWriter, r *http.R
 	}
 
 	report := h.newReport(ctx, tid, oid, "Sales by KDS Station", "", from, to, false)
+	report.Currency = currency
 	report.Cards = []docs.Card{
-		{Label: "Total Revenue", Value: "KES " + fmtAmount(grandRevenue)},
+		{Label: "Total Revenue", Value: currency + " " + fmtAmount(grandRevenue)},
 		{Label: "Stations", Value: strconv.Itoa(len(rows))},
 	}
 	report.Sections = []docs.Section{
@@ -244,7 +258,7 @@ func (h *ReportPDFHandler) SalesByKDSStationDoc(w http.ResponseWriter, r *http.R
 			Rows:  tableRows,
 			Total: []docs.Cell{docs.BoldText("Report Total"), docs.Text(""), docs.Text(""), docs.BoldText(fmtAmount(grandRevenue))},
 		},
-		{Kind: docs.SectionChart, Title: "Revenue by Station", ValueUnit: "KES", Bars: bars},
+		{Kind: docs.SectionChart, Title: "Revenue by Station", ValueUnit: currency, Bars: bars},
 	}
 	h.write(w, r, report, "sales-by-kds-station")
 }

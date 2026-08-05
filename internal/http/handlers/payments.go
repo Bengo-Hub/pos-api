@@ -395,6 +395,10 @@ func (h *PaymentHandler) CreateQuotationFromCart(w http.ResponseWriter, r *http.
 		}
 	}
 	now := time.Now()
+	var outletID uuid.UUID
+	if s := httpware.GetOutletID(r.Context()); s != "" {
+		outletID, _ = uuid.Parse(s)
+	}
 	resp, err := h.treasuryClient.CreateQuotation(r.Context(), tenantSlug, treasury.CreateQuotationRequest{
 		CrmContactID:  crmContactID,
 		CustomerName:  input.CustomerName,
@@ -403,7 +407,7 @@ func (h *PaymentHandler) CreateQuotationFromCart(w http.ResponseWriter, r *http.
 		Notes:         input.Notes,
 		QuoteDate:     now.Format("2006-01-02"),
 		ValidUntil:    now.AddDate(0, 0, 30).Format("2006-01-02"),
-		Currency:      "KES",
+		Currency:      resolveOutletCurrency(r.Context(), h.client, outletID),
 		ReferenceType: "pos_cart",
 		Lines:         lines,
 	})
@@ -837,12 +841,18 @@ func (h *PaymentHandler) ClaimC2BPayment(w http.ResponseWriter, r *http.Request)
 		if tid, terr := parseTenantUUID(r); terr == nil {
 			if orderID, oerr := uuid.Parse(body.POSOrderID); oerr == nil {
 				tenderID, _ := uuid.Parse(body.TenderID) // uuid.Nil when not supplied
+				// Settle in the order's OWN currency (not a hardcoded assumption) — it's the
+				// exact currency the sale itself was created in.
+				currency := "KES"
+				if ord, oerr2 := h.client.POSOrder.Get(r.Context(), orderID); oerr2 == nil && ord.Currency != "" {
+					currency = ord.Currency
+				}
 				if _, perr := h.paymentSvc.RecordPayment(r.Context(), payments.RecordPaymentRequest{
 					TenantID:  tid,
 					OrderID:   orderID,
 					TenderID:  tenderID,
 					Amount:    body.Amount,
-					Currency:  "KES",
+					Currency:  currency,
 					Reference: transID,
 				}); perr != nil {
 					h.log.Error("c2b: settle order failed after claim", zap.String("trans_id", transID), zap.Error(perr))

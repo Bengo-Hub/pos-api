@@ -72,8 +72,10 @@ func (s *Service) fulfilExchange(ctx context.Context, tenantID uuid.UUID, ret *e
 		leftover = 0
 	}
 
-	// Carry the original buyer onto the replacement order (receipts, loyalty, AR linkage).
-	customerName, customerPhone := "", ""
+	// Carry the original buyer onto the replacement order (receipts, loyalty, AR linkage) —
+	// and its currency: a replacement order must match what the returned sale was actually
+	// transacted in, not a hardcoded assumption.
+	customerName, customerPhone, currency := "", "", "KES"
 	if orig, err := s.client.POSOrder.Query().
 		Where(entposorder.ID(ret.OrderID), entposorder.TenantID(tenantID)).
 		Only(ctx); err == nil {
@@ -83,13 +85,16 @@ func (s *Service) fulfilExchange(ctx context.Context, tenantID uuid.UUID, ret *e
 		if orig.CustomerPhone != nil {
 			customerPhone = *orig.CustomerPhone
 		}
+		if orig.Currency != "" {
+			currency = orig.Currency
+		}
 	}
 
 	order, err := s.orderSvc.CreateOrder(ctx, orders.CreateOrderRequest{
 		TenantID:       tenantID,
 		OutletID:       ret.OutletID,
 		UserID:         req.CompletedBy,
-		Currency:       "KES",
+		Currency:       currency,
 		Lines:          orderLines,
 		OrderSubtype:   "retail",
 		Source:         "back_office",

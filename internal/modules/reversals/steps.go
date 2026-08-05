@@ -360,6 +360,12 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 
 	crmContactID, customerName, customerPhone := orders.ResolveOrderCustomer(ctx, s.client, rev.TenantID, rev.OrderID)
 
+	// The reversal must settle in the ORIGINAL sale's currency, not a hardcoded assumption.
+	currency := "KES"
+	if origOrder, oerr := s.client.POSOrder.Get(ctx, rev.OrderID); oerr == nil && origOrder.Currency != "" {
+		currency = origOrder.Currency
+	}
+
 	cashNetted := round2(s.cashNettedForReversal(ctx, rev))
 	if cashNetted < 0 {
 		cashNetted = 0
@@ -379,7 +385,7 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 
 	base := treasury.RefundRequest{
 		SourceService: "pos", ReferenceType: "pos_return",
-		Reference: rev.ReversalNumber, Currency: "KES", Reason: rev.Reason,
+		Reference: rev.ReversalNumber, Currency: currency, Reason: rev.Reason,
 		CrmContactID: crmContactID, CustomerIdentifier: customerPhone, CustomerName: customerName,
 	}
 

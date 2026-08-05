@@ -76,7 +76,7 @@ func (h *HotelHandler) CreateAmenity(w http.ResponseWriter, r *http.Request) {
 	}
 	currency := input.Currency
 	if currency == "" {
-		currency = "KES"
+		currency = resolveOutletCurrency(r.Context(), h.client, outletID)
 	}
 
 	c := h.client.RoomAmenity.Create().

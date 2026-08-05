@@ -76,7 +76,13 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 	// Real per-sku cost (GOODS Item.cost_price vs RECIPE cost_per_portion) — see
 	// resolveUnitCostsBySKU. Mirrors ReportsHandler.SalesByHour's profit calc exactly.
 	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
+	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
+	// generated for one tenant's orders, which may not be KES.
+	currency := "KES"
 	for _, o := range orders {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
 		hr := o.CreatedAt.In(loc).Hour()
 		buckets[hr].orders++
 		buckets[hr].revenue += o.TotalAmount
@@ -119,8 +125,9 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 	}
 
 	report := h.newReport(ctx, tid, oid, "Sales by Hour", dateStr, dayStart, dayStart, true)
+	report.Currency = currency
 	report.Cards = []docs.Card{
-		{Label: "Total Revenue", Value: "KES " + fmtAmount(totalRevenue)},
+		{Label: "Total Revenue", Value: currency + " " + fmtAmount(totalRevenue)},
 		{Label: "Orders", Value: strconv.Itoa(totalOrders)},
 		{Label: "Peak Hour", Value: strconv.Itoa(peakHour) + ":00"},
 		{Label: "Profit Margin", Value: fmtQty(totalMarginPct) + "%"},
@@ -140,7 +147,7 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 				docs.BoldText(fmtAmount(totalProfit)), docs.BoldText(fmtQty(totalMarginPct) + "%"),
 			},
 		},
-		{Kind: docs.SectionChart, Title: "Revenue by Hour", ValueUnit: "KES", Bars: bars},
+		{Kind: docs.SectionChart, Title: "Revenue by Hour", ValueUnit: currency, Bars: bars},
 	}
 	h.write(w, r, report, "sales-by-hour")
 }
@@ -170,7 +177,13 @@ func (h *ReportPDFHandler) SalesByCategoryDoc(w http.ResponseWriter, r *http.Req
 		revenue, qty float64
 	}
 	byCategory := make(map[string]*catBucket)
+	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
+	// generated for one tenant's orders, which may not be KES.
+	currency := "KES"
 	for _, o := range orders {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
 		// AttributeOrderLines (see report_attribution.go) fixes the same two bugs found across
 		// every line-level report: a voided line no longer contributes its pre-void gross, and
 		// revenue is each line's prorated share of order.TotalAmount, not raw total_price — so
@@ -212,8 +225,9 @@ func (h *ReportPDFHandler) SalesByCategoryDoc(w http.ResponseWriter, r *http.Req
 	}
 
 	report := h.newReport(ctx, tid, oid, "Sales by Category", "", from, to, false)
+	report.Currency = currency
 	report.Cards = []docs.Card{
-		{Label: "Total Revenue", Value: "KES " + fmtAmount(totalRevenue)},
+		{Label: "Total Revenue", Value: currency + " " + fmtAmount(totalRevenue)},
 		{Label: "Categories", Value: strconv.Itoa(len(list))},
 		{Label: "Qty Sold", Value: fmtQty(totalQty)},
 	}
@@ -225,7 +239,7 @@ func (h *ReportPDFHandler) SalesByCategoryDoc(w http.ResponseWriter, r *http.Req
 			Rows:    rows,
 			Total:   []docs.Cell{docs.BoldText("Total"), docs.BoldText(fmtQty(totalQty)), docs.BoldText(fmtAmount(totalRevenue))},
 		},
-		{Kind: docs.SectionChart, Title: "Revenue by Category", ValueUnit: "KES", Bars: bars},
+		{Kind: docs.SectionChart, Title: "Revenue by Category", ValueUnit: currency, Bars: bars},
 	}
 	h.write(w, r, report, "sales-by-category")
 }
@@ -323,7 +337,13 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	}
 
 	var totalRevenue, totalQty float64
+	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
+	// generated for one tenant's orders, which may not be KES.
+	currency := "KES"
 	for _, o := range mixOrders {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
 		// AttributeOrderLines (see report_attribution.go) fixes the same two bugs found across
 		// every line-level report: a voided line no longer contributes its pre-void gross, and
 		// revenue is each line's prorated share of order.TotalAmount, not raw total_price — so
@@ -398,8 +418,9 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	itemCols := []docs.Column{{Header: "Product", Weight: 2.2}, {Header: "Qty", Weight: 1, Align: "R"}, {Header: "Revenue", Weight: 1.4, Money: true}}
 
 	report := h.newReport(ctx, tid, oid, "Product Mix", "", from, to, false)
+	report.Currency = currency
 	report.Cards = []docs.Card{
-		{Label: "Total Revenue", Value: "KES " + fmtAmount(totalRevenue)},
+		{Label: "Total Revenue", Value: currency + " " + fmtAmount(totalRevenue)},
 		{Label: "Products Sold", Value: strconv.Itoa(len(list))},
 		{Label: "Qty Sold", Value: fmtQty(totalQty)},
 	}
@@ -411,7 +432,7 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 			Rows:    toTableRows(list),
 			Total:   []docs.Cell{docs.BoldText("Total"), docs.BoldText(fmtQty(totalQty)), docs.BoldText(fmtAmount(totalRevenue))},
 		},
-		{Kind: docs.SectionChart, Title: "Top Products by Revenue", ValueUnit: "KES", Bars: toBars(list, 20)},
+		{Kind: docs.SectionChart, Title: "Top Products by Revenue", ValueUnit: currency, Bars: toBars(list, 20)},
 	}
 
 	// Category breakdown — one chart summarizing every category's revenue, then a table of every
@@ -419,7 +440,7 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	categoryTotals := sortedRows(byCategory)
 	if len(categoryTotals) > 0 {
 		report.Sections = append(report.Sections,
-			docs.Section{Kind: docs.SectionChart, Title: "Revenue by Category", ValueUnit: "KES", Bars: toBars(categoryTotals, 0)})
+			docs.Section{Kind: docs.SectionChart, Title: "Revenue by Category", ValueUnit: currency, Bars: toBars(categoryTotals, 0)})
 		for _, cat := range categoryTotals {
 			items := sortedRows(itemsByCategory[cat.name])
 			report.Sections = append(report.Sections, docs.Section{
@@ -436,7 +457,7 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	stationTotals := sortedRows(byStation)
 	if len(stationTotals) > 0 {
 		report.Sections = append(report.Sections,
-			docs.Section{Kind: docs.SectionChart, Title: "Revenue by KDS Station", ValueUnit: "KES", Bars: toBars(stationTotals, 0)})
+			docs.Section{Kind: docs.SectionChart, Title: "Revenue by KDS Station", ValueUnit: currency, Bars: toBars(stationTotals, 0)})
 		for _, st := range stationTotals {
 			items := sortedRows(itemsByStation[st.name])
 			report.Sections = append(report.Sections, docs.Section{
@@ -494,7 +515,13 @@ func (h *ReportPDFHandler) VoidSummaryDoc(w http.ResponseWriter, r *http.Request
 	}
 	unattributed := uuid.Nil
 	buckets := make(map[uuid.UUID]*voidBucket)
+	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
+	// generated for one tenant's orders, which may not be KES.
+	currency := "KES"
 	for _, o := range orders {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
 		staffID := unattributed
 		if o.VoidedBy != nil {
 			staffID = *o.VoidedBy
@@ -556,9 +583,10 @@ func (h *ReportPDFHandler) VoidSummaryDoc(w http.ResponseWriter, r *http.Request
 	}
 
 	report := h.newReport(ctx, tid, oid, "Voids", "", from, to, false)
+	report.Currency = currency
 	report.Cards = []docs.Card{
 		{Label: "Total Voids", Value: strconv.Itoa(totalVoids)},
-		{Label: "Total Voided Amount", Value: "KES " + fmtAmount(totalAmount)},
+		{Label: "Total Voided Amount", Value: currency + " " + fmtAmount(totalAmount)},
 		{Label: "Staff Involved", Value: strconv.Itoa(len(list))},
 	}
 	report.Sections = []docs.Section{

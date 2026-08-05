@@ -60,6 +60,9 @@ func (h *HotelHandler) resolveBookingPolicy(r *http.Request, tid, outletID uuid.
 	_ = json.Unmarshal(b, &policy) // best-effort; keep defaults for missing keys
 	if policy.Currency == "" {
 		policy.Currency = "KES"
+		if setting.Currency != "" {
+			policy.Currency = setting.Currency
+		}
 	}
 	return policy
 }
