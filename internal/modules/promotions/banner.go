@@ -22,6 +22,11 @@ type PromotionBannerConfig struct {
 	BannerColor      string   `json:"banner_color,omitempty"`
 	TextColor        string   `json:"text_color,omitempty"`
 	UseCases         []string `json:"use_cases,omitempty"` // empty = show for all outlet use_cases
+	// IsFlashSale marks this banner as a time-boxed flash sale so storefronts render a
+	// countdown to the promotion's existing start_at/end_at instead of a plain static
+	// banner. Purely a presentation flag — the actual time window and discount value
+	// already live on Promotion/PromotionRule; no new schema needed.
+	IsFlashSale bool `json:"is_flash_sale,omitempty"`
 }
 
 // BannerFromMetadata is the single choke point for READING a promotion's storefront banner

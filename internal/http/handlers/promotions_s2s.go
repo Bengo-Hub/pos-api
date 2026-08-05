@@ -150,6 +150,11 @@ type s2sBanner struct {
 	BannerColor    string     `json:"banner_color,omitempty"`
 	TextColor      string     `json:"text_color,omitempty"`
 	OutletID       *uuid.UUID `json:"outlet_id,omitempty"`
+	// IsFlashSale + EndAt let the storefront render a live countdown; EndAt is the
+	// promotion's own real end_at (already required by the active-window query above),
+	// not a new field on the promotion itself.
+	IsFlashSale bool       `json:"is_flash_sale,omitempty"`
+	EndAt       *time.Time `json:"end_at,omitempty"`
 }
 
 // S2SListBanners handles GET /api/v1/s2s/{tenant}/discounts/banners?use_case=
