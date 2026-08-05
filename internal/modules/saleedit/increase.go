@@ -87,6 +87,24 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 		return fmt.Errorf("recompute totals: %w", err)
 	}
 
+	// The incremental amount posts as a receivable, not collected cash (see the treasury call
+	// below) — stamp on_account so orders.DerivePaymentStatus/ComputeSettlement, the sole source
+	// of truth for "how much is still owed," stop reading this order as fully paid now that its
+	// total exceeds what was actually collected at checkout. Found live during E2E verification
+	// 2026-08-05: a cash sale bumped from 500->1500 via this path kept showing payment_status
+	// "paid" with amount_due 1400, because "status==completed" was previously read as an
+	// unconditional proxy for "fully paid," an invariant this increase path breaks by design.
+	if !orders.IsOnAccount(order.Metadata) {
+		md := make(map[string]any, len(order.Metadata)+1)
+		for k, v := range order.Metadata {
+			md[k] = v
+		}
+		md["on_account"] = true
+		if _, err := order.Update().SetMetadata(md).Save(ctx); err != nil {
+			return fmt.Errorf("stamp on_account metadata: %w", err)
+		}
+	}
+
 	if s.inventoryClient != nil && len(consumptionItems) > 0 {
 		if _, err := s.inventoryClient.RecordConsumption(ctx, tenantID.String(), inventory.ConsumptionRequest{
 			OrderID: order.ID.String(), Items: consumptionItems,
