@@ -56,6 +56,14 @@ func newRecordingTreasuryServer(t *testing.T) (*recordingTreasuryServer, *treasu
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req treasury.RefundRequest
 		_ = json.NewDecoder(r.Body).Decode(&req)
+		// Mirrors treasury-api's real ProcessRefund guard (arpa/balances.go: refID, err :=
+		// uuid.Parse(req.ReferenceID)) — a fake server that accepted any string here would miss
+		// the exact live bug found 2026-08-05, where stepTreasuryGL's split branch sent
+		// "<uuid>-cash"/"<uuid>-ar" reference ids that treasury rejected with 400.
+		if _, err := uuid.Parse(req.ReferenceID); err != nil {
+			http.Error(w, "reference_id must be a uuid", http.StatusBadRequest)
+			return
+		}
 		rec.mu.Lock()
 		rec.calls = append(rec.calls, req)
 		rec.mu.Unlock()

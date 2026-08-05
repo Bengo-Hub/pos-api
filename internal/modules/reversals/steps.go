@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
@@ -382,12 +383,25 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 		CrmContactID: crmContactID, CustomerIdentifier: customerPhone, CustomerName: customerName,
 	}
 
+	// treasury's ProcessRefund requires ReferenceID to parse as a real uuid.UUID (it rejects
+	// anything else with "reference_id must be a uuid") — a plain string-suffixed variant of
+	// rev.ID is NOT one. Found live 2026-08-05: the split branch below silently failed both
+	// calls in production (400 from treasury) before this was caught by checking treasury's own
+	// handler, since the test double used while developing this fix didn't validate UUID
+	// format. uuid.NewSHA1 derives a real, distinct UUID per portion that is nonetheless
+	// deterministic across retries (same rev.ID + suffix → same id every time). The single-
+	// portion cases keep posting under rev.ID itself (suffix ""), byte-identical to the
+	// reference id this call used before this fix existed.
 	var ids, details []string
 	post := func(suffix, channel string, amount, tax, cost float64) error {
+		id := rev.ID
+		if suffix != "" {
+			id = uuid.NewSHA1(rev.ID, []byte(suffix))
+		}
 		req := base
-		req.ReferenceID = rev.ID.String() + suffix
+		req.ReferenceID = id.String()
 		req.Amount, req.TaxAmount, req.Cost, req.RefundChannel = amount, tax, cost, channel
-		resp, err := s.treasuryClient.CreateRefund(ctx, tenantSlug, rev.ID.String()+suffix, req)
+		resp, err := s.treasuryClient.CreateRefund(ctx, tenantSlug, id.String(), req)
 		if err != nil {
 			return err
 		}
@@ -403,15 +417,15 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 		}
 	} else if cashNetted <= 0.009 {
 		// Fully AR-backed (e.g. an on-account sale, or an edit-added line removed before any
-		// cash ever moved) — single call, unchanged from before except the explicit channel.
+		// cash ever moved) — single call, same reference id as before, explicit channel only.
 		if err := post("", "offset_invoice", rev.Amount, rev.TaxAmount, rev.CostAmount); err != nil {
 			return "", "", false, err
 		}
 	} else {
-		if err := post("-cash", cashChannel, cashNetted, round2(rev.TaxAmount*ratio), round2(rev.CostAmount*ratio)); err != nil {
+		if err := post("cash", cashChannel, cashNetted, round2(rev.TaxAmount*ratio), round2(rev.CostAmount*ratio)); err != nil {
 			return "", "", false, fmt.Errorf("cash portion: %w", err)
 		}
-		if err := post("-ar", "offset_invoice", arPortion, round2(rev.TaxAmount*(1-ratio)), round2(rev.CostAmount*(1-ratio))); err != nil {
+		if err := post("ar", "offset_invoice", arPortion, round2(rev.TaxAmount*(1-ratio)), round2(rev.CostAmount*(1-ratio))); err != nil {
 			return "", "", false, fmt.Errorf("AR write-off portion: %w", err)
 		}
 	}
