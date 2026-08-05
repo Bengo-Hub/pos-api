@@ -262,9 +262,19 @@ func buildLineSelections(removed []*ent.POSOrderLine, reduced []reducedLine) []r
 func snapshotLines(lines []*ent.POSOrderLine, returnedQty map[uuid.UUID]float64) []entschema.SaleEditLineSnapshotJSON {
 	out := make([]entschema.SaleEditLineSnapshotJSON, 0, len(lines))
 	for _, l := range lines {
+		remaining := effectiveRemainingQty(l, returnedQty)
+		// TotalPrice prorated to match Quantity — l.TotalPrice is the line's ORIGINAL full
+		// value (voiding never rewrites it), so pairing it with an already-adjusted Quantity
+		// produced a snapshot that couldn't reconcile with itself (e.g. "quantity: 1" next to
+		// "total_price: 600" for a line originally worth 600 at qty 3). Same class of bug as
+		// pos-ui's Sell Details products table (see order-lines.ts).
+		ratio := 1.0
+		if l.Quantity > 0 {
+			ratio = remaining / l.Quantity
+		}
 		out = append(out, entschema.SaleEditLineSnapshotJSON{
 			LineID: l.ID, SKU: l.Sku, Name: l.Name,
-			Quantity: effectiveRemainingQty(l, returnedQty), UnitPrice: l.UnitPrice, TotalPrice: l.TotalPrice,
+			Quantity: remaining, UnitPrice: l.UnitPrice, TotalPrice: round2(l.TotalPrice * ratio),
 		})
 	}
 	return out
