@@ -78,7 +78,10 @@ func newOrchestratorTestServiceWithTreasury(t *testing.T, treasuryClient *treasu
 
 // fakeTreasuryServer is a minimal httptest double for the treasury S2S endpoints the
 // orchestrator/returns engine call for a FISCALIZED order: tax-profile (eTIMS-active),
-// invoice-by-reference (this order IS invoiced), refunds, and create-credit-note.
+// etims-fiscal (this order WAS transmitted — the real signal orders.IsFiscalized reads,
+// matching treasury-api's actual /etims-fiscal/pos_sale/{id} endpoint since the 2026-08-05
+// fix; NOT /invoices/by-reference, which stopped being populated for POS sales on
+// 2026-06-09), refunds, and create-credit-note.
 func fakeTreasuryServer(t *testing.T, invoiceID string) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
@@ -86,6 +89,8 @@ func fakeTreasuryServer(t *testing.T, invoiceID string) *httptest.Server {
 		switch {
 		case containsPath(r.URL.Path, "/tax-profile"):
 			_ = json.NewEncoder(w).Encode(treasury.TaxProfileResponse{EtimsActivated: true, VATActive: true, VATRegistered: true})
+		case containsPath(r.URL.Path, "/etims-fiscal/"):
+			_ = json.NewEncoder(w).Encode(treasury.EtimsFiscal{CuInvoiceNo: invoiceID, ReceiptNo: "1", TransmittedAt: "2026-08-05T00:00:00Z"})
 		case containsPath(r.URL.Path, "/invoices/by-reference"):
 			_ = json.NewEncoder(w).Encode(treasury.InvoiceRef{ID: invoiceID, InvoiceNumber: "INV-1", Status: "sent"})
 		case containsPath(r.URL.Path, "/refunds"):

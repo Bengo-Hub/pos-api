@@ -18,20 +18,31 @@ import (
 // invoiced/transmitted to KRA (as opposed to whether the tenant is eTIMS-integrated at
 // all, a separate, tenant-level question — see treasury.Client.GetTaxProfile().
 // EtimsActivated for that). A live network round-trip to treasury, always current, never
-// a locally-cached signal. Centralizes what was previously duplicated verbatim in
-// reversals.stepEtimsCreditNote and saledelete.isFiscalized (both called
-// treasuryClient.GetInvoiceByReference(tenantSlug, "pos_order", orderID) with the
-// identical interpretation of "fiscalized" — a non-empty invoice ID). Returns the
-// invoice id too, since most callers need it right after (e.g. to raise a credit note).
+// a locally-cached signal.
+//
+// Queries treasury's etims_invoices record (via GetEtimsFiscal, source="pos_sale") rather
+// than the general invoices table (GetInvoiceByReference, reference_type="pos_order").
+// Fixed 2026-08-05, found live against codevertex-demo: treasury-api stopped auto-creating
+// an invoices-table row for POS sales on 2026-06-09 (customer receipts are now generated
+// on demand only), but every fiscalization check built since then — this function
+// (centralizing reversals.stepEtimsCreditNote and saledelete.isFiscalized, both identical)
+// plus treasury-api's own S2SShredSaleLedger hard-delete guard — kept reading that
+// now-empty signal, so a genuinely KRA-transmitted sale (confirmed via a live sandbox
+// invoice, CU number present) always read as "not fiscalized." GetEtimsFiscal reads the
+// transmission record eTIMS transmission itself actually writes, so it stays correct
+// regardless of whether a companion Invoice document exists. Returns the invoice's KRA CU
+// number in the second slot for logging/display; callers that need to raise a credit note
+// must go through returns.Service (EnsureCreditNoteForReturn, self-sufficient — it does not
+// require a pre-existing Invoice row), not treasury.Client.CreateCreditNote (which does).
 func IsFiscalized(ctx context.Context, treasuryClient *treasury.Client, tenantSlug string, orderID uuid.UUID) (bool, string, error) {
 	if treasuryClient == nil {
 		return false, "", nil
 	}
-	inv, err := treasuryClient.GetInvoiceByReference(ctx, tenantSlug, "pos_order", orderID.String())
-	if err != nil || inv == nil || inv.ID == "" {
+	fi, err := treasuryClient.GetEtimsFiscal(ctx, tenantSlug, orderID.String())
+	if err != nil || fi == nil {
 		return false, "", nil
 	}
-	return true, inv.ID, nil
+	return true, fi.CuInvoiceNo, nil
 }
 
 // HasCorrectionHistory reports whether an order already has ANY prior return, refund, or
