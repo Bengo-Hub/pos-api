@@ -194,14 +194,14 @@ type createOrderInput struct {
 	// current session (UserID) — used only by the resume-and-modify supersede flow (Add Sale),
 	// which creates a NEW order for the edited draft and needs the original drafter's attribution
 	// to survive instead of resetting to whoever finalizes it. Blank/invalid = fall back to UserID.
-	ServedByUserID string `json:"served_by_user_id,omitempty"`
-	DiscountAmount   float64                `json:"discount_amount,omitempty"`  // order-level discount (e.g. loyalty redemption)
-	DiscountReason   string                 `json:"discount_reason,omitempty"`  // free-text reason for a manual discount
-	OrderTaxAmount   float64                `json:"order_tax_amount,omitempty"` // manager quick-edit: order-level tax added on top of per-line tax
-	Charges          map[string]float64     `json:"charges,omitempty"`          // manager quick-edit: additional costs (packaging/service/shipping)
-	ApprovalToken    string                 `json:"approval_token,omitempty"`   // manager step-up token for an over-limit discount / order adjustment
-	ApprovalCode     string                 `json:"approval_code,omitempty"`    // manager-generated one-time code (alternative to a live step-up token)
-	Source           string                 `json:"source,omitempty"`           // "pos_terminal" (default) | "back_office" (Add Sale flow)
+	ServedByUserID string             `json:"served_by_user_id,omitempty"`
+	DiscountAmount float64            `json:"discount_amount,omitempty"`  // order-level discount (e.g. loyalty redemption)
+	DiscountReason string             `json:"discount_reason,omitempty"`  // free-text reason for a manual discount
+	OrderTaxAmount float64            `json:"order_tax_amount,omitempty"` // manager quick-edit: order-level tax added on top of per-line tax
+	Charges        map[string]float64 `json:"charges,omitempty"`          // manager quick-edit: additional costs (packaging/service/shipping)
+	ApprovalToken  string             `json:"approval_token,omitempty"`   // manager step-up token for an over-limit discount / order adjustment
+	ApprovalCode   string             `json:"approval_code,omitempty"`    // manager-generated one-time code (alternative to a live step-up token)
+	Source         string             `json:"source,omitempty"`           // "pos_terminal" (default) | "back_office" (Add Sale flow)
 }
 
 // updateStatusInput is the body for PATCH /pos/orders/{id}/status.
@@ -383,6 +383,11 @@ type orderListItem struct {
 	ReturnCount  int     `json:"return_count"`
 	ReturnTotal  float64 `json:"return_total"`
 	ReturnStatus string  `json:"return_status,omitempty"` // pending | approved | completed (most-advanced across the order's returns)
+	// HasCorrectionHistory mirrors orders.HasCorrectionHistory (any return/refund/reversal on
+	// record, any status) — lets pos-ui disable/relabel the Delete Sale action for a row it
+	// already knows will be refused, instead of only learning after a confusing 422 whose
+	// confirmation dialog just promised unconditional deletion.
+	HasCorrectionHistory bool `json:"has_correction_history"`
 }
 
 // returnAgg is the per-order sell-return rollup. completedTotal is the subset of total that has
@@ -481,15 +486,17 @@ func (h *POSOrderHandler) enrichSingleOrder(ctx context.Context, tenantID uuid.U
 		completedReturns = retAgg.completedTotal
 	}
 	st := orders.ComputeSettlement(order, completedReturns)
+	correctionHistory := orders.CorrectionHistoryRollup(ctx, h.client, tenantID, []uuid.UUID{order.ID})
 	item := orderListItem{
-		POSOrder:      order,
-		ItemCount:     len(order.Edges.Lines),
-		TotalPaid:     st.Collected,
-		AmountDue:     st.AmountDue,
-		PaymentStatus: st.PaymentStatus,
-		PaymentMethod: dominantMethod(methods),
-		CashierName:   staffNames[order.UserID],
-		ServedByName:  servedByName(order, staffNames),
+		POSOrder:             order,
+		ItemCount:            len(order.Edges.Lines),
+		TotalPaid:            st.Collected,
+		AmountDue:            st.AmountDue,
+		PaymentStatus:        st.PaymentStatus,
+		PaymentMethod:        dominantMethod(methods),
+		CashierName:          staffNames[order.UserID],
+		ServedByName:         servedByName(order, staffNames),
+		HasCorrectionHistory: correctionHistory[order.ID],
 	}
 	if retAgg != nil {
 		item.ReturnCount = retAgg.count
@@ -544,6 +551,7 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 		orderIDs = append(orderIDs, o.ID)
 	}
 	returnsByOrder := h.returnsRollup(ctx, tenantID, orderIDs)
+	correctionHistory := orders.CorrectionHistoryRollup(ctx, h.client, tenantID, orderIDs)
 
 	items := make([]orderListItem, 0, len(list))
 	for _, o := range list {
@@ -579,14 +587,15 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 		}
 		st := orders.ComputeSettlement(o, completedReturns)
 		item := orderListItem{
-			POSOrder:      o,
-			ItemCount:     len(o.Edges.Lines),
-			TotalPaid:     st.Collected,
-			AmountDue:     st.AmountDue,
-			PaymentStatus: st.PaymentStatus,
-			PaymentMethod: dominantMethod(methods),
-			CashierName:   staffNames[o.UserID], // "" when unknown — the UI falls back gracefully
-			ServedByName:  servedByName(o, staffNames),
+			POSOrder:             o,
+			ItemCount:            len(o.Edges.Lines),
+			TotalPaid:            st.Collected,
+			AmountDue:            st.AmountDue,
+			PaymentStatus:        st.PaymentStatus,
+			PaymentMethod:        dominantMethod(methods),
+			CashierName:          staffNames[o.UserID], // "" when unknown — the UI falls back gracefully
+			ServedByName:         servedByName(o, staffNames),
+			HasCorrectionHistory: correctionHistory[o.ID],
 		}
 		if agg := retAgg; agg != nil {
 			item.ReturnCount = agg.count

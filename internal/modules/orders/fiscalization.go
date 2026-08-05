@@ -81,6 +81,34 @@ func HasFullReversal(ctx context.Context, client *ent.Client, tenantID, orderID 
 		Exist(ctx)
 }
 
+// CorrectionHistoryRollup batch-computes HasCorrectionHistory for a set of orders — one query
+// per correction type instead of N. Lets a list/summary endpoint tell pos-ui UPFRONT whether
+// Delete Sale will actually succeed for a given row, instead of only learning after a 422 (the
+// exact same "already has a return, refund, or reversal on record" guard HasCorrectionHistory
+// enforces one order at a time — this is its batched sibling, same semantics).
+func CorrectionHistoryRollup(ctx context.Context, client *ent.Client, tenantID uuid.UUID, orderIDs []uuid.UUID) map[uuid.UUID]bool {
+	out := make(map[uuid.UUID]bool, len(orderIDs))
+	if len(orderIDs) == 0 {
+		return out
+	}
+	if rets, err := client.POSReturn.Query().Where(entposreturn.TenantID(tenantID), entposreturn.OrderIDIn(orderIDs...)).All(ctx); err == nil {
+		for _, r := range rets {
+			out[r.OrderID] = true
+		}
+	}
+	if refs, err := client.POSRefund.Query().Where(entposrefund.OrderIDIn(orderIDs...)).All(ctx); err == nil {
+		for _, r := range refs {
+			out[r.OrderID] = true
+		}
+	}
+	if revs, err := client.POSReversal.Query().Where(entposreversal.TenantID(tenantID), entposreversal.OrderIDIn(orderIDs...)).All(ctx); err == nil {
+		for _, r := range revs {
+			out[r.OrderID] = true
+		}
+	}
+	return out
+}
+
 // ResolveOrderCustomer returns an order's buyer identity (CRM contact via the phone-matched
 // loyalty account, name, phone) — the same linkage the returns/reversal flows forward to
 // treasury for refund/AR-write-off attribution. Centralizes what was previously duplicated
