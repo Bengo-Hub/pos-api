@@ -1,0 +1,238 @@
+package reversals
+
+import (
+	"context"
+	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"sync"
+	"testing"
+
+	"github.com/google/uuid"
+	"go.uber.org/zap"
+	"modernc.org/sqlite"
+
+	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/enttest"
+	entpospayment "github.com/bengobox/pos-service/internal/ent/pospayment"
+	entschema "github.com/bengobox/pos-service/internal/ent/schema"
+	"github.com/bengobox/pos-service/internal/modules/orders"
+	"github.com/bengobox/pos-service/internal/modules/treasury"
+)
+
+// ── pure-Go sqlite shim (duplicated per-package, see saledelete/service_test.go) ──
+type sqlite3Driver struct{ *sqlite.Driver }
+
+func (d sqlite3Driver) Open(name string) (driver.Conn, error) {
+	conn, err := d.Driver.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	if execer, ok := conn.(interface {
+		Exec(string, []driver.Value) (driver.Result, error)
+	}); ok {
+		if _, err := execer.Exec("PRAGMA foreign_keys = ON;", nil); err != nil {
+			_ = conn.Close()
+			return nil, err
+		}
+	}
+	return conn, nil
+}
+
+func init() { sql.Register("sqlite3", sqlite3Driver{Driver: &sqlite.Driver{}}) }
+
+// recordingTreasuryServer captures every /refunds call it receives so tests can assert on
+// how stepTreasuryGL split the reversal across channels.
+type recordingTreasuryServer struct {
+	mu    sync.Mutex
+	calls []treasury.RefundRequest
+}
+
+func newRecordingTreasuryServer(t *testing.T) (*recordingTreasuryServer, *treasury.Client) {
+	t.Helper()
+	rec := &recordingTreasuryServer{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req treasury.RefundRequest
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		rec.mu.Lock()
+		rec.calls = append(rec.calls, req)
+		rec.mu.Unlock()
+		_ = json.NewEncoder(w).Encode(treasury.RefundResponse{ID: uuid.NewString(), Status: "succeeded"})
+	}))
+	t.Cleanup(srv.Close)
+	return rec, treasury.NewClient(srv.URL, "test-key", 0)
+}
+
+// setupOrderWithPayment seeds a tenant/order/payment triple. paidTotal is what the order
+// currently shows as collected; the payment's own Amount matches it (single-payment orders,
+// exactly like the E2E boi-enterprises test order this bug was found on).
+func setupOrderWithPayment(t *testing.T, client *ent.Client, tenantID uuid.UUID, paidTotal float64) *ent.POSOrder {
+	t.Helper()
+	order, err := client.POSOrder.Create().
+		SetTenantID(tenantID).SetOutletID(uuid.New()).SetDeviceID(uuid.New()).SetUserID(uuid.New()).
+		SetOrderNumber("ORD-" + uuid.NewString()[:8]).SetStatus("completed").
+		SetSubtotal(paidTotal).SetTaxTotal(0).SetTotalAmount(paidTotal).SetPaidTotal(paidTotal).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed order: %v", err)
+	}
+	if _, err := client.POSPayment.Create().
+		SetOrderID(order.ID).SetTenderID(uuid.New()).SetAmount(paidTotal).SetStatus("completed").
+		SetPaymentData(map[string]any{"method": "cash"}).
+		Save(context.Background()); err != nil {
+		t.Fatalf("seed payment: %v", err)
+	}
+	return order
+}
+
+func newTestReversalsService(t *testing.T, treasuryClient *treasury.Client) (*Service, *ent.Client) {
+	t.Helper()
+	client := enttest.Open(t, "sqlite3", "file:reversals_steps_"+uuid.NewString()+"?mode=memory&cache=shared")
+	t.Cleanup(func() { _ = client.Close() })
+	orderSvc := orders.NewService(client, orders.Config{DefaultCurrency: "KES"}, zap.NewNop())
+	return NewService(zap.NewNop(), client, orderSvc, treasuryClient, nil), client
+}
+
+// TestStepTreasuryGL_FullyCashBacked reproduces the common, pre-existing case (the whole
+// reversed amount was actually netted from a real payment) and asserts behavior is unchanged
+// from before this fix: exactly one /refunds call, for the full amount, via the resolved
+// channel.
+func TestStepTreasuryGL_FullyCashBacked(t *testing.T) {
+	rec, tc := newRecordingTreasuryServer(t)
+	svc, client := newTestReversalsService(t, tc)
+	tenantID := uuid.New()
+	order := setupOrderWithPayment(t, client, tenantID, 300)
+
+	rev, err := client.POSReversal.Create().
+		SetTenantID(tenantID).SetOrderID(order.ID).SetOrderNumber(order.OrderNumber).
+		SetReversalNumber("REV-1").SetScope("partial").SetStatus("pending").SetReason("test").
+		SetRefundChannel("cash").SetLines([]entschema.ReversalLineJSON{}).
+		SetAmount(200).SetTaxAmount(0).SetCostAmount(0).
+		SetSteps([]entschema.ReversalStepJSON{}).SetRequestedBy(uuid.New()).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed reversal: %v", err)
+	}
+
+	payments, _ := client.POSPayment.Query().Where(entpospayment.OrderID(order.ID)).All(context.Background())
+	pd := map[string]any{"method": "cash", "reversal": map[string]any{
+		"reversal_number": "REV-1", "netted_from": 300.0, "netted_to": 100.0,
+	}}
+	if _, err := payments[0].Update().SetPaymentData(pd).Save(context.Background()); err != nil {
+		t.Fatalf("stamp payment: %v", err)
+	}
+
+	_, detail, skip, err := svc.stepTreasuryGL(context.Background(), rev, "tenant-slug")
+	if err != nil || skip {
+		t.Fatalf("stepTreasuryGL() error=%v skip=%v", err, skip)
+	}
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	if len(rec.calls) != 1 {
+		t.Fatalf("expected 1 refund call, got %d: %+v", len(rec.calls), rec.calls)
+	}
+	if rec.calls[0].Amount != 200 || rec.calls[0].RefundChannel != "cash" {
+		t.Errorf("call = %+v, want amount=200 channel=cash", rec.calls[0])
+	}
+	t.Logf("detail: %s", detail)
+}
+
+// TestStepTreasuryGL_SplitsCashAndARWhenReversalExceedsRealCash is the regression test for
+// the live bug found 2026-08-05: an Edit-Sale increase posted KES 1400 straight to AR
+// (never collected as cash), then a follow-up edit removed that same line. Only KES 100 was
+// ever real cash (stamped by the preceding stepPOSTotals as netted_from-netted_to), so the
+// GL reversal must split into a KES 100 cash refund + a KES 1300 AR write-off — never a
+// single KES 1400 "cash" refund for money the business never received.
+func TestStepTreasuryGL_SplitsCashAndARWhenReversalExceedsRealCash(t *testing.T) {
+	rec, tc := newRecordingTreasuryServer(t)
+	svc, client := newTestReversalsService(t, tc)
+	tenantID := uuid.New()
+	order := setupOrderWithPayment(t, client, tenantID, 100)
+
+	rev, err := client.POSReversal.Create().
+		SetTenantID(tenantID).SetOrderID(order.ID).SetOrderNumber(order.OrderNumber).
+		SetReversalNumber("REV-2").SetScope("partial").SetStatus("pending").SetReason("remove edit-added line").
+		SetRefundChannel("cash").SetLines([]entschema.ReversalLineJSON{}).
+		SetAmount(1400).SetTaxAmount(140).SetCostAmount(700).
+		SetSteps([]entschema.ReversalStepJSON{}).SetRequestedBy(uuid.New()).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed reversal: %v", err)
+	}
+
+	payments, _ := client.POSPayment.Query().Where(entpospayment.OrderID(order.ID)).All(context.Background())
+	pd := map[string]any{"method": "cash", "reversal": map[string]any{
+		"reversal_number": "REV-2", "netted_from": 100.0, "netted_to": 0.0,
+	}}
+	if _, err := payments[0].Update().SetPaymentData(pd).Save(context.Background()); err != nil {
+		t.Fatalf("stamp payment: %v", err)
+	}
+
+	_, _, skip, err := svc.stepTreasuryGL(context.Background(), rev, "tenant-slug")
+	if err != nil || skip {
+		t.Fatalf("stepTreasuryGL() error=%v skip=%v", err, skip)
+	}
+
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	if len(rec.calls) != 2 {
+		t.Fatalf("expected 2 refund calls (cash + AR write-off), got %d: %+v", len(rec.calls), rec.calls)
+	}
+	var cashCall, arCall *treasury.RefundRequest
+	for i := range rec.calls {
+		switch rec.calls[i].RefundChannel {
+		case "cash":
+			cashCall = &rec.calls[i]
+		case "offset_invoice":
+			arCall = &rec.calls[i]
+		}
+	}
+	if cashCall == nil || arCall == nil {
+		t.Fatalf("expected one cash call and one offset_invoice call, got %+v", rec.calls)
+	}
+	if cashCall.Amount != 100 {
+		t.Errorf("cash portion = %.2f, want 100", cashCall.Amount)
+	}
+	if arCall.Amount != 1300 {
+		t.Errorf("AR write-off portion = %.2f, want 1300", arCall.Amount)
+	}
+	if cashCall.TaxAmount+arCall.TaxAmount != 140 {
+		t.Errorf("tax should split to sum back to 140, got cash=%.2f ar=%.2f", cashCall.TaxAmount, arCall.TaxAmount)
+	}
+	if cashCall.ReferenceID == arCall.ReferenceID {
+		t.Error("cash and AR portions must use distinct reference ids (idempotency)")
+	}
+}
+
+// TestStepTreasuryGL_FullyARBacked covers a pure on-account sale (no cash ever collected) —
+// the reversal must go through offset_invoice alone, a single call, matching pre-fix
+// behavior for that case.
+func TestStepTreasuryGL_FullyARBacked(t *testing.T) {
+	rec, tc := newRecordingTreasuryServer(t)
+	svc, client := newTestReversalsService(t, tc)
+	tenantID := uuid.New()
+	order := setupOrderWithPayment(t, client, tenantID, 0)
+
+	rev, err := client.POSReversal.Create().
+		SetTenantID(tenantID).SetOrderID(order.ID).SetOrderNumber(order.OrderNumber).
+		SetReversalNumber("REV-3").SetScope("partial").SetStatus("pending").SetReason("test").
+		SetRefundChannel("offset_invoice").SetLines([]entschema.ReversalLineJSON{}).
+		SetAmount(500).SetTaxAmount(0).SetCostAmount(0).
+		SetSteps([]entschema.ReversalStepJSON{}).SetRequestedBy(uuid.New()).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed reversal: %v", err)
+	}
+
+	_, _, skip, err := svc.stepTreasuryGL(context.Background(), rev, "tenant-slug")
+	if err != nil || skip {
+		t.Fatalf("stepTreasuryGL() error=%v skip=%v", err, skip)
+	}
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	if len(rec.calls) != 1 || rec.calls[0].RefundChannel != "offset_invoice" || rec.calls[0].Amount != 500 {
+		t.Fatalf("expected 1 offset_invoice call for 500, got %+v", rec.calls)
+	}
+}

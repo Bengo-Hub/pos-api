@@ -339,6 +339,16 @@ func (s *Service) stepInventory(ctx context.Context, rev *ent.POSReversal) (stri
 // returns flow settles through (revenue+VAT reversal, COGS reversal when cost was posted,
 // AR netting for store_credit/offset channels, auto credit-note document). Idempotent on
 // the reversal id (reference_id + Idempotency-Key).
+//
+// The reversed amount can legitimately be larger than what stepPOSTotals (previous step) was
+// able to net back from real POSPayment rows: an in-place Edit-Sale increase
+// (saleedit.applyInPlaceIncrease) adds value to the order posted straight to AR/receivable,
+// never collected as cash, so reducing/removing that same line later has no cash to give
+// back for that portion. Found live 2026-08-05: removing a line added via Edit Sale netted a
+// real KES 100 cash payment down to 0 while treasury recorded a phantom KES 1,400 CASH refund
+// for money the business never actually received. Fix: split the GL reversal between however
+// much was actually cash-netted (derived from stepPOSTotals' own PaymentData stamps — no new
+// field) and whatever remains, which write off against AR via offset_invoice instead.
 func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tenantSlug string) (string, string, bool, error) {
 	if s.treasuryClient == nil {
 		return "", "treasury client not configured", true, nil
@@ -348,26 +358,92 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 	}
 
 	crmContactID, customerName, customerPhone := orders.ResolveOrderCustomer(ctx, s.client, rev.TenantID, rev.OrderID)
-	resp, err := s.treasuryClient.CreateRefund(ctx, tenantSlug, rev.ID.String(), treasury.RefundRequest{
-		SourceService:      "pos",
-		ReferenceID:        rev.ID.String(),
-		ReferenceType:      "pos_return", // treasury's return settlement path: GL reversal + numbered credit-note doc
-		Reference:          rev.ReversalNumber,
-		Amount:             rev.Amount,
-		TaxAmount:          rev.TaxAmount,
-		Cost:               rev.CostAmount,
-		Currency:           "KES",
-		Reason:             rev.Reason,
-		RefundChannel:      rev.RefundChannel,
-		CrmContactID:       crmContactID,
-		CustomerIdentifier: customerPhone,
-		CustomerName:       customerName,
-	})
-	if err != nil {
-		return "", "", false, err
+
+	cashNetted := round2(s.cashNettedForReversal(ctx, rev))
+	if cashNetted < 0 {
+		cashNetted = 0
 	}
-	detail := fmt.Sprintf("GL reversed %.2f (tax %.2f, cost %.2f) via %s", rev.Amount, rev.TaxAmount, rev.CostAmount, rev.RefundChannel)
-	return resp.ID, detail, false, nil
+	if cashNetted > rev.Amount {
+		cashNetted = rev.Amount
+	}
+	arPortion := round2(rev.Amount - cashNetted)
+	ratio := 0.0
+	if rev.Amount > 0 {
+		ratio = cashNetted / rev.Amount
+	}
+	cashChannel := rev.RefundChannel
+	if cashChannel == "" || cashChannel == "offset_invoice" {
+		cashChannel = "cash"
+	}
+
+	base := treasury.RefundRequest{
+		SourceService: "pos", ReferenceType: "pos_return",
+		Reference: rev.ReversalNumber, Currency: "KES", Reason: rev.Reason,
+		CrmContactID: crmContactID, CustomerIdentifier: customerPhone, CustomerName: customerName,
+	}
+
+	var ids, details []string
+	post := func(suffix, channel string, amount, tax, cost float64) error {
+		req := base
+		req.ReferenceID = rev.ID.String() + suffix
+		req.Amount, req.TaxAmount, req.Cost, req.RefundChannel = amount, tax, cost, channel
+		resp, err := s.treasuryClient.CreateRefund(ctx, tenantSlug, rev.ID.String()+suffix, req)
+		if err != nil {
+			return err
+		}
+		ids = append(ids, resp.ID)
+		details = append(details, fmt.Sprintf("%.2f via %s", amount, channel))
+		return nil
+	}
+
+	if arPortion <= 0.009 {
+		// Fully cash-backed — the common case, identical to pre-fix behavior (single call).
+		if err := post("", cashChannel, rev.Amount, rev.TaxAmount, rev.CostAmount); err != nil {
+			return "", "", false, err
+		}
+	} else if cashNetted <= 0.009 {
+		// Fully AR-backed (e.g. an on-account sale, or an edit-added line removed before any
+		// cash ever moved) — single call, unchanged from before except the explicit channel.
+		if err := post("", "offset_invoice", rev.Amount, rev.TaxAmount, rev.CostAmount); err != nil {
+			return "", "", false, err
+		}
+	} else {
+		if err := post("-cash", cashChannel, cashNetted, round2(rev.TaxAmount*ratio), round2(rev.CostAmount*ratio)); err != nil {
+			return "", "", false, fmt.Errorf("cash portion: %w", err)
+		}
+		if err := post("-ar", "offset_invoice", arPortion, round2(rev.TaxAmount*(1-ratio)), round2(rev.CostAmount*(1-ratio))); err != nil {
+			return "", "", false, fmt.Errorf("AR write-off portion: %w", err)
+		}
+	}
+
+	detail := fmt.Sprintf("GL reversed %.2f (tax %.2f, cost %.2f): %s", rev.Amount, rev.TaxAmount, rev.CostAmount, strings.Join(details, " + "))
+	return strings.Join(ids, ","), detail, false, nil
+}
+
+// cashNettedForReversal sums how much real POSPayment amount stepPOSTotals actually netted
+// back for THIS reversal (matched via the reversal_number it stamps into each touched
+// payment's PaymentData — see netPayments). This is the ground truth for "how much of this
+// reversal's amount was ever real collected cash," independent of the order-level on_account
+// flag, so it correctly handles an order that mixes real cash with edit-added AR value.
+func (s *Service) cashNettedForReversal(ctx context.Context, rev *ent.POSReversal) float64 {
+	payments, err := s.client.POSPayment.Query().Where(entpospayment.OrderID(rev.OrderID)).All(ctx)
+	if err != nil {
+		return 0
+	}
+	var total float64
+	for _, p := range payments {
+		rmeta, ok := p.PaymentData["reversal"].(map[string]any)
+		if !ok {
+			continue
+		}
+		if num, _ := rmeta["reversal_number"].(string); num != rev.ReversalNumber {
+			continue
+		}
+		from, _ := rmeta["netted_from"].(float64)
+		to, _ := rmeta["netted_to"].(float64)
+		total += from - to
+	}
+	return total
 }
 
 // stepEtimsCreditNote raises the VAT-reversal credit note against the original sale's tax
