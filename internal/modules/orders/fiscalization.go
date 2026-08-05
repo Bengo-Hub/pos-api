@@ -2,6 +2,8 @@ package orders
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -107,6 +109,30 @@ func CorrectionHistoryRollup(ctx context.Context, client *ent.Client, tenantID u
 		}
 	}
 	return out
+}
+
+// RequireIdentifiableCustomer resolves the AR key (a phone number, or "staff:<id>" for a staff
+// credit sale) for a customer/name pair about to be booked on credit, refusing the shared
+// "Walk-in Customer" ghost identity (blank phone, or a name matching that placeholder) — booking
+// a debt against it would commingle unrelated debts onto one row that can never be collected or
+// reconciled. Centralizes the guard payments.recordCreditSale already enforces for a NEW credit
+// sale (service.go's walkInPhone/walkInName constants — that pattern, not this function, is what
+// pos-api and marketflow both use to name the placeholder). Found missing 2026-08-05 from
+// saleedit.applyInPlaceIncrease (a completed sale's in-place Edit-Sale increase), which let a
+// true walk-in order (no name, no phone) get marked on_account with a receivable treasury could
+// never attribute to any customer — the GL entry posted, but the customer-balance side silently
+// no-op'd (treasury's PostSaleEditGL only bumps CustomerBalance when a CRM contact or identifier
+// is present), leaving a stranded, uncollectable, un-reconcilable debt.
+func RequireIdentifiableCustomer(name, phone string, isStaffCredit bool, staffID uuid.UUID) (arKey string, err error) {
+	phone = strings.TrimSpace(phone)
+	if isStaffCredit && phone == "" {
+		return "staff:" + staffID.String(), nil
+	}
+	trimmedName := strings.TrimSpace(name)
+	if phone == "" || strings.EqualFold(trimmedName, "walk-in customer") || strings.EqualFold(trimmedName, "walk in customer") {
+		return "", fmt.Errorf("requires a customer with a phone number selected — attach one before adding value to this sale on credit, or collect the extra amount immediately instead")
+	}
+	return phone, nil
 }
 
 // ResolveOrderCustomer returns an order's buyer identity (CRM contact via the phone-matched

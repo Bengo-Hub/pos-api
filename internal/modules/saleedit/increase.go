@@ -24,6 +24,51 @@ import (
 // receivable; posting a "cash received" entry here would be false (no cash has changed
 // hands yet). This mirrors exactly what a fresh unpaid/on-account sale would post.
 func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, editID uuid.UUID, diff lineDiff, req EditSaleRequest) error {
+	// Dry-run the amount check before any write: if there's nothing of value to add, bail out
+	// exactly like the real check below, before even resolving the customer.
+	var dryRunAmount float64
+	for _, a := range diff.added {
+		dryRunAmount += round2(a.UnitPrice * a.Quantity)
+	}
+	for _, inc := range diff.increased {
+		dryRunAmount += round2(inc.Req.UnitPrice * inc.ByQty)
+	}
+	if dryRunAmount <= 0.009 {
+		return nil
+	}
+
+	// The incremental amount posts as AR (see the treasury call below) — refuse to create an
+	// uncollectable, un-reconcilable debt against the shared "Walk-in Customer" ghost identity
+	// (marketflow's own seeded per-tenant contact, phone "+000000000000" — NOT a legitimate AR
+	// key; see orders.RequireIdentifiableCustomer's doc). Found live 2026-08-05: two true
+	// walk-in orders (no name, no phone) got marked on_account via this path with a GL entry
+	// treasury's PostSaleEditGL could never attribute to any customer balance — the debt was
+	// posted but permanently un-collectable/un-reconcilable via Record Payment or the treasury
+	// Customers page. Checked BEFORE any line/stock/GL mutation so a rejected increase never
+	// partially applies.
+	crmContactID, customerName, customerIdentifier := orders.ResolveOrderCustomer(ctx, s.client, tenantID, order.ID)
+	if req.CustomerName != "" {
+		customerName = req.CustomerName
+	}
+	if req.CustomerIdentifier != "" {
+		customerIdentifier = req.CustomerIdentifier
+	}
+	if req.CrmContactID != nil {
+		crmContactID = req.CrmContactID.String()
+	}
+	if crmContactID == "" {
+		isStaffCredit := false
+		var staffID uuid.UUID
+		if sid, _ := order.Metadata["staff_member_id"].(string); sid != "" {
+			if id, perr := uuid.Parse(sid); perr == nil {
+				isStaffCredit, staffID = true, id
+			}
+		}
+		if _, err := orders.RequireIdentifiableCustomer(customerName, customerIdentifier, isStaffCredit, staffID); err != nil {
+			return fmt.Errorf("cannot add value to this sale: %w", err)
+		}
+	}
+
 	var incrementalAmount, incrementalTax, incrementalCost float64
 	consumptionItems := make([]inventory.ConsumptionItem, 0, len(diff.added)+len(diff.increased))
 
@@ -116,16 +161,9 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 	}
 
 	if s.treasuryClient != nil {
-		crmContactID, customerName, customerIdentifier := orders.ResolveOrderCustomer(ctx, s.client, tenantID, order.ID)
-		if req.CustomerName != "" {
-			customerName = req.CustomerName
-		}
-		if req.CustomerIdentifier != "" {
-			customerIdentifier = req.CustomerIdentifier
-		}
-		if req.CrmContactID != nil {
-			crmContactID = req.CrmContactID.String()
-		}
+		// crmContactID/customerName/customerIdentifier already resolved (with the same request
+		// overrides applied) by the identifiable-customer guard above — reuse instead of
+		// re-querying.
 		if _, err := s.treasuryClient.PostSaleEditGL(ctx, req.TenantSlug, treasury.SaleEditGLRequest{
 			ReferenceID: editID.String(), OrderID: order.ID.String(), OrderNumber: order.OrderNumber,
 			OutletID: order.OutletID.String(), SellingScheme: "credit",

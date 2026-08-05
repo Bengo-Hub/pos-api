@@ -155,6 +155,11 @@ func TestEdit_NonFiscalized_MixedReduceAndIncrease_OneAtomicCall(t *testing.T) {
 
 	result, err := svc.Edit(context.Background(), tid, EditSaleRequest{
 		OrderID: order.ID, Reason: "correction", RequestedBy: uuid.New(),
+		// An in-place increase always posts as AR (see increase.go) — RequireIdentifiableCustomer
+		// refuses a walk-in/no-customer order, so this test (which seeds an order with no
+		// customer at all) must supply one via the request the same way a real Edit Sale caller
+		// with a walk-in order would need to.
+		CustomerName: "Jane Doe", CustomerIdentifier: "+254700000001",
 		Lines: []EditLine{
 			{LineID: &line.ID, SKU: "SKU-1", Name: "Sample Item", Quantity: 3, UnitPrice: 100}, // 5 -> 3
 			{CatalogItemID: uuid.New(), SKU: "SKU-2", Name: "New Item", Quantity: 2, UnitPrice: 50},
@@ -188,6 +193,66 @@ func TestEdit_NonFiscalized_MixedReduceAndIncrease_OneAtomicCall(t *testing.T) {
 	// 3 remaining of SKU-1 (300) + 2 of new SKU-2 (100) = 400.
 	if reloadedOrder.TotalAmount != 400 {
 		t.Fatalf("expected recomputed total 400, got %.2f", reloadedOrder.TotalAmount)
+	}
+}
+
+// TestEdit_NonFiscalized_IncreaseRefusesWalkInWithNoCustomer is the regression test for a live
+// bug found 2026-08-05: an in-place increase always posts its value as an AR receivable, but
+// nothing stopped it from doing so against a true walk-in order (no name, no phone) — creating a
+// debt treasury could never attribute to any customer balance (posted to the GL, but silently
+// un-collectable via Record Payment or the treasury Customers page). The increase must be
+// refused, atomically, before any line/stock/GL mutation.
+func TestEdit_NonFiscalized_IncreaseRefusesWalkInWithNoCustomer(t *testing.T) {
+	svc, client := newOrchestratorTestService(t)
+	tid := uuid.New()
+	outletID := uuid.New()
+	order := seedOrchestratorOrder(t, client, tid, outletID, 5, 100) // no customer_name/phone set
+	line := onlyLine(t, client, order.ID)
+
+	// Existing line must be included UNCHANGED — the diff engine treats any active line
+	// omitted from the request as a full removal, which would confound this test with an
+	// unrelated reduction instead of isolating the pure "add a new line" increase.
+	unchangedLine := EditLine{LineID: &line.ID, SKU: "SKU-1", Name: "Sample Item", Quantity: 5, UnitPrice: 100}
+
+	_, err := svc.Edit(context.Background(), tid, EditSaleRequest{
+		OrderID: order.ID, Reason: "add item for walk-in", RequestedBy: uuid.New(),
+		Lines: []EditLine{
+			unchangedLine,
+			{CatalogItemID: uuid.New(), SKU: "SKU-2", Name: "New Item", Quantity: 1, UnitPrice: 50},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected the increase to be refused for an order with no identifiable customer")
+	}
+
+	// Refused atomically — no new line, no stock/GL side effect, order untouched.
+	lines, lerr := client.POSOrderLine.Query().Where(entposorderline.OrderID(order.ID)).All(context.Background())
+	if lerr != nil || len(lines) != 1 {
+		t.Fatalf("expected the order to be untouched (still 1 line), got %d, err=%v", len(lines), lerr)
+	}
+	reloadedOrder, rerr := client.POSOrder.Get(context.Background(), order.ID)
+	if rerr != nil {
+		t.Fatalf("reload order: %v", rerr)
+	}
+	if reloadedOrder.TotalAmount != 500 {
+		t.Fatalf("expected total to stay at the original 500, got %.2f", reloadedOrder.TotalAmount)
+	}
+
+	// Supplying a real customer via the request (the actual fix path — attach a customer
+	// before adding value on credit) must succeed.
+	result, err := svc.Edit(context.Background(), tid, EditSaleRequest{
+		OrderID: order.ID, Reason: "add item, now with a customer", RequestedBy: uuid.New(),
+		CustomerName: "Jane Doe", CustomerIdentifier: "+254700000002",
+		Lines: []EditLine{
+			unchangedLine,
+			{CatalogItemID: uuid.New(), SKU: "SKU-2", Name: "New Item", Quantity: 1, UnitPrice: 50},
+		},
+	})
+	if err != nil {
+		t.Fatalf("expected the increase to succeed once a real customer is attached, got: %v", err)
+	}
+	if result.Kind != "increase" {
+		t.Fatalf("expected kind=increase, got %q", result.Kind)
 	}
 }
 
