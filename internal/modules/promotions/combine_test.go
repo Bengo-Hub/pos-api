@@ -174,6 +174,26 @@ func TestCombine_MixedTiming(t *testing.T) {
 	}
 }
 
+// A rule's meal_period gates eligibility per-line exactly like the promo's own schedule window:
+// a lunch-only deal rung up at 13:00 applies, the same SKU rung up at 20:00 on the same docket
+// does not. Regression test for the bug where MealPeriod was set but never enforced.
+func TestCombine_MealPeriodGate(t *testing.T) {
+	s := &Service{}
+	lunch := promotionrule.MealPeriodLunch
+	rule := sameSkuBogoRule(100, "BURGER")
+	rule.MealPeriod = &lunch
+	items := []promoWithRule{{promo: promoW("Lunch BOGO", "00:00", "23:59", nil), rule: rule}}
+
+	inPeriod := s.combineTimedDiscounts(items, []TimedDiscountLine{tline("BURGER", 2, 500, atUTC(13, 0))}, time.UTC)
+	if !inPeriod.Discount.Equal(decimal.NewFromInt(500)) {
+		t.Fatalf("13:00 (lunch) should qualify the meal_period=lunch deal, got %s", inPeriod.Discount)
+	}
+	outOfPeriod := s.combineTimedDiscounts(items, []TimedDiscountLine{tline("BURGER", 2, 500, atUTC(20, 0))}, time.UTC)
+	if !outOfPeriod.Discount.IsZero() {
+		t.Fatalf("20:00 (dinner) must NOT qualify a meal_period=lunch deal, got %s", outOfPeriod.Discount)
+	}
+}
+
 // Empty inputs are safe no-ops.
 func TestCombine_EmptyInputs(t *testing.T) {
 	s := &Service{}

@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	"github.com/Bengo-Hub/pagination"
@@ -101,9 +100,12 @@ func (h *PromotionHandler) S2SCreateDiscount(w http.ResponseWriter, r *http.Requ
 }
 
 // S2SApplyDiscount handles POST /api/v1/s2s/{tenant}/discounts/apply
-// Body: {promoCode, amount}. Validates the code and returns the discount amount —
-// the same evaluation the POS terminal uses, so a code behaves identically no
-// matter which service applies it.
+// Body: {promoCode, outlet_id, lines: [{sku, category, quantity, unit_price, added_at}]}.
+// Validates the code against the caller's real cart lines and returns the rule-evaluated
+// discount — the SAME evaluator (schedule/meal_period/scope/BOGO) the POS terminal uses via
+// promotions.Service.ApplyPromoCode, so a code behaves identically no matter which service
+// applies it (this is what ordering-backend calls instead of maintaining its own PromoCode
+// evaluation — see promotions.Service.ApplyPromoCode's doc comment).
 func (h *PromotionHandler) S2SApplyDiscount(w http.ResponseWriter, r *http.Request) {
 	tid, err := uuid.Parse(chi.URLParam(r, "tenant"))
 	if err != nil {
@@ -111,14 +113,19 @@ func (h *PromotionHandler) S2SApplyDiscount(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	var input struct {
-		PromoCode string  `json:"promoCode"`
-		Amount    float64 `json:"amount"`
+		PromoCode string                `json:"promoCode"`
+		OutletID  string                `json:"outlet_id"`
+		Lines     []applyPromoLineInput `json:"lines"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	result, err := h.promoSvc.ApplyPromoCode(r.Context(), tid, input.PromoCode, decimal.NewFromFloat(input.Amount))
+	var outletID *uuid.UUID
+	if oid, perr := uuid.Parse(input.OutletID); perr == nil {
+		outletID = &oid
+	}
+	result, err := h.promoSvc.ApplyPromoCode(r.Context(), tid, outletID, input.PromoCode, toTimedDiscountLines(input.Lines))
 	if err != nil {
 		h.log.Error("s2s apply discount failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -133,6 +140,7 @@ func (h *PromotionHandler) S2SApplyDiscount(w http.ResponseWriter, r *http.Reque
 		"promoCode":      result.PromoCode,
 		"promoId":        result.PromoID,
 		"discountAmount": result.DiscountAmount.StringFixed(2),
+		"perSku":         result.PerSKU,
 	})
 }
 

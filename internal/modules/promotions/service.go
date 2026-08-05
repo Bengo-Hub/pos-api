@@ -22,11 +22,12 @@ import (
 
 // ApplyResult holds the result of applying a promotion to an order.
 type ApplyResult struct {
-	Valid          bool            `json:"valid"`
-	PromoCode      string          `json:"promo_code"`
-	PromoID        uuid.UUID       `json:"promo_id"`
-	DiscountAmount decimal.Decimal `json:"discount_amount"`
-	Reason         string          `json:"reason,omitempty"` // reason for invalid
+	Valid          bool                    `json:"valid"`
+	PromoCode      string                  `json:"promo_code"`
+	PromoID        uuid.UUID               `json:"promo_id"`
+	DiscountAmount decimal.Decimal         `json:"discount_amount"`
+	PerSKU         map[string]LineDiscount `json:"per_sku,omitempty"`
+	Reason         string                  `json:"reason,omitempty"` // reason for invalid
 }
 
 // Service provides promotion business logic.
@@ -43,13 +44,19 @@ func NewService(client *ent.Client, log *zap.Logger) *Service {
 	}
 }
 
-// ApplyPromoCode validates a promo code and calculates the discount amount.
-// Unlike the previous implementation which only checked existence, this:
-// 1. Validates the promo code exists and is active
-// 2. Checks expiry
-// 3. Checks usage limits (if configured via metadata)
-// 4. Calculates the discount amount based on promo metadata
-func (s *Service) ApplyPromoCode(ctx context.Context, tenantID uuid.UUID, promoCode string, orderAmount decimal.Decimal) (*ApplyResult, error) {
+// ApplyPromoCode validates a promo code against real cart lines and computes its discount using
+// the SAME rule-based evaluator as auto-apply discounts (isWithinSchedule + isWithinMealPeriod +
+// evaluateRule/calculateBOGODiscount) rather than a second, parallel calculator. A prior version
+// of this function read a flat {discount_type, discount_value, max_discount} shape out of
+// Promotion.metadata — but no promotion-creation path (CreatePromotion/UpdatePromotion) has ever
+// written that shape; metadata is reserved for storefront banner config (see banner.go,
+// MergeBannerMetadata). The real discount config always lives on PromotionRule. That meant the old
+// path silently returned a zero discount for every promo ever created through the product — dead
+// on arrival, and (confirmed via repo-wide grep) never actually called from any UI. Rebuilt here
+// so a manually-entered code respects the exact same outlet/schedule/meal-period/item-or-category
+// scope and BOGO pairing that auto-apply discounts already enforce — a code discount is just a
+// PromotionRule the customer types in, not a different mechanism.
+func (s *Service) ApplyPromoCode(ctx context.Context, tenantID uuid.UUID, outletID *uuid.UUID, promoCode string, lines []TimedDiscountLine) (*ApplyResult, error) {
 	promo, err := s.client.Promotion.Query().
 		Where(
 			promotion.TenantID(tenantID),
@@ -60,27 +67,63 @@ func (s *Service) ApplyPromoCode(ctx context.Context, tenantID uuid.UUID, promoC
 	if err != nil {
 		return &ApplyResult{Valid: false, Reason: "promo code not found or inactive"}, nil
 	}
-
 	code := derefStr(promo.PromoCode)
 
-	// Check expiry
-	if promo.EndAt != nil && time.Now().After(*promo.EndAt) {
-		return &ApplyResult{Valid: false, PromoCode: code, PromoID: promo.ID, Reason: "promotion has expired"}, nil
+	if promo.OutletID != nil && (outletID == nil || *promo.OutletID != *outletID) {
+		return &ApplyResult{Valid: false, PromoCode: code, PromoID: promo.ID, Reason: "promotion is not available at this outlet"}, nil
 	}
 
-	// Check start date
-	if !promo.StartAt.IsZero() && time.Now().Before(promo.StartAt) {
-		return &ApplyResult{Valid: false, PromoCode: code, PromoID: promo.ID, Reason: "promotion has not started yet"}, nil
+	loc := s.outletTimezone(ctx, promo.OutletID)
+	localNow := time.Now().In(loc)
+	if !s.isWithinSchedule(promo, localNow) {
+		reason := "promotion is not currently active"
+		switch {
+		case !promo.StartAt.IsZero() && localNow.Before(promo.StartAt):
+			reason = "promotion has not started yet"
+		case promo.EndAt != nil && localNow.After(*promo.EndAt):
+			reason = "promotion has expired"
+		}
+		return &ApplyResult{Valid: false, PromoCode: code, PromoID: promo.ID, Reason: reason}, nil
 	}
 
-	// Calculate discount from metadata
-	discountAmount := s.calculateDiscount(promo, orderAmount)
+	rule, rErr := s.client.PromotionRule.Query().Where(promotionrule.PromotionID(promo.ID)).First(ctx)
+	if rErr != nil || rule == nil {
+		return &ApplyResult{Valid: false, PromoCode: code, PromoID: promo.ID, Reason: "promotion has no discount rule configured"}, nil
+	}
+
+	// Only lines added within the promo's schedule window AND the rule's meal period (if any)
+	// participate — mirrors combineTimedDiscounts' per-line timing, so a code entered on a bill
+	// spanning multiple periods only discounts items actually rung up during the eligible time.
+	eligible := make([]DiscountLine, 0, len(lines))
+	for _, tl := range lines {
+		when := tl.AddedAt
+		if when.IsZero() {
+			when = time.Now()
+		}
+		whenLocal := when.In(loc)
+		if s.isWithinSchedule(promo, whenLocal) && isWithinMealPeriod(rule, whenLocal) {
+			eligible = append(eligible, tl.DiscountLine)
+		}
+	}
+	if len(eligible) == 0 {
+		return &ApplyResult{Valid: false, PromoCode: code, PromoID: promo.ID, Reason: "no eligible items in cart for this code"}, nil
+	}
+	subtotal := decimal.Zero
+	for _, l := range eligible {
+		subtotal = subtotal.Add(l.Total)
+	}
+
+	total, perSKU := s.evaluateRule(rule, eligible, subtotal)
+	if total.LessThanOrEqual(decimal.Zero) {
+		return &ApplyResult{Valid: false, PromoCode: code, PromoID: promo.ID, Reason: "no eligible items in cart for this code"}, nil
+	}
 
 	return &ApplyResult{
 		Valid:          true,
 		PromoCode:      code,
 		PromoID:        promo.ID,
-		DiscountAmount: discountAmount.Round(2),
+		DiscountAmount: total.Round(2),
+		PerSKU:         perSKU,
 	}, nil
 }
 
@@ -89,47 +132,6 @@ func derefStr(s *string) string {
 		return ""
 	}
 	return *s
-}
-
-// calculateDiscount determines the discount amount based on promotion metadata.
-// Supports: {"discount_type": "percentage|fixed", "discount_value": 10.0, "max_discount": 500.0}
-func (s *Service) calculateDiscount(promo *ent.Promotion, orderAmount decimal.Decimal) decimal.Decimal {
-	meta := promo.Metadata
-	if meta == nil {
-		return decimal.Zero
-	}
-
-	discountType, _ := meta["discount_type"].(string)
-	discountValue, _ := meta["discount_value"].(float64)
-
-	if discountValue <= 0 {
-		return decimal.Zero
-	}
-
-	var discount decimal.Decimal
-	switch discountType {
-	case "percentage":
-		discount = orderAmount.Mul(decimal.NewFromFloat(discountValue)).Div(decimal.NewFromInt(100))
-	case "fixed":
-		discount = decimal.NewFromFloat(discountValue)
-	default:
-		return decimal.Zero
-	}
-
-	// Cap at max_discount if specified
-	if maxDiscount, ok := meta["max_discount"].(float64); ok && maxDiscount > 0 {
-		maxDec := decimal.NewFromFloat(maxDiscount)
-		if discount.GreaterThan(maxDec) {
-			discount = maxDec
-		}
-	}
-
-	// Don't exceed order amount
-	if discount.GreaterThan(orderAmount) {
-		discount = orderAmount
-	}
-
-	return discount
 }
 
 // outletTimezone resolves an outlet's configured IANA timezone (schema default
@@ -152,6 +154,39 @@ func (s *Service) outletTimezone(ctx context.Context, outletID *uuid.UUID) *time
 		loc = time.UTC
 	}
 	return loc
+}
+
+// mealPeriodWindows are the canonical outlet-local HH:MM ranges for each configurable meal
+// period. There is no existing "current meal period" concept elsewhere on the platform to derive
+// these from (MealEntitlement, the closest relative, carries explicit per-voucher windows, not a
+// clock-derived mapping) — this is a new, tenant-independent convention. A rule's meal_period is
+// an ADDITIONAL gate on top of the promotion's own window_start/window_end (the two fields are
+// independently settable in the discount form — see discount-form-modal.tsx), not a replacement.
+func mealPeriodWindows() map[promotionrule.MealPeriod][2]string {
+	return map[promotionrule.MealPeriod][2]string{
+		promotionrule.MealPeriodBreakfast: {"06:00", "10:30"},
+		promotionrule.MealPeriodAmBreak:   {"10:30", "11:30"},
+		promotionrule.MealPeriodLunch:     {"11:30", "15:00"},
+		promotionrule.MealPeriodPmBreak:   {"15:00", "18:00"},
+		promotionrule.MealPeriodDinner:    {"18:00", "22:30"},
+	}
+}
+
+// isWithinMealPeriod reports whether localNow falls inside rule's configured meal period. A rule
+// with no meal_period set (the common case — most discounts don't gate on it) always passes.
+// Bug fixed here: PromotionRule.MealPeriod was settable via Create/UpdatePromotion and shown in
+// the discount form UI, but no evaluator ever read it back — a rule tagged "lunch only" fired at
+// any hour of the day. Mirrors isWithinSchedule's same-day HH:MM comparison idiom.
+func isWithinMealPeriod(rule *ent.PromotionRule, localNow time.Time) bool {
+	if rule == nil || rule.MealPeriod == nil {
+		return true
+	}
+	window, ok := mealPeriodWindows()[*rule.MealPeriod]
+	if !ok {
+		return true
+	}
+	cur := localNow.Format("15:04")
+	return cur >= window[0] && cur <= window[1]
 }
 
 // autoApplyPromoKinds are the promo_kind values eligible for AUTOMATIC evaluation at checkout
@@ -211,51 +246,6 @@ func (s *Service) ActiveHappyHours(ctx context.Context, tenantID uuid.UUID, outl
 		active = append(active, p)
 	}
 	return active, nil
-}
-
-// EvaluateHappyHourDiscount returns the best auto-apply happy-hour discount for an outlet
-// on the given subtotal at `now`. Used by the orders service at checkout (decoupled hook).
-func (s *Service) EvaluateHappyHourDiscount(ctx context.Context, tenantID, outletID uuid.UUID, subtotal decimal.Decimal) decimal.Decimal {
-	if subtotal.LessThanOrEqual(decimal.Zero) {
-		return decimal.Zero
-	}
-	var outletPtr *uuid.UUID
-	if outletID != uuid.Nil {
-		outletPtr = &outletID
-	}
-	active, err := s.ActiveHappyHours(ctx, tenantID, outletPtr, time.Now())
-	if err != nil || len(active) == 0 {
-		return decimal.Zero
-	}
-	best := decimal.Zero
-	for _, p := range active {
-		rule, rErr := s.client.PromotionRule.Query().
-			Where(promotionrule.PromotionID(p.ID)).First(ctx)
-		if rErr != nil || rule == nil {
-			continue
-		}
-		var d decimal.Decimal
-		switch rule.DiscountType {
-		case "percentage":
-			d = subtotal.Mul(decimal.NewFromFloat(rule.DiscountValue)).Div(decimal.NewFromInt(100))
-		case "fixed_amount":
-			d = decimal.NewFromFloat(rule.DiscountValue)
-		default:
-			continue
-		}
-		if rule.MaxDiscount != nil && *rule.MaxDiscount > 0 {
-			if cap := decimal.NewFromFloat(*rule.MaxDiscount); d.GreaterThan(cap) {
-				d = cap
-			}
-		}
-		if d.GreaterThan(best) {
-			best = d
-		}
-	}
-	if best.GreaterThan(subtotal) {
-		best = subtotal
-	}
-	return best.Round(2)
 }
 
 // DiscountLine is the minimal order-line info the evaluator needs to enforce scope.
@@ -399,7 +389,8 @@ func (s *Service) combineTimedDiscounts(items []promoWithRule, lines []TimedDisc
 		if rule == nil {
 			continue
 		}
-		// Keep only lines added within THIS promo's window (localized).
+		// Keep only lines added within THIS promo's window AND its rule's meal period, if any
+		// (localized).
 		eligible := make([]DiscountLine, 0, len(lines))
 		eligSub := decimal.Zero
 		for _, tl := range lines {
@@ -407,7 +398,8 @@ func (s *Service) combineTimedDiscounts(items []promoWithRule, lines []TimedDisc
 			if when.IsZero() {
 				when = now
 			}
-			if s.isWithinSchedule(p, when.In(loc)) {
+			whenLocal := when.In(loc)
+			if s.isWithinSchedule(p, whenLocal) && isWithinMealPeriod(rule, whenLocal) {
 				eligible = append(eligible, tl.DiscountLine)
 				eligSub = eligSub.Add(tl.Total)
 			}

@@ -412,7 +412,42 @@ func (h *PromotionHandler) GetActiveHappyHours(w http.ResponseWriter, r *http.Re
 	jsonOK(w, h.attachRules(r.Context(), active))
 }
 
-// ApplyPromoCode handles POST /{tenantID}/pos/promotions/apply
+// applyPromoLineInput is one cart line the promo-code evaluator scopes/schedules against — the
+// same minimal shape ANY caller (POS terminal, Add Sale, ordering-backend over S2S) already has
+// in hand for its cart, so the evaluator can enforce item/category scope, BOGO pairing, and
+// meal_period exactly as it does for auto-apply discounts, instead of an amount-only flat calc.
+type applyPromoLineInput struct {
+	SKU       string     `json:"sku"`
+	Category  string     `json:"category"`
+	Quantity  float64    `json:"quantity"`
+	UnitPrice float64    `json:"unit_price"`
+	AddedAt   *time.Time `json:"added_at"` // zero/omitted = "now"
+}
+
+func toTimedDiscountLines(in []applyPromoLineInput) []promotions.TimedDiscountLine {
+	out := make([]promotions.TimedDiscountLine, 0, len(in))
+	for _, l := range in {
+		unit := decimal.NewFromFloat(l.UnitPrice)
+		tl := promotions.TimedDiscountLine{
+			DiscountLine: promotions.DiscountLine{
+				SKU:       l.SKU,
+				Category:  l.Category,
+				Quantity:  l.Quantity,
+				UnitPrice: unit,
+				Total:     unit.Mul(decimal.NewFromFloat(l.Quantity)),
+			},
+		}
+		if l.AddedAt != nil {
+			tl.AddedAt = *l.AddedAt
+		}
+		out = append(out, tl)
+	}
+	return out
+}
+
+// ApplyPromoCode handles POST /{tenantID}/pos/promotions/apply — validates a promo code against
+// the caller's real cart lines and returns the rule-evaluated discount (see promotions.Service.
+// ApplyPromoCode for why this is lines-based, not a flat amount).
 func (h *PromotionHandler) ApplyPromoCode(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -421,17 +456,25 @@ func (h *PromotionHandler) ApplyPromoCode(w http.ResponseWriter, r *http.Request
 	}
 
 	var input struct {
-		PromoCode string  `json:"promoCode"`
-		OrderID   string  `json:"orderId"`
-		Amount    float64 `json:"amount"`
+		PromoCode string                 `json:"promoCode"`
+		OutletID  string                 `json:"outlet_id"`
+		Lines     []applyPromoLineInput  `json:"lines"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	orderAmount := decimal.NewFromFloat(input.Amount)
-	result, err := h.promoSvc.ApplyPromoCode(r.Context(), tid, input.PromoCode, orderAmount)
+	var outletID *uuid.UUID
+	oidStr := input.OutletID
+	if oidStr == "" {
+		oidStr = httpware.GetOutletID(r.Context())
+	}
+	if oid, perr := uuid.Parse(oidStr); perr == nil {
+		outletID = &oid
+	}
+
+	result, err := h.promoSvc.ApplyPromoCode(r.Context(), tid, outletID, input.PromoCode, toTimedDiscountLines(input.Lines))
 	if err != nil {
 		h.log.Error("apply promo code failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -451,6 +494,7 @@ func (h *PromotionHandler) ApplyPromoCode(w http.ResponseWriter, r *http.Request
 		"promoCode":      result.PromoCode,
 		"promoId":        result.PromoID,
 		"discountAmount": result.DiscountAmount.StringFixed(2),
+		"perSku":         result.PerSKU,
 	})
 }
 

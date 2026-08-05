@@ -87,6 +87,131 @@ func TestIsWithinSchedule_SameDayWindow(t *testing.T) {
 	}
 }
 
+// Date-range boundary: a promo's start_at/end_at are inclusive at both ends, exclusive just
+// outside — previously untested (only the daily time window had boundary coverage).
+func TestIsWithinSchedule_DateRangeBoundary(t *testing.T) {
+	s := &Service{}
+	start := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2026, 6, 30, 23, 59, 59, 0, time.UTC)
+	p := &ent.Promotion{StartAt: start, EndAt: &end}
+	cases := []struct {
+		name string
+		at   time.Time
+		want bool
+	}{
+		{"before start", start.Add(-time.Second), false},
+		{"exactly start", start, true},
+		{"mid-range", time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC), true},
+		{"exactly end", end, true},
+		{"after end", end.Add(time.Second), false},
+	}
+	for _, c := range cases {
+		if got := s.isWithinSchedule(p, c.at); got != c.want {
+			t.Errorf("%s: isWithinSchedule = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// A no-EndAt promo (nil EndAt = no upper bound) is active indefinitely once started.
+func TestIsWithinSchedule_NoEndDate(t *testing.T) {
+	s := &Service{}
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	p := &ent.Promotion{StartAt: start}
+	if !s.isWithinSchedule(p, time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Error("nil EndAt should never expire the promotion")
+	}
+}
+
+// days_of_week restricts a promo to specific weekdays regardless of the time-of-day window.
+func TestIsWithinSchedule_DaysOfWeek(t *testing.T) {
+	s := &Service{}
+	// 2026-01-05 is a Monday (weekday=1); restrict to Mon/Wed/Fri.
+	p := &ent.Promotion{DaysOfWeek: []int{1, 3, 5}}
+	mon := time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC)
+	tue := time.Date(2026, 1, 6, 12, 0, 0, 0, time.UTC)
+	wed := time.Date(2026, 1, 7, 12, 0, 0, 0, time.UTC)
+	if !s.isWithinSchedule(p, mon) {
+		t.Error("Monday should be within days_of_week=[Mon,Wed,Fri]")
+	}
+	if s.isWithinSchedule(p, tue) {
+		t.Error("Tuesday should be outside days_of_week=[Mon,Wed,Fri]")
+	}
+	if !s.isWithinSchedule(p, wed) {
+		t.Error("Wednesday should be within days_of_week=[Mon,Wed,Fri]")
+	}
+}
+
+// An empty days_of_week means every day is allowed (no restriction).
+func TestIsWithinSchedule_EmptyDaysOfWeekMeansEveryDay(t *testing.T) {
+	s := &Service{}
+	p := &ent.Promotion{}
+	for d := 0; d < 7; d++ {
+		at := time.Date(2026, 1, 4+d, 12, 0, 0, 0, time.UTC) // 2026-01-04 is a Sunday
+		if !s.isWithinSchedule(p, at) {
+			t.Errorf("day offset %d should be within an unrestricted schedule", d)
+		}
+	}
+}
+
+// scope_type=category matches the order line's Category field (case/whitespace-insensitive);
+// only in-scope lines contribute to the base, and the discount is attributed proportionally
+// across the scoped SKUs.
+func TestEvaluateRule_CategoryScope(t *testing.T) {
+	s := &Service{}
+	rule := &ent.PromotionRule{
+		DiscountType: promotionrule.DiscountTypePercentage,
+		ScopeType:    promotionrule.ScopeTypeCategory,
+		ScopeIds:     []string{"Beverages"},
+		DiscountValue: 10,
+	}
+	lines := []DiscountLine{
+		{SKU: "COKE", Category: " beverages ", Total: decimal.NewFromInt(1000)}, // in scope (trim/fold)
+		{SKU: "BURGER", Category: "Food", Total: decimal.NewFromInt(2000)},      // out of scope
+	}
+	total, perSKU := s.evaluateRule(rule, lines, decimal.NewFromInt(3000))
+	if !total.Equal(decimal.NewFromInt(100)) {
+		t.Fatalf("expected 10%% of the 1000 in-scope base = 100, got %s", total)
+	}
+	if _, ok := perSKU["BURGER"]; ok {
+		t.Fatalf("out-of-category line must not be discounted: %+v", perSKU)
+	}
+	if perSKU["COKE"].Amount.IntPart() != 100 {
+		t.Fatalf("expected COKE to carry the full 100, got %+v", perSKU["COKE"])
+	}
+}
+
+// isWithinMealPeriod: the bug this closes — a rule tagged e.g. "lunch" previously fired at any
+// hour because nothing ever read PromotionRule.MealPeriod. A rule with no meal_period set always
+// passes (most discounts don't gate on it); one that IS set only passes inside its canonical
+// window, inclusive at both boundaries like isWithinSchedule's own time-of-day check.
+func TestIsWithinMealPeriod(t *testing.T) {
+	lunch := promotionrule.MealPeriodLunch
+	rule := &ent.PromotionRule{MealPeriod: &lunch}
+	at := func(h, m int) time.Time { return time.Date(2026, 1, 2, h, m, 0, 0, time.UTC) }
+	cases := []struct {
+		h, m int
+		want bool
+	}{
+		{11, 29, false}, // just before lunch window
+		{11, 30, true},  // exactly start
+		{13, 0, true},   // mid-lunch
+		{15, 0, true},   // exactly end
+		{15, 1, false},  // just after end
+		{20, 0, false},  // dinner time
+	}
+	for _, c := range cases {
+		if got := isWithinMealPeriod(rule, at(c.h, c.m)); got != c.want {
+			t.Errorf("lunch rule at %02d:%02d = %v, want %v", c.h, c.m, got, c.want)
+		}
+	}
+	if !isWithinMealPeriod(&ent.PromotionRule{}, at(3, 0)) {
+		t.Error("a rule with no meal_period set must always pass, any hour")
+	}
+	if !isWithinMealPeriod(nil, at(3, 0)) {
+		t.Error("a nil rule must pass (no gate to apply)")
+	}
+}
+
 // line is a small helper to build a DiscountLine with a uniform per-unit price.
 func line(sku string, qty float64, unit float64) DiscountLine {
 	u := decimal.NewFromFloat(unit)
