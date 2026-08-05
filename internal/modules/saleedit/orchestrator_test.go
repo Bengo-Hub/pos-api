@@ -17,6 +17,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/enttest"
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
+	entposreturn "github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/returns"
 	"github.com/bengobox/pos-service/internal/modules/reversals"
@@ -262,6 +263,61 @@ func TestEdit_Fiscalized_ReductionCreatesReturn_NotReversal(t *testing.T) {
 	}
 	if reloadedOrder.TotalAmount != 500 {
 		t.Fatalf("expected original order total untouched at 500, got %.2f", reloadedOrder.TotalAmount)
+	}
+}
+
+// TestEdit_Fiscalized_AllowsRepeatReductionsOnSameLine is the fiscalized-path analog of
+// TestEdit_NonFiscalized_AllowsRepeatEditsOnSameLine and the regression test for a second
+// live bug found 2026-08-05 (on codevertex-demo, right after the first fix above landed): a
+// fiscalized reduction deliberately never touches the order's own line/VoidedQty (the
+// original order stays untouched — see TestEdit_Fiscalized_ReductionCreatesReturn_
+// NotReversal), so a SECOND fiscalized reduction on the same line re-diffed against the
+// order's still-unchanged VoidedQty and silently re-removed the same quantity a second time
+// instead of the newly-requested amount. Two consecutive reductions (5->3, then 3->1) must
+// each create their own POSReturn for exactly the quantity actually removed in that step (2,
+// then 2 — not 2 and 2 AGAIN of the same units, i.e. not 4 total against a line that only
+// ever had 5).
+func TestEdit_Fiscalized_AllowsRepeatReductionsOnSameLine(t *testing.T) {
+	ts := fakeTreasuryServer(t, "inv-123")
+	defer ts.Close()
+	treasuryClient := treasury.NewClient(ts.URL, "test-key", 5*time.Second)
+
+	svc, client := newOrchestratorTestServiceWithTreasury(t, treasuryClient)
+
+	tid := uuid.New()
+	outletID := uuid.New()
+	order := seedOrchestratorOrder(t, client, tid, outletID, 5, 100)
+	line := onlyLine(t, client, order.ID)
+
+	first, err := svc.Edit(context.Background(), tid, EditSaleRequest{
+		OrderID: order.ID, Reason: "first correction", RequestedBy: uuid.New(),
+		Lines: []EditLine{{LineID: &line.ID, SKU: "SKU-1", Name: "Sample Item", Quantity: 3, UnitPrice: 100}},
+	})
+	if err != nil {
+		t.Fatalf("first Edit failed: %v", err)
+	}
+	time.Sleep(2 * time.Millisecond) // avoid the test-only RET-<epoch-ms> fallback collision (no sequence service wired)
+	second, err := svc.Edit(context.Background(), tid, EditSaleRequest{
+		OrderID: order.ID, Reason: "second correction", RequestedBy: uuid.New(),
+		Lines: []EditLine{{LineID: &line.ID, SKU: "SKU-1", Name: "Sample Item", Quantity: 1, UnitPrice: 100}},
+	})
+	if err != nil {
+		t.Fatalf("second fiscalized Edit on the same line failed (this is the reported bug): %v", err)
+	}
+
+	ret1, err := client.POSReturn.Query().WithLines().Where(entposreturn.ID(*first.LinkedReturnID)).Only(context.Background())
+	if err != nil {
+		t.Fatalf("load first return: %v", err)
+	}
+	ret2, err := client.POSReturn.Query().WithLines().Where(entposreturn.ID(*second.LinkedReturnID)).Only(context.Background())
+	if err != nil {
+		t.Fatalf("load second return: %v", err)
+	}
+	if len(ret1.Edges.Lines) != 1 || ret1.Edges.Lines[0].Quantity != 2 {
+		t.Fatalf("expected first return to remove exactly 2 units, got %+v", ret1.Edges.Lines)
+	}
+	if len(ret2.Edges.Lines) != 1 || ret2.Edges.Lines[0].Quantity != 2 {
+		t.Fatalf("expected second return to remove exactly 2 MORE units (3->1), got %+v — a stale baseline would wrongly repeat the first return's 2 units", ret2.Edges.Lines)
 	}
 }
 

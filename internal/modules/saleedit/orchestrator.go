@@ -11,6 +11,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
+	entposreturn "github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/possaleedit"
 	entschema "github.com/bengobox/pos-service/internal/ent/schema"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
@@ -79,14 +80,18 @@ func (s *Service) Edit(ctx context.Context, tenantID uuid.UUID, req EditSaleRequ
 	if err != nil {
 		return nil, fmt.Errorf("load lines: %w", err)
 	}
+	returnedQty, err := returnedQtyByLine(ctx, s.client, order.ID)
+	if err != nil {
+		return nil, fmt.Errorf("load prior fiscalized-return quantities: %w", err)
+	}
 	activeLines := make([]*ent.POSOrderLine, 0, len(allLines))
 	for _, l := range allLines {
-		if remainingQty(l) > 0.009 {
+		if effectiveRemainingQty(l, returnedQty) > 0.009 {
 			activeLines = append(activeLines, l)
 		}
 	}
 
-	diff := diffLines(activeLines, req.Lines)
+	diff := diffLines(activeLines, req.Lines, returnedQty)
 	hasDecrease := len(diff.removed) > 0 || len(diff.reduced) > 0
 	hasIncrease := len(diff.added) > 0 || len(diff.increased) > 0
 	if !hasDecrease && !hasIncrease {
@@ -108,7 +113,7 @@ func (s *Service) Edit(ctx context.Context, tenantID uuid.UUID, req EditSaleRequ
 		SetKind(possaleedit.Kind(kind)).
 		SetFiscalizedAtTime(pol.fiscalized).
 		SetStatus("pending").
-		SetLinesBefore(snapshotLines(activeLines)).
+		SetLinesBefore(snapshotLines(activeLines, returnedQty)).
 		SetReason(req.Reason).
 		SetRequestedBy(req.RequestedBy).
 		Save(ctx)
@@ -126,7 +131,7 @@ func (s *Service) Edit(ctx context.Context, tenantID uuid.UUID, req EditSaleRequ
 		if pol.fiscalized {
 			ret, rerr := s.returnsSvc.CreateAndAutoComplete(ctx, tenantID, req.TenantSlug, returns.AutoCompleteRequest{
 				OrderID: order.ID, OutletID: order.OutletID, Reason: req.Reason,
-				Lines: buildReturnLines(diff.removed, diff.reduced), RequestedBy: req.RequestedBy, Source: "edit_sale",
+				Lines: buildReturnLines(diff.removed, diff.reduced, returnedQty), RequestedBy: req.RequestedBy, Source: "edit_sale",
 			})
 			if rerr != nil {
 				stepErr = fmt.Errorf("reduce (return): %w", rerr)
@@ -162,13 +167,17 @@ func (s *Service) Edit(ctx context.Context, tenantID uuid.UUID, req EditSaleRequ
 	}
 
 	afterLines, _ := s.client.POSOrderLine.Query().Where(entposorderline.OrderID(order.ID)).All(ctx)
+	afterReturnedQty, aerr := returnedQtyByLine(ctx, s.client, order.ID)
+	if aerr != nil {
+		afterReturnedQty = returnedQty // best-effort fallback — stale but never worse than before
+	}
 	status := "completed"
 	if stepErr != nil {
 		status = "failed"
 	}
 	if _, uerr := saleEdit.Update().
 		SetStatus(possaleedit.Status(status)).
-		SetLinesAfter(snapshotLines(afterLines)).
+		SetLinesAfter(snapshotLines(afterLines, afterReturnedQty)).
 		SetNillableLinkedReversalID(result.LinkedReversalID).
 		SetNillableLinkedReturnID(result.LinkedReturnID).
 		SetNillableLinkedAddendumOrderID(result.LinkedAddendumOrderID).
@@ -176,7 +185,7 @@ func (s *Service) Edit(ctx context.Context, tenantID uuid.UUID, req EditSaleRequ
 		s.log.Warn("edit: failed to finalize sale-edit record", zap.Error(uerr))
 	}
 
-	s.auditEdit(ctx, tenantID, req.RequestedBy, order, kind, req.Reason, editID, activeLines, afterLines)
+	s.auditEdit(ctx, tenantID, req.RequestedBy, order, kind, req.Reason, editID, activeLines, afterLines, returnedQty, afterReturnedQty)
 
 	if stepErr != nil {
 		return result, stepErr
@@ -184,12 +193,33 @@ func (s *Service) Edit(ctx context.Context, tenantID uuid.UUID, req EditSaleRequ
 	return result, nil
 }
 
+// returnedQtyByLine sums, per order line, the quantity already removed via a completed
+// fiscalized POSReturn against this order — see diffLines' doc comment for why this is
+// necessary on top of VoidedQty. Only COMPLETED returns count (a pending/rejected return
+// never actually took the stock/money back).
+func returnedQtyByLine(ctx context.Context, client *ent.Client, orderID uuid.UUID) (map[uuid.UUID]float64, error) {
+	rets, err := client.POSReturn.Query().
+		Where(entposreturn.OrderID(orderID), entposreturn.StatusEQ(entposreturn.StatusCompleted)).
+		WithLines().
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[uuid.UUID]float64, len(rets))
+	for _, ret := range rets {
+		for _, l := range ret.Edges.Lines {
+			out[l.OrderLineID] = round2(out[l.OrderLineID] + l.Quantity)
+		}
+	}
+	return out, nil
+}
+
 // buildReturnLines converts removed/reduced diff entries into returns.LineInput, prorating
 // each reduced line's value by the fraction being removed.
-func buildReturnLines(removed []*ent.POSOrderLine, reduced []reducedLine) []returns.LineInput {
+func buildReturnLines(removed []*ent.POSOrderLine, reduced []reducedLine, returnedQty map[uuid.UUID]float64) []returns.LineInput {
 	out := make([]returns.LineInput, 0, len(removed)+len(reduced))
 	for _, l := range removed {
-		remaining := remainingQty(l)
+		remaining := effectiveRemainingQty(l, returnedQty)
 		ratio := 1.0
 		if l.Quantity > 0 {
 			ratio = remaining / l.Quantity
@@ -225,19 +255,22 @@ func buildLineSelections(removed []*ent.POSOrderLine, reduced []reducedLine) []r
 	return out
 }
 
-// snapshotLines converts live order lines into the audit-trail JSON shape.
-func snapshotLines(lines []*ent.POSOrderLine) []entschema.SaleEditLineSnapshotJSON {
+// snapshotLines converts live order lines into the audit-trail JSON shape. returnedQty
+// (see returnedQtyByLine) makes the snapshotted Quantity reflect prior fiscalized returns
+// too, not just VoidedQty — otherwise a fiscalized line's audit snapshot would understate
+// how much of it is actually still active.
+func snapshotLines(lines []*ent.POSOrderLine, returnedQty map[uuid.UUID]float64) []entschema.SaleEditLineSnapshotJSON {
 	out := make([]entschema.SaleEditLineSnapshotJSON, 0, len(lines))
 	for _, l := range lines {
 		out = append(out, entschema.SaleEditLineSnapshotJSON{
 			LineID: l.ID, SKU: l.Sku, Name: l.Name,
-			Quantity: remainingQty(l), UnitPrice: l.UnitPrice, TotalPrice: l.TotalPrice,
+			Quantity: effectiveRemainingQty(l, returnedQty), UnitPrice: l.UnitPrice, TotalPrice: l.TotalPrice,
 		})
 	}
 	return out
 }
 
-func (s *Service) auditEdit(ctx context.Context, tenantID, actorID uuid.UUID, order *ent.POSOrder, kind, reason string, editID uuid.UUID, before, after []*ent.POSOrderLine) {
+func (s *Service) auditEdit(ctx context.Context, tenantID, actorID uuid.UUID, order *ent.POSOrder, kind, reason string, editID uuid.UUID, before, after []*ent.POSOrderLine, beforeReturnedQty, afterReturnedQty map[uuid.UUID]float64) {
 	if s.auditSvc == nil {
 		return
 	}
@@ -255,11 +288,11 @@ func (s *Service) auditEdit(ctx context.Context, tenantID, actorID uuid.UUID, or
 		EntityType:  "pos_order",
 		EntityID:    order.ID.String(),
 		Reason:      reason,
-		Before:      map[string]any{"lines": snapshotLines(before)},
+		Before:      map[string]any{"lines": snapshotLines(before, beforeReturnedQty)},
 		After: map[string]any{
 			"order_number": order.OrderNumber,
 			"sale_edit_id": editID.String(),
-			"lines":        snapshotLines(after),
+			"lines":        snapshotLines(after, afterReturnedQty),
 		},
 	})
 }

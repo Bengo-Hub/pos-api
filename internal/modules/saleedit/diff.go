@@ -75,7 +75,17 @@ type increasedLine struct {
 // diffLines computes the diff. liveLines should be the order's CURRENTLY ACTIVE lines
 // (already-fully-voided lines excluded) — remaining quantity is Quantity-VoidedQty for a
 // partially-reduced line, so a second edit diffs against what's actually still on the sale.
-func diffLines(liveLines []*ent.POSOrderLine, requested []EditLine) lineDiff {
+//
+// returnedQty is the quantity of each line ALREADY removed via a completed, fiscalized
+// POSReturn (see returnedQtyByLine) — necessary on top of VoidedQty because a fiscalized
+// reduction deliberately never touches the order's own lines (the original order stays
+// untouched; the reduction is visible only via the linked POSReturn — see the orchestrator's
+// own doc comment). Without this, a SECOND fiscalized reduction on the same line re-diffed
+// against the order's still-unchanged VoidedQty and silently re-removed the same quantity a
+// second time. Found live 2026-08-05 on codevertex-demo: two consecutive fiscalized
+// reductions on one line each created their own POSReturn for the same 2 units. Pass nil for
+// a non-fiscalized-only caller (effectiveRemainingQty then degrades to remainingQty).
+func diffLines(liveLines []*ent.POSOrderLine, requested []EditLine, returnedQty map[uuid.UUID]float64) lineDiff {
 	byID := make(map[uuid.UUID]*ent.POSOrderLine, len(liveLines))
 	for _, l := range liveLines {
 		byID[l.ID] = l
@@ -93,7 +103,7 @@ func diffLines(liveLines []*ent.POSOrderLine, requested []EditLine) lineDiff {
 		if !ok {
 			continue // referenced a line that no longer exists/isn't active — ignore
 		}
-		remaining := remainingQty(live)
+		remaining := effectiveRemainingQty(live, returnedQty)
 		switch {
 		case req.Quantity < remaining-0.009:
 			d.reduced = append(d.reduced, reducedLine{Line: live, ByQty: round2(remaining - req.Quantity)})
@@ -116,6 +126,18 @@ func remainingQty(l *ent.POSOrderLine) float64 {
 		return l.Quantity
 	}
 	return l.Quantity - *l.VoidedQty
+}
+
+// effectiveRemainingQty is remainingQty further reduced by whatever this line already lost
+// to a completed fiscalized POSReturn (see diffLines' doc comment) — the correct baseline for
+// any diff against a fiscalized order's line. Clamped at 0 (a line can't go negative even if
+// returns somehow exceed the recorded VoidedQty-adjusted quantity).
+func effectiveRemainingQty(l *ent.POSOrderLine, returnedQty map[uuid.UUID]float64) float64 {
+	r := remainingQty(l) - returnedQty[l.ID]
+	if r < 0 {
+		r = 0
+	}
+	return r
 }
 
 func absFloat(v float64) float64 {
