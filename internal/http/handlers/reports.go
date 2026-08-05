@@ -55,7 +55,13 @@ func NewReportsHandler(log *zap.Logger, db *ent.Client) *ReportsHandler {
 }
 
 // GetSummary handles GET /{tenantID}/pos/reports/summary
-// Returns today's KPI snapshot: total revenue, order count, avg ticket, active shifts, and day-over-day growth.
+// Returns a KPI snapshot for the given window: total revenue, order count, avg ticket, active
+// shifts, and growth vs. the immediately preceding period of equal length.
+// Query params: from, to (RFC3339 or YYYY-MM-DD) — optional. Omitting both preserves the
+// original "today vs. yesterday" behavior every existing caller (dashboard KPI cards, the
+// cashier overview tab) already relies on. Passing an explicit range (the dashboard's new
+// day/week/month/… filter) compares that range against an equal-length window immediately
+// before it instead.
 func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -66,7 +72,36 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	loc := tenantLocation(r.Context(), h.db, tid)
 	now := time.Now().In(loc)
 	todayStart := startOfDayIn(now, loc)
-	yesterdayStart := todayStart.AddDate(0, 0, -1)
+
+	curFrom, curTo := todayStart, now
+	var prevFrom, prevTo time.Time
+	fromParam, toParam := r.URL.Query().Get("from"), r.URL.Query().Get("to")
+	if fromParam == "" && toParam == "" {
+		// Default: today-so-far vs. the whole of yesterday — unchanged from before this
+		// endpoint accepted a range.
+		prevFrom, prevTo = todayStart.AddDate(0, 0, -1), todayStart
+	} else {
+		if fromParam != "" {
+			if t, perr := time.Parse(time.RFC3339, fromParam); perr == nil {
+				curFrom = t
+			} else if t, perr := parseDayStartIn(fromParam, loc); perr == nil {
+				curFrom = t
+			}
+		}
+		if toParam != "" {
+			if t, perr := time.Parse(time.RFC3339, toParam); perr == nil {
+				curTo = t
+			} else if t, perr := parseDayStartIn(toParam, loc); perr == nil {
+				curTo = t.Add(24*time.Hour - time.Second)
+			}
+		}
+		if !curTo.After(curFrom) {
+			curTo = curFrom.Add(24 * time.Hour)
+		}
+		// Comparison window: the equal-length period immediately preceding the selected range.
+		dur := curTo.Sub(curFrom)
+		prevFrom, prevTo = curFrom.Add(-dur), curFrom
+	}
 
 	var outletFilters []predicate.POSOrder
 	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
@@ -104,21 +139,21 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 		return orders, total, nil
 	}
 
-	todayOrderList, todayRev, err := queryOrders(todayStart, now)
+	curOrderList, curRev, err := queryOrders(curFrom, curTo)
 	if err != nil {
-		h.log.Error("summary: today revenue query failed", zap.Error(err))
+		h.log.Error("summary: current-period revenue query failed", zap.Error(err))
 		jsonError(w, "failed to generate summary", http.StatusInternalServerError)
 		return
 	}
-	todayOrders := len(todayOrderList)
+	curOrders := len(curOrderList)
 
-	yesterdayOrderList, yesterdayRev, err := queryOrders(yesterdayStart, todayStart)
+	prevOrderList, prevRev, err := queryOrders(prevFrom, prevTo)
 	if err != nil {
-		h.log.Error("summary: yesterday revenue query failed", zap.Error(err))
+		h.log.Error("summary: previous-period revenue query failed", zap.Error(err))
 		jsonError(w, "failed to generate summary", http.StatusInternalServerError)
 		return
 	}
-	yesterdayOrders := len(yesterdayOrderList)
+	prevOrders := len(prevOrderList)
 
 	activeShifts, err := h.db.POSDeviceSession.Query().
 		Where(
@@ -131,35 +166,35 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var avgTicket float64
-	if todayOrders > 0 {
-		avgTicket = todayRev / float64(todayOrders)
+	if curOrders > 0 {
+		avgTicket = curRev / float64(curOrders)
 	}
 
 	revenueGrowth := 0.0
 	ordersGrowth := 0.0
-	if yesterdayRev > 0 {
-		revenueGrowth = (todayRev - yesterdayRev) / yesterdayRev * 100
+	if prevRev > 0 {
+		revenueGrowth = (curRev - prevRev) / prevRev * 100
 	}
-	if yesterdayOrders > 0 {
-		ordersGrowth = float64(todayOrders-yesterdayOrders) / float64(yesterdayOrders) * 100
+	if prevOrders > 0 {
+		ordersGrowth = float64(curOrders-prevOrders) / float64(prevOrders) * 100
 	}
 
-	// Total UNITS sold today (outlet-scoped, same completed-order predicate) — a meaningful,
-	// never-misleading retail throughput stat that replaced the old tenant-wide "items below
-	// reorder" card (which counted every catalogue item across all outlets and read as a scary,
-	// meaningless 200). Best-effort: a query hiccup just yields 0.
+	// Total UNITS sold in the window (outlet-scoped, same completed-order predicate) — a
+	// meaningful, never-misleading retail throughput stat that replaced the old tenant-wide
+	// "items below reorder" card (which counted every catalogue item across all outlets and read
+	// as a scary, meaningless 200). Best-effort: a query hiccup just yields 0.
 	itemsSold, _ := h.db.POSOrderLine.Query().
 		Where(posorderline.HasOrderWith(append([]predicate.POSOrder{
 			posorder.TenantID(tid),
 			posorder.StatusEQ("completed"),
-			effectiveDateGTE(todayStart),
-			effectiveDateLT(now),
+			effectiveDateGTE(curFrom),
+			effectiveDateLT(curTo),
 		}, outletFilters...)...)).
 		Aggregate(ent.Sum(posorderline.FieldQuantity)).
 		Float64(r.Context())
 
-	// Gross profit (revenue - COGS) — the headline "how did today actually go" number owners
-	// check, replacing the old average-basket-value card that told them nothing about
+	// Gross profit (revenue - COGS) — the headline "how did this period actually go" number
+	// owners check, replacing the old average-basket-value card that told them nothing about
 	// profitability. Same void-aware attribution + real per-sku cost resolution (GOODS
 	// cost_price vs RECIPE cost_per_portion) as MostProfitableItems/SalesByHour, so this figure
 	// never disagrees with those reports.
@@ -167,34 +202,34 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	// Same per-order Currency override pattern as MostProfitableItems/MostProfitablePDF — the
 	// dashboard must label these figures with the tenant's actual currency, not assume KES.
 	currency := "KES"
-	var todayCost, yesterdayCost float64
-	for _, o := range todayOrderList {
+	var curCost, prevCost float64
+	for _, o := range curOrderList {
 		if o.Currency != "" {
 			currency = o.Currency
 		}
 		for _, al := range AttributeOrderLines(o) {
-			todayCost += costBySKU[al.SKU] * al.Quantity
+			curCost += costBySKU[al.SKU] * al.Quantity
 		}
 	}
-	for _, o := range yesterdayOrderList {
+	for _, o := range prevOrderList {
 		for _, al := range AttributeOrderLines(o) {
-			yesterdayCost += costBySKU[al.SKU] * al.Quantity
+			prevCost += costBySKU[al.SKU] * al.Quantity
 		}
 	}
-	grossProfit := todayRev - todayCost
+	grossProfit := curRev - curCost
 	grossMarginPct := 0.0
-	if todayRev != 0 {
-		grossMarginPct = grossProfit / todayRev * 100
+	if curRev != 0 {
+		grossMarginPct = grossProfit / curRev * 100
 	}
-	yesterdayGrossProfit := yesterdayRev - yesterdayCost
+	prevGrossProfit := prevRev - prevCost
 	grossProfitGrowth := 0.0
-	if yesterdayGrossProfit > 0 {
-		grossProfitGrowth = (grossProfit - yesterdayGrossProfit) / yesterdayGrossProfit * 100
+	if prevGrossProfit > 0 {
+		grossProfitGrowth = (grossProfit - prevGrossProfit) / prevGrossProfit * 100
 	}
 
 	jsonOK(w, map[string]any{
-		"total_revenue":       todayRev,
-		"total_orders":        todayOrders,
+		"total_revenue":       curRev,
+		"total_orders":        curOrders,
 		"avg_ticket":          avgTicket,
 		"active_staff":        activeShifts,
 		"items_sold":          itemsSold,
@@ -204,6 +239,8 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 		"gross_margin_pct":    grossMarginPct,
 		"gross_profit_growth": grossProfitGrowth,
 		"currency":            currency,
+		"from":                curFrom.Format(time.RFC3339),
+		"to":                  curTo.Format(time.RFC3339),
 		"as_of":               now.Format(time.RFC3339),
 	})
 }

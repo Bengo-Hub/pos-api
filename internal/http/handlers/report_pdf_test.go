@@ -79,7 +79,7 @@ func buildSampleReports() map[string]*docs.Report {
 	// 5. Sales by Staff (landscape).
 	st := base("Sales by Staff", "", true)
 	st.Sections = []docs.Section{{Kind: docs.SectionTable, Title: "Servers",
-		Columns: []docs.Column{{Header: "Server", Weight: 2.2}, {Header: "Orders", Weight: 1, Align: "R"}, {Header: "Net Sales", Weight: 1.4, Money: true}, {Header: "Discounts", Weight: 1.4, Money: true}, {Header: "Voids", Weight: 1, Align: "R"}, {Header: "Avg Ticket", Weight: 1.4, Money: true}},
+		Columns: []docs.Column{{Header: "Server", Weight: 2.2}, {Header: "Orders", Weight: 1, Align: "R"}, {Header: "Net Sales", Weight: 1.4, Money: true}, {Header: "Discounts", Weight: 1.4, Money: true}, {Header: "Voids", Weight: 1, Align: "R"}, {Header: "Gross Profit", Weight: 1.4, Money: true}},
 		Rows:    [][]docs.Cell{{docs.Text("Jane"), docs.Text("14"), docs.Text(fmtAmount(28790)), docs.Text(fmtAmount(0)), docs.Text("0"), docs.Text(fmtAmount(2056.43))}},
 		Total:   []docs.Cell{docs.BoldText("Total"), docs.BoldText("14"), docs.BoldText(fmtAmount(28790)), docs.BoldText(fmtAmount(0)), docs.BoldText("0"), docs.BoldText(fmtAmount(2056.43))}}}
 	reports["sales-by-staff"] = st

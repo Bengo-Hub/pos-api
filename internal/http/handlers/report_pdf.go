@@ -890,7 +890,10 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 	oid := h.outletScope(r)
 	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
 
-	completed, err := h.completedOrders(ctx, tid, oid, from, to, false)
+	// withLines=true so cost/profit can be attributed per staff below — same cost/attribution
+	// machinery as DailySales/MostProfitableItems/SalesByHour/GetSummary, so this report's
+	// Gross Profit card always agrees with the on-screen dashboard and other reports.
+	completed, err := h.completedOrders(ctx, tid, oid, from, to, true)
 	if err != nil {
 		h.log.Error("staff report: completed query failed", zap.Error(err))
 		jsonError(w, "failed to generate staff report", http.StatusInternalServerError)
@@ -904,9 +907,12 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
+
 	type staffBucket struct {
 		orders            int
 		revenue, discount float64
+		cost              float64
 		voids             int
 	}
 	buckets := make(map[uuid.UUID]*staffBucket)
@@ -923,6 +929,9 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 		buckets[o.UserID].orders++
 		buckets[o.UserID].revenue += o.TotalAmount
 		buckets[o.UserID].discount += o.DiscountTotal
+		for _, al := range AttributeOrderLines(o) {
+			buckets[o.UserID].cost += costBySKU[al.SKU] * al.Quantity
+		}
 	}
 	for _, o := range voided {
 		if buckets[o.UserID] == nil {
@@ -952,29 +961,28 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 
 	rows := make([][]docs.Cell, 0, len(list))
 	var totOrders, totVoids int
-	var totRevenue, totDiscount float64
+	var totRevenue, totDiscount, totCost float64
 	for _, s := range list {
 		b := s.bucket
-		avg := 0.0
-		if b.orders > 0 {
-			avg = b.revenue / float64(b.orders)
-		}
+		profit := b.revenue - b.cost
 		rows = append(rows, []docs.Cell{
 			docs.Text(s.name),
 			docs.Text(strconv.Itoa(b.orders)),
 			docs.Text(fmtAmount(b.revenue)),
 			docs.Text(fmtAmount(b.discount)),
 			docs.Text(strconv.Itoa(b.voids)),
-			docs.Text(fmtAmount(avg)),
+			docs.Text(fmtAmount(profit)),
 		})
 		totOrders += b.orders
 		totVoids += b.voids
 		totRevenue += b.revenue
 		totDiscount += b.discount
+		totCost += b.cost
 	}
-	totAvg := 0.0
-	if totOrders > 0 {
-		totAvg = totRevenue / float64(totOrders)
+	totProfit := totRevenue - totCost
+	marginPct := 0.0
+	if totRevenue != 0 {
+		marginPct = totProfit / totRevenue * 100
 	}
 
 	// Chart: revenue by server. Capped at the top 12 so the bar labels stay readable — the
@@ -993,7 +1001,7 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 	report.Cards = []docs.Card{
 		{Label: "Total Revenue", Value: currency + " " + fmtAmount(totRevenue)},
 		{Label: "Orders", Value: strconv.Itoa(totOrders)},
-		{Label: "Avg Ticket", Value: currency + " " + fmtAmount(totAvg)},
+		{Label: "Gross Profit", Value: currency + " " + fmtAmount(totProfit), Sub: fmt.Sprintf("%.1f%% margin", marginPct)},
 		{Label: "Voids", Value: strconv.Itoa(totVoids)},
 	}
 	report.Sections = []docs.Section{
@@ -1006,7 +1014,7 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 				{Header: "Net Sales", Weight: 1.4, Money: true},
 				{Header: "Discounts", Weight: 1.4, Money: true},
 				{Header: "Voids", Weight: 1, Align: "R"},
-				{Header: "Avg Ticket", Weight: 1.4, Money: true},
+				{Header: "Gross Profit", Weight: 1.4, Money: true},
 			},
 			Rows: rows,
 			Total: []docs.Cell{
@@ -1015,7 +1023,7 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 				docs.BoldText(fmtAmount(totRevenue)),
 				docs.BoldText(fmtAmount(totDiscount)),
 				docs.BoldText(strconv.Itoa(totVoids)),
-				docs.BoldText(fmtAmount(totAvg)),
+				docs.BoldText(fmtAmount(totProfit)),
 			},
 		},
 		{Kind: docs.SectionChart, Title: "Revenue by Server", ValueUnit: currency, Bars: bars},
@@ -1226,6 +1234,11 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 
 	report := h.newReport(ctx, tid, oid, "Most Profitable Items", "", from, to, true)
 	report.Currency = currency
+	report.Cards = []docs.Card{
+		{Label: "Total Revenue", Value: currency + " " + fmtAmount(totRevenue)},
+		{Label: "Total Cost", Value: currency + " " + fmtAmount(totCost)},
+		{Label: "Gross Profit", Value: currency + " " + fmtAmount(totProfit), Sub: fmt.Sprintf("%.1f%% margin", totMargin)},
+	}
 	report.Sections = []docs.Section{{
 		Kind:  docs.SectionTable,
 		Title: "Profitability Ranking",
