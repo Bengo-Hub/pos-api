@@ -84,6 +84,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
+	"github.com/bengobox/pos-service/internal/ent/possaleedit"
 	"github.com/bengobox/pos-service/internal/ent/possaleshred"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/prescription"
@@ -269,6 +270,7 @@ func checkColumn(t, c string) error {
 			posrole.Table:                  posrole.ValidColumn,
 			posrolepermission.Table:        posrolepermission.ValidColumn,
 			posrolev2.Table:                posrolev2.ValidColumn,
+			possaleedit.Table:              possaleedit.ValidColumn,
 			possaleshred.Table:             possaleshred.ValidColumn,
 			posuserroleassignment.Table:    posuserroleassignment.ValidColumn,
 			patient.Table:                  patient.ValidColumn,

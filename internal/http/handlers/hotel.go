@@ -659,8 +659,10 @@ func (h *HotelHandler) PostFolioCharge(w http.ResponseWriter, r *http.Request) {
 			ctx, cancel := context.WithTimeout(bgCtx, 10*time.Second)
 			defer cancel()
 			if _, cErr := h.inventoryClient.RecordConsumption(ctx, tid.String(), inventory.ConsumptionRequest{
-				OrderID: item.ID.String(),
-				Items:   []inventory.ConsumptionItem{{SKU: sku, Quantity: q}},
+				OrderID:        item.ID.String(),
+				Items:          []inventory.ConsumptionItem{{SKU: sku, Quantity: q}},
+				Reason:         "folio_charge",
+				IdempotencyKey: "pos-folio-" + item.ID.String() + "-" + sku,
 			}); cErr != nil {
 				h.log.Warn("folio charge backflush failed", zap.String("sku", sku), zap.Error(cErr))
 				if h.publisher != nil {

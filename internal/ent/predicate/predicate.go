@@ -213,6 +213,9 @@ type POSRolePermission func(*sql.Selector)
 // POSRoleV2 is the predicate function for posrolev2 builders.
 type POSRoleV2 func(*sql.Selector)
 
+// POSSaleEdit is the predicate function for possaleedit builders.
+type POSSaleEdit func(*sql.Selector)
+
 // POSSaleShred is the predicate function for possaleshred builders.
 type POSSaleShred func(*sql.Selector)
 

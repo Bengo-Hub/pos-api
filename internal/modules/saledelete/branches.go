@@ -28,6 +28,7 @@ import (
 	entstockconsumptionevent "github.com/bengobox/pos-service/internal/ent/stockconsumptionevent"
 	enttableassignment "github.com/bengobox/pos-service/internal/ent/tableassignment"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
+	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/reversals"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
@@ -150,10 +151,10 @@ func (s *Service) deleteNonFiscalized(ctx context.Context, tenantID uuid.UUID, o
 	// there is nothing left to post a reversal against; only the operational CustomerBalance row
 	// needs correcting. Outstanding amount is simply total-paid (never returns-netted: DeleteSale
 	// already refuses any order with return/refund/reversal history before either branch runs).
-	if s.reversalSvc != nil && s.treasuryClient != nil && s.reversalSvc.OrderSettledOnAccount(ctx, tenantID, order.ID) {
+	if s.treasuryClient != nil && orders.SettledOnAccount(ctx, s.client, tenantID, order.ID) {
 		outstanding := order.TotalAmount - order.PaidTotal
 		if outstanding > 0.009 {
-			crmContactID, _, customerPhone := s.reversalSvc.ResolveOrderCustomer(ctx, tenantID, order.ID)
+			crmContactID, _, customerPhone := orders.ResolveOrderCustomer(ctx, s.client, tenantID, order.ID)
 			if crmContactID == "" && customerPhone == "" {
 				steps[2] = nowStep(StepARWriteoff, "treasury", StatusFailed,
 					fmt.Sprintf("owed %.2f but no customer identity on the order to write it off against", outstanding), "")

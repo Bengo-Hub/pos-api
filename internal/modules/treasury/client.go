@@ -326,6 +326,43 @@ func (c *Client) CreateRefund(ctx context.Context, tenantSlug, idempotencyKey st
 	return doRequestWithHeaders[RefundResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, extraHeaders, req)
 }
 
+// SaleEditGLRequest is the body for POST /api/v1/s2s/{tenant}/pos/sale-edits — posts
+// incremental GL/AR for a NON-fiscalized POS Edit-Sale in-place increase. ReferenceID is the
+// edit id (a fresh id minted per edit), NEVER the order id — the original sale's own postings
+// already permanently claim that reference. No eTIMS side effect.
+type SaleEditGLRequest struct {
+	ReferenceID   string  `json:"reference_id"`
+	OrderID       string  `json:"order_id"`
+	OrderNumber   string  `json:"order_number,omitempty"`
+	OutletID      string  `json:"outlet_id,omitempty"`
+	SellingScheme string  `json:"selling_scheme"` // cash | credit | mixed
+	Amount        float64 `json:"amount"`
+	TaxAmount     float64 `json:"tax_amount,omitempty"`
+	CostAmount    float64 `json:"cost_amount,omitempty"`
+	CashAmount    float64 `json:"cash_amount,omitempty"`
+	CreditAmount  float64 `json:"credit_amount,omitempty"`
+	Currency      string  `json:"currency,omitempty"`
+	CrmContactID  string  `json:"crm_contact_id,omitempty"`
+	// CustomerIdentifier(phone) is the AR fallback key; CustomerName is for the journal entry.
+	CustomerIdentifier string `json:"customer_identifier,omitempty"`
+	CustomerName       string `json:"customer_name,omitempty"`
+	UserID             string `json:"user_id,omitempty"`
+	Description        string `json:"description,omitempty"`
+}
+
+// SaleEditGLResponse reports what PostSaleEditGL did.
+type SaleEditGLResponse struct {
+	JournalEntryID string `json:"journal_entry_id,omitempty"`
+	Status         string `json:"status"`
+}
+
+// PostSaleEditGL calls POST /api/v1/s2s/{tenantSlug}/pos/sale-edits — the incremental
+// GL/AR posting for a non-fiscalized Edit-Sale in-place increase.
+func (c *Client) PostSaleEditGL(ctx context.Context, tenantSlug string, req SaleEditGLRequest) (*SaleEditGLResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/pos/sale-edits", c.baseURL, tenantSlug)
+	return doRequest[SaleEditGLResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
+}
+
 // CreditSaleRequest is the body for POST /api/v1/s2s/{tenant}/ar/credit-sale.
 type CreditSaleRequest struct {
 	// CrmContactID is the canonical AR key (the marketflow CRM contact of the selected customer).

@@ -49,6 +49,13 @@ type ConsumptionItem struct {
 type ConsumptionRequest struct {
 	OrderID string            `json:"order_id"`
 	Items   []ConsumptionItem `json:"items"`
+	// Reason and IdempotencyKey are optional but recommended — inventory-api's own
+	// ConsumptionRequest already supports both server-side; this client DTO simply hadn't
+	// exposed them. IdempotencyKey matters most for a repeatable call against the SAME order
+	// (e.g. an Edit-Sale in-place increase calling RecordConsumption a second time for an
+	// already-consumed order) — without it, a client-side retry can double-consume stock.
+	Reason         string `json:"reason,omitempty"`
+	IdempotencyKey string `json:"idempotency_key,omitempty"`
 }
 
 // ItemPrice is the response from GET /v1/{tenant}/inventory/items/{itemID}/price.

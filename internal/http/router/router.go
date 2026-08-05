@@ -449,17 +449,13 @@ func New(
 							pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.delete")).
 								Post("/orders/{orderID}/delete", saleDeleteH.DeleteSale)
 						}
-						// Tenant-admin Edit-Sale "prepare" step — reverses a finalized sale so pos-ui's
-						// existing Add Sale pipeline can create the replacement. Admin-only by default
-						// (carved out of manager's pos.orders.* wildcard), tenant-configurable.
+						// Tenant-admin Edit-Sale tool — admin-only by default (carved out of manager's
+						// pos.orders.* wildcard), tenant-configurable. Caller sends the full desired
+						// line set; the orchestrator diffs server-side and routes in-place vs return
+						// vs addendum internally based on the order's actual fiscalization status.
 						if saleEditH != nil {
 							pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.edit_finalized")).
-								Post("/orders/{orderID}/prepare-edit", saleEditH.PrepareEdit)
-							// True in-place edit: reduce/remove specific lines via a partial reversal,
-							// order status untouched. The everyday Edit Sale path; prepare-edit (above,
-							// full reversal + replacement order) is kept for callers that still need it.
-							pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.edit_finalized")).
-								Post("/orders/{orderID}/edit-reduce", saleEditH.ApplyEdit)
+								Post("/orders/{orderID}/edit", saleEditH.Edit)
 						}
 						// Upsell / set-aside: hold a wrongly-ordered (already-made) item for resale
 						// instead of voiding it. No manager approval; must be cleared before shift close.

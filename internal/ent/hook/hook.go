@@ -837,6 +837,18 @@ func (f POSRoleV2Func) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSRoleV2Mutation", m)
 }
 
+// The POSSaleEditFunc type is an adapter to allow the use of ordinary
+// function as POSSaleEdit mutator.
+type POSSaleEditFunc func(context.Context, *ent.POSSaleEditMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f POSSaleEditFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.POSSaleEditMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.POSSaleEditMutation", m)
+}
+
 // The POSSaleShredFunc type is an adapter to allow the use of ordinary
 // function as POSSaleShred mutator.
 type POSSaleShredFunc func(context.Context, *ent.POSSaleShredMutation) (ent.Value, error)

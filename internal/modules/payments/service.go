@@ -1654,8 +1654,10 @@ func (s *Service) backflushInventory(parent context.Context, order *ent.POSOrder
 	}
 
 	result, err := s.inventoryClient.RecordConsumption(ctx, order.TenantID.String(), inventory.ConsumptionRequest{
-		OrderID: order.ID.String(),
-		Items:   items,
+		OrderID:        order.ID.String(),
+		Items:          items,
+		Reason:         "sale_finalized",
+		IdempotencyKey: "pos-sale-" + order.ID.String(),
 	})
 	if err != nil {
 		s.log.Warn("inventory backflush failed",

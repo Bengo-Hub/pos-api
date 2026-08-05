@@ -2312,6 +2312,47 @@ var (
 			},
 		},
 	}
+	// PosSaleEditsColumns holds the columns for the "pos_sale_edits" table.
+	PosSaleEditsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "order_id", Type: field.TypeUUID},
+		{Name: "order_number", Type: field.TypeString},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"reduction", "increase", "mixed", "price_only"}},
+		{Name: "fiscalized_at_time", Type: field.TypeBool, Default: false},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "completed", "partial_failure", "failed"}, Default: "pending"},
+		{Name: "lines_before", Type: field.TypeJSON},
+		{Name: "lines_after", Type: field.TypeJSON},
+		{Name: "linked_reversal_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "linked_return_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "linked_addendum_order_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "steps", Type: field.TypeJSON},
+		{Name: "amount", Type: field.TypeFloat64, Default: 0},
+		{Name: "tax_amount", Type: field.TypeFloat64, Default: 0},
+		{Name: "cost_amount", Type: field.TypeFloat64, Default: 0},
+		{Name: "reason", Type: field.TypeString},
+		{Name: "requested_by", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PosSaleEditsTable holds the schema information for the "pos_sale_edits" table.
+	PosSaleEditsTable = &schema.Table{
+		Name:       "pos_sale_edits",
+		Columns:    PosSaleEditsColumns,
+		PrimaryKey: []*schema.Column{PosSaleEditsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "possaleedit_tenant_id_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosSaleEditsColumns[1], PosSaleEditsColumns[2]},
+			},
+			{
+				Name:    "possaleedit_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{PosSaleEditsColumns[1], PosSaleEditsColumns[6]},
+			},
+		},
+	}
 	// PosSaleShredsColumns holds the columns for the "pos_sale_shreds" table.
 	PosSaleShredsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -4465,6 +4506,7 @@ var (
 		PosRolesTable,
 		PosRolePermissionsTable,
 		PosRoleV2sTable,
+		PosSaleEditsTable,
 		PosSaleShredsTable,
 		PosUserRoleAssignmentsTable,
 		PatientsTable,

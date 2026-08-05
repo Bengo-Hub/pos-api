@@ -74,6 +74,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posreversal"
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
+	"github.com/bengobox/pos-service/internal/ent/possaleedit"
 	"github.com/bengobox/pos-service/internal/ent/possaleshred"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/prescription"
@@ -2042,6 +2043,54 @@ func init() {
 	posrolev2DescID := posrolev2Fields[0].Descriptor()
 	// posrolev2.DefaultID holds the default value on creation for the id field.
 	posrolev2.DefaultID = posrolev2DescID.Default.(func() uuid.UUID)
+	possaleeditFields := schema.POSSaleEdit{}.Fields()
+	_ = possaleeditFields
+	// possaleeditDescFiscalizedAtTime is the schema descriptor for fiscalized_at_time field.
+	possaleeditDescFiscalizedAtTime := possaleeditFields[5].Descriptor()
+	// possaleedit.DefaultFiscalizedAtTime holds the default value on creation for the fiscalized_at_time field.
+	possaleedit.DefaultFiscalizedAtTime = possaleeditDescFiscalizedAtTime.Default.(bool)
+	// possaleeditDescLinesBefore is the schema descriptor for lines_before field.
+	possaleeditDescLinesBefore := possaleeditFields[7].Descriptor()
+	// possaleedit.DefaultLinesBefore holds the default value on creation for the lines_before field.
+	possaleedit.DefaultLinesBefore = possaleeditDescLinesBefore.Default.([]schema.SaleEditLineSnapshotJSON)
+	// possaleeditDescLinesAfter is the schema descriptor for lines_after field.
+	possaleeditDescLinesAfter := possaleeditFields[8].Descriptor()
+	// possaleedit.DefaultLinesAfter holds the default value on creation for the lines_after field.
+	possaleedit.DefaultLinesAfter = possaleeditDescLinesAfter.Default.([]schema.SaleEditLineSnapshotJSON)
+	// possaleeditDescSteps is the schema descriptor for steps field.
+	possaleeditDescSteps := possaleeditFields[12].Descriptor()
+	// possaleedit.DefaultSteps holds the default value on creation for the steps field.
+	possaleedit.DefaultSteps = possaleeditDescSteps.Default.([]schema.ReversalStepJSON)
+	// possaleeditDescAmount is the schema descriptor for amount field.
+	possaleeditDescAmount := possaleeditFields[13].Descriptor()
+	// possaleedit.DefaultAmount holds the default value on creation for the amount field.
+	possaleedit.DefaultAmount = possaleeditDescAmount.Default.(float64)
+	// possaleeditDescTaxAmount is the schema descriptor for tax_amount field.
+	possaleeditDescTaxAmount := possaleeditFields[14].Descriptor()
+	// possaleedit.DefaultTaxAmount holds the default value on creation for the tax_amount field.
+	possaleedit.DefaultTaxAmount = possaleeditDescTaxAmount.Default.(float64)
+	// possaleeditDescCostAmount is the schema descriptor for cost_amount field.
+	possaleeditDescCostAmount := possaleeditFields[15].Descriptor()
+	// possaleedit.DefaultCostAmount holds the default value on creation for the cost_amount field.
+	possaleedit.DefaultCostAmount = possaleeditDescCostAmount.Default.(float64)
+	// possaleeditDescReason is the schema descriptor for reason field.
+	possaleeditDescReason := possaleeditFields[16].Descriptor()
+	// possaleedit.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	possaleedit.ReasonValidator = possaleeditDescReason.Validators[0].(func(string) error)
+	// possaleeditDescCreatedAt is the schema descriptor for created_at field.
+	possaleeditDescCreatedAt := possaleeditFields[18].Descriptor()
+	// possaleedit.DefaultCreatedAt holds the default value on creation for the created_at field.
+	possaleedit.DefaultCreatedAt = possaleeditDescCreatedAt.Default.(func() time.Time)
+	// possaleeditDescUpdatedAt is the schema descriptor for updated_at field.
+	possaleeditDescUpdatedAt := possaleeditFields[19].Descriptor()
+	// possaleedit.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	possaleedit.DefaultUpdatedAt = possaleeditDescUpdatedAt.Default.(func() time.Time)
+	// possaleedit.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	possaleedit.UpdateDefaultUpdatedAt = possaleeditDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// possaleeditDescID is the schema descriptor for id field.
+	possaleeditDescID := possaleeditFields[0].Descriptor()
+	// possaleedit.DefaultID holds the default value on creation for the id field.
+	possaleedit.DefaultID = possaleeditDescID.Default.(func() uuid.UUID)
 	possaleshredFields := schema.POSSaleShred{}.Fields()
 	_ = possaleshredFields
 	// possaleshredDescReason is the schema descriptor for reason field.

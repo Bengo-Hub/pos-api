@@ -82,6 +82,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrole"
 	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
+	"github.com/bengobox/pos-service/internal/ent/possaleedit"
 	"github.com/bengobox/pos-service/internal/ent/possaleshred"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
@@ -222,6 +223,7 @@ const (
 	TypePOSRole                  = "POSRole"
 	TypePOSRolePermission        = "POSRolePermission"
 	TypePOSRoleV2                = "POSRoleV2"
+	TypePOSSaleEdit              = "POSSaleEdit"
 	TypePOSSaleShred             = "POSSaleShred"
 	TypePOSUserRoleAssignment    = "POSUserRoleAssignment"
 	TypePatient                  = "Patient"
@@ -77021,6 +77023,1520 @@ func (m *POSRoleV2Mutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown POSRoleV2 edge %s", name)
+}
+
+// POSSaleEditMutation represents an operation that mutates the POSSaleEdit nodes in the graph.
+type POSSaleEditMutation struct {
+	config
+	op                       Op
+	typ                      string
+	id                       *uuid.UUID
+	tenant_id                *uuid.UUID
+	order_id                 *uuid.UUID
+	order_number             *string
+	kind                     *possaleedit.Kind
+	fiscalized_at_time       *bool
+	status                   *possaleedit.Status
+	lines_before             *[]schema.SaleEditLineSnapshotJSON
+	appendlines_before       []schema.SaleEditLineSnapshotJSON
+	lines_after              *[]schema.SaleEditLineSnapshotJSON
+	appendlines_after        []schema.SaleEditLineSnapshotJSON
+	linked_reversal_id       *uuid.UUID
+	linked_return_id         *uuid.UUID
+	linked_addendum_order_id *uuid.UUID
+	steps                    *[]schema.ReversalStepJSON
+	appendsteps              []schema.ReversalStepJSON
+	amount                   *float64
+	addamount                *float64
+	tax_amount               *float64
+	addtax_amount            *float64
+	cost_amount              *float64
+	addcost_amount           *float64
+	reason                   *string
+	requested_by             *uuid.UUID
+	created_at               *time.Time
+	updated_at               *time.Time
+	clearedFields            map[string]struct{}
+	done                     bool
+	oldValue                 func(context.Context) (*POSSaleEdit, error)
+	predicates               []predicate.POSSaleEdit
+}
+
+var _ ent.Mutation = (*POSSaleEditMutation)(nil)
+
+// possaleeditOption allows management of the mutation configuration using functional options.
+type possaleeditOption func(*POSSaleEditMutation)
+
+// newPOSSaleEditMutation creates new mutation for the POSSaleEdit entity.
+func newPOSSaleEditMutation(c config, op Op, opts ...possaleeditOption) *POSSaleEditMutation {
+	m := &POSSaleEditMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePOSSaleEdit,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPOSSaleEditID sets the ID field of the mutation.
+func withPOSSaleEditID(id uuid.UUID) possaleeditOption {
+	return func(m *POSSaleEditMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *POSSaleEdit
+		)
+		m.oldValue = func(ctx context.Context) (*POSSaleEdit, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().POSSaleEdit.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPOSSaleEdit sets the old POSSaleEdit of the mutation.
+func withPOSSaleEdit(node *POSSaleEdit) possaleeditOption {
+	return func(m *POSSaleEditMutation) {
+		m.oldValue = func(context.Context) (*POSSaleEdit, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m POSSaleEditMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m POSSaleEditMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of POSSaleEdit entities.
+func (m *POSSaleEditMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *POSSaleEditMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *POSSaleEditMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().POSSaleEdit.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *POSSaleEditMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *POSSaleEditMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *POSSaleEditMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *POSSaleEditMutation) SetOrderID(u uuid.UUID) {
+	m.order_id = &u
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *POSSaleEditMutation) OrderID() (r uuid.UUID, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldOrderID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *POSSaleEditMutation) ResetOrderID() {
+	m.order_id = nil
+}
+
+// SetOrderNumber sets the "order_number" field.
+func (m *POSSaleEditMutation) SetOrderNumber(s string) {
+	m.order_number = &s
+}
+
+// OrderNumber returns the value of the "order_number" field in the mutation.
+func (m *POSSaleEditMutation) OrderNumber() (r string, exists bool) {
+	v := m.order_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderNumber returns the old "order_number" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldOrderNumber(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderNumber: %w", err)
+	}
+	return oldValue.OrderNumber, nil
+}
+
+// ResetOrderNumber resets all changes to the "order_number" field.
+func (m *POSSaleEditMutation) ResetOrderNumber() {
+	m.order_number = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *POSSaleEditMutation) SetKind(po possaleedit.Kind) {
+	m.kind = &po
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *POSSaleEditMutation) Kind() (r possaleedit.Kind, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldKind(ctx context.Context) (v possaleedit.Kind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *POSSaleEditMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetFiscalizedAtTime sets the "fiscalized_at_time" field.
+func (m *POSSaleEditMutation) SetFiscalizedAtTime(b bool) {
+	m.fiscalized_at_time = &b
+}
+
+// FiscalizedAtTime returns the value of the "fiscalized_at_time" field in the mutation.
+func (m *POSSaleEditMutation) FiscalizedAtTime() (r bool, exists bool) {
+	v := m.fiscalized_at_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFiscalizedAtTime returns the old "fiscalized_at_time" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldFiscalizedAtTime(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFiscalizedAtTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFiscalizedAtTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFiscalizedAtTime: %w", err)
+	}
+	return oldValue.FiscalizedAtTime, nil
+}
+
+// ResetFiscalizedAtTime resets all changes to the "fiscalized_at_time" field.
+func (m *POSSaleEditMutation) ResetFiscalizedAtTime() {
+	m.fiscalized_at_time = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *POSSaleEditMutation) SetStatus(po possaleedit.Status) {
+	m.status = &po
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *POSSaleEditMutation) Status() (r possaleedit.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldStatus(ctx context.Context) (v possaleedit.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *POSSaleEditMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetLinesBefore sets the "lines_before" field.
+func (m *POSSaleEditMutation) SetLinesBefore(selsj []schema.SaleEditLineSnapshotJSON) {
+	m.lines_before = &selsj
+	m.appendlines_before = nil
+}
+
+// LinesBefore returns the value of the "lines_before" field in the mutation.
+func (m *POSSaleEditMutation) LinesBefore() (r []schema.SaleEditLineSnapshotJSON, exists bool) {
+	v := m.lines_before
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLinesBefore returns the old "lines_before" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldLinesBefore(ctx context.Context) (v []schema.SaleEditLineSnapshotJSON, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLinesBefore is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLinesBefore requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLinesBefore: %w", err)
+	}
+	return oldValue.LinesBefore, nil
+}
+
+// AppendLinesBefore adds selsj to the "lines_before" field.
+func (m *POSSaleEditMutation) AppendLinesBefore(selsj []schema.SaleEditLineSnapshotJSON) {
+	m.appendlines_before = append(m.appendlines_before, selsj...)
+}
+
+// AppendedLinesBefore returns the list of values that were appended to the "lines_before" field in this mutation.
+func (m *POSSaleEditMutation) AppendedLinesBefore() ([]schema.SaleEditLineSnapshotJSON, bool) {
+	if len(m.appendlines_before) == 0 {
+		return nil, false
+	}
+	return m.appendlines_before, true
+}
+
+// ResetLinesBefore resets all changes to the "lines_before" field.
+func (m *POSSaleEditMutation) ResetLinesBefore() {
+	m.lines_before = nil
+	m.appendlines_before = nil
+}
+
+// SetLinesAfter sets the "lines_after" field.
+func (m *POSSaleEditMutation) SetLinesAfter(selsj []schema.SaleEditLineSnapshotJSON) {
+	m.lines_after = &selsj
+	m.appendlines_after = nil
+}
+
+// LinesAfter returns the value of the "lines_after" field in the mutation.
+func (m *POSSaleEditMutation) LinesAfter() (r []schema.SaleEditLineSnapshotJSON, exists bool) {
+	v := m.lines_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLinesAfter returns the old "lines_after" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldLinesAfter(ctx context.Context) (v []schema.SaleEditLineSnapshotJSON, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLinesAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLinesAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLinesAfter: %w", err)
+	}
+	return oldValue.LinesAfter, nil
+}
+
+// AppendLinesAfter adds selsj to the "lines_after" field.
+func (m *POSSaleEditMutation) AppendLinesAfter(selsj []schema.SaleEditLineSnapshotJSON) {
+	m.appendlines_after = append(m.appendlines_after, selsj...)
+}
+
+// AppendedLinesAfter returns the list of values that were appended to the "lines_after" field in this mutation.
+func (m *POSSaleEditMutation) AppendedLinesAfter() ([]schema.SaleEditLineSnapshotJSON, bool) {
+	if len(m.appendlines_after) == 0 {
+		return nil, false
+	}
+	return m.appendlines_after, true
+}
+
+// ResetLinesAfter resets all changes to the "lines_after" field.
+func (m *POSSaleEditMutation) ResetLinesAfter() {
+	m.lines_after = nil
+	m.appendlines_after = nil
+}
+
+// SetLinkedReversalID sets the "linked_reversal_id" field.
+func (m *POSSaleEditMutation) SetLinkedReversalID(u uuid.UUID) {
+	m.linked_reversal_id = &u
+}
+
+// LinkedReversalID returns the value of the "linked_reversal_id" field in the mutation.
+func (m *POSSaleEditMutation) LinkedReversalID() (r uuid.UUID, exists bool) {
+	v := m.linked_reversal_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLinkedReversalID returns the old "linked_reversal_id" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldLinkedReversalID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLinkedReversalID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLinkedReversalID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLinkedReversalID: %w", err)
+	}
+	return oldValue.LinkedReversalID, nil
+}
+
+// ClearLinkedReversalID clears the value of the "linked_reversal_id" field.
+func (m *POSSaleEditMutation) ClearLinkedReversalID() {
+	m.linked_reversal_id = nil
+	m.clearedFields[possaleedit.FieldLinkedReversalID] = struct{}{}
+}
+
+// LinkedReversalIDCleared returns if the "linked_reversal_id" field was cleared in this mutation.
+func (m *POSSaleEditMutation) LinkedReversalIDCleared() bool {
+	_, ok := m.clearedFields[possaleedit.FieldLinkedReversalID]
+	return ok
+}
+
+// ResetLinkedReversalID resets all changes to the "linked_reversal_id" field.
+func (m *POSSaleEditMutation) ResetLinkedReversalID() {
+	m.linked_reversal_id = nil
+	delete(m.clearedFields, possaleedit.FieldLinkedReversalID)
+}
+
+// SetLinkedReturnID sets the "linked_return_id" field.
+func (m *POSSaleEditMutation) SetLinkedReturnID(u uuid.UUID) {
+	m.linked_return_id = &u
+}
+
+// LinkedReturnID returns the value of the "linked_return_id" field in the mutation.
+func (m *POSSaleEditMutation) LinkedReturnID() (r uuid.UUID, exists bool) {
+	v := m.linked_return_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLinkedReturnID returns the old "linked_return_id" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldLinkedReturnID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLinkedReturnID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLinkedReturnID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLinkedReturnID: %w", err)
+	}
+	return oldValue.LinkedReturnID, nil
+}
+
+// ClearLinkedReturnID clears the value of the "linked_return_id" field.
+func (m *POSSaleEditMutation) ClearLinkedReturnID() {
+	m.linked_return_id = nil
+	m.clearedFields[possaleedit.FieldLinkedReturnID] = struct{}{}
+}
+
+// LinkedReturnIDCleared returns if the "linked_return_id" field was cleared in this mutation.
+func (m *POSSaleEditMutation) LinkedReturnIDCleared() bool {
+	_, ok := m.clearedFields[possaleedit.FieldLinkedReturnID]
+	return ok
+}
+
+// ResetLinkedReturnID resets all changes to the "linked_return_id" field.
+func (m *POSSaleEditMutation) ResetLinkedReturnID() {
+	m.linked_return_id = nil
+	delete(m.clearedFields, possaleedit.FieldLinkedReturnID)
+}
+
+// SetLinkedAddendumOrderID sets the "linked_addendum_order_id" field.
+func (m *POSSaleEditMutation) SetLinkedAddendumOrderID(u uuid.UUID) {
+	m.linked_addendum_order_id = &u
+}
+
+// LinkedAddendumOrderID returns the value of the "linked_addendum_order_id" field in the mutation.
+func (m *POSSaleEditMutation) LinkedAddendumOrderID() (r uuid.UUID, exists bool) {
+	v := m.linked_addendum_order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLinkedAddendumOrderID returns the old "linked_addendum_order_id" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldLinkedAddendumOrderID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLinkedAddendumOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLinkedAddendumOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLinkedAddendumOrderID: %w", err)
+	}
+	return oldValue.LinkedAddendumOrderID, nil
+}
+
+// ClearLinkedAddendumOrderID clears the value of the "linked_addendum_order_id" field.
+func (m *POSSaleEditMutation) ClearLinkedAddendumOrderID() {
+	m.linked_addendum_order_id = nil
+	m.clearedFields[possaleedit.FieldLinkedAddendumOrderID] = struct{}{}
+}
+
+// LinkedAddendumOrderIDCleared returns if the "linked_addendum_order_id" field was cleared in this mutation.
+func (m *POSSaleEditMutation) LinkedAddendumOrderIDCleared() bool {
+	_, ok := m.clearedFields[possaleedit.FieldLinkedAddendumOrderID]
+	return ok
+}
+
+// ResetLinkedAddendumOrderID resets all changes to the "linked_addendum_order_id" field.
+func (m *POSSaleEditMutation) ResetLinkedAddendumOrderID() {
+	m.linked_addendum_order_id = nil
+	delete(m.clearedFields, possaleedit.FieldLinkedAddendumOrderID)
+}
+
+// SetSteps sets the "steps" field.
+func (m *POSSaleEditMutation) SetSteps(ssj []schema.ReversalStepJSON) {
+	m.steps = &ssj
+	m.appendsteps = nil
+}
+
+// Steps returns the value of the "steps" field in the mutation.
+func (m *POSSaleEditMutation) Steps() (r []schema.ReversalStepJSON, exists bool) {
+	v := m.steps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSteps returns the old "steps" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldSteps(ctx context.Context) (v []schema.ReversalStepJSON, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSteps is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSteps requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSteps: %w", err)
+	}
+	return oldValue.Steps, nil
+}
+
+// AppendSteps adds ssj to the "steps" field.
+func (m *POSSaleEditMutation) AppendSteps(ssj []schema.ReversalStepJSON) {
+	m.appendsteps = append(m.appendsteps, ssj...)
+}
+
+// AppendedSteps returns the list of values that were appended to the "steps" field in this mutation.
+func (m *POSSaleEditMutation) AppendedSteps() ([]schema.ReversalStepJSON, bool) {
+	if len(m.appendsteps) == 0 {
+		return nil, false
+	}
+	return m.appendsteps, true
+}
+
+// ResetSteps resets all changes to the "steps" field.
+func (m *POSSaleEditMutation) ResetSteps() {
+	m.steps = nil
+	m.appendsteps = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *POSSaleEditMutation) SetAmount(f float64) {
+	m.amount = &f
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *POSSaleEditMutation) Amount() (r float64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds f to the "amount" field.
+func (m *POSSaleEditMutation) AddAmount(f float64) {
+	if m.addamount != nil {
+		*m.addamount += f
+	} else {
+		m.addamount = &f
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *POSSaleEditMutation) AddedAmount() (r float64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *POSSaleEditMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetTaxAmount sets the "tax_amount" field.
+func (m *POSSaleEditMutation) SetTaxAmount(f float64) {
+	m.tax_amount = &f
+	m.addtax_amount = nil
+}
+
+// TaxAmount returns the value of the "tax_amount" field in the mutation.
+func (m *POSSaleEditMutation) TaxAmount() (r float64, exists bool) {
+	v := m.tax_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTaxAmount returns the old "tax_amount" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldTaxAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTaxAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTaxAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTaxAmount: %w", err)
+	}
+	return oldValue.TaxAmount, nil
+}
+
+// AddTaxAmount adds f to the "tax_amount" field.
+func (m *POSSaleEditMutation) AddTaxAmount(f float64) {
+	if m.addtax_amount != nil {
+		*m.addtax_amount += f
+	} else {
+		m.addtax_amount = &f
+	}
+}
+
+// AddedTaxAmount returns the value that was added to the "tax_amount" field in this mutation.
+func (m *POSSaleEditMutation) AddedTaxAmount() (r float64, exists bool) {
+	v := m.addtax_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTaxAmount resets all changes to the "tax_amount" field.
+func (m *POSSaleEditMutation) ResetTaxAmount() {
+	m.tax_amount = nil
+	m.addtax_amount = nil
+}
+
+// SetCostAmount sets the "cost_amount" field.
+func (m *POSSaleEditMutation) SetCostAmount(f float64) {
+	m.cost_amount = &f
+	m.addcost_amount = nil
+}
+
+// CostAmount returns the value of the "cost_amount" field in the mutation.
+func (m *POSSaleEditMutation) CostAmount() (r float64, exists bool) {
+	v := m.cost_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCostAmount returns the old "cost_amount" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldCostAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCostAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCostAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCostAmount: %w", err)
+	}
+	return oldValue.CostAmount, nil
+}
+
+// AddCostAmount adds f to the "cost_amount" field.
+func (m *POSSaleEditMutation) AddCostAmount(f float64) {
+	if m.addcost_amount != nil {
+		*m.addcost_amount += f
+	} else {
+		m.addcost_amount = &f
+	}
+}
+
+// AddedCostAmount returns the value that was added to the "cost_amount" field in this mutation.
+func (m *POSSaleEditMutation) AddedCostAmount() (r float64, exists bool) {
+	v := m.addcost_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCostAmount resets all changes to the "cost_amount" field.
+func (m *POSSaleEditMutation) ResetCostAmount() {
+	m.cost_amount = nil
+	m.addcost_amount = nil
+}
+
+// SetReason sets the "reason" field.
+func (m *POSSaleEditMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *POSSaleEditMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *POSSaleEditMutation) ResetReason() {
+	m.reason = nil
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (m *POSSaleEditMutation) SetRequestedBy(u uuid.UUID) {
+	m.requested_by = &u
+}
+
+// RequestedBy returns the value of the "requested_by" field in the mutation.
+func (m *POSSaleEditMutation) RequestedBy() (r uuid.UUID, exists bool) {
+	v := m.requested_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedBy returns the old "requested_by" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldRequestedBy(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedBy: %w", err)
+	}
+	return oldValue.RequestedBy, nil
+}
+
+// ResetRequestedBy resets all changes to the "requested_by" field.
+func (m *POSSaleEditMutation) ResetRequestedBy() {
+	m.requested_by = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *POSSaleEditMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *POSSaleEditMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *POSSaleEditMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *POSSaleEditMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *POSSaleEditMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the POSSaleEdit entity.
+// If the POSSaleEdit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSSaleEditMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *POSSaleEditMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the POSSaleEditMutation builder.
+func (m *POSSaleEditMutation) Where(ps ...predicate.POSSaleEdit) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the POSSaleEditMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *POSSaleEditMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.POSSaleEdit, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *POSSaleEditMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *POSSaleEditMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (POSSaleEdit).
+func (m *POSSaleEditMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *POSSaleEditMutation) Fields() []string {
+	fields := make([]string, 0, 19)
+	if m.tenant_id != nil {
+		fields = append(fields, possaleedit.FieldTenantID)
+	}
+	if m.order_id != nil {
+		fields = append(fields, possaleedit.FieldOrderID)
+	}
+	if m.order_number != nil {
+		fields = append(fields, possaleedit.FieldOrderNumber)
+	}
+	if m.kind != nil {
+		fields = append(fields, possaleedit.FieldKind)
+	}
+	if m.fiscalized_at_time != nil {
+		fields = append(fields, possaleedit.FieldFiscalizedAtTime)
+	}
+	if m.status != nil {
+		fields = append(fields, possaleedit.FieldStatus)
+	}
+	if m.lines_before != nil {
+		fields = append(fields, possaleedit.FieldLinesBefore)
+	}
+	if m.lines_after != nil {
+		fields = append(fields, possaleedit.FieldLinesAfter)
+	}
+	if m.linked_reversal_id != nil {
+		fields = append(fields, possaleedit.FieldLinkedReversalID)
+	}
+	if m.linked_return_id != nil {
+		fields = append(fields, possaleedit.FieldLinkedReturnID)
+	}
+	if m.linked_addendum_order_id != nil {
+		fields = append(fields, possaleedit.FieldLinkedAddendumOrderID)
+	}
+	if m.steps != nil {
+		fields = append(fields, possaleedit.FieldSteps)
+	}
+	if m.amount != nil {
+		fields = append(fields, possaleedit.FieldAmount)
+	}
+	if m.tax_amount != nil {
+		fields = append(fields, possaleedit.FieldTaxAmount)
+	}
+	if m.cost_amount != nil {
+		fields = append(fields, possaleedit.FieldCostAmount)
+	}
+	if m.reason != nil {
+		fields = append(fields, possaleedit.FieldReason)
+	}
+	if m.requested_by != nil {
+		fields = append(fields, possaleedit.FieldRequestedBy)
+	}
+	if m.created_at != nil {
+		fields = append(fields, possaleedit.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, possaleedit.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *POSSaleEditMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case possaleedit.FieldTenantID:
+		return m.TenantID()
+	case possaleedit.FieldOrderID:
+		return m.OrderID()
+	case possaleedit.FieldOrderNumber:
+		return m.OrderNumber()
+	case possaleedit.FieldKind:
+		return m.Kind()
+	case possaleedit.FieldFiscalizedAtTime:
+		return m.FiscalizedAtTime()
+	case possaleedit.FieldStatus:
+		return m.Status()
+	case possaleedit.FieldLinesBefore:
+		return m.LinesBefore()
+	case possaleedit.FieldLinesAfter:
+		return m.LinesAfter()
+	case possaleedit.FieldLinkedReversalID:
+		return m.LinkedReversalID()
+	case possaleedit.FieldLinkedReturnID:
+		return m.LinkedReturnID()
+	case possaleedit.FieldLinkedAddendumOrderID:
+		return m.LinkedAddendumOrderID()
+	case possaleedit.FieldSteps:
+		return m.Steps()
+	case possaleedit.FieldAmount:
+		return m.Amount()
+	case possaleedit.FieldTaxAmount:
+		return m.TaxAmount()
+	case possaleedit.FieldCostAmount:
+		return m.CostAmount()
+	case possaleedit.FieldReason:
+		return m.Reason()
+	case possaleedit.FieldRequestedBy:
+		return m.RequestedBy()
+	case possaleedit.FieldCreatedAt:
+		return m.CreatedAt()
+	case possaleedit.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *POSSaleEditMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case possaleedit.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case possaleedit.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case possaleedit.FieldOrderNumber:
+		return m.OldOrderNumber(ctx)
+	case possaleedit.FieldKind:
+		return m.OldKind(ctx)
+	case possaleedit.FieldFiscalizedAtTime:
+		return m.OldFiscalizedAtTime(ctx)
+	case possaleedit.FieldStatus:
+		return m.OldStatus(ctx)
+	case possaleedit.FieldLinesBefore:
+		return m.OldLinesBefore(ctx)
+	case possaleedit.FieldLinesAfter:
+		return m.OldLinesAfter(ctx)
+	case possaleedit.FieldLinkedReversalID:
+		return m.OldLinkedReversalID(ctx)
+	case possaleedit.FieldLinkedReturnID:
+		return m.OldLinkedReturnID(ctx)
+	case possaleedit.FieldLinkedAddendumOrderID:
+		return m.OldLinkedAddendumOrderID(ctx)
+	case possaleedit.FieldSteps:
+		return m.OldSteps(ctx)
+	case possaleedit.FieldAmount:
+		return m.OldAmount(ctx)
+	case possaleedit.FieldTaxAmount:
+		return m.OldTaxAmount(ctx)
+	case possaleedit.FieldCostAmount:
+		return m.OldCostAmount(ctx)
+	case possaleedit.FieldReason:
+		return m.OldReason(ctx)
+	case possaleedit.FieldRequestedBy:
+		return m.OldRequestedBy(ctx)
+	case possaleedit.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case possaleedit.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown POSSaleEdit field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *POSSaleEditMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case possaleedit.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case possaleedit.FieldOrderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case possaleedit.FieldOrderNumber:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderNumber(v)
+		return nil
+	case possaleedit.FieldKind:
+		v, ok := value.(possaleedit.Kind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case possaleedit.FieldFiscalizedAtTime:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFiscalizedAtTime(v)
+		return nil
+	case possaleedit.FieldStatus:
+		v, ok := value.(possaleedit.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case possaleedit.FieldLinesBefore:
+		v, ok := value.([]schema.SaleEditLineSnapshotJSON)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLinesBefore(v)
+		return nil
+	case possaleedit.FieldLinesAfter:
+		v, ok := value.([]schema.SaleEditLineSnapshotJSON)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLinesAfter(v)
+		return nil
+	case possaleedit.FieldLinkedReversalID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLinkedReversalID(v)
+		return nil
+	case possaleedit.FieldLinkedReturnID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLinkedReturnID(v)
+		return nil
+	case possaleedit.FieldLinkedAddendumOrderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLinkedAddendumOrderID(v)
+		return nil
+	case possaleedit.FieldSteps:
+		v, ok := value.([]schema.ReversalStepJSON)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSteps(v)
+		return nil
+	case possaleedit.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case possaleedit.FieldTaxAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTaxAmount(v)
+		return nil
+	case possaleedit.FieldCostAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCostAmount(v)
+		return nil
+	case possaleedit.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	case possaleedit.FieldRequestedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedBy(v)
+		return nil
+	case possaleedit.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case possaleedit.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown POSSaleEdit field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *POSSaleEditMutation) AddedFields() []string {
+	var fields []string
+	if m.addamount != nil {
+		fields = append(fields, possaleedit.FieldAmount)
+	}
+	if m.addtax_amount != nil {
+		fields = append(fields, possaleedit.FieldTaxAmount)
+	}
+	if m.addcost_amount != nil {
+		fields = append(fields, possaleedit.FieldCostAmount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *POSSaleEditMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case possaleedit.FieldAmount:
+		return m.AddedAmount()
+	case possaleedit.FieldTaxAmount:
+		return m.AddedTaxAmount()
+	case possaleedit.FieldCostAmount:
+		return m.AddedCostAmount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *POSSaleEditMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case possaleedit.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	case possaleedit.FieldTaxAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTaxAmount(v)
+		return nil
+	case possaleedit.FieldCostAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCostAmount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown POSSaleEdit numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *POSSaleEditMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(possaleedit.FieldLinkedReversalID) {
+		fields = append(fields, possaleedit.FieldLinkedReversalID)
+	}
+	if m.FieldCleared(possaleedit.FieldLinkedReturnID) {
+		fields = append(fields, possaleedit.FieldLinkedReturnID)
+	}
+	if m.FieldCleared(possaleedit.FieldLinkedAddendumOrderID) {
+		fields = append(fields, possaleedit.FieldLinkedAddendumOrderID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *POSSaleEditMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *POSSaleEditMutation) ClearField(name string) error {
+	switch name {
+	case possaleedit.FieldLinkedReversalID:
+		m.ClearLinkedReversalID()
+		return nil
+	case possaleedit.FieldLinkedReturnID:
+		m.ClearLinkedReturnID()
+		return nil
+	case possaleedit.FieldLinkedAddendumOrderID:
+		m.ClearLinkedAddendumOrderID()
+		return nil
+	}
+	return fmt.Errorf("unknown POSSaleEdit nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *POSSaleEditMutation) ResetField(name string) error {
+	switch name {
+	case possaleedit.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case possaleedit.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case possaleedit.FieldOrderNumber:
+		m.ResetOrderNumber()
+		return nil
+	case possaleedit.FieldKind:
+		m.ResetKind()
+		return nil
+	case possaleedit.FieldFiscalizedAtTime:
+		m.ResetFiscalizedAtTime()
+		return nil
+	case possaleedit.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case possaleedit.FieldLinesBefore:
+		m.ResetLinesBefore()
+		return nil
+	case possaleedit.FieldLinesAfter:
+		m.ResetLinesAfter()
+		return nil
+	case possaleedit.FieldLinkedReversalID:
+		m.ResetLinkedReversalID()
+		return nil
+	case possaleedit.FieldLinkedReturnID:
+		m.ResetLinkedReturnID()
+		return nil
+	case possaleedit.FieldLinkedAddendumOrderID:
+		m.ResetLinkedAddendumOrderID()
+		return nil
+	case possaleedit.FieldSteps:
+		m.ResetSteps()
+		return nil
+	case possaleedit.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case possaleedit.FieldTaxAmount:
+		m.ResetTaxAmount()
+		return nil
+	case possaleedit.FieldCostAmount:
+		m.ResetCostAmount()
+		return nil
+	case possaleedit.FieldReason:
+		m.ResetReason()
+		return nil
+	case possaleedit.FieldRequestedBy:
+		m.ResetRequestedBy()
+		return nil
+	case possaleedit.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case possaleedit.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown POSSaleEdit field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *POSSaleEditMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *POSSaleEditMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *POSSaleEditMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *POSSaleEditMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *POSSaleEditMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *POSSaleEditMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *POSSaleEditMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown POSSaleEdit unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *POSSaleEditMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown POSSaleEdit edge %s", name)
 }
 
 // POSSaleShredMutation represents an operation that mutates the POSSaleShred nodes in the graph.

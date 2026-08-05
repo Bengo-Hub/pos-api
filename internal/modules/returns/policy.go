@@ -1,4 +1,4 @@
-package handlers
+package returns
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
-	"github.com/bengobox/pos-service/internal/modules/orders"
 )
 
 // Refund-method policy: which settlement channels are valid for a return, given WHY the
@@ -61,12 +60,12 @@ func validateRefundChannel(reasonCode *posreturn.ReasonCode, returnType posretur
 // "restrict_credit_sale_refund_to_offset", to let cashiers pick any refund channel for a
 // credit-sale return. Defaults to true (today's behavior, unchanged) whenever the order/setting
 // can't be resolved — a lookup failure must never silently loosen a financial guard.
-func (h *ReturnHandler) creditSaleRefundRestricted(ctx context.Context, tenantID, orderID uuid.UUID) bool {
-	order, err := h.client.POSOrder.Query().Where(entposorder.ID(orderID), entposorder.TenantID(tenantID)).Only(ctx)
+func (s *Service) creditSaleRefundRestricted(ctx context.Context, tenantID, orderID uuid.UUID) bool {
+	order, err := s.client.POSOrder.Query().Where(entposorder.ID(orderID), entposorder.TenantID(tenantID)).Only(ctx)
 	if err != nil {
 		return true
 	}
-	setting, err := h.client.OutletSetting.Query().Where(entoutletsetting.OutletID(order.OutletID)).Only(ctx)
+	setting, err := s.client.OutletSetting.Query().Where(entoutletsetting.OutletID(order.OutletID)).Only(ctx)
 	if err != nil {
 		return true
 	}
@@ -85,11 +84,13 @@ func defaultRefundChannel(returnType posreturn.ReturnType, onAccount bool) strin
 	return "cash"
 }
 
-// orderSettledOnAccount reports whether the original sale was settled on account (credit sale).
-// Delegates to orders.SettledOnAccount — see that function's doc comment for the 2026-08-05 live
-// bug (Tender-row-only detection silently false for tenants with no configured Tender catalog)
-// this centralization fixes for every caller at once, including reversals.Service's identical
-// former copy of this same logic.
-func (h *ReturnHandler) orderSettledOnAccount(ctx context.Context, tenantID, orderID uuid.UUID) bool {
-	return orders.SettledOnAccount(ctx, h.client, tenantID, orderID)
+// metaBoolDefault reads a bool key from a metadata map, returning def when absent/wrong type.
+func metaBoolDefault(meta map[string]any, key string, def bool) bool {
+	if meta == nil {
+		return def
+	}
+	if v, ok := meta[key].(bool); ok {
+		return v
+	}
+	return def
 }

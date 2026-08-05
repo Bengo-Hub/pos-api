@@ -40,6 +40,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	promommodule "github.com/bengobox/pos-service/internal/modules/promotions"
 	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
+	"github.com/bengobox/pos-service/internal/modules/returns"
 	"github.com/bengobox/pos-service/internal/modules/reversals"
 	"github.com/bengobox/pos-service/internal/modules/saledelete"
 	"github.com/bengobox/pos-service/internal/modules/saleedit"
@@ -406,11 +407,12 @@ func New(ctx context.Context) (*App, error) {
 	if pub := orderSvc.GetPublisher(); pub != nil {
 		returnEventPub = pub
 	}
-	returnHandler := handlers.NewReturnHandler(log, entClient, treasuryClient, returnEventPub)
-	returnHandler.SetAuditService(auditSvc)
-	returnHandler.WithSequence(docSeqSvc) // pos_return numbers via the document sequence
+	returnsSvc := returns.NewService(log, entClient, treasuryClient, returnEventPub)
+	returnsSvc.SetAuditService(auditSvc)
+	returnsSvc.WithSequence(docSeqSvc) // pos_return numbers via the document sequence
 	// Exchange fulfilment creates the replacement order through the normal sale pipeline.
-	returnHandler.SetOrderService(orderSvc)
+	returnsSvc.SetOrderService(orderSvc)
+	returnHandler := handlers.NewReturnHandler(log, entClient, returnsSvc)
 	// Transaction reversals (platform-owner data-repair tool): orchestrates pos totals,
 	// inventory consumption reversal, treasury GL and eTIMS credit note per reversal.
 	reversalSvc := reversals.NewService(log, entClient, orderSvc, treasuryClient, inventoryClient)
@@ -423,10 +425,16 @@ func New(ctx context.Context) (*App, error) {
 	saleDeleteSvc := saledelete.NewService(log, entClient, reversalSvc, treasuryClient, inventoryClient)
 	saleDeleteSvc.SetAuditService(auditSvc)
 	saleDeleteHandler := handlers.NewSaleDeleteHandler(log, saleDeleteSvc)
-	// Tenant-admin Edit-Sale "prepare" step — reverses the original via the SAME reversalSvc;
-	// pos-ui's existing Add Sale pipeline creates the replacement. See internal/modules/saleedit.
+	// Tenant-admin Edit-Sale tool. See internal/modules/saleedit: the centralized Edit
+	// orchestrator branches non-fiscalized (true in-place, both reduce and increase) vs
+	// fiscalized (return+credit-note for reductions, the existing linked-addendum-order
+	// pattern for increases) — reuses reversalSvc/returnsSvc/orderSvc, no duplicate logic.
 	saleEditSvc := saleedit.NewService(log, entClient, reversalSvc)
 	saleEditSvc.SetAuditService(auditSvc)
+	saleEditSvc.SetTreasuryClient(treasuryClient)
+	saleEditSvc.SetInventoryClient(inventoryClient)
+	saleEditSvc.SetOrderService(orderSvc)
+	saleEditSvc.SetReturnsService(returnsSvc)
 	saleEditHandler := handlers.NewSaleEditHandler(log, saleEditSvc)
 	receiptHandler := handlers.NewReceiptHandler(log, entClient, tenantCache, cfg.Auth.ServiceURL)
 	// KRA PIN header line on receipts — resolved from the treasury tax profile, printed

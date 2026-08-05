@@ -1563,7 +1563,17 @@ func (s *Service) resolveLocalModifier(ctx context.Context, tx *ent.Tx, tenantID
 // GL at finalization (per-item revenue+tax would not sum to the cash receipt). Returns the updated
 // order.
 func (s *Service) RecomputeTotals(ctx context.Context, tenantID, orderID uuid.UUID) (*ent.POSOrder, error) {
-	order, err := s.client.POSOrder.Query().
+	return RecomputeTotalsWithClient(ctx, s.client, tenantID, orderID)
+}
+
+// RecomputeTotalsWithClient is RecomputeTotals against an explicit *ent.Client rather than a
+// bound Service — the recompute logic reads only order/line fields (no currency/tax-rate/
+// publisher config), so it needs nothing else off Service. This lets a caller pass a
+// transaction-scoped client (tx.Client()) to make the recompute part of a larger atomic
+// write — e.g. reversals.stepPOSTotals wrapping void-lines + recompute + netPayments in one
+// ent.Tx (see that function's doc comment).
+func RecomputeTotalsWithClient(ctx context.Context, client *ent.Client, tenantID, orderID uuid.UUID) (*ent.POSOrder, error) {
+	order, err := client.POSOrder.Query().
 		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
 		WithLines().
 		Only(ctx)
@@ -1593,7 +1603,7 @@ func (s *Service) RecomputeTotals(ctx context.Context, tenantID, orderID uuid.UU
 		}
 	}
 	totals := finalizeTotals(subtotal, taxTotal, decimal.NewFromFloat(order.DiscountTotal), decimal.NewFromFloat(order.ChargesTotal), orderTax)
-	updated, err := s.client.POSOrder.UpdateOneID(order.ID).
+	updated, err := client.POSOrder.UpdateOneID(order.ID).
 		SetSubtotal(totals.Subtotal.InexactFloat64()).
 		SetTaxTotal(totals.TaxTotal.InexactFloat64()).
 		SetRoundOff(totals.RoundOff.InexactFloat64()).

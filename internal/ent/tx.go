@@ -150,6 +150,8 @@ type Tx struct {
 	POSRolePermission *POSRolePermissionClient
 	// POSRoleV2 is the client for interacting with the POSRoleV2 builders.
 	POSRoleV2 *POSRoleV2Client
+	// POSSaleEdit is the client for interacting with the POSSaleEdit builders.
+	POSSaleEdit *POSSaleEditClient
 	// POSSaleShred is the client for interacting with the POSSaleShred builders.
 	POSSaleShred *POSSaleShredClient
 	// POSUserRoleAssignment is the client for interacting with the POSUserRoleAssignment builders.
@@ -468,6 +470,7 @@ func (tx *Tx) init() {
 	tx.POSRole = NewPOSRoleClient(tx.config)
 	tx.POSRolePermission = NewPOSRolePermissionClient(tx.config)
 	tx.POSRoleV2 = NewPOSRoleV2Client(tx.config)
+	tx.POSSaleEdit = NewPOSSaleEditClient(tx.config)
 	tx.POSSaleShred = NewPOSSaleShredClient(tx.config)
 	tx.POSUserRoleAssignment = NewPOSUserRoleAssignmentClient(tx.config)
 	tx.Patient = NewPatientClient(tx.config)

@@ -1,9 +1,8 @@
-package handlers
+package returns
 
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -24,41 +23,24 @@ import (
 //   - replacement cheaper → the leftover is refunded via the policy-validated channel
 //     (CompleteReturn posts it to treasury);
 //   - equal               → zero-cash exchange, the replacement order completes directly.
-// Returned goods restock via the existing exchange.completed event.
-
-// SetOrderService wires the orders service used to create exchange replacement orders.
-func (h *ReturnHandler) SetOrderService(svc *orders.Service) { h.orderSvc = svc }
-
-// exchangeResult reports the replacement order + money split back to the till.
-type exchangeResult struct {
-	OrderID          uuid.UUID `json:"order_id"`
-	OrderNumber      string    `json:"order_number"`
-	ReplacementTotal float64   `json:"replacement_total"`
-	ExchangeCredit   float64   `json:"exchange_credit"`
-	// AmountPayable is what the customer still owes on the replacement order (dearer swap);
-	// the till collects it through the normal payment flow.
-	AmountPayable float64 `json:"amount_payable"`
-	// Leftover is the value still owed TO the customer (cheaper swap); CompleteReturn
-	// settles it in treasury via the chosen refund channel.
-	Leftover float64 `json:"leftover_refund"`
-}
+// Returned goods restock via the pos.exchange.completed event.
 
 // fulfilExchange creates the replacement order for an exchange return. No-op (nil, nil)
 // for non-exchange returns.
-func (h *ReturnHandler) fulfilExchange(ctx context.Context, r *http.Request, tid uuid.UUID, ret *ent.POSReturn, _ []*ent.POSReturnLine, input completeReturnInput) (*exchangeResult, error) {
+func (s *Service) fulfilExchange(ctx context.Context, tenantID uuid.UUID, ret *ent.POSReturn, req CompleteReturnRequest) (*ExchangeResult, error) {
 	if ret.ReturnType != posreturn.ReturnTypeExchange {
 		return nil, nil
 	}
-	if h.orderSvc == nil {
+	if s.orderSvc == nil {
 		return nil, fmt.Errorf("exchange fulfilment is not available (order service unwired)")
 	}
-	if len(input.ExchangeLines) == 0 {
+	if len(req.ExchangeLines) == 0 {
 		return nil, fmt.Errorf("an exchange requires at least one replacement item (exchange_lines)")
 	}
 
 	var replacementTotal float64
-	orderLines := make([]orders.OrderLineInput, 0, len(input.ExchangeLines))
-	for _, l := range input.ExchangeLines {
+	orderLines := make([]orders.OrderLineInput, 0, len(req.ExchangeLines))
+	for _, l := range req.ExchangeLines {
 		if l.Quantity <= 0 || l.UnitPrice < 0 {
 			return nil, fmt.Errorf("invalid replacement line %q: quantity and price must be positive", l.Name)
 		}
@@ -92,8 +74,8 @@ func (h *ReturnHandler) fulfilExchange(ctx context.Context, r *http.Request, tid
 
 	// Carry the original buyer onto the replacement order (receipts, loyalty, AR linkage).
 	customerName, customerPhone := "", ""
-	if orig, err := h.client.POSOrder.Query().
-		Where(entposorder.ID(ret.OrderID), entposorder.TenantID(tid)).
+	if orig, err := s.client.POSOrder.Query().
+		Where(entposorder.ID(ret.OrderID), entposorder.TenantID(tenantID)).
 		Only(ctx); err == nil {
 		if orig.CustomerName != nil {
 			customerName = *orig.CustomerName
@@ -102,15 +84,11 @@ func (h *ReturnHandler) fulfilExchange(ctx context.Context, r *http.Request, tid
 			customerPhone = *orig.CustomerPhone
 		}
 	}
-	completedBy := uuid.Nil
-	if uid, err := uuid.Parse(r.Header.Get("X-User-ID")); err == nil {
-		completedBy = uid
-	}
 
-	order, err := h.orderSvc.CreateOrder(ctx, orders.CreateOrderRequest{
-		TenantID:       tid,
+	order, err := s.orderSvc.CreateOrder(ctx, orders.CreateOrderRequest{
+		TenantID:       tenantID,
 		OutletID:       ret.OutletID,
-		UserID:         completedBy,
+		UserID:         req.CompletedBy,
 		Currency:       "KES",
 		Lines:          orderLines,
 		OrderSubtype:   "retail",
@@ -134,13 +112,13 @@ func (h *ReturnHandler) fulfilExchange(ctx context.Context, r *http.Request, tid
 		// Even swap / cheaper replacement — nothing to collect, complete the replacement
 		// order now so stock deduction + sale.finalized fire through the normal pipeline.
 		payable = 0
-		if _, uerr := h.orderSvc.UpdateStatus(ctx, tid, order.ID, "completed"); uerr != nil {
-			h.log.Warn("exchange: completing zero-balance replacement order failed",
+		if _, uerr := s.orderSvc.UpdateStatus(ctx, tenantID, order.ID, "completed"); uerr != nil {
+			s.log.Warn("exchange: completing zero-balance replacement order failed",
 				zap.String("order_id", order.ID.String()), zap.Error(uerr))
 		}
 	}
 
-	return &exchangeResult{
+	return &ExchangeResult{
 		OrderID:          order.ID,
 		OrderNumber:      order.OrderNumber,
 		ReplacementTotal: replacementTotal,

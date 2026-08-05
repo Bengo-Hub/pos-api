@@ -243,15 +243,29 @@ func (s *Service) resolveLines(order *ent.POSOrder, lines []*ent.POSOrderLine, r
 		}
 	}
 
+	// remainingQty is the cumulative model: VoidedQty tracks how much of a line has been
+	// voided SO FAR (across possibly several prior partial reversals / line-voids), never a
+	// one-shot "has this line ever been touched" flag — matching how orders.Service already
+	// reads this same field everywhere else (activeQty := ol.Quantity - *ol.VoidedQty). Only
+	// resolveLines and its old presence-only guards used to treat it as one-shot; fixed here
+	// so a line can be reduced more than once, up to its full original quantity.
+	remainingQty := func(l *ent.POSOrderLine) float64 {
+		if l.VoidedQty == nil {
+			return l.Quantity
+		}
+		return l.Quantity - *l.VoidedQty
+	}
+
 	var out []entschema.ReversalLineJSON
 	var amount, tax float64
 
 	if req.Scope == "full" {
 		for _, l := range lines {
-			if l.VoidedQty != nil {
-				continue // already voided (e.g. by an earlier partial reversal / line void)
+			remaining := remainingQty(l)
+			if remaining <= 0.009 {
+				continue // fully voided already — nothing left on this line to sweep in
 			}
-			j := toJSON(l, l.Quantity)
+			j := toJSON(l, remaining)
 			out = append(out, j)
 			amount += j.Amount
 			tax += j.TaxAmount
@@ -270,12 +284,13 @@ func (s *Service) resolveLines(order *ent.POSOrder, lines []*ent.POSOrderLine, r
 		if !ok {
 			return nil, 0, 0, fmt.Errorf("line %s does not belong to this order", sel.LineID)
 		}
-		if l.VoidedQty != nil {
-			return nil, 0, 0, fmt.Errorf("line %q is already voided", l.Name)
+		remaining := remainingQty(l)
+		if remaining <= 0.009 {
+			return nil, 0, 0, fmt.Errorf("line %q has no remaining quantity left to reduce", l.Name)
 		}
 		qty := sel.Quantity
-		if qty <= 0 || qty > l.Quantity {
-			qty = l.Quantity
+		if qty <= 0 || qty > remaining {
+			qty = remaining
 		}
 		j := toJSON(l, qty)
 		out = append(out, j)
@@ -327,38 +342,17 @@ func (s *Service) audit(ctx context.Context, rev *ent.POSReversal) {
 // resolveRefundChannel picks the treasury refund channel: whatever the caller explicitly
 // requested, or — when unset — "offset_invoice" for a sale that was settled on account (an
 // unpaid credit sale), otherwise "cash". Mirrors handlers/returns_policy.go's proven
-// orderSettledOnAccount/defaultRefundChannel used by the customer-return flow; without this,
-// reversing/editing a credit sale posted a CASH refund in treasury's GL for money the business
-// never received, instead of reducing the customer's AR balance.
+// defaultRefundChannel used by the customer-return flow; without this, reversing/editing a
+// credit sale posted a CASH refund in treasury's GL for money the business never received,
+// instead of reducing the customer's AR balance.
 func (s *Service) resolveRefundChannel(ctx context.Context, tenantID, orderID uuid.UUID, requested string) string {
 	if requested != "" {
 		return requested
 	}
-	if s.orderSettledOnAccount(ctx, tenantID, orderID) {
+	if orders.SettledOnAccount(ctx, s.client, tenantID, orderID) {
 		return "offset_invoice"
 	}
 	return "cash"
-}
-
-// OrderSettledOnAccount is the exported form of orderSettledOnAccount — for callers outside this
-// package (saledelete's non-fiscalized "shred" branch) that need the exact same on-account
-// detection this package's own resolveRefundChannel uses, so a deleted credit sale gets its AR
-// reduced through the identical rule a reversed/edited one already does.
-func (s *Service) OrderSettledOnAccount(ctx context.Context, tenantID, orderID uuid.UUID) bool {
-	return s.orderSettledOnAccount(ctx, tenantID, orderID)
-}
-
-// ResolveOrderCustomer is the exported form of resolveOrderCustomer — see OrderSettledOnAccount.
-func (s *Service) ResolveOrderCustomer(ctx context.Context, tenantID, orderID uuid.UUID) (crmContactID, name, phone string) {
-	return s.resolveOrderCustomer(ctx, tenantID, orderID)
-}
-
-// orderSettledOnAccount reports whether the original sale was settled on account (credit sale).
-// Delegates to orders.SettledOnAccount — see that function's doc comment for the 2026-08-05
-// live bug (Tender-row-only detection silently false for tenants with no configured Tender
-// catalog) this centralization fixes for every caller at once.
-func (s *Service) orderSettledOnAccount(ctx context.Context, tenantID, orderID uuid.UUID) bool {
-	return orders.SettledOnAccount(ctx, s.client, tenantID, orderID)
 }
 
 func round2(v float64) float64 { return math.Round(v*100) / 100 }
