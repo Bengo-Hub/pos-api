@@ -141,6 +141,7 @@ func (h *PromotionHandler) S2SApplyDiscount(w http.ResponseWriter, r *http.Reque
 		"promoId":        result.PromoID,
 		"discountAmount": result.DiscountAmount.StringFixed(2),
 		"perSku":         result.PerSKU,
+		"discountType":   result.DiscountType,
 	})
 }
 

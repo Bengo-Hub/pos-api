@@ -30,7 +30,7 @@ type PromotionRule struct {
 	GetScopeIds []string `json:"get_scope_ids,omitempty"`
 	// BOGO cross-item CORRESPONDING pairing: maps each "buy" SKU → its one specific "get" SKU (e.g. "PIZ003" (Margherita Large) → "PIZ001" (Margherita Small) — "buy a Large, get the CORRESPONDING Small free"). When set, the free unit is the mapped item for that exact buy item (not the cheapest get-scope item), and the terminal auto-adds it. scope_ids stays the map keys and get_scope_ids the map values so the scope-based paths (schedule/alert/tally) keep working. Empty (with get_scope_ids set) = un-paired cross-item BOGO (cheapest get-scope unit is freed, cashier adds it manually). Only meaningful when discount_type=bogo and scope_type=item.
 	GetPairMap map[string]string `json:"get_pair_map,omitempty"`
-	// DiscountType holds the value of the "discount_type" field.
+	// free_delivery zeroes the caller's delivery fee (ordering-backend only concept; pos-api itself has no delivery fee) — carries no discount_value, evaluateRule always resolves it to a zero monetary discount and signals the type back to the S2S caller
 	DiscountType promotionrule.DiscountType `json:"discount_type,omitempty"`
 	// DiscountValue holds the value of the "discount_value" field.
 	DiscountValue float64 `json:"discount_value,omitempty"`

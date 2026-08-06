@@ -28,6 +28,10 @@ type ApplyResult struct {
 	DiscountAmount decimal.Decimal         `json:"discount_amount"`
 	PerSKU         map[string]LineDiscount `json:"per_sku,omitempty"`
 	Reason         string                  `json:"reason,omitempty"` // reason for invalid
+	// DiscountType mirrors the winning rule's discount_type (e.g. "free_delivery") so an S2S
+	// caller that has its own concept the rule doesn't (ordering-backend's delivery fee; pos-api
+	// itself never charges one) can react correctly instead of only seeing a resolved KES amount.
+	DiscountType string `json:"discount_type,omitempty"`
 }
 
 // Service provides promotion business logic.
@@ -108,6 +112,19 @@ func (s *Service) ApplyPromoCode(ctx context.Context, tenantID uuid.UUID, outlet
 	if len(eligible) == 0 {
 		return &ApplyResult{Valid: false, PromoCode: code, PromoID: promo.ID, Reason: "no eligible items in cart for this code"}, nil
 	}
+	// free_delivery carries no monetary discount at all — its whole effect is on the caller's
+	// delivery fee (a concept pos-api itself has none of), so it skips evaluateRule/the
+	// zero-discount-means-ineligible check entirely; matching the schedule/meal-period/outlet
+	// gates above (already passed) is the only eligibility condition.
+	if rule.DiscountType == promotionrule.DiscountTypeFreeDelivery {
+		return &ApplyResult{
+			Valid:        true,
+			PromoCode:    code,
+			PromoID:      promo.ID,
+			DiscountType: string(rule.DiscountType),
+		}, nil
+	}
+
 	subtotal := decimal.Zero
 	for _, l := range eligible {
 		subtotal = subtotal.Add(l.Total)
@@ -124,6 +141,7 @@ func (s *Service) ApplyPromoCode(ctx context.Context, tenantID uuid.UUID, outlet
 		PromoID:        promo.ID,
 		DiscountAmount: total.Round(2),
 		PerSKU:         perSKU,
+		DiscountType:   string(rule.DiscountType),
 	}, nil
 }
 

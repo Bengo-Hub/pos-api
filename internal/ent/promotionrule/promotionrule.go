@@ -127,10 +127,11 @@ const DefaultDiscountType = DiscountTypePercentage
 
 // DiscountType values.
 const (
-	DiscountTypePercentage  DiscountType = "percentage"
-	DiscountTypeFixedAmount DiscountType = "fixed_amount"
-	DiscountTypeFixedPrice  DiscountType = "fixed_price"
-	DiscountTypeBogo        DiscountType = "bogo"
+	DiscountTypePercentage   DiscountType = "percentage"
+	DiscountTypeFixedAmount  DiscountType = "fixed_amount"
+	DiscountTypeFixedPrice   DiscountType = "fixed_price"
+	DiscountTypeBogo         DiscountType = "bogo"
+	DiscountTypeFreeDelivery DiscountType = "free_delivery"
 )
 
 func (dt DiscountType) String() string {
@@ -140,7 +141,7 @@ func (dt DiscountType) String() string {
 // DiscountTypeValidator is a validator for the "discount_type" field enum values. It is called by the builders before save.
 func DiscountTypeValidator(dt DiscountType) error {
 	switch dt {
-	case DiscountTypePercentage, DiscountTypeFixedAmount, DiscountTypeFixedPrice, DiscountTypeBogo:
+	case DiscountTypePercentage, DiscountTypeFixedAmount, DiscountTypeFixedPrice, DiscountTypeBogo, DiscountTypeFreeDelivery:
 		return nil
 	default:
 		return fmt.Errorf("promotionrule: invalid enum value for discount_type field: %q", dt)
