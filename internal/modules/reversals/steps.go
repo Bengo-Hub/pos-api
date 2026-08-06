@@ -17,6 +17,7 @@ import (
 	entschema "github.com/bengobox/pos-service/internal/ent/schema"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
+	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/salecorrection"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
@@ -224,7 +225,7 @@ func (s *Service) stepPOSTotals(ctx context.Context, rev *ent.POSReversal) (stri
 // an explicit client (the caller's tx-scoped client, so this participates in stepPOSTotals'
 // single transaction) rather than reading s.client directly.
 func (s *Service) netPayments(ctx context.Context, client *ent.Client, rev *ent.POSReversal, order *ent.POSOrder, orderMD map[string]any) error {
-	payments, err := client.POSPayment.Query().
+	pays, err := client.POSPayment.Query().
 		Where(entpospayment.OrderID(order.ID), entpospayment.StatusEQ("completed")).
 		Order(ent.Desc(entpospayment.FieldOccurredAt)).
 		All(ctx)
@@ -234,8 +235,10 @@ func (s *Service) netPayments(ctx context.Context, client *ent.Client, rev *ent.
 
 	remaining := rev.Amount
 	var newPaidTotal float64
-	for _, p := range payments {
+	for _, p := range pays {
 		newAmt := p.Amount
+		method, _ := p.PaymentData["method"].(string)
+		onAccount := strings.EqualFold(method, payments.TenderOnAccount)
 		// Idempotent-retry check: if THIS reversal already netted this exact payment row on a
 		// prior attempt (stamped in PaymentData["reversal"]), reuse its already-computed
 		// netted_to value directly rather than cutting `remaining` against it again —
@@ -250,7 +253,9 @@ func (s *Service) netPayments(ctx context.Context, client *ent.Client, rev *ent.
 		if existing, ok := p.PaymentData["reversal"].(map[string]any); ok {
 			if rn, _ := existing["reversal_number"].(string); rn == rev.ReversalNumber {
 				if v, ok := existing["netted_to"].(float64); ok {
-					newPaidTotal += v
+					if !onAccount {
+						newPaidTotal += v
+					}
 					continue
 				}
 			}
@@ -276,7 +281,21 @@ func (s *Service) netPayments(ctx context.Context, client *ent.Client, rev *ent.
 				return fmt.Errorf("net payment %s: %w", p.ID, uerr)
 			}
 		}
-		newPaidTotal += newAmt
+		// paid_total counts only money ACTUALLY COLLECTED — an on-account (credit) marker row
+		// is a treasury AR debt, never cash banked, so it stays excluded here exactly like
+		// payments.RecomputePaidTotal excludes it everywhere else (the single-source rule that
+		// function documents). Before this fix, netting an on-account row's amount down — the
+		// common case, an Edit-Sale quantity reduction on a credit sale — fed its POST-netting
+		// amount straight into paid_total, making the order look partially "collected" for
+		// money nobody had actually paid yet. Confirmed live on order POS-000155 (BOI
+		// Enterprises, invoice 000155): reducing a 5-unit on-account line to 3 units
+		// immediately showed "paid 2,100 / due 7,050" though zero cash had moved — the
+		// cashier's next real payment (RecomputePaidTotal, called from SettleCreditPayment)
+		// silently overwrote the wrong number, but only once, and only if a further payment
+		// happened to be recorded at all.
+		if !onAccount {
+			newPaidTotal += newAmt
+		}
 	}
 
 	if _, err := order.Update().
@@ -445,13 +464,27 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 // payment's PaymentData — see netPayments). This is the ground truth for "how much of this
 // reversal's amount was ever real collected cash," independent of the order-level on_account
 // flag, so it correctly handles an order that mixes real cash with edit-added AR value.
+//
+// An on-account (credit) payment row is explicitly EXCLUDED even when netPayments touched it —
+// its "netted_from - netted_to" delta is a shrinking treasury AR debt, not cash the till ever
+// held, so counting it here misclassified the whole reversed amount as cash-backed and made
+// stepTreasuryGL post it through the "cash" refund channel (Dr Revenue / Cr Cash) instead of
+// "offset_invoice" (which alone calls ProjectInvoiceAR to actually reduce the customer's AR
+// balance). Confirmed live: order POS-000155 (BOI Enterprises) reduced an on-account line by
+// 1,400 — treasury booked a phantom Dr 4400 Sales Revenue / Cr 1000 Cash for money that was
+// never collected, while the customer's treasury customer_balances row stayed permanently
+// stuck at balance_due 1,400 for stock that had actually been returned/removed from the sale.
 func (s *Service) cashNettedForReversal(ctx context.Context, rev *ent.POSReversal) float64 {
-	payments, err := s.client.POSPayment.Query().Where(entpospayment.OrderID(rev.OrderID)).All(ctx)
+	pays, err := s.client.POSPayment.Query().Where(entpospayment.OrderID(rev.OrderID)).All(ctx)
 	if err != nil {
 		return 0
 	}
 	var total float64
-	for _, p := range payments {
+	for _, p := range pays {
+		method, _ := p.PaymentData["method"].(string)
+		if strings.EqualFold(method, payments.TenderOnAccount) {
+			continue
+		}
 		rmeta, ok := p.PaymentData["reversal"].(map[string]any)
 		if !ok {
 			continue
