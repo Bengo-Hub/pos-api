@@ -1326,6 +1326,9 @@ func (s *Service) signEtimsSync(ctx context.Context, order *ent.POSOrder) {
 	if fi.Signature != "" {
 		upd = upd.SetEtimsRcptSign(fi.Signature)
 	}
+	if fi.InternalData != "" {
+		upd = upd.SetEtimsInternalData(fi.InternalData)
+	}
 	if fi.QRURL != "" {
 		upd = upd.SetEtimsQrCodeURL(fi.QRURL)
 	}
@@ -1342,6 +1345,9 @@ func (s *Service) signEtimsSync(ctx context.Context, order *ent.POSOrder) {
 	}
 	if fi.Signature != "" {
 		order.EtimsRcptSign = &fi.Signature
+	}
+	if fi.InternalData != "" {
+		order.EtimsInternalData = &fi.InternalData
 	}
 	if fi.QRURL != "" {
 		order.EtimsQrCodeURL = &fi.QRURL

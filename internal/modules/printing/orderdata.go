@@ -167,6 +167,7 @@ func receiptDataFromView(v ReceiptView, loc *time.Location) ReceiptData {
 		EtimsScuID:                  v.EtimsScuID,
 		EtimsCuInvNo:                v.EtimsCuInvNo,
 		EtimsRcptSign:               v.EtimsRcptSign,
+		EtimsInternalData:           v.EtimsInternalData,
 		EtimsQRCodeURL:              v.EtimsQRCodeURL,
 		PaymentMethods:              pm,
 		ProviderFooter:              v.ProviderFooter,

@@ -236,9 +236,9 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	// "KRA TIMS Details" fiscal block, adapted from the KRA-issued paper ETR receipt (see the
 	// Jazaribu Retail reference): SCU ID + CU Inv No, then the verification QR immediately
 	// below, then — right after, no other content between — the fiscal barcode (the same
-	// adjacency a genuine ETR receipt uses). The receipt SIGNATURE is deliberately never
-	// printed as plain text: it's already encoded in the QR, and printing it in the clear is
-	// an avoidable exposure of KRA-issued fiscal proof with no benefit to the operator.
+	// adjacency a genuine ETR receipt uses). The receipt SIGNATURE is printed dash-chunked
+	// (spec §6.23.7 requires it in the clear on every receipt) — being ALSO encoded in the QR
+	// doesn't make the printed plaintext line optional.
 	if rec.EtimsInvoiceNumber != "" || rec.EtimsQRPNG != "" || rec.EtimsCuInvNo != "" {
 		buf.WriteString(`<div class="divider"></div>`)
 		buf.WriteString(`<p class="bold" style="font-size:10px;text-align:center">KRA TIMS Details</p>`)
@@ -249,6 +249,12 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 			buf.WriteString(fmt.Sprintf(`<div class="line"><span>CU Inv No.:</span><span>%s</span></div>`, escape(rec.EtimsCuInvNo)))
 		} else if rec.EtimsInvoiceNumber != "" {
 			buf.WriteString(fmt.Sprintf(`<p class="etims-num">CU No: %s</p>`, escape(rec.EtimsInvoiceNumber)))
+		}
+		if rec.EtimsRcptSign != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="line"><span>Receipt Sign:</span><span>%s</span></div>`, escape(printing.DashChunk(rec.EtimsRcptSign))))
+		}
+		if rec.EtimsInternalData != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="line"><span>Internal Data:</span><span>%s</span></div>`, escape(printing.DashChunk(rec.EtimsInternalData))))
 		}
 		// The QR is server-generated (EtimsQRPNG, a data: URI) — never render the raw
 		// verification LINK (EtimsQRCodeURL) as an <img src>; a URL is not image bytes.

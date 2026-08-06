@@ -192,6 +192,10 @@ type etimsEvent struct {
 		DeviceSerial string `json:"device_serial"`
 		CuInvoiceNo  string `json:"cu_invoice_no"`
 		RcptSign     string `json:"rcpt_sign"`
+		// CuNumber is treasury's intrlData (KRA control-unit internal data) — published on every
+		// event (event_publisher.go's top-level "cu_number") but this struct never had a field
+		// for it, so it was silently dropped by json.Unmarshal despite already being on the wire.
+		CuNumber string `json:"cu_number"`
 	} `json:"payload"`
 }
 
@@ -232,6 +236,7 @@ func (s *TreasurySubscriber) subscribeEtimsTransmitted(js nats.JetStreamContext)
 			SetNillableEtimsCuInvNo(nilIfEmpty(evt.Data.CuInvoiceNo)).
 			SetNillableEtimsRcptSign(nilIfEmpty(evt.Data.RcptSign)).
 			SetNillableEtimsKraPin(nilIfEmpty(evt.Data.KraPin)).
+			SetNillableEtimsInternalData(nilIfEmpty(evt.Data.CuNumber)).
 			Save(context.Background())
 		if err != nil {
 			s.log.Error("etims: failed to store invoice data on order",

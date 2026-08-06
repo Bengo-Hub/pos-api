@@ -167,8 +167,9 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 
 	// ── KRA TIMS Details, adapted from the KRA-issued paper ETR receipt (see the Jazaribu
 	// Retail reference): SCU ID + CU Inv No, then the verification QR, then — right after,
-	// no other content between — the fiscal barcode below. The receipt SIGNATURE is
-	// deliberately never printed as plain text (it's already encoded in the QR). ──
+	// no other content between — the fiscal barcode below. The receipt SIGNATURE is printed
+	// dash-chunked (spec §6.23.7 requires it in the clear on every receipt) — being ALSO
+	// encoded in the QR doesn't make the printed plaintext line optional. ──
 	if rec.EtimsCuInvNo != "" || rec.EtimsInvoiceNumber != "" || rec.EtimsQRCodeURL != "" {
 		pdf.Ln(4)
 		pdf.SetFont("Helvetica", "B", 12)
@@ -181,6 +182,12 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 			pdf.CellFormat(contentW, 5, "CU_Inv No.: "+rec.EtimsCuInvNo, "", 1, "C", false, 0, "")
 		} else if rec.EtimsInvoiceNumber != "" {
 			pdf.CellFormat(contentW, 5, "CU No.: "+rec.EtimsInvoiceNumber, "", 1, "C", false, 0, "")
+		}
+		if rec.EtimsRcptSign != "" {
+			pdf.CellFormat(contentW, 5, "Receipt Sign: "+printing.DashChunk(rec.EtimsRcptSign), "", 1, "C", false, 0, "")
+		}
+		if rec.EtimsInternalData != "" {
+			pdf.CellFormat(contentW, 5, "Internal Data: "+printing.DashChunk(rec.EtimsInternalData), "", 1, "C", false, 0, "")
 		}
 		if rec.EtimsQRCodeURL != "" {
 			if qrPNG, qerr := qrcode.Encode(rec.EtimsQRCodeURL, qrcode.Medium, 256); qerr == nil {

@@ -104,6 +104,9 @@ type Receipt struct {
 	EtimsScuID    string `json:"etims_scu_id,omitempty"`
 	EtimsCuInvNo  string `json:"etims_cu_inv_no,omitempty"`
 	EtimsRcptSign string `json:"etims_rcpt_sign,omitempty"`
+	// EtimsInternalData is KRA's control-unit internal data (intrlData) — printed dash-chunked
+	// alongside the signature (spec §6.23.6).
+	EtimsInternalData string `json:"etims_internal_data,omitempty"`
 	// EtimsQRPNG is the verification QR rendered server-side as a data: URI so every
 	// surface (HTML/PDF/client print) embeds a real scannable image — etims_qr_code_url
 	// is a KRA verification LINK, not an image.

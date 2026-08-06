@@ -281,7 +281,8 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 	// "KRA TIMS Details" fiscal block, adapted from the KRA-issued paper ETR receipt (see the
 	// Jazaribu Retail reference): SCU ID + CU Inv No, then the verification QR, then — right
 	// after, no other content between — the fiscal barcode below. The receipt SIGNATURE is
-	// deliberately never printed as plain text (it's already encoded in the QR).
+	// printed dash-chunked (spec §6.23.7 requires it in the clear on every receipt) — being
+	// ALSO encoded in the QR doesn't make the printed plaintext line optional.
 	if rec.EtimsInvoiceNumber != "" || rec.EtimsCuInvNo != "" {
 		hr()
 		center("KRA TIMS Details", "B", 9)
@@ -292,6 +293,12 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 			line("CU Inv No.", rec.EtimsCuInvNo, "", 8)
 		} else if rec.EtimsInvoiceNumber != "" {
 			line("eTIMS Inv", rec.EtimsInvoiceNumber, "", 8)
+		}
+		if rec.EtimsRcptSign != "" {
+			line("Receipt Sign", printing.DashChunk(rec.EtimsRcptSign), "", 8)
+		}
+		if rec.EtimsInternalData != "" {
+			line("Internal Data", printing.DashChunk(rec.EtimsInternalData), "", 8)
 		}
 		if rec.EtimsQRCodeURL != "" {
 			if qrPNG, qerr := qrcode.Encode(rec.EtimsQRCodeURL, qrcode.Medium, 256); qerr == nil {

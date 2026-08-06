@@ -431,6 +431,20 @@ func (_c *POSOrderCreate) SetNillableEtimsKraPin(v *string) *POSOrderCreate {
 	return _c
 }
 
+// SetEtimsInternalData sets the "etims_internal_data" field.
+func (_c *POSOrderCreate) SetEtimsInternalData(v string) *POSOrderCreate {
+	_c.mutation.SetEtimsInternalData(v)
+	return _c
+}
+
+// SetNillableEtimsInternalData sets the "etims_internal_data" field if the given value is not nil.
+func (_c *POSOrderCreate) SetNillableEtimsInternalData(v *string) *POSOrderCreate {
+	if v != nil {
+		_c.SetEtimsInternalData(*v)
+	}
+	return _c
+}
+
 // SetReprintCount sets the "reprint_count" field.
 func (_c *POSOrderCreate) SetReprintCount(v int) *POSOrderCreate {
 	_c.mutation.SetReprintCount(v)
@@ -1025,6 +1039,10 @@ func (_c *POSOrderCreate) createSpec() (*POSOrder, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.EtimsKraPin(); ok {
 		_spec.SetField(posorder.FieldEtimsKraPin, field.TypeString, value)
 		_node.EtimsKraPin = &value
+	}
+	if value, ok := _c.mutation.EtimsInternalData(); ok {
+		_spec.SetField(posorder.FieldEtimsInternalData, field.TypeString, value)
+		_node.EtimsInternalData = &value
 	}
 	if value, ok := _c.mutation.ReprintCount(); ok {
 		_spec.SetField(posorder.FieldReprintCount, field.TypeInt, value)
@@ -1723,6 +1741,24 @@ func (u *POSOrderUpsert) UpdateEtimsKraPin() *POSOrderUpsert {
 // ClearEtimsKraPin clears the value of the "etims_kra_pin" field.
 func (u *POSOrderUpsert) ClearEtimsKraPin() *POSOrderUpsert {
 	u.SetNull(posorder.FieldEtimsKraPin)
+	return u
+}
+
+// SetEtimsInternalData sets the "etims_internal_data" field.
+func (u *POSOrderUpsert) SetEtimsInternalData(v string) *POSOrderUpsert {
+	u.Set(posorder.FieldEtimsInternalData, v)
+	return u
+}
+
+// UpdateEtimsInternalData sets the "etims_internal_data" field to the value that was provided on create.
+func (u *POSOrderUpsert) UpdateEtimsInternalData() *POSOrderUpsert {
+	u.SetExcluded(posorder.FieldEtimsInternalData)
+	return u
+}
+
+// ClearEtimsInternalData clears the value of the "etims_internal_data" field.
+func (u *POSOrderUpsert) ClearEtimsInternalData() *POSOrderUpsert {
+	u.SetNull(posorder.FieldEtimsInternalData)
 	return u
 }
 
@@ -2604,6 +2640,27 @@ func (u *POSOrderUpsertOne) UpdateEtimsKraPin() *POSOrderUpsertOne {
 func (u *POSOrderUpsertOne) ClearEtimsKraPin() *POSOrderUpsertOne {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.ClearEtimsKraPin()
+	})
+}
+
+// SetEtimsInternalData sets the "etims_internal_data" field.
+func (u *POSOrderUpsertOne) SetEtimsInternalData(v string) *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsInternalData(v)
+	})
+}
+
+// UpdateEtimsInternalData sets the "etims_internal_data" field to the value that was provided on create.
+func (u *POSOrderUpsertOne) UpdateEtimsInternalData() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsInternalData()
+	})
+}
+
+// ClearEtimsInternalData clears the value of the "etims_internal_data" field.
+func (u *POSOrderUpsertOne) ClearEtimsInternalData() *POSOrderUpsertOne {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsInternalData()
 	})
 }
 
@@ -3683,6 +3740,27 @@ func (u *POSOrderUpsertBulk) UpdateEtimsKraPin() *POSOrderUpsertBulk {
 func (u *POSOrderUpsertBulk) ClearEtimsKraPin() *POSOrderUpsertBulk {
 	return u.Update(func(s *POSOrderUpsert) {
 		s.ClearEtimsKraPin()
+	})
+}
+
+// SetEtimsInternalData sets the "etims_internal_data" field.
+func (u *POSOrderUpsertBulk) SetEtimsInternalData(v string) *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.SetEtimsInternalData(v)
+	})
+}
+
+// UpdateEtimsInternalData sets the "etims_internal_data" field to the value that was provided on create.
+func (u *POSOrderUpsertBulk) UpdateEtimsInternalData() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.UpdateEtimsInternalData()
+	})
+}
+
+// ClearEtimsInternalData clears the value of the "etims_internal_data" field.
+func (u *POSOrderUpsertBulk) ClearEtimsInternalData() *POSOrderUpsertBulk {
+	return u.Update(func(s *POSOrderUpsert) {
+		s.ClearEtimsInternalData()
 	})
 }
 

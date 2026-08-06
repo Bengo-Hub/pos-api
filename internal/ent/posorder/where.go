@@ -216,6 +216,11 @@ func EtimsKraPin(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldEtimsKraPin, v))
 }
 
+// EtimsInternalData applies equality check predicate on the "etims_internal_data" field. It's identical to EtimsInternalDataEQ.
+func EtimsInternalData(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldEtimsInternalData, v))
+}
+
 // ReprintCount applies equality check predicate on the "reprint_count" field. It's identical to ReprintCountEQ.
 func ReprintCount(v int) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldEQ(FieldReprintCount, v))
@@ -2029,6 +2034,81 @@ func EtimsKraPinEqualFold(v string) predicate.POSOrder {
 // EtimsKraPinContainsFold applies the ContainsFold predicate on the "etims_kra_pin" field.
 func EtimsKraPinContainsFold(v string) predicate.POSOrder {
 	return predicate.POSOrder(sql.FieldContainsFold(FieldEtimsKraPin, v))
+}
+
+// EtimsInternalDataEQ applies the EQ predicate on the "etims_internal_data" field.
+func EtimsInternalDataEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEQ(FieldEtimsInternalData, v))
+}
+
+// EtimsInternalDataNEQ applies the NEQ predicate on the "etims_internal_data" field.
+func EtimsInternalDataNEQ(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNEQ(FieldEtimsInternalData, v))
+}
+
+// EtimsInternalDataIn applies the In predicate on the "etims_internal_data" field.
+func EtimsInternalDataIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIn(FieldEtimsInternalData, vs...))
+}
+
+// EtimsInternalDataNotIn applies the NotIn predicate on the "etims_internal_data" field.
+func EtimsInternalDataNotIn(vs ...string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotIn(FieldEtimsInternalData, vs...))
+}
+
+// EtimsInternalDataGT applies the GT predicate on the "etims_internal_data" field.
+func EtimsInternalDataGT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGT(FieldEtimsInternalData, v))
+}
+
+// EtimsInternalDataGTE applies the GTE predicate on the "etims_internal_data" field.
+func EtimsInternalDataGTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldGTE(FieldEtimsInternalData, v))
+}
+
+// EtimsInternalDataLT applies the LT predicate on the "etims_internal_data" field.
+func EtimsInternalDataLT(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLT(FieldEtimsInternalData, v))
+}
+
+// EtimsInternalDataLTE applies the LTE predicate on the "etims_internal_data" field.
+func EtimsInternalDataLTE(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldLTE(FieldEtimsInternalData, v))
+}
+
+// EtimsInternalDataContains applies the Contains predicate on the "etims_internal_data" field.
+func EtimsInternalDataContains(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContains(FieldEtimsInternalData, v))
+}
+
+// EtimsInternalDataHasPrefix applies the HasPrefix predicate on the "etims_internal_data" field.
+func EtimsInternalDataHasPrefix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasPrefix(FieldEtimsInternalData, v))
+}
+
+// EtimsInternalDataHasSuffix applies the HasSuffix predicate on the "etims_internal_data" field.
+func EtimsInternalDataHasSuffix(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldHasSuffix(FieldEtimsInternalData, v))
+}
+
+// EtimsInternalDataIsNil applies the IsNil predicate on the "etims_internal_data" field.
+func EtimsInternalDataIsNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldIsNull(FieldEtimsInternalData))
+}
+
+// EtimsInternalDataNotNil applies the NotNil predicate on the "etims_internal_data" field.
+func EtimsInternalDataNotNil() predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldNotNull(FieldEtimsInternalData))
+}
+
+// EtimsInternalDataEqualFold applies the EqualFold predicate on the "etims_internal_data" field.
+func EtimsInternalDataEqualFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldEqualFold(FieldEtimsInternalData, v))
+}
+
+// EtimsInternalDataContainsFold applies the ContainsFold predicate on the "etims_internal_data" field.
+func EtimsInternalDataContainsFold(v string) predicate.POSOrder {
+	return predicate.POSOrder(sql.FieldContainsFold(FieldEtimsInternalData, v))
 }
 
 // ReprintCountEQ applies the EQ predicate on the "reprint_count" field.

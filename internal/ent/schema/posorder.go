@@ -150,6 +150,10 @@ func (POSOrder) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("Taxpayer KRA PIN the sale was fiscalised under (receipt header line)"),
+		field.String("etims_internal_data").
+			Optional().
+			Nillable().
+			Comment("KRA control-unit internal data (intrlData) — printed dash-chunked alongside the receipt signature per TIS-for-OSCU/VSCU spec §6.23.6"),
 		// Receipt reprint tracking — incremented on each explicit reprint so
 		// duplicate receipts (a cash-skimming vector) are flagged + audited.
 		field.Int("reprint_count").

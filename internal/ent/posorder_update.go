@@ -655,6 +655,26 @@ func (_u *POSOrderUpdate) ClearEtimsKraPin() *POSOrderUpdate {
 	return _u
 }
 
+// SetEtimsInternalData sets the "etims_internal_data" field.
+func (_u *POSOrderUpdate) SetEtimsInternalData(v string) *POSOrderUpdate {
+	_u.mutation.SetEtimsInternalData(v)
+	return _u
+}
+
+// SetNillableEtimsInternalData sets the "etims_internal_data" field if the given value is not nil.
+func (_u *POSOrderUpdate) SetNillableEtimsInternalData(v *string) *POSOrderUpdate {
+	if v != nil {
+		_u.SetEtimsInternalData(*v)
+	}
+	return _u
+}
+
+// ClearEtimsInternalData clears the value of the "etims_internal_data" field.
+func (_u *POSOrderUpdate) ClearEtimsInternalData() *POSOrderUpdate {
+	_u.mutation.ClearEtimsInternalData()
+	return _u
+}
+
 // SetReprintCount sets the "reprint_count" field.
 func (_u *POSOrderUpdate) SetReprintCount(v int) *POSOrderUpdate {
 	_u.mutation.ResetReprintCount()
@@ -1205,6 +1225,12 @@ func (_u *POSOrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.EtimsKraPinCleared() {
 		_spec.ClearField(posorder.FieldEtimsKraPin, field.TypeString)
+	}
+	if value, ok := _u.mutation.EtimsInternalData(); ok {
+		_spec.SetField(posorder.FieldEtimsInternalData, field.TypeString, value)
+	}
+	if _u.mutation.EtimsInternalDataCleared() {
+		_spec.ClearField(posorder.FieldEtimsInternalData, field.TypeString)
 	}
 	if value, ok := _u.mutation.ReprintCount(); ok {
 		_spec.SetField(posorder.FieldReprintCount, field.TypeInt, value)
@@ -2044,6 +2070,26 @@ func (_u *POSOrderUpdateOne) ClearEtimsKraPin() *POSOrderUpdateOne {
 	return _u
 }
 
+// SetEtimsInternalData sets the "etims_internal_data" field.
+func (_u *POSOrderUpdateOne) SetEtimsInternalData(v string) *POSOrderUpdateOne {
+	_u.mutation.SetEtimsInternalData(v)
+	return _u
+}
+
+// SetNillableEtimsInternalData sets the "etims_internal_data" field if the given value is not nil.
+func (_u *POSOrderUpdateOne) SetNillableEtimsInternalData(v *string) *POSOrderUpdateOne {
+	if v != nil {
+		_u.SetEtimsInternalData(*v)
+	}
+	return _u
+}
+
+// ClearEtimsInternalData clears the value of the "etims_internal_data" field.
+func (_u *POSOrderUpdateOne) ClearEtimsInternalData() *POSOrderUpdateOne {
+	_u.mutation.ClearEtimsInternalData()
+	return _u
+}
+
 // SetReprintCount sets the "reprint_count" field.
 func (_u *POSOrderUpdateOne) SetReprintCount(v int) *POSOrderUpdateOne {
 	_u.mutation.ResetReprintCount()
@@ -2624,6 +2670,12 @@ func (_u *POSOrderUpdateOne) sqlSave(ctx context.Context) (_node *POSOrder, err 
 	}
 	if _u.mutation.EtimsKraPinCleared() {
 		_spec.ClearField(posorder.FieldEtimsKraPin, field.TypeString)
+	}
+	if value, ok := _u.mutation.EtimsInternalData(); ok {
+		_spec.SetField(posorder.FieldEtimsInternalData, field.TypeString, value)
+	}
+	if _u.mutation.EtimsInternalDataCleared() {
+		_spec.ClearField(posorder.FieldEtimsInternalData, field.TypeString)
 	}
 	if value, ok := _u.mutation.ReprintCount(); ok {
 		_spec.SetField(posorder.FieldReprintCount, field.TypeInt, value)

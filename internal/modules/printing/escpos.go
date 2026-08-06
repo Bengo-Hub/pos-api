@@ -65,8 +65,9 @@ type ReceiptData struct {
 	// Fiscal identity ("KRA TIMS Details" block, mirroring paper ETR receipts).
 	EtimsKraPin   string // printed in the business header as "KRA PIN: …"
 	EtimsScuID    string // "SCU ID" line
-	EtimsCuInvNo  string // "CU Inv No." line — {SCU ID}/{receipt no}
-	EtimsRcptSign string
+	EtimsCuInvNo      string // "CU Inv No." line — {SCU ID}/{receipt no}
+	EtimsRcptSign     string
+	EtimsInternalData string // KRA control-unit internal data (intrlData) — printed dash-chunked
 	// EtimsQRCodeURL is the KRA receipt-verification link — printed as a scannable QR at
 	// the bottom of the fiscal block (native GS ( k, or GS v 0 raster when QRRaster).
 	EtimsQRCodeURL string
@@ -321,9 +322,10 @@ func BuildReceipt(d ReceiptData) []byte {
 	// KRA TIMS Details — the fiscal block, adapted from the KRA-issued paper ETR receipt
 	// (see the Jazaribu Retail reference): SCU ID + CU Inv No, THEN the verification QR
 	// immediately below, THEN (right after, no other content between) the fiscal barcode —
-	// exactly the adjacency a genuine ETR receipt uses. The receipt SIGNATURE is deliberately
-	// NEVER printed as plain text (it's already encoded in the QR; printing it in the clear
-	// is an avoidable exposure of KRA-issued fiscal proof for no operator benefit).
+	// exactly the adjacency a genuine ETR receipt uses. The receipt SIGNATURE is printed
+	// dash-chunked (spec §6.23.7 requires it in the clear on every receipt, e.g.
+	// "V249-J39C-FJ48-HE2W" — it being ALSO encoded in the QR doesn't make the printed
+	// plaintext line optional).
 	if d.Type == "customer" && (d.EtimsInvoiceNumber != "" || d.EtimsCuInvNo != "") {
 		separator()
 		write(escCenter)
@@ -337,6 +339,12 @@ func BuildReceipt(d ReceiptData) []byte {
 			writeln("CU Inv No.: " + d.EtimsCuInvNo)
 		} else if d.EtimsInvoiceNumber != "" {
 			writeln("CU#: " + d.EtimsInvoiceNumber)
+		}
+		if d.EtimsRcptSign != "" {
+			writeln("Receipt Sign: " + DashChunk(d.EtimsRcptSign))
+		}
+		if d.EtimsInternalData != "" {
+			writeln("Internal Data: " + DashChunk(d.EtimsInternalData))
 		}
 		// KRA verification QR — the scannable proof on compliant ETR paper receipts.
 		appendEtimsQR(&buf, d.EtimsQRCodeURL, d.QRRaster)

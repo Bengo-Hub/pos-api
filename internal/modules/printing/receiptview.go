@@ -160,6 +160,7 @@ type ReceiptView struct {
 	EtimsScuID         string // OSCU device serial — "SCU ID" line
 	EtimsCuInvNo       string // "{SCU ID}/{receipt no}" — "CU Inv No." line
 	EtimsRcptSign      string // KRA receipt signature (fiscal signing proof)
+	EtimsInternalData  string // KRA control-unit internal data (intrlData) — printed dash-chunked
 	PaymentMethods     *ReceiptPaymentMethods
 
 	// CustomerAccountBalance is the customer's overall treasury AR position (distinct from
@@ -276,6 +277,26 @@ func (v ReceiptView) FiscalBarcodeValue() string {
 		return v.OrderNumber
 	}
 	return ""
+}
+
+// DashChunk formats a KRA fiscal proof string (receipt signature) dash-separated every 4
+// characters, matching the Technical Specification of TIS for OSCU/VSCU v2.0's worked examples
+// ("V249-J39C-FJ48-HE2W", §6.23.7) — the spec-mandated PRINTED form of the signature. Shared by
+// every receipt renderer (ESC/POS, thermal HTML/PDF, A4 HTML/PDF) so they can never disagree on
+// the format.
+func DashChunk(s string) string {
+	s = strings.ToUpper(strings.TrimSpace(s))
+	if s == "" {
+		return s
+	}
+	var b strings.Builder
+	for i, r := range s {
+		if i > 0 && i%4 == 0 {
+			b.WriteByte('-')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // IsCashMethod reports whether a payment method is an anonymous cash tender (no identified
@@ -453,6 +474,9 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 	}
 	if order.EtimsRcptSign != nil {
 		v.EtimsRcptSign = *order.EtimsRcptSign
+	}
+	if order.EtimsInternalData != nil {
+		v.EtimsInternalData = *order.EtimsInternalData
 	}
 
 	if outlet != nil {

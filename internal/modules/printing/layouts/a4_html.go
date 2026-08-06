@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+
+	"github.com/bengobox/pos-service/internal/modules/printing"
 )
 
 // renderA4HTML renders the boxed invoice-style receipt as printable HTML (A4 portrait):
@@ -160,8 +162,9 @@ td.r,th.r{text-align:right}
 
 	// ── KRA TIMS Details, adapted from the KRA-issued paper ETR receipt (see the Jazaribu
 	// Retail reference): SCU ID + CU Inv No, then the verification QR, then — right after,
-	// no other content between — the fiscal barcode below. The receipt SIGNATURE is
-	// deliberately never printed as plain text (it's already encoded in the QR). ──
+	// no other content between — the fiscal barcode below. The receipt SIGNATURE is printed
+	// dash-chunked (spec §6.23.7 requires it in the clear on every receipt) — being ALSO
+	// encoded in the QR doesn't make the printed plaintext line optional. ──
 	if rec.EtimsCuInvNo != "" || rec.EtimsInvoiceNumber != "" || rec.EtimsQRPNG != "" {
 		buf.WriteString(`<div style="text-align:center;margin-top:10px">`)
 		buf.WriteString(`<div style="font-weight:bold;font-size:14px">KRA TIMS Details</div>`)
@@ -172,6 +175,12 @@ td.r,th.r{text-align:right}
 			buf.WriteString(fmt.Sprintf(`<div class="sub"><b>CU_Inv No.:</b> %s</div>`, escape(rec.EtimsCuInvNo)))
 		} else if rec.EtimsInvoiceNumber != "" {
 			buf.WriteString(fmt.Sprintf(`<div class="sub"><b>CU No.:</b> %s</div>`, escape(rec.EtimsInvoiceNumber)))
+		}
+		if rec.EtimsRcptSign != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="sub"><b>Receipt Sign:</b> %s</div>`, escape(printing.DashChunk(rec.EtimsRcptSign))))
+		}
+		if rec.EtimsInternalData != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="sub"><b>Internal Data:</b> %s</div>`, escape(printing.DashChunk(rec.EtimsInternalData))))
 		}
 		// Server-generated QR only (EtimsQRPNG, a data: URI) — the verification LINK
 		// (EtimsQRCodeURL) is never rendered as an <img src>; a URL is not image bytes.

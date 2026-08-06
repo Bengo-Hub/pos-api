@@ -87,6 +87,8 @@ type POSOrder struct {
 	EtimsRcptSign *string `json:"etims_rcpt_sign,omitempty"`
 	// Taxpayer KRA PIN the sale was fiscalised under (receipt header line)
 	EtimsKraPin *string `json:"etims_kra_pin,omitempty"`
+	// KRA control-unit internal data (intrlData) — printed dash-chunked alongside the receipt signature per TIS-for-OSCU/VSCU spec §6.23.6
+	EtimsInternalData *string `json:"etims_internal_data,omitempty"`
 	// Number of times the receipt has been explicitly reprinted
 	ReprintCount int `json:"reprint_count,omitempty"`
 	// VoidedReason holds the value of the "voided_reason" field.
@@ -170,7 +172,7 @@ func (*POSOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case posorder.FieldCoversCount, posorder.FieldFiredCourses, posorder.FieldReprintCount:
 			values[i] = new(sql.NullInt64)
-		case posorder.FieldOrderNumber, posorder.FieldClientReference, posorder.FieldStatus, posorder.FieldSource, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldCustomerPhone, posorder.FieldCustomerName, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldEtimsScuID, posorder.FieldEtimsCuInvNo, posorder.FieldEtimsRcptSign, posorder.FieldEtimsKraPin, posorder.FieldVoidedReason, posorder.FieldDateMovedReason:
+		case posorder.FieldOrderNumber, posorder.FieldClientReference, posorder.FieldStatus, posorder.FieldSource, posorder.FieldCurrency, posorder.FieldOrderSubtype, posorder.FieldCustomerPhone, posorder.FieldCustomerName, posorder.FieldEtimsInvoiceNumber, posorder.FieldEtimsQrCodeURL, posorder.FieldEtimsScuID, posorder.FieldEtimsCuInvNo, posorder.FieldEtimsRcptSign, posorder.FieldEtimsKraPin, posorder.FieldEtimsInternalData, posorder.FieldVoidedReason, posorder.FieldDateMovedReason:
 			values[i] = new(sql.NullString)
 		case posorder.FieldOfflineCreatedAt, posorder.FieldVoidedAt, posorder.FieldBusinessDate, posorder.FieldDateMovedAt, posorder.FieldDeletedAt, posorder.FieldCreatedAt, posorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -415,6 +417,13 @@ func (_m *POSOrder) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.EtimsKraPin = new(string)
 				*_m.EtimsKraPin = value.String
+			}
+		case posorder.FieldEtimsInternalData:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field etims_internal_data", values[i])
+			} else if value.Valid {
+				_m.EtimsInternalData = new(string)
+				*_m.EtimsInternalData = value.String
 			}
 		case posorder.FieldReprintCount:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -672,6 +681,11 @@ func (_m *POSOrder) String() string {
 	builder.WriteString(", ")
 	if v := _m.EtimsKraPin; v != nil {
 		builder.WriteString("etims_kra_pin=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.EtimsInternalData; v != nil {
+		builder.WriteString("etims_internal_data=")
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")

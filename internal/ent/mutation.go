@@ -61880,6 +61880,7 @@ type POSOrderMutation struct {
 	etims_cu_inv_no           *string
 	etims_rcpt_sign           *string
 	etims_kra_pin             *string
+	etims_internal_data       *string
 	reprint_count             *int
 	addreprint_count          *int
 	voided_reason             *string
@@ -63625,6 +63626,55 @@ func (m *POSOrderMutation) ResetEtimsKraPin() {
 	delete(m.clearedFields, posorder.FieldEtimsKraPin)
 }
 
+// SetEtimsInternalData sets the "etims_internal_data" field.
+func (m *POSOrderMutation) SetEtimsInternalData(s string) {
+	m.etims_internal_data = &s
+}
+
+// EtimsInternalData returns the value of the "etims_internal_data" field in the mutation.
+func (m *POSOrderMutation) EtimsInternalData() (r string, exists bool) {
+	v := m.etims_internal_data
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEtimsInternalData returns the old "etims_internal_data" field's value of the POSOrder entity.
+// If the POSOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *POSOrderMutation) OldEtimsInternalData(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEtimsInternalData is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEtimsInternalData requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEtimsInternalData: %w", err)
+	}
+	return oldValue.EtimsInternalData, nil
+}
+
+// ClearEtimsInternalData clears the value of the "etims_internal_data" field.
+func (m *POSOrderMutation) ClearEtimsInternalData() {
+	m.etims_internal_data = nil
+	m.clearedFields[posorder.FieldEtimsInternalData] = struct{}{}
+}
+
+// EtimsInternalDataCleared returns if the "etims_internal_data" field was cleared in this mutation.
+func (m *POSOrderMutation) EtimsInternalDataCleared() bool {
+	_, ok := m.clearedFields[posorder.FieldEtimsInternalData]
+	return ok
+}
+
+// ResetEtimsInternalData resets all changes to the "etims_internal_data" field.
+func (m *POSOrderMutation) ResetEtimsInternalData() {
+	m.etims_internal_data = nil
+	delete(m.clearedFields, posorder.FieldEtimsInternalData)
+}
+
 // SetReprintCount sets the "reprint_count" field.
 func (m *POSOrderMutation) SetReprintCount(i int) {
 	m.reprint_count = &i
@@ -64377,7 +64427,7 @@ func (m *POSOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *POSOrderMutation) Fields() []string {
-	fields := make([]string, 0, 46)
+	fields := make([]string, 0, 47)
 	if m.tenant_id != nil {
 		fields = append(fields, posorder.FieldTenantID)
 	}
@@ -64479,6 +64529,9 @@ func (m *POSOrderMutation) Fields() []string {
 	}
 	if m.etims_kra_pin != nil {
 		fields = append(fields, posorder.FieldEtimsKraPin)
+	}
+	if m.etims_internal_data != nil {
+		fields = append(fields, posorder.FieldEtimsInternalData)
 	}
 	if m.reprint_count != nil {
 		fields = append(fields, posorder.FieldReprintCount)
@@ -64592,6 +64645,8 @@ func (m *POSOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.EtimsRcptSign()
 	case posorder.FieldEtimsKraPin:
 		return m.EtimsKraPin()
+	case posorder.FieldEtimsInternalData:
+		return m.EtimsInternalData()
 	case posorder.FieldReprintCount:
 		return m.ReprintCount()
 	case posorder.FieldVoidedReason:
@@ -64693,6 +64748,8 @@ func (m *POSOrderMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldEtimsRcptSign(ctx)
 	case posorder.FieldEtimsKraPin:
 		return m.OldEtimsKraPin(ctx)
+	case posorder.FieldEtimsInternalData:
+		return m.OldEtimsInternalData(ctx)
 	case posorder.FieldReprintCount:
 		return m.OldReprintCount(ctx)
 	case posorder.FieldVoidedReason:
@@ -64963,6 +65020,13 @@ func (m *POSOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetEtimsKraPin(v)
+		return nil
+	case posorder.FieldEtimsInternalData:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEtimsInternalData(v)
 		return nil
 	case posorder.FieldReprintCount:
 		v, ok := value.(int)
@@ -65264,6 +65328,9 @@ func (m *POSOrderMutation) ClearedFields() []string {
 	if m.FieldCleared(posorder.FieldEtimsKraPin) {
 		fields = append(fields, posorder.FieldEtimsKraPin)
 	}
+	if m.FieldCleared(posorder.FieldEtimsInternalData) {
+		fields = append(fields, posorder.FieldEtimsInternalData)
+	}
 	if m.FieldCleared(posorder.FieldVoidedReason) {
 		fields = append(fields, posorder.FieldVoidedReason)
 	}
@@ -65340,6 +65407,9 @@ func (m *POSOrderMutation) ClearField(name string) error {
 		return nil
 	case posorder.FieldEtimsKraPin:
 		m.ClearEtimsKraPin()
+		return nil
+	case posorder.FieldEtimsInternalData:
+		m.ClearEtimsInternalData()
 		return nil
 	case posorder.FieldVoidedReason:
 		m.ClearVoidedReason()
@@ -65474,6 +65544,9 @@ func (m *POSOrderMutation) ResetField(name string) error {
 		return nil
 	case posorder.FieldEtimsKraPin:
 		m.ResetEtimsKraPin()
+		return nil
+	case posorder.FieldEtimsInternalData:
+		m.ResetEtimsInternalData()
 		return nil
 	case posorder.FieldReprintCount:
 		m.ResetReprintCount()

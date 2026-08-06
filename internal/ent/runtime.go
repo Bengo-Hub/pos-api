@@ -1782,21 +1782,21 @@ func init() {
 	// posorder.DefaultFiredCourses holds the default value on creation for the fired_courses field.
 	posorder.DefaultFiredCourses = posorderDescFiredCourses.Default.(int)
 	// posorderDescReprintCount is the schema descriptor for reprint_count field.
-	posorderDescReprintCount := posorderFields[35].Descriptor()
+	posorderDescReprintCount := posorderFields[36].Descriptor()
 	// posorder.DefaultReprintCount holds the default value on creation for the reprint_count field.
 	posorder.DefaultReprintCount = posorderDescReprintCount.Default.(int)
 	// posorderDescCreatedAt is the schema descriptor for created_at field.
-	posorderDescCreatedAt := posorderFields[44].Descriptor()
+	posorderDescCreatedAt := posorderFields[45].Descriptor()
 	// posorder.DefaultCreatedAt holds the default value on creation for the created_at field.
 	posorder.DefaultCreatedAt = posorderDescCreatedAt.Default.(func() time.Time)
 	// posorderDescUpdatedAt is the schema descriptor for updated_at field.
-	posorderDescUpdatedAt := posorderFields[45].Descriptor()
+	posorderDescUpdatedAt := posorderFields[46].Descriptor()
 	// posorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	posorder.DefaultUpdatedAt = posorderDescUpdatedAt.Default.(func() time.Time)
 	// posorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	posorder.UpdateDefaultUpdatedAt = posorderDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// posorderDescPublicToken is the schema descriptor for public_token field.
-	posorderDescPublicToken := posorderFields[46].Descriptor()
+	posorderDescPublicToken := posorderFields[47].Descriptor()
 	// posorder.DefaultPublicToken holds the default value on creation for the public_token field.
 	posorder.DefaultPublicToken = posorderDescPublicToken.Default.(func() uuid.UUID)
 	// posorderDescID is the schema descriptor for id field.

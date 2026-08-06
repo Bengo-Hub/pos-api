@@ -84,6 +84,8 @@ const (
 	FieldEtimsRcptSign = "etims_rcpt_sign"
 	// FieldEtimsKraPin holds the string denoting the etims_kra_pin field in the database.
 	FieldEtimsKraPin = "etims_kra_pin"
+	// FieldEtimsInternalData holds the string denoting the etims_internal_data field in the database.
+	FieldEtimsInternalData = "etims_internal_data"
 	// FieldReprintCount holds the string denoting the reprint_count field in the database.
 	FieldReprintCount = "reprint_count"
 	// FieldVoidedReason holds the string denoting the voided_reason field in the database.
@@ -176,6 +178,7 @@ var Columns = []string{
 	FieldEtimsCuInvNo,
 	FieldEtimsRcptSign,
 	FieldEtimsKraPin,
+	FieldEtimsInternalData,
 	FieldReprintCount,
 	FieldVoidedReason,
 	FieldVoidedBy,
@@ -442,6 +445,11 @@ func ByEtimsRcptSign(opts ...sql.OrderTermOption) OrderOption {
 // ByEtimsKraPin orders the results by the etims_kra_pin field.
 func ByEtimsKraPin(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEtimsKraPin, opts...).ToFunc()
+}
+
+// ByEtimsInternalData orders the results by the etims_internal_data field.
+func ByEtimsInternalData(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEtimsInternalData, opts...).ToFunc()
 }
 
 // ByReprintCount orders the results by the reprint_count field.
