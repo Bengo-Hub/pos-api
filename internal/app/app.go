@@ -73,6 +73,7 @@ type App struct {
 	outboxPublisher          *eventslib.Publisher
 	webhookWorker            *webhookmodule.DeliveryWorker
 	shiftAutoEndWorker       *shiftsmodule.AutoEndWorker
+	saleFinalizedReconciler  *paymentmodule.SaleFinalizedReconciler
 	kdsHub                   *kdsmodule.Hub
 	printHub                 *printing.Hub
 	layawayReminderScheduler *scheduler.LayawayReminderScheduler
@@ -637,6 +638,7 @@ func New(ctx context.Context) (*App, error) {
 
 	webhookWorker := webhookmodule.NewDeliveryWorker(entClient, log)
 	shiftAutoEndWorker := shiftsmodule.NewAutoEndWorker(entClient, log)
+	saleFinalizedReconciler := paymentmodule.NewSaleFinalizedReconciler(paymentSvc, log)
 	var layawayReminder *scheduler.LayawayReminderScheduler
 	if eventPub := orderSvc.GetPublisher(); eventPub != nil {
 		layawayReminder = scheduler.NewLayawayReminderScheduler(log, entClient, eventPub)
@@ -721,6 +723,7 @@ func New(ctx context.Context) (*App, error) {
 		outboxPublisher:          outboxPub,
 		webhookWorker:            webhookWorker,
 		shiftAutoEndWorker:       shiftAutoEndWorker,
+		saleFinalizedReconciler:  saleFinalizedReconciler,
 		kdsHub:                   kdsHub,
 		printHub:                 printHub,
 		layawayReminderScheduler: layawayReminder,
@@ -747,6 +750,12 @@ func (a *App) Run(ctx context.Context) error {
 	// Start shift auto-end worker — closes overdue shift sessions every 15 min
 	if a.shiftAutoEndWorker != nil {
 		go a.shiftAutoEndWorker.Start(ctx)
+	}
+
+	// Start sale.finalized reconciler — republishes completed orders left without a live
+	// outbox row (crash-window gap or an exhausted-retry FAILED row) every 5 min
+	if a.saleFinalizedReconciler != nil {
+		go a.saleFinalizedReconciler.Start(ctx)
 	}
 
 	// Start KDS hub Redis pub/sub relay — no-op if Redis is not configured
