@@ -400,6 +400,16 @@ type returnAgg struct {
 	completedTotal float64
 }
 
+// arReducingRefundChannel reports whether a return's refund channel settles straight into
+// treasury's CustomerBalance (offset_invoice) — the channel offered for on-account sales by
+// default (see returns_policy.go's defaultRefundChannel). Only these channels get eventually
+// folded into an order's own paid_total by payments/ar_reconcile.go's event-driven, reduce-only
+// ReconcileCustomerOrders — everything else (cash/mpesa/bank/cheque/store_credit) never touches
+// treasury AR and so never reaches paid_total any other way.
+func arReducingRefundChannel(ch *posreturn.RefundChannel) bool {
+	return ch != nil && *ch == posreturn.RefundChannelOffsetInvoice
+}
+
 // returnsRollup batch-loads the sell-return rollup for a set of orders (rejected returns excluded —
 // a rejected request never happened financially). One query, no N+1. Shared by the list enrichment
 // and the single-order (Sell Details) enrichment so both net completed returns identically.
@@ -411,6 +421,14 @@ func (h *POSOrderHandler) returnsRollup(ctx context.Context, tenantID uuid.UUID,
 // the ReportPDFHandler (CSV/PDF export) net completed returns from ONE code path — the export can
 // never disagree with the on-screen list again (the report_all_sales "kept in sync" comment that
 // wasn't).
+//
+// completedTotal deliberately EXCLUDES offset_invoice-channel returns (see arReducingRefundChannel)
+// — every caller feeds this straight into orders.ComputeSettlement's completedReturns parameter,
+// and that channel's value is already folded into the order's own paid_total by
+// payments/ar_reconcile.go once its event lands, so including it here too would double-subtract
+// the same return. Confirmed live 2026-08-06 (see settlement.go's doc comment for the exact
+// numbers). `total`/`count`/`status` stay unfiltered — they're pure display fields
+// (ReturnTotal/ReturnCount/ReturnStatus), never fed into the owed-amount math.
 func returnsRollupFor(ctx context.Context, client *ent.Client, log *zap.Logger, tenantID uuid.UUID, orderIDs []uuid.UUID) map[uuid.UUID]*returnAgg {
 	returnsByOrder := map[uuid.UUID]*returnAgg{}
 	if len(orderIDs) == 0 {
@@ -436,7 +454,7 @@ func returnsRollupFor(ctx context.Context, client *ent.Client, log *zap.Logger, 
 		}
 		agg.count++
 		agg.total += ret.RefundAmount
-		if ret.Status == posreturn.StatusCompleted {
+		if ret.Status == posreturn.StatusCompleted && !arReducingRefundChannel(ret.RefundChannel) {
 			agg.completedTotal += ret.RefundAmount
 		}
 		if returnRank[ret.Status] > returnRank[posreturn.Status(agg.status)] {

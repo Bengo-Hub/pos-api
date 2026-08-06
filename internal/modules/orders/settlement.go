@@ -25,6 +25,17 @@ import (
 //     own paid_total (the refund/offset moves the customer's treasury AR directly), so the netting
 //     has to happen here, at read time.
 //   - voided / cancelled / draft orders owe nothing (no committed financial effect).
+//
+// completedReturns MUST already exclude any completed return whose refund_channel is
+// offset_invoice/ar — those settle straight into treasury's CustomerBalance, which
+// payments/ar_reconcile.go's ReconcileCustomerOrders (event-driven, reduce-only) folds into THIS
+// order's own paid_total via a non-on_account "ar_reconciled" payment row. If a caller included
+// those in completedReturns too, this function would double-subtract the same return once ar_reconcile
+// catches up — confirmed live 2026-08-06 (order total 116, one 40 offset_invoice return: amount_due
+// read 36 instead of the correct 76). Callers get this exclusion automatically via
+// returnsRollupFor (handlers/orders.go) and payments.completedReturnsTotal — see their doc comments.
+// A store_credit/cash-channel return on an on-account order never reaches treasury AR at all, so it
+// is correctly still included and must still be netted here.
 
 // Settlement is the derived owed-state of a single POS order.
 type Settlement struct {
@@ -35,7 +46,8 @@ type Settlement struct {
 }
 
 // ComputeSettlement is THE owed-amount function. completedReturns is the settled-return total for
-// this order (0 when none); callers batch-resolve it once via CompletedReturnsTotal semantics.
+// this order (0 when none); callers batch-resolve it once via CompletedReturnsTotal semantics —
+// see this file's own doc comment above for the offset_invoice/ar exclusion callers must apply.
 func ComputeSettlement(o *ent.POSOrder, completedReturns float64) Settlement {
 	collected := o.PaidTotal
 	ps := DerivePaymentStatus(o.Status, o.TotalAmount, collected, completedReturns, IsOnAccount(o.Metadata))

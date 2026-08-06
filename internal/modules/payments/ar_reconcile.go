@@ -73,8 +73,16 @@ type ReconcileParams struct {
 	DryRun            bool
 }
 
-// completedReturnsTotal sums the settled (completed) sell-returns for an order — the amount that has
-// already reduced the customer's real debt (refund/credit-note/offset). Shared owed-math input.
+// completedReturnsTotal sums the settled (completed) sell-returns for an order that STILL need
+// manually netting against the order's own total — the amount that has already reduced the
+// customer's real debt via a channel treasury never learns about (cash/mpesa/bank/cheque/
+// store_credit). offset_invoice-channel returns are deliberately EXCLUDED: that channel reduces
+// the customer's treasury CustomerBalance directly, and ReconcileCustomerOrders (below, this same
+// file) — or the identically-scoped handlers.returnsRollupFor for the list/detail/report read
+// paths — folds it into this order's own paid_total once the resulting balance_updated event
+// lands. Including it here too would double-subtract the same return (confirmed live 2026-08-06,
+// see orders/settlement.go's doc comment for the exact numbers) — this shared helper is exactly
+// the second of the two call paths that bug hit (the first being the list/detail rollup).
 func (s *Service) completedReturnsTotal(ctx context.Context, orderID uuid.UUID) (float64, error) {
 	rets, err := s.client.POSReturn.Query().
 		Where(posreturn.OrderID(orderID), posreturn.StatusEQ(posreturn.StatusCompleted)).
@@ -84,6 +92,9 @@ func (s *Service) completedReturnsTotal(ctx context.Context, orderID uuid.UUID) 
 	}
 	var total float64
 	for _, r := range rets {
+		if r.RefundChannel != nil && *r.RefundChannel == posreturn.RefundChannelOffsetInvoice {
+			continue
+		}
 		total += r.RefundAmount
 	}
 	return total, nil
