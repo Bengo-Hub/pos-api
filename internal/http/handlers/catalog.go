@@ -23,6 +23,7 @@ import (
 	entkdsstation "github.com/bengobox/pos-service/internal/ent/kdsstation"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
+	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
@@ -920,6 +921,85 @@ func (h *CatalogHandler) cachedCatalogSource(ctx context.Context, tid uuid.UUID,
 	return src, nil
 }
 
+// overrideEntry is the POS-specific per-SKU override merged onto an inventory-api item.
+type overrideEntry struct {
+	sellingPrice            *float64
+	taxStatus               string
+	isAvailable             bool
+	isFeatured              bool
+	displayOrder            int
+	requiresPrescription    bool
+	isReturnable            bool
+	requiresAgeVerification bool
+	isControlledSubstance   bool
+	minimumAge              *int
+	durationMinutes         *int
+	complimentary           bool
+	// uom = the item's stock unit abbreviation (e.g. "ml", "kg"), cached at catalog-sync time
+	// by the inventory.item.* consumer (inventory_events.go) purely so pos.sale.finalized can
+	// carry a real uom_code. Reused here to surface it to the terminal too, so the UI can allow
+	// decimal-qty entry only for continuous units.
+	uom string
+	// outletSpecific marks a row scoped to a specific outlet (vs. a tenant-wide default) — once
+	// one has won the map slot for a SKU, a tenant-wide row must never replace it.
+	outletSpecific bool
+}
+
+// resolveCatalogOverrides loads this tenant/outlet's POSCatalogOverride rows and merges them
+// into a SKU → best-match map. Filters at the QUERY level to what this outlet may legitimately
+// see (its own outlet-specific rows plus tenant-wide defaults) — an override belonging to a
+// DIFFERENT, unrelated outlet must never even be fetched, let alone leak into the map by
+// accident of row order (the bug this replaced: the old code fetched every override for the
+// whole tenant and relied on an `!exists` merge check that let whichever outlet's row Query().
+// All() happened to return FIRST win a SKU, regardless of which outlet actually asked).
+func (h *CatalogHandler) resolveCatalogOverrides(ctx context.Context, tid uuid.UUID, outletID *uuid.UUID) (map[string]overrideEntry, error) {
+	preds := []predicate.POSCatalogOverride{entoverride.TenantID(tid)}
+	if outletID != nil {
+		preds = append(preds, entoverride.Or(
+			entoverride.OutletIDIsNil(),
+			entoverride.OutletID(*outletID),
+		))
+	} else {
+		preds = append(preds, entoverride.OutletIDIsNil())
+	}
+	overrides, err := h.client.POSCatalogOverride.Query().Where(preds...).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return mergeCatalogOverrides(overrides), nil
+}
+
+// mergeCatalogOverrides is the pure merge step (no DB) so the precedence rule — an
+// outlet-specific row always beats a tenant-wide default for the same SKU — is unit-testable
+// without a database.
+func mergeCatalogOverrides(overrides []*ent.POSCatalogOverride) map[string]overrideEntry {
+	overrideMap := make(map[string]overrideEntry, len(overrides))
+	for _, o := range overrides {
+		key := o.InventorySku
+		isOutletSpecific := o.OutletID != nil
+		if prev, exists := overrideMap[key]; exists && prev.outletSpecific && !isOutletSpecific {
+			continue
+		}
+		overrideMap[key] = overrideEntry{
+			sellingPrice:            o.SellingPrice,
+			taxStatus:               o.TaxStatus,
+			isAvailable:             o.IsAvailable,
+			isFeatured:              o.IsFeatured,
+			displayOrder:            o.DisplayOrder,
+			requiresPrescription:    o.RequiresPrescription,
+			isReturnable:            o.IsReturnable,
+			requiresAgeVerification: o.RequiresAgeVerification,
+			isControlledSubstance:   o.IsControlledSubstance,
+			minimumAge:              o.MinimumAge,
+			durationMinutes:         o.DurationMinutes,
+			complimentary:           metaBool(o.Metadata, "complimentary"),
+			uom:                     metaString(o.Metadata, "uom"),
+			outletSpecific:          isOutletSpecific,
+		}
+	}
+	return overrideMap
+}
+
 // assembleMenuItems is the single source of truth for turning inventory-api items +
 // POS overrides into display-ready catalog items. It performs the inventory items +
 // pricing fetch, override merge, use-case category filtering, and price resolution.
@@ -964,55 +1044,9 @@ func (h *CatalogHandler) assembleMenuItems(
 	invPriceByID := src.Prices
 	invTierPricesByID := src.Tiers // itemID → {tierCode: price}
 
-	// Load all POS overrides for this tenant
-	overrides, _ := h.client.POSCatalogOverride.Query().
-		Where(entoverride.TenantID(tid)).
-		All(ctx)
-
-	// Build SKU → best override map (outlet-scoped wins over tenant-wide)
-	type overrideEntry struct {
-		sellingPrice            *float64
-		taxStatus               string
-		isAvailable             bool
-		isFeatured              bool
-		displayOrder            int
-		requiresPrescription    bool
-		isReturnable            bool
-		requiresAgeVerification bool
-		isControlledSubstance   bool
-		minimumAge              *int
-		durationMinutes         *int
-		complimentary           bool
-		// uom = the item's stock unit abbreviation (e.g. "ml", "kg"), cached at catalog-sync
-		// time by the inventory.item.* consumer (inventory_events.go) purely so
-		// pos.sale.finalized can carry a real uom_code. Reused here to surface it to the
-		// terminal too, so the UI can allow decimal-qty entry only for continuous units.
-		uom string
-	}
-	overrideMap := make(map[string]overrideEntry)
-	for _, o := range overrides {
-		key := o.InventorySku
-		prev, exists := overrideMap[key]
-		// outlet-scoped overrides take precedence over tenant-wide
-		if !exists || (o.OutletID != nil && outletID != nil && *o.OutletID == *outletID) {
-			overrideMap[key] = overrideEntry{
-				sellingPrice:            o.SellingPrice,
-				taxStatus:               o.TaxStatus,
-				isAvailable:             o.IsAvailable,
-				isFeatured:              o.IsFeatured,
-				displayOrder:            o.DisplayOrder,
-				requiresPrescription:    o.RequiresPrescription,
-				isReturnable:            o.IsReturnable,
-				requiresAgeVerification: o.RequiresAgeVerification,
-				isControlledSubstance:   o.IsControlledSubstance,
-				minimumAge:              o.MinimumAge,
-				durationMinutes:         o.DurationMinutes,
-				complimentary:           metaBool(o.Metadata, "complimentary"),
-				uom:                     metaString(o.Metadata, "uom"),
-			}
-		} else {
-			_ = prev
-		}
+	overrideMap, err := h.resolveCatalogOverrides(ctx, tid, outletID)
+	if err != nil {
+		return nil, err
 	}
 
 	out := make([]catalogItemDTO, 0, len(src.Items))
