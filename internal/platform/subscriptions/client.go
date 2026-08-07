@@ -6,7 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
+
+	serviceclient "github.com/Bengo-Hub/shared-service-client"
+	"go.uber.org/zap"
 )
 
 // Config holds configuration for the subscriptions client.
@@ -26,15 +30,48 @@ func (s *SubscriptionStatus) IsActive() bool {
 	return s.Status == "ACTIVE" || s.Status == "TRIAL"
 }
 
-// Client interacts with the subscriptions service.
+// Client interacts with the subscriptions service, built on the shared
+// github.com/Bengo-Hub/shared-service-client transport (circuit breaker + bounded retry +
+// tracing) instead of a bare http.Client. The retry budget is kept close to RequestTimeout (a
+// single quick retry, not the shared-service-client default 30s budget) since this client sits
+// on hot paths (per-order usage reporting, PIN-session entitlement lookups) that must fail open
+// fast on a subscriptions-api outage; the circuit breaker still protects a sustained outage from
+// making every subsequent call pay a fresh timeout.
 type Client struct {
-	cfg  Config
-	http *http.Client
+	cfg Config
+	sc  *serviceclient.Client
+	// httpc is used only by ReportUsage: subscriptions-api's usage-report endpoint returns a
+	// meaningful 429 as part of its usage-DECISION contract (distinct from a generic upstream
+	// rate-limit), but shared-service-client's transport always treats HTTP 429 as a retryable
+	// transport error and never surfaces it as a normal Response — which would silently turn a
+	// real "usage limit exceeded" decision into a fail-open after burning the retry budget. A
+	// direct client here preserves that one caller-visible status code exactly, mirroring the
+	// same dual-transport pattern already used in erp-api's platform/treasury client.go.
+	httpc *http.Client
 }
 
 // NewClient creates a new subscriptions service client.
-func NewClient(cfg Config) *Client {
-	return &Client{cfg: cfg, http: &http.Client{Timeout: cfg.RequestTimeout}}
+func NewClient(cfg Config, log *zap.Logger) *Client {
+	timeout := cfg.RequestTimeout
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	scCfg := serviceclient.DefaultConfig(strings.TrimRight(cfg.ServiceURL, "/"), "subscriptions-api", log)
+	scCfg.Timeout = timeout
+	scCfg.InitialInterval = 100 * time.Millisecond
+	scCfg.MaxInterval = timeout
+	scCfg.MaxElapsedTime = timeout
+	return &Client{cfg: cfg, sc: serviceclient.New(scCfg), httpc: &http.Client{Timeout: timeout}}
+}
+
+func (c *Client) authHeaders(tenantID, bearerToken string) map[string]string {
+	headers := map[string]string{"X-Tenant-ID": tenantID}
+	if c.cfg.APIKey != "" {
+		headers["X-API-Key"] = c.cfg.APIKey
+	} else if bearerToken != "" {
+		headers["Authorization"] = "Bearer " + bearerToken
+	}
+	return headers
 }
 
 // IsSubscriptionActive returns true if the tenant has an active subscription.
@@ -43,29 +80,18 @@ func NewClient(cfg Config) *Client {
 func (c *Client) IsSubscriptionActive(ctx context.Context, tenantID, tenantSlug, bearerToken string) bool {
 	// Use the S2S tenant-scoped path — subscriptions-api resolves tenant from URL param,
 	// not from JWT claims, so API-key auth works correctly without a user JWT in context.
-	url := fmt.Sprintf("%s/api/v1/tenants/%s/subscription", c.cfg.ServiceURL, tenantID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	resp, err := c.sc.Get(ctx, fmt.Sprintf("/api/v1/tenants/%s/subscription", tenantID), c.authHeaders(tenantID, bearerToken))
 	if err != nil {
 		return true // fail open
 	}
-	if c.cfg.APIKey != "" {
-		req.Header.Set("X-API-Key", c.cfg.APIKey)
-	} else if bearerToken != "" {
-		req.Header.Set("Authorization", "Bearer "+bearerToken)
-	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return true // fail open
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusNotFound {
+	if resp.StatusCode == 404 {
 		return false
 	}
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != 200 {
 		return true // fail open
 	}
 	var sub SubscriptionStatus
-	if err := json.NewDecoder(resp.Body).Decode(&sub); err != nil {
+	if err := resp.DecodeJSON(&sub); err != nil {
 		return true // fail open
 	}
 	return sub.IsActive()
@@ -77,16 +103,22 @@ type planLimitsResponse struct {
 	Limits map[string]int `json:"limits"`
 }
 
-// Entitlements is the subscription snapshot embedded into terminal (PIN) JWTs so that
-// PIN sessions carry the same feature/limit gating as SSO sessions. Demo bypass and
+// Entitlements is the canonical tenant subscription snapshot returned by subscriptions-api's
+// GET /api/v1/tenants/{id}/subscription (mirrors treasury-api's platform/subscriptions.
+// Entitlements — the two should converge on one shared shape). Embedded into terminal (PIN)
+// JWTs so that PIN sessions carry the same feature/limit gating as SSO sessions. Demo bypass and
 // service-charge are surfaced so the gate can exempt them.
 type Entitlements struct {
-	Features     []string       `json:"features"`
-	Limits       map[string]int `json:"limits"`
-	Status       string         `json:"status"`
-	BillingMode  string         `json:"billing_mode"`
-	PlanCode     string         `json:"plan_code"`
-	IsDemoBypass bool           `json:"is_demo_bypass"`
+	Features     []string `json:"features"`
+	Status       string   `json:"status"`
+	BillingMode  string   `json:"billing_mode"`
+	IsDemoBypass bool     `json:"is_demo_bypass"`
+	// ActiveProducts mirrors treasury-api's Entitlements field of the same name — the
+	// per-product self-activation list. pos-api doesn't currently gate on it, but decoding it
+	// keeps this struct the full canonical shape rather than a partial subset.
+	ActiveProducts    []string       `json:"active_products"`
+	Limits            map[string]int `json:"limits"`
+	PlanCode          string         `json:"plan_code"`
 	// TierOrder/AllowOverage/CurrentPeriodEnd/IsPerpetual/Exempt mirror the fields auth-api's
 	// EnrichTokenWithSubscription maps onto an SSO JWT (sub_tier/sub_allow_overage/sub_expires/
 	// sub_exempt). Without these a terminal (PIN) session can't be told apart from a lower-tier
@@ -106,24 +138,12 @@ func (c *Client) GetEntitlements(ctx context.Context, tenantID string) *Entitlem
 	if c.cfg.ServiceURL == "" {
 		return nil
 	}
-	url := fmt.Sprintf("%s/api/v1/tenants/%s/subscription", c.cfg.ServiceURL, tenantID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil
-	}
-	if c.cfg.APIKey != "" {
-		req.Header.Set("X-API-Key", c.cfg.APIKey)
-	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+	resp, err := c.sc.Get(ctx, fmt.Sprintf("/api/v1/tenants/%s/subscription", tenantID), c.authHeaders(tenantID, ""))
+	if err != nil || resp.StatusCode != 200 {
 		return nil
 	}
 	var e Entitlements
-	if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
+	if err := resp.DecodeJSON(&e); err != nil {
 		return nil
 	}
 	return &e
@@ -134,24 +154,12 @@ func (c *Client) GetEntitlements(ctx context.Context, tenantID string) *Entitlem
 // or subscriptions-api is unreachable — callers MUST fail open (allow the action) in
 // that case so a subscriptions-api outage never blocks core operations.
 func (c *Client) GetLimit(ctx context.Context, tenantID, limitKey string) (limit int, ok bool) {
-	url := fmt.Sprintf("%s/api/v1/tenants/%s/subscription", c.cfg.ServiceURL, tenantID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return 0, false
-	}
-	if c.cfg.APIKey != "" {
-		req.Header.Set("X-API-Key", c.cfg.APIKey)
-	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return 0, false
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+	resp, err := c.sc.Get(ctx, fmt.Sprintf("/api/v1/tenants/%s/subscription", tenantID), c.authHeaders(tenantID, ""))
+	if err != nil || resp.StatusCode != 200 {
 		return 0, false
 	}
 	var body planLimitsResponse
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err := resp.DecodeJSON(&body); err != nil {
 		return 0, false
 	}
 	v, exists := body.Limits[limitKey]
@@ -186,7 +194,7 @@ func (c *Client) ReportUsage(ctx context.Context, tenantID, metric, serviceName 
 		"service_name": serviceName,
 		"value":        value,
 	})
-	url := fmt.Sprintf("%s/api/v1/usage/report", c.cfg.ServiceURL)
+	url := fmt.Sprintf("%s/api/v1/usage/report", strings.TrimRight(c.cfg.ServiceURL, "/"))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
 		return UsageDecision{Allowed: true}
@@ -195,7 +203,7 @@ func (c *Client) ReportUsage(ctx context.Context, tenantID, metric, serviceName 
 	req.Header.Set("X-API-Key", c.cfg.APIKey)
 	req.Header.Set("X-Tenant-ID", tenantID)
 
-	resp, err := c.http.Do(req)
+	resp, err := c.httpc.Do(req)
 	if err != nil {
 		return UsageDecision{Allowed: true} // fail open
 	}

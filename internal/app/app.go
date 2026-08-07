@@ -152,7 +152,7 @@ func New(ctx context.Context) (*App, error) {
 		ServiceURL:     cfg.Subscriptions.ServiceURL,
 		RequestTimeout: cfg.Subscriptions.RequestTimeout,
 		APIKey:         cfg.Subscriptions.APIKey,
-	})
+	}, log.Named("subscriptions.client"))
 
 	tenantCache := sharedcache.New(redisClient, log)
 	tenantSyncer := tenant.NewSyncer(entClient, cfg.Auth.ServiceURL, tenantCache).WithDB(sqlDB)
