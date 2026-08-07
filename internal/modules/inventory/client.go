@@ -568,7 +568,12 @@ type listItemsPage struct {
 // recipe-type lines SHOULD have cost, using today's ingredient costs (the best available
 // approximation — no historical cost snapshot exists for a sale that never recorded one).
 func (c *Client) ListRecipeCosts(ctx context.Context, tenantID string) (map[string]float64, error) {
-	const pageSize = 200
+	// inventory-api clamps any requested limit to its shared pagination.MaxLimit (100) — a
+	// pageSize larger than that makes every response short (len(page) < pageSize is always
+	// true), so the loop below terminated after page 1 regardless of how many RECIPE items
+	// actually existed, silently dropping the rest from the recipe-COGS backfill for any tenant
+	// with more than ~100 recipes. Must match the server's actual cap exactly.
+	const pageSize = 100
 	out := map[string]float64{}
 	for offset := 0; ; offset += pageSize {
 		page, err := c.fetchRecipeCostPage(ctx, tenantID, pageSize, offset)
