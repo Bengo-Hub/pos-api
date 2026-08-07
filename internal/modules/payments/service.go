@@ -1676,6 +1676,16 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 			}
 			return ""
 		}(),
+		// customer_name is a display-only snapshot — treasury uses it (alongside customer_phone)
+		// to log the sale on the customer's AR ledger for statement/purchase-history visibility
+		// (arpa.RecordSettledSale), so a registered customer's cash/mpesa/card sales show up
+		// alongside their credit activity instead of only debt.
+		"customer_name": func() string {
+			if order.CustomerName != nil {
+				return *order.CustomerName
+			}
+			return ""
+		}(),
 	}
 
 	if err := s.publisher.PublishSaleFinalized(ctx, order.TenantID, data); err != nil {

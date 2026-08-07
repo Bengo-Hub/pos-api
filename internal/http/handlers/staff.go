@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/Bengo-Hub/pagination"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -129,14 +129,14 @@ func requesterIsAdminLevel(r *http.Request) bool {
 // ── GET /{tenant}/pos/staff/admin — full staff list for management UI ─────────
 
 type staffAdminItem struct {
-	ID             string  `json:"id"`
-	UserID         string  `json:"user_id"`
-	OutletID       string  `json:"outlet_id"`
-	Name           string  `json:"name"`
-	Role           string  `json:"role"`
-	EmploymentType string  `json:"employment_type"`
-	IsActive       bool    `json:"is_active"`
-	HasPIN         bool    `json:"has_pin"`
+	ID             string   `json:"id"`
+	UserID         string   `json:"user_id"`
+	OutletID       string   `json:"outlet_id"`
+	Name           string   `json:"name"`
+	Role           string   `json:"role"`
+	EmploymentType string   `json:"employment_type"`
+	IsActive       bool     `json:"is_active"`
+	HasPIN         bool     `json:"has_pin"`
 	HourlyRate     *float64 `json:"hourly_rate,omitempty"`
 	DailyRate      *float64 `json:"daily_rate,omitempty"`
 	MonthlySalary  *float64 `json:"monthly_salary,omitempty"`
@@ -513,14 +513,35 @@ func (h *StaffHandler) UpdateStaff(w http.ResponseWriter, r *http.Request) {
 		upd = upd.SetRole(*input.Role)
 	}
 	if input.OutletID != nil {
-		if oid, err := uuid.Parse(*input.OutletID); err == nil {
-			// Upsert StaffOutlet — add new outlet assignment if not already assigned.
-			_ = h.client.StaffOutlet.Create().
-				SetTenantID(tid).
-				SetStaffMemberID(member.ID).
-				SetOutletID(oid).
-				SetIsHomeOutlet(true).
-				OnConflict().DoNothing().Exec(r.Context())
+		oid, oerr := uuid.Parse(*input.OutletID)
+		if oerr != nil {
+			jsonError(w, "invalid outlet_id", http.StatusBadRequest)
+			return
+		}
+		// A staff member has exactly ONE home outlet. The previous upsert only ever ADDED a new
+		// StaffOutlet row (DoNothing on conflict), so "switching" outlets left the old outlet ALSO
+		// flagged is_home_outlet=true — ListStaffForAdmin's .Where(IsHomeOutlet(true)).Limit(1)
+		// query then non-deterministically returned either the old or the new outlet. Demote every
+		// other home-outlet row for this staff member before upserting the target as home.
+		if err := h.client.StaffOutlet.Update().
+			Where(
+				entstaffoutlet.StaffMemberID(member.ID),
+				entstaffoutlet.IsHomeOutlet(true),
+				entstaffoutlet.OutletIDNEQ(oid),
+			).
+			SetIsHomeOutlet(false).
+			Exec(r.Context()); err != nil {
+			h.log.Warn("update staff: demote previous home outlet failed", zap.Error(err), zap.String("staff_id", staffID.String()))
+		}
+		if err := h.client.StaffOutlet.Create().
+			SetTenantID(tid).
+			SetStaffMemberID(member.ID).
+			SetOutletID(oid).
+			SetIsHomeOutlet(true).
+			OnConflictColumns(entstaffoutlet.FieldStaffMemberID, entstaffoutlet.FieldOutletID).
+			UpdateNewValues().
+			Exec(r.Context()); err != nil {
+			h.log.Warn("update staff: outlet reassignment failed", zap.Error(err), zap.String("staff_id", staffID.String()))
 		}
 	}
 	if input.EmploymentType != nil {
