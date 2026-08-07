@@ -369,6 +369,19 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		// service-identifiable string rather than the bare order UUID.
 		Metadata: map[string]any{"service": "pos", "entity_id": req.OrderID.String()},
 	}
+	// Customer snapshot (loyalty lookup or manual entry at checkout) — treasury-ui's Transactions
+	// page reads metadata["customer_name"] for the Customer column (REQ-005; previously this was
+	// always blank for every POS-sourced transaction, cash or digital, since neither dedicated
+	// CreateIntentRequest.CustomerName/CustomerPhone field was ever populated here). Written into
+	// Metadata directly rather than the dedicated CustomerPhone field: that field serializes as
+	// "customer_phone" but treasury-api's server-side DTO expects "phone_number" — a mismatch that
+	// would silently drop it, whereas Metadata passes through verbatim (see "external_ref" below).
+	if order.CustomerName != nil && *order.CustomerName != "" {
+		intentReq.Metadata["customer_name"] = *order.CustomerName
+	}
+	if order.CustomerPhone != nil && *order.CustomerPhone != "" {
+		intentReq.Metadata["customer_phone"] = *order.CustomerPhone
+	}
 	// Carry the cashier-entered external reference (card terminal approval code / M-Pesa code) so
 	// treasury records it on the immediate-settle PaymentTransaction instead of a synthetic ref.
 	if cash && req.ExternalRef != "" {
