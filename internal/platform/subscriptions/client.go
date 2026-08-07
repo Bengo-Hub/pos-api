@@ -87,6 +87,16 @@ type Entitlements struct {
 	BillingMode  string         `json:"billing_mode"`
 	PlanCode     string         `json:"plan_code"`
 	IsDemoBypass bool           `json:"is_demo_bypass"`
+	// TierOrder/AllowOverage/CurrentPeriodEnd/IsPerpetual/Exempt mirror the fields auth-api's
+	// EnrichTokenWithSubscription maps onto an SSO JWT (sub_tier/sub_allow_overage/sub_expires/
+	// sub_exempt). Without these a terminal (PIN) session can't be told apart from a lower-tier
+	// or non-exempt one for tier-rank gates, overage soft-cap, grace-period, or an explicit
+	// platform exemption — it would silently fall back to "no tier / no overage / no grace".
+	TierOrder        int    `json:"tier_order"`
+	AllowOverage     bool   `json:"allow_overage"`
+	CurrentPeriodEnd string `json:"current_period_end"`
+	IsPerpetual      bool   `json:"is_perpetual"`
+	Exempt           bool   `json:"exempt"`
 }
 
 // GetEntitlements fetches the tenant's full subscription snapshot (features, limits,

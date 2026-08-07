@@ -40,6 +40,16 @@ type terminalClaims struct {
 	SubscriptionStatus   string         `json:"sub_status,omitempty"`
 	SubscriptionFeatures []string       `json:"subscription_features,omitempty"`
 	SubscriptionLimits   map[string]int `json:"sub_limits,omitempty"`
+	// SubscriptionTier/SubscriptionExempt/AllowOverage/SubscriptionExpires were missing from the
+	// terminal JWT even though the SSO path (auth-api EnrichTokenWithSubscription) has minted
+	// them since v0.11.0 — a PIN session always resolved PlanTierOrder()=0 (no real plan code
+	// matches the legacy name-based fallback), never got overage soft-cap, never got grace on an
+	// expired-but-in-grace subscription, and an explicitly sub_exempt tenant (not demo/platform-
+	// owner/service-charge) never bypassed gating on a terminal login.
+	SubscriptionTier    int    `json:"sub_tier,omitempty"`
+	SubscriptionExempt  bool   `json:"sub_exempt,omitempty"`
+	AllowOverage        bool   `json:"sub_allow_overage,omitempty"`
+	SubscriptionExpires *int64 `json:"sub_expires,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -59,6 +69,14 @@ type terminalEntitlements struct {
 	Status          string
 	Features        []string
 	Limits          map[string]int
+	// See the matching doc comment on terminalClaims for why these matter.
+	TierOrder    int
+	Exempt       bool
+	AllowOverage bool
+	// ExpiresAtUnix is the subscription's current_period_end as a Unix timestamp, nil for a
+	// perpetual (one-time) license — mirrors auth-api's EnrichTokenWithSubscription, which
+	// omits sub_expires entirely for IsPerpetual subs so the gate treats them as never-expiring.
+	ExpiresAtUnix *int64
 }
 
 // issueTerminalJWT returns the signed token AND the resolved permission set it baked in, so the
@@ -107,6 +125,10 @@ func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutlet
 		SubscriptionStatus:   ent2.Status,
 		SubscriptionFeatures: ent2.Features,
 		SubscriptionLimits:   ent2.Limits,
+		SubscriptionTier:     ent2.TierOrder,
+		SubscriptionExempt:   ent2.Exempt,
+		AllowOverage:         ent2.AllowOverage,
+		SubscriptionExpires:  ent2.ExpiresAtUnix,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   member.UserID.String(),
 			Issuer:    "pos-terminal",
@@ -164,6 +186,10 @@ func terminalToAuthClaims(tc *terminalClaims) *authclient.Claims {
 		SubscriptionStatus:   tc.SubscriptionStatus,
 		SubscriptionFeatures: tc.SubscriptionFeatures,
 		SubscriptionLimits:   tc.SubscriptionLimits,
+		SubscriptionTier:     tc.SubscriptionTier,
+		SubscriptionExempt:   tc.SubscriptionExempt,
+		AllowOverage:         tc.AllowOverage,
+		SubscriptionExpires:  tc.SubscriptionExpires,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject: tc.Subject,
 			Issuer:  tc.Issuer,
@@ -213,6 +239,7 @@ func (h *PINAuthHandler) RequireAnyAuth(ssoAuth *authclient.AuthMiddleware) func
 //     the UI collapsed to dashboard-only even though the role carried full grants;
 //  3. tenant/custom POS roles whose role_code matches a raw global JWT role name — covers
 //     custom roles assigned on the auth side that the fixed global→POS mapping can't know.
+//
 // resolveEffectivePermissions returns (permissions, err). err is non-nil ONLY when a genuine
 // query failure occurred somewhere in the resolution chain (DB error/timeout/connection issue) —
 // NEVER when a role simply doesn't exist or a user has no assignments (those are legitimate empty
