@@ -72,9 +72,50 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 	var incrementalAmount, incrementalTax, incrementalCost float64
 	consumptionItems := make([]inventory.ConsumptionItem, 0, len(diff.added)+len(diff.increased))
 
-	for _, a := range diff.added {
+	// Resolve brand-new lines' tax the SAME way CreateOrder/AddOrderLines do (catalog tax code →
+	// till-provided rate → the outlet's flat fallback VAT) instead of the narrower, client-rate-
+	// only lineTaxAmount this used to call — that helper only ever saw a.TaxRate (whatever pos-ui
+	// happened to send, nil for any item with no catalog tax_rate), so a fallback-VAT tenant's
+	// added line was posted with ZERO tax from the moment it was created. See
+	// orders.ResolveLineTaxes's own doc comment for the matching CreateOrder/AddOrderLines bug
+	// this mirrors (confirmed live 2026-08-07).
+	addedInputs := make([]orders.OrderLineInput, len(diff.added))
+	for i, a := range diff.added {
+		addedInputs[i] = orders.OrderLineInput{
+			CatalogItemID: a.CatalogItemID, SKU: a.SKU, Name: a.Name,
+			Quantity: a.Quantity, UnitPrice: a.UnitPrice,
+			TaxCodeID: a.TaxCodeID, PriceIncludesTax: a.PriceIncludesTax, TaxRate: a.TaxRate,
+		}
+	}
+	var addedTaxes []resolvedAddedLineTax
+	if s.orderSvc != nil {
+		// orders.ResolveLineTaxes returns an unexported element type (can't be named here), so
+		// convert inline via field access — every field this copies is exported.
+		raw := s.orderSvc.ResolveLineTaxes(ctx, tenantID, req.TenantSlug, addedInputs,
+			s.orderSvc.OutletFallbackTaxRate(ctx, order.OutletID))
+		addedTaxes = make([]resolvedAddedLineTax, len(raw))
+		for i, t := range raw {
+			addedTaxes[i] = resolvedAddedLineTax{
+				codeID: t.CodeID, kraCode: t.KRACode, rate: t.Rate, amount: t.Amount,
+				inclusive: t.Inclusive, hasInfo: t.HasInfo,
+			}
+		}
+	}
+
+	for i, a := range diff.added {
 		total := round2(a.UnitPrice * a.Quantity)
-		taxAmt := lineTaxAmount(total, a.PriceIncludesTax, a.TaxRate)
+		var lt resolvedAddedLineTax
+		if i < len(addedTaxes) {
+			lt = addedTaxes[i]
+		} else {
+			// s.orderSvc unwired (defensive only — always wired in production, see
+			// orchestrator.go's SetOrderService): fall back to whatever rate the client sent
+			// rather than fail the whole edit, matching pre-fix behavior exactly.
+			if amt := lineTaxAmount(total, a.PriceIncludesTax, a.TaxRate); amt != nil {
+				lt = resolvedAddedLineTax{rate: *a.TaxRate, amount: *amt, inclusive: a.PriceIncludesTax, hasInfo: true}
+			}
+		}
+		inclusive := lt.inclusive || a.PriceIncludesTax
 		create := s.client.POSOrderLine.Create().
 			SetOrderID(order.ID).
 			SetCatalogItemID(a.CatalogItemID).
@@ -83,23 +124,30 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 			SetQuantity(a.Quantity).
 			SetUnitPrice(a.UnitPrice).
 			SetTotalPrice(total).
-			SetPriceIncludesTax(a.PriceIncludesTax).
+			SetPriceIncludesTax(inclusive).
 			SetMetadata(map[string]any{"sale_edit_id": editID.String(), "edit_added": true})
-		if a.TaxCodeID != "" {
+		if lt.codeID != "" {
+			create = create.SetTaxCodeID(lt.codeID)
+		} else if a.TaxCodeID != "" {
 			create = create.SetTaxCodeID(a.TaxCodeID)
 		}
-		if a.TaxRate != nil {
+		if lt.kraCode != "" {
+			create = create.SetTaxKraCode(lt.kraCode)
+		}
+		if lt.rate > 0 {
+			create = create.SetTaxRate(lt.rate)
+		} else if a.TaxRate != nil {
 			create = create.SetTaxRate(*a.TaxRate)
 		}
-		if taxAmt != nil {
-			create = create.SetTaxAmount(*taxAmt)
+		if lt.amount > 0 {
+			create = create.SetTaxAmount(lt.amount)
 		}
 		if _, err := create.Save(ctx); err != nil {
 			return fmt.Errorf("create line: %w", err)
 		}
 		incrementalAmount += total
-		if taxAmt != nil && !a.PriceIncludesTax {
-			incrementalTax += *taxAmt
+		if lt.hasInfo && !inclusive && lt.amount > 0 {
+			incrementalTax += lt.amount
 		}
 		if a.SKU != "" {
 			consumptionItems = append(consumptionItems, inventory.ConsumptionItem{SKU: a.SKU, Quantity: a.Quantity})
@@ -110,15 +158,20 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 		deltaTotal := round2(inc.Req.UnitPrice * inc.ByQty)
 		newQty := round2(inc.Line.Quantity + inc.ByQty)
 		newTotal := round2(inc.Line.TotalPrice + deltaTotal)
-		if _, err := inc.Line.Update().SetQuantity(newQty).SetTotalPrice(newTotal).Save(ctx); err != nil {
+		upd := inc.Line.Update().SetQuantity(newQty).SetTotalPrice(newTotal)
+		if inc.Line.TaxAmount != nil && !inc.Line.PriceIncludesTax && inc.Line.Quantity > 0 {
+			// Prorate the line's own existing tax rate onto the incremental quantity, and — so a
+			// LATER edit's own totals-recompute-from-lines still sees the right figure — persist
+			// the bumped line's own TaxAmount too, not just this edit's incrementalTax.
+			perUnitTax := *inc.Line.TaxAmount / inc.Line.Quantity
+			deltaTax := round2(perUnitTax * inc.ByQty)
+			incrementalTax += deltaTax
+			upd = upd.SetTaxAmount(round2(*inc.Line.TaxAmount + deltaTax))
+		}
+		if _, err := upd.Save(ctx); err != nil {
 			return fmt.Errorf("bump line %s: %w", inc.Line.ID, err)
 		}
 		incrementalAmount += deltaTotal
-		if inc.Line.TaxAmount != nil && !inc.Line.PriceIncludesTax && inc.Line.Quantity > 0 {
-			// Prorate the line's own existing tax rate onto the incremental quantity.
-			perUnitTax := *inc.Line.TaxAmount / inc.Line.Quantity
-			incrementalTax += round2(perUnitTax * inc.ByQty)
-		}
 		if inc.Line.Sku != "" {
 			consumptionItems = append(consumptionItems, inventory.ConsumptionItem{SKU: inc.Line.Sku, Quantity: inc.ByQty})
 		}
@@ -179,8 +232,24 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 	return nil
 }
 
+// resolvedAddedLineTax is a package-local carrier for orders.Service.ResolveLineTaxes' per-line
+// result — that function's element type is unexported (orders.resolvedLineTax), so it can only
+// be consumed via field access at the call site, never named directly in this package; this type
+// just gives applyInPlaceIncrease's added-lines loop something concrete to declare a slice of.
+type resolvedAddedLineTax struct {
+	codeID    string
+	kraCode   string
+	rate      float64
+	amount    float64
+	inclusive bool
+	hasInfo   bool
+}
+
 // lineTaxAmount computes a line's tax amount from its rate, mirroring
 // orders.Service.EditOrderLine's own formula (rate× total, or the inclusive-price backout).
+// Used ONLY as applyInPlaceIncrease's defensive fallback for the (never-expected-in-production)
+// case where orderSvc isn't wired — orders.ResolveLineTaxes (catalog code → till rate → outlet
+// fallback VAT) is the real, centralized resolution every other path uses.
 func lineTaxAmount(total float64, priceIncludesTax bool, taxRate *float64) *float64 {
 	if taxRate == nil || *taxRate <= 0 {
 		return nil
