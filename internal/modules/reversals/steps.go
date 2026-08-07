@@ -344,7 +344,16 @@ func (s *Service) stepInventory(ctx context.Context, rev *ent.POSReversal) (stri
 		}
 	}
 
-	resp, err := s.inventoryClient.ReverseConsumption(ctx, rev.TenantID.String(), req)
+	// A tighter, dedicated bound instead of inheriting the client's generic (much longer) default:
+	// this step runs inline on the Edit-Sale save request, and prod latency for this S2S hop is
+	// normally ~2-5s (internal ClusterIP DNS, see realtime-efficiency-pwa-2026-07-24.md) — 10s is
+	// comfortable headroom. A timeout here is safe to fail fast on: this step is independently
+	// retryable via the reversal's own step ledger/Retry endpoint (runSteps never aborts the
+	// remaining steps on one failure), so cutting a hung call short costs nothing but a clearer,
+	// quicker error instead of hanging the save for up to the router's full 30s ceiling.
+	stepCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	resp, err := s.inventoryClient.ReverseConsumption(stepCtx, rev.TenantID.String(), req)
 	if err != nil {
 		return "", "", false, err
 	}
@@ -426,7 +435,12 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 		req := base
 		req.ReferenceID = id.String()
 		req.Amount, req.TaxAmount, req.Cost, req.RefundChannel = amount, tax, cost, channel
-		resp, err := s.treasuryClient.CreateRefund(ctx, tenantSlug, id.String(), req)
+		// Dedicated 10s bound — same reasoning as stepInventory above: this step is independently
+		// retryable via the reversal's step ledger, so failing a hung call fast beats hanging the
+		// Edit-Sale save request up to the router's full 30s ceiling.
+		stepCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		resp, err := s.treasuryClient.CreateRefund(stepCtx, tenantSlug, id.String(), req)
 		if err != nil {
 			return err
 		}
@@ -506,11 +520,13 @@ func (s *Service) stepEtimsCreditNote(ctx context.Context, rev *ent.POSReversal,
 	if s.treasuryClient == nil {
 		return "", "treasury client not configured", true, nil
 	}
-	fiscalized, invoiceID, _ := orders.IsFiscalized(ctx, s.treasuryClient, tenantSlug, rev.OrderID)
+	stepCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	fiscalized, invoiceID, _ := orders.IsFiscalized(stepCtx, s.treasuryClient, tenantSlug, rev.OrderID)
 	if !fiscalized {
 		return "", "sale has no treasury tax invoice — no eTIMS credit note needed", true, nil
 	}
-	cn, err := s.treasuryClient.CreateCreditNote(ctx, tenantSlug, invoiceID)
+	cn, err := s.treasuryClient.CreateCreditNote(stepCtx, tenantSlug, invoiceID)
 	if err != nil {
 		return "", "", false, err
 	}

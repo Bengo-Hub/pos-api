@@ -3,6 +3,7 @@ package saleedit
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -203,33 +204,72 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 		}
 	}
 
+	// Both calls below are already best-effort by their own error handling (logged-and-continue,
+	// documented as "non-fatal; can be reconciled") — the order's own totals/on_account metadata
+	// are already committed above, so the Edit-Sale save response the cashier sees doesn't depend
+	// on either succeeding. Dispatched OFF the request path (same detached-context/panic-recovery
+	// idiom as payments.dispatchPostFinalize) so a slow/unreachable inventory-api or treasury-api
+	// never delays the save — mirrors the 2026-08-07 latency fix already applied to the equally
+	// best-effort ApplyCustomerCreditToDebt call on the main payment-confirm path.
 	if s.inventoryClient != nil && len(consumptionItems) > 0 {
-		if _, err := s.inventoryClient.RecordConsumption(ctx, tenantID.String(), inventory.ConsumptionRequest{
-			OrderID: order.ID.String(), Items: consumptionItems,
-			Reason: "sale_edit_increase", IdempotencyKey: "pos-edit-increase-" + editID.String(),
-		}); err != nil {
-			s.log.Warn("edit increase: inventory consumption failed (non-fatal; can be reconciled)",
-				zap.String("order_id", order.ID.String()), zap.String("edit_id", editID.String()), zap.Error(err))
-		}
+		s.dispatchEditIncreaseConsumption(tenantID, order.ID, editID, consumptionItems)
 	}
 
 	if s.treasuryClient != nil {
 		// crmContactID/customerName/customerIdentifier already resolved (with the same request
 		// overrides applied) by the identifiable-customer guard above — reuse instead of
 		// re-querying.
-		if _, err := s.treasuryClient.PostSaleEditGL(ctx, req.TenantSlug, treasury.SaleEditGLRequest{
+		s.dispatchEditIncreaseGL(order.ID, editID, treasury.SaleEditGLRequest{
 			ReferenceID: editID.String(), OrderID: order.ID.String(), OrderNumber: order.OrderNumber,
 			OutletID: order.OutletID.String(), SellingScheme: "credit",
 			Amount: incrementalAmount, TaxAmount: incrementalTax, CreditAmount: incrementalAmount, CostAmount: incrementalCost,
 			Currency: order.Currency, CrmContactID: crmContactID, CustomerIdentifier: customerIdentifier, CustomerName: customerName,
 			UserID: req.RequestedBy.String(), Description: "Edit Sale increase — " + order.OrderNumber,
-		}); err != nil {
-			s.log.Warn("edit increase: treasury GL post failed (non-fatal; can be reconciled)",
-				zap.String("order_id", order.ID.String()), zap.String("edit_id", editID.String()), zap.Error(err))
-		}
+		}, req.TenantSlug)
 	}
 
 	return nil
+}
+
+// dispatchEditIncreaseConsumption records the incremental inventory consumption for an Edit-Sale
+// increase off the request path — see the comment at its call site in applyInPlaceIncrease.
+func (s *Service) dispatchEditIncreaseConsumption(tenantID, orderID, editID uuid.UUID, items []inventory.ConsumptionItem) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.log.Error("edit-increase consumption dispatch panic recovered",
+					zap.String("order_id", orderID.String()), zap.String("edit_id", editID.String()), zap.Any("panic", r))
+			}
+		}()
+		dctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if _, err := s.inventoryClient.RecordConsumption(dctx, tenantID.String(), inventory.ConsumptionRequest{
+			OrderID: orderID.String(), Items: items,
+			Reason: "sale_edit_increase", IdempotencyKey: "pos-edit-increase-" + editID.String(),
+		}); err != nil {
+			s.log.Warn("edit increase: inventory consumption failed (non-fatal; can be reconciled)",
+				zap.String("order_id", orderID.String()), zap.String("edit_id", editID.String()), zap.Error(err))
+		}
+	}()
+}
+
+// dispatchEditIncreaseGL posts the incremental GL entry for an Edit-Sale increase off the
+// request path — see the comment at its call site in applyInPlaceIncrease.
+func (s *Service) dispatchEditIncreaseGL(orderID, editID uuid.UUID, req treasury.SaleEditGLRequest, tenantSlug string) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.log.Error("edit-increase GL dispatch panic recovered",
+					zap.String("order_id", orderID.String()), zap.String("edit_id", editID.String()), zap.Any("panic", r))
+			}
+		}()
+		dctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if _, err := s.treasuryClient.PostSaleEditGL(dctx, tenantSlug, req); err != nil {
+			s.log.Warn("edit increase: treasury GL post failed (non-fatal; can be reconciled)",
+				zap.String("order_id", orderID.String()), zap.String("edit_id", editID.String()), zap.Error(err))
+		}
+	}()
 }
 
 // resolvedAddedLineTax is a package-local carrier for orders.Service.ResolveLineTaxes' per-line

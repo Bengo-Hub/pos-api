@@ -112,6 +112,11 @@ func New(
 	r.Use(httpware.RequestID)
 	r.Use(httpware.Logging(log))
 	r.Use(httpware.Recover(log))
+	// gzip the JSON responses (catalog lists, order detail w/ lines+payments) — the largest
+	// payloads on this API had no compression at any layer (confirmed: the devops-k8s ingress-nginx
+	// gzip ConfigMap exists but isn't wired into any ArgoCD Application). Skips already-compressed
+	// types (images/pdf/zip) automatically.
+	r.Use(middleware.Compress(5))
 	r.Use(middleware.Timeout(30 * time.Second))
 	r.Use(middleware.RequestSize(10 << 20)) // 10 MB max body size
 	r.Use(outletmw.IPRateLimit(redisClient, outletmw.DefaultRateLimitConfig()))

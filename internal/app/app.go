@@ -74,6 +74,7 @@ type App struct {
 	webhookWorker            *webhookmodule.DeliveryWorker
 	shiftAutoEndWorker       *shiftsmodule.AutoEndWorker
 	saleFinalizedReconciler  *paymentmodule.SaleFinalizedReconciler
+	treasuryIntentReconciler *paymentmodule.TreasuryIntentReconciler
 	kdsHub                   *kdsmodule.Hub
 	printHub                 *printing.Hub
 	layawayReminderScheduler *scheduler.LayawayReminderScheduler
@@ -639,6 +640,7 @@ func New(ctx context.Context) (*App, error) {
 	webhookWorker := webhookmodule.NewDeliveryWorker(entClient, log)
 	shiftAutoEndWorker := shiftsmodule.NewAutoEndWorker(entClient, log)
 	saleFinalizedReconciler := paymentmodule.NewSaleFinalizedReconciler(paymentSvc, log)
+	treasuryIntentReconciler := paymentmodule.NewTreasuryIntentReconciler(paymentSvc, log)
 	var layawayReminder *scheduler.LayawayReminderScheduler
 	if eventPub := orderSvc.GetPublisher(); eventPub != nil {
 		layawayReminder = scheduler.NewLayawayReminderScheduler(log, entClient, eventPub)
@@ -724,6 +726,7 @@ func New(ctx context.Context) (*App, error) {
 		webhookWorker:            webhookWorker,
 		shiftAutoEndWorker:       shiftAutoEndWorker,
 		saleFinalizedReconciler:  saleFinalizedReconciler,
+		treasuryIntentReconciler: treasuryIntentReconciler,
 		kdsHub:                   kdsHub,
 		printHub:                 printHub,
 		layawayReminderScheduler: layawayReminder,
@@ -756,6 +759,12 @@ func (a *App) Run(ctx context.Context) error {
 	// outbox row (crash-window gap or an exhausted-retry FAILED row) every 5 min
 	if a.saleFinalizedReconciler != nil {
 		go a.saleFinalizedReconciler.Start(ctx)
+	}
+
+	// Start treasury-intent reconciler — retries the deferred cash/manual payment-intent create
+	// (see pos-sale-close-async-fanout.md follow-up) for any payment left without one every 2 min
+	if a.treasuryIntentReconciler != nil {
+		go a.treasuryIntentReconciler.Start(ctx)
 	}
 
 	// Start KDS hub Redis pub/sub relay — no-op if Redis is not configured

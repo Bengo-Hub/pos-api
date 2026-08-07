@@ -375,17 +375,16 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		intentReq.Metadata["external_ref"] = req.ExternalRef
 	}
 
-	intent, err := s.treasuryClient.CreateIntent(ctx, req.TenantSlug, req.OrderID.String(), intentReq)
-	if err != nil {
-		return nil, fmt.Errorf("payments: create treasury intent: %w", err)
-	}
-
-	result := &CreateIntentResult{
-		PaymentIntentID: intent.ResolvedID(),
-		IsCash:          cash,
-	}
-
 	if !cash {
+		intent, err := s.treasuryClient.CreateIntent(ctx, req.TenantSlug, req.OrderID.String(), intentReq)
+		if err != nil {
+			return nil, fmt.Errorf("payments: create treasury intent: %w", err)
+		}
+
+		result := &CreateIntentResult{
+			PaymentIntentID: intent.ResolvedID(),
+			IsCash:          false,
+		}
 		// Prefer treasury's returned initiate_url (public, no auth required).
 		// Fall back to the pos-api proxy only when treasury doesn't return one.
 		if intent.InitiateURL != "" {
@@ -414,12 +413,17 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		return result, nil
 	}
 
-	// Cash / manual: record as completed immediately.
-	// For manual payments use the cashier-entered ref; otherwise store the treasury intent ID.
-	cashRef := intent.ResolvedID()
-	if req.ExternalRef != "" {
-		cashRef = req.ExternalRef
-	}
+	// Cash / manual: record as completed immediately WITHOUT waiting on treasury's CreateIntent
+	// round-trip first — the money is already in the till, and treasury doesn't need to know about
+	// it before the cashier's screen shows "paid" (unlike digital tenders, nothing here needs an
+	// initiate_url back). The intent is created in the background by dispatchTreasuryIntent below,
+	// once the payment/order rows are already committed; TreasuryIntentReconciler retries it if the
+	// goroutine itself is ever lost (process restart/panic). Safe because treasury's CreateIntent
+	// dedups on intentReq.ReferenceID, which is deterministic (payref.Build) regardless of when it's
+	// called.
+	// For manual payments use the cashier-entered ref; otherwise leave it unset — it's backfilled
+	// with the treasury intent id once that call completes.
+	cashRef := req.ExternalRef
 	// Lock the order row for a fresh outstanding-balance check + payment insert: two concurrent
 	// cash submissions for the same order (double-tap "Pay", or two tenders racing in a fast
 	// split-payment flow) previously both used the outstanding balance computed once at the top
@@ -461,7 +465,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	if req.Amount > freshOutstanding+0.01 {
 		req.Amount = freshOutstanding
 	}
-	_, err = tx.POSPayment.Create().
+	payment, err := tx.POSPayment.Create().
 		SetOrderID(req.OrderID).
 		SetTenderID(req.TenderID).
 		SetAmount(req.Amount).
@@ -479,7 +483,9 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	}
 
 	s.completeOrderIfFullyPaid(ctx, order)
-	return result, nil
+	// Off the request path: create the treasury intent now that the till already shows "paid".
+	s.dispatchTreasuryIntent(payment.ID, req.TenantSlug, req.OrderID, intentReq)
+	return &CreateIntentResult{IsCash: true}, nil
 }
 
 // recordCreditSale settles an order "on account" (credit sale). It posts the amount to the
@@ -578,47 +584,18 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		return nil, fmt.Errorf("payments: credit sale rejected: %w", err)
 	}
 
-	// Offset AR workflow: if the business already owes this customer store credit and the
-	// cashier opted in, net it into the debt RecordCreditSale just posted — e.g. owed 5,000 +
-	// a 10,000 credit sale nets to 5,000 owed, not 15,000. Composes two existing treasury
-	// primitives sequentially (the debt must exist before it can be netted): RecordCreditSale
-	// above posted the FULL amount; ApplyCustomerCreditToDebt now nets min(available, amount)
-	// back off, reducing both the fresh debt and the store credit in one journal entry (Dr
-	// Refunds Payable / Cr AR). Best-effort — never fails an already-recorded sale.
-	var storeCreditApplied float64
-	if req.ApplyStoreCredit {
-		available, _ := strconv.ParseFloat(creditResp.StoreCreditBalance, 64)
-		offset := math.Min(available, req.Amount)
-		if offset > 0.005 {
-			key := crmContactID
-			if key == "" {
-				key = phone
-			}
-			if _, aerr := s.treasuryClient.ApplyCustomerCreditToDebt(ctx, req.TenantSlug, key, treasury.ApplyToDebtRequest{
-				Amount:    offset,
-				Reference: order.OrderNumber,
-				UserID:    order.UserID.String(),
-			}); aerr != nil {
-				s.log.Warn("payments: store-credit offset failed — debt left un-netted", zap.Error(aerr), zap.String("order_id", order.ID.String()))
-			} else {
-				storeCreditApplied = offset
-			}
-		}
-	}
-
 	// Mark the order as an on-account sale and stamp when the credit falls due, so the
 	// All-Sales "Overdue" filter/badge can surface late credit sales. Precedence: the
 	// cashier's explicit due date (credit-sale details modal) → the customer's treasury
 	// payment period → a 30-day default (every credit sale MUST fall due eventually).
-	// Best-effort: a metadata write failure never fails the sale.
+	// Best-effort: a metadata write failure never fails the sale. Stamped BEFORE the store-credit
+	// offset dispatch below so that dispatch's own read-modify-write (which reloads the order to
+	// merge onto whatever is latest) always sees this write already committed, never races it.
 	meta := order.Metadata
 	if meta == nil {
 		meta = map[string]any{}
 	}
 	meta["on_account"] = true
-	if storeCreditApplied > 0 {
-		meta["store_credit_applied"] = storeCreditApplied
-	}
 	switch {
 	case req.PaymentDueDate != nil:
 		meta["payment_due_date"] = req.PaymentDueDate.Format(time.RFC3339)
@@ -632,6 +609,29 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 	}
 	if merr := s.client.POSOrder.UpdateOneID(order.ID).SetMetadata(meta).Exec(ctx); merr != nil {
 		s.log.Warn("payments: failed to stamp on-account metadata", zap.Error(merr))
+	}
+
+	// Offset AR workflow: if the business already owes this customer store credit and the
+	// cashier opted in, net it into the debt RecordCreditSale just posted — e.g. owed 5,000 +
+	// a 10,000 credit sale nets to 5,000 owed, not 15,000. Composes two existing treasury
+	// primitives (the debt must exist before it can be netted): RecordCreditSale above posted
+	// the FULL amount; ApplyCustomerCreditToDebt nets min(available, amount) back off, reducing
+	// both the fresh debt and the store credit in one journal entry (Dr Refunds Payable / Cr AR).
+	// Already documented as best-effort — dispatched OFF the request path (same detached-context/
+	// panic-recovery idiom as dispatchPostFinalize) so a slow/unreachable treasury never delays
+	// the cashier's Confirm; store_credit_applied is stamped onto the order's metadata from
+	// inside the dispatch, only once the offset actually succeeds, so it never claims a netting
+	// that didn't happen.
+	if req.ApplyStoreCredit {
+		available, _ := strconv.ParseFloat(creditResp.StoreCreditBalance, 64)
+		offset := math.Min(available, req.Amount)
+		if offset > 0.005 {
+			key := crmContactID
+			if key == "" {
+				key = phone
+			}
+			s.dispatchStoreCreditOffset(order.ID, req.TenantSlug, key, offset, order.OrderNumber, order.UserID)
+		}
 	}
 
 	if _, err := s.client.POSPayment.Create().
@@ -1054,6 +1054,113 @@ func (s *Service) dispatchPostFinalize(order *ent.POSOrder) {
 		defer cancel()
 		s.runPostFinalize(ctx, order)
 	}()
+}
+
+// dispatchTreasuryIntent creates the treasury payment intent for a cash/manual tender OFF the
+// payment-confirm request path (see the comment in CreatePaymentIntent's cash branch). Follows the
+// same detached-context/panic-recovery idiom as dispatchPostFinalize, so a slow or unreachable
+// treasury never delays — or crashes — the response the cashier already received.
+func (s *Service) dispatchTreasuryIntent(paymentID uuid.UUID, tenantSlug string, orderID uuid.UUID, intentReq treasury.CreateIntentRequest) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.log.Error("treasury intent dispatch panic recovered",
+					zap.String("order_id", orderID.String()), zap.Any("panic", r))
+			}
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		s.runTreasuryIntentCreate(ctx, paymentID, tenantSlug, orderID, intentReq)
+	}()
+}
+
+// dispatchStoreCreditOffset nets a customer's existing store credit into a fresh credit-sale debt
+// OFF the payment-confirm request path — see the comment at its call site in recordCreditSale.
+// Follows the same detached-context/panic-recovery idiom as dispatchPostFinalize.
+func (s *Service) dispatchStoreCreditOffset(orderID uuid.UUID, tenantSlug, key string, offset float64, reference string, userID uuid.UUID) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.log.Error("store-credit offset dispatch panic recovered",
+					zap.String("order_id", orderID.String()), zap.Any("panic", r))
+			}
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		s.runStoreCreditOffset(ctx, orderID, tenantSlug, key, offset, reference, userID)
+	}()
+}
+
+// runStoreCreditOffset performs the actual treasury S2S call and, only on success, stamps
+// store_credit_applied onto the order's metadata (reloading it fresh first, so this merges onto
+// whatever the synchronous on-account stamp already wrote instead of clobbering it). Best-effort,
+// matching the original synchronous behavior: never fails an already-recorded sale — failures are
+// logged and simply leave the debt un-netted for a later manual reconcile.
+func (s *Service) runStoreCreditOffset(ctx context.Context, orderID uuid.UUID, tenantSlug, key string, offset float64, reference string, userID uuid.UUID) {
+	if s.treasuryClient == nil {
+		return
+	}
+	if _, err := s.treasuryClient.ApplyCustomerCreditToDebt(ctx, tenantSlug, key, treasury.ApplyToDebtRequest{
+		Amount:    offset,
+		Reference: reference,
+		UserID:    userID.String(),
+	}); err != nil {
+		s.log.Warn("payments: store-credit offset failed — debt left un-netted",
+			zap.Error(err), zap.String("order_id", orderID.String()))
+		return
+	}
+	order, gerr := s.client.POSOrder.Get(ctx, orderID)
+	if gerr != nil {
+		s.log.Warn("payments: store-credit offset applied but failed to reload order for metadata stamp",
+			zap.Error(gerr), zap.String("order_id", orderID.String()))
+		return
+	}
+	meta := order.Metadata
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	meta["store_credit_applied"] = offset
+	if merr := s.client.POSOrder.UpdateOneID(orderID).SetMetadata(meta).Exec(ctx); merr != nil {
+		s.log.Warn("payments: failed to stamp store-credit-applied metadata",
+			zap.Error(merr), zap.String("order_id", orderID.String()))
+	}
+}
+
+// runTreasuryIntentCreate performs the actual treasury S2S call for a cash/manual payment intent
+// and best-effort backfills the resulting intent id onto the POSPayment row it belongs to. Called
+// both from dispatchTreasuryIntent (the normal, immediate path) and TreasuryIntentReconciler (the
+// retry path if the goroutine above is ever lost to a process restart/panic before it completes).
+// Never returns an error to a caller — there is none left to receive it; failures are logged and
+// left for the reconciler to pick up on its next pass.
+func (s *Service) runTreasuryIntentCreate(ctx context.Context, paymentID uuid.UUID, tenantSlug string, orderID uuid.UUID, intentReq treasury.CreateIntentRequest) {
+	if s.treasuryClient == nil {
+		return
+	}
+	intent, err := s.treasuryClient.CreateIntent(ctx, tenantSlug, orderID.String(), intentReq)
+	if err != nil {
+		s.log.Warn("treasury intent create deferred — awaiting reconciler",
+			zap.String("order_id", orderID.String()), zap.String("payment_id", paymentID.String()), zap.Error(err))
+		return
+	}
+	resolved := intent.ResolvedID()
+	if resolved == "" {
+		return
+	}
+	// Guard on ExternalReferenceIsNil so this never clobbers a cashier-entered ref (card terminal
+	// approval code / M-Pesa manual code) and so a racing reconciler retry is a harmless no-op.
+	n, uerr := s.client.POSPayment.Update().
+		Where(pospayment.ID(paymentID), pospayment.ExternalReferenceIsNil()).
+		SetExternalReference(resolved).
+		Save(ctx)
+	if uerr != nil {
+		s.log.Warn("treasury intent backfill failed",
+			zap.String("order_id", orderID.String()), zap.String("payment_id", paymentID.String()), zap.Error(uerr))
+		return
+	}
+	if n == 0 {
+		s.log.Debug("treasury intent backfill skipped — payment already had a reference",
+			zap.String("payment_id", paymentID.String()))
+	}
 }
 
 // runPostFinalize performs the best-effort downstream work after an order settles. It runs OFF the

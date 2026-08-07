@@ -12,6 +12,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/customerbalancecache"
+	"github.com/bengobox/pos-service/internal/modules/notifications"
 )
 
 // balanceUpdatedEvent is the wire shape of treasury.customer.balance_updated /
@@ -108,6 +109,25 @@ func (s *TreasurySubscriber) subscribeCustomerBalanceUpdated(js nats.JetStreamCo
 		if err != nil {
 			s.log.Error("treasury.customer.balance_updated: upsert cache row", zap.Error(err))
 			return
+		}
+
+		// Real-time: an open Add-Sale page's useClientCredit query (or any other open view reading
+		// this customer's credit/AR figure) should refresh live if the balance changed from
+		// another till/treasury action mid-sale — reuses the same hub + push contract pos-ui's
+		// catalog_changed event already established, no new consumer needed (this subscriber
+		// already runs on every balance_updated event).
+		if s.paymentSvc != nil && s.paymentSvc.notifHub != nil {
+			payload := map[string]any{"tenant_id": evt.TenantID}
+			if crmContactID != nil {
+				payload["contact_id"] = crmContactID.String()
+			}
+			if identifier != "" {
+				payload["customer_identifier"] = identifier
+			}
+			s.paymentSvc.notifHub.BroadcastToTenant(tenantID, notifications.Message{
+				Type:    "customer_balance_changed",
+				Payload: payload,
+			})
 		}
 
 		// Reconcile POS's own credit orders down to treasury's authoritative outstanding — see the
