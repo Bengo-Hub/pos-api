@@ -381,13 +381,17 @@ func (h *ReportsHandler) DailyBreakdown(w http.ResponseWriter, r *http.Request) 
 
 	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
+	preds := []predicate.POSOrder{
+		posorder.TenantID(tid),
+		posorder.StatusEQ("completed"),
+		effectiveDateGTE(from),
+		effectiveDateLTE(to),
+	}
+	if outletFilter := parseOutletFilter(r); outletFilter != uuid.Nil {
+		preds = append(preds, posorder.OutletID(outletFilter))
+	}
 	orders, err := h.db.POSOrder.Query().
-		Where(
-			posorder.TenantID(tid),
-			posorder.StatusEQ("completed"),
-			effectiveDateGTE(from),
-			effectiveDateLTE(to),
-		).
+		Where(preds...).
 		All(r.Context())
 	if err != nil {
 		h.log.Error("daily breakdown query failed", zap.Error(err))
@@ -521,13 +525,17 @@ func (h *ReportsHandler) TopItems(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	preds := []predicate.POSOrder{
+		posorder.TenantID(tid),
+		posorder.StatusEQ("completed"),
+		effectiveDateGTE(from),
+		effectiveDateLTE(to),
+	}
+	if outletFilter := parseOutletFilter(r); outletFilter != uuid.Nil {
+		preds = append(preds, posorder.OutletID(outletFilter))
+	}
 	orders, err := h.db.POSOrder.Query().
-		Where(
-			posorder.TenantID(tid),
-			posorder.StatusEQ("completed"),
-			effectiveDateGTE(from),
-			effectiveDateLTE(to),
-		).
+		Where(preds...).
 		WithLines().
 		All(r.Context())
 	if err != nil {
@@ -1307,8 +1315,20 @@ func parseDateRange(r *http.Request, loc *time.Location) (from, to time.Time) {
 
 // parseOutletFilter reads the optional ?outlet_id= query param shared by the analytics report
 // endpoints. Returns uuid.Nil when absent/invalid, meaning "all outlets" (no filter applied).
+// parseOutletFilter resolves the outlet a report should be scoped to: an explicit ?outlet_id=
+// query param (an admin/manager deliberately viewing a DIFFERENT outlet's report) takes
+// precedence, falling back to the ambient X-Outlet-ID header (set by every frontend's outlet
+// switcher — see header.tsx's HeaderOutletChip — defaulting to the caller's own home outlet) so
+// a report is outlet-scoped by default even when the caller passes no explicit override. Mirrors
+// GetSummary's httpware.GetOutletID(ctx) resolution so every report handler in this file agrees
+// on what "the current outlet" means.
 func parseOutletFilter(r *http.Request) uuid.UUID {
 	if s := r.URL.Query().Get("outlet_id"); s != "" {
+		if oid, err := uuid.Parse(s); err == nil {
+			return oid
+		}
+	}
+	if s := httpware.GetOutletID(r.Context()); s != "" {
 		if oid, err := uuid.Parse(s); err == nil {
 			return oid
 		}
