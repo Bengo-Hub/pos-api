@@ -838,6 +838,26 @@ func (_u *OutletSettingUpdate) ClearAirtelMoneyNumber() *OutletSettingUpdate {
 	return _u
 }
 
+// SetMtnMomoNumber sets the "mtn_momo_number" field.
+func (_u *OutletSettingUpdate) SetMtnMomoNumber(v string) *OutletSettingUpdate {
+	_u.mutation.SetMtnMomoNumber(v)
+	return _u
+}
+
+// SetNillableMtnMomoNumber sets the "mtn_momo_number" field if the given value is not nil.
+func (_u *OutletSettingUpdate) SetNillableMtnMomoNumber(v *string) *OutletSettingUpdate {
+	if v != nil {
+		_u.SetMtnMomoNumber(*v)
+	}
+	return _u
+}
+
+// ClearMtnMomoNumber clears the value of the "mtn_momo_number" field.
+func (_u *OutletSettingUpdate) ClearMtnMomoNumber() *OutletSettingUpdate {
+	_u.mutation.ClearMtnMomoNumber()
+	return _u
+}
+
 // SetMpesaTill sets the "mpesa_till" field.
 func (_u *OutletSettingUpdate) SetMpesaTill(v string) *OutletSettingUpdate {
 	_u.mutation.SetMpesaTill(v)
@@ -1726,6 +1746,12 @@ func (_u *OutletSettingUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.AirtelMoneyNumberCleared() {
 		_spec.ClearField(outletsetting.FieldAirtelMoneyNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.MtnMomoNumber(); ok {
+		_spec.SetField(outletsetting.FieldMtnMomoNumber, field.TypeString, value)
+	}
+	if _u.mutation.MtnMomoNumberCleared() {
+		_spec.ClearField(outletsetting.FieldMtnMomoNumber, field.TypeString)
 	}
 	if value, ok := _u.mutation.MpesaTill(); ok {
 		_spec.SetField(outletsetting.FieldMpesaTill, field.TypeString, value)
@@ -2756,6 +2782,26 @@ func (_u *OutletSettingUpdateOne) ClearAirtelMoneyNumber() *OutletSettingUpdateO
 	return _u
 }
 
+// SetMtnMomoNumber sets the "mtn_momo_number" field.
+func (_u *OutletSettingUpdateOne) SetMtnMomoNumber(v string) *OutletSettingUpdateOne {
+	_u.mutation.SetMtnMomoNumber(v)
+	return _u
+}
+
+// SetNillableMtnMomoNumber sets the "mtn_momo_number" field if the given value is not nil.
+func (_u *OutletSettingUpdateOne) SetNillableMtnMomoNumber(v *string) *OutletSettingUpdateOne {
+	if v != nil {
+		_u.SetMtnMomoNumber(*v)
+	}
+	return _u
+}
+
+// ClearMtnMomoNumber clears the value of the "mtn_momo_number" field.
+func (_u *OutletSettingUpdateOne) ClearMtnMomoNumber() *OutletSettingUpdateOne {
+	_u.mutation.ClearMtnMomoNumber()
+	return _u
+}
+
 // SetMpesaTill sets the "mpesa_till" field.
 func (_u *OutletSettingUpdateOne) SetMpesaTill(v string) *OutletSettingUpdateOne {
 	_u.mutation.SetMpesaTill(v)
@@ -3674,6 +3720,12 @@ func (_u *OutletSettingUpdateOne) sqlSave(ctx context.Context) (_node *OutletSet
 	}
 	if _u.mutation.AirtelMoneyNumberCleared() {
 		_spec.ClearField(outletsetting.FieldAirtelMoneyNumber, field.TypeString)
+	}
+	if value, ok := _u.mutation.MtnMomoNumber(); ok {
+		_spec.SetField(outletsetting.FieldMtnMomoNumber, field.TypeString, value)
+	}
+	if _u.mutation.MtnMomoNumberCleared() {
+		_spec.ClearField(outletsetting.FieldMtnMomoNumber, field.TypeString)
 	}
 	if value, ok := _u.mutation.MpesaTill(); ok {
 		_spec.SetField(outletsetting.FieldMpesaTill, field.TypeString, value)

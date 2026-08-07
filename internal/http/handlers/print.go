@@ -93,7 +93,8 @@ func (h *PrintHandler) PrintReceipt(w http.ResponseWriter, r *http.Request) {
 
 	outlet, _ := h.client.Outlet.Query().Where(entoutlet.ID(order.OutletID)).Only(r.Context())
 	servedBy := printing.ServedByFromContext(r.Context())
-	data := printing.OrderReceiptData(order, lines, outlet, outletSetting, input.Type, "", servedBy, input.Reason)
+	tenantName := tenantNameQuick(r.Context(), h.client, tid)
+	data := printing.OrderReceiptData(order, lines, outlet, outletSetting, input.Type, "", servedBy, input.Reason, tenantName)
 	data.ShowProviderFooter = providerfooter.Resolve(r.Context(), h.client, tid)
 
 	// Build-only: return the ESC/POS bytes (hex) for the browser to relay to the Local Print Agent.

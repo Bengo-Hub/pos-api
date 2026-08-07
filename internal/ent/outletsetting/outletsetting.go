@@ -100,6 +100,8 @@ const (
 	FieldMpesaAccountReference = "mpesa_account_reference"
 	// FieldAirtelMoneyNumber holds the string denoting the airtel_money_number field in the database.
 	FieldAirtelMoneyNumber = "airtel_money_number"
+	// FieldMtnMomoNumber holds the string denoting the mtn_momo_number field in the database.
+	FieldMtnMomoNumber = "mtn_momo_number"
 	// FieldMpesaTill holds the string denoting the mpesa_till field in the database.
 	FieldMpesaTill = "mpesa_till"
 	// FieldMpesaPochi holds the string denoting the mpesa_pochi field in the database.
@@ -212,6 +214,7 @@ var Columns = []string{
 	FieldMpesaPaybill,
 	FieldMpesaAccountReference,
 	FieldAirtelMoneyNumber,
+	FieldMtnMomoNumber,
 	FieldMpesaTill,
 	FieldMpesaPochi,
 	FieldBankName,
@@ -605,6 +608,11 @@ func ByMpesaAccountReference(opts ...sql.OrderTermOption) OrderOption {
 // ByAirtelMoneyNumber orders the results by the airtel_money_number field.
 func ByAirtelMoneyNumber(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAirtelMoneyNumber, opts...).ToFunc()
+}
+
+// ByMtnMomoNumber orders the results by the mtn_momo_number field.
+func ByMtnMomoNumber(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMtnMomoNumber, opts...).ToFunc()
 }
 
 // ByMpesaTill orders the results by the mpesa_till field.

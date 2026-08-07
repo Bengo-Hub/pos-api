@@ -148,7 +148,8 @@ func (h *PrintJobsHandler) EnqueueJob(w http.ResponseWriter, r *http.Request) {
 			All(ctx)
 		outlet, _ := h.client.Outlet.Query().Where(entoutlet.ID(outletID)).Only(ctx)
 		servedBy := printing.ServedByFromContext(ctx)
-		rdata := printing.OrderReceiptData(order, lines, outlet, setting, "customer", in.PaymentMethod, servedBy, "")
+		tenantName := tenantNameQuick(ctx, h.client, tid)
+		rdata := printing.OrderReceiptData(order, lines, outlet, setting, "customer", in.PaymentMethod, servedBy, "", tenantName)
 		rdata.ShowProviderFooter = providerfooter.Resolve(ctx, h.client, tid)
 		payload = printing.BuildReceipt(rdata)
 		orderID = &order.ID

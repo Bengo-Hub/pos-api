@@ -61,6 +61,8 @@ type ReceiptPaymentMethods struct {
 	MpesaAccountRef   string
 	MpesaTill         string
 	MpesaPochi        string
+	AirtelMoneyNumber string
+	MtnMomoNumber     string
 	BankName          string
 	BankAccountNumber string
 	BankAccountName   string
@@ -72,7 +74,28 @@ func (m *ReceiptPaymentMethods) HasAny() bool {
 		return false
 	}
 	return m.MpesaPaybill != "" || m.MpesaAccountRef != "" || m.MpesaTill != "" ||
-		m.MpesaPochi != "" || m.BankAccountNumber != "" || m.BankAccountName != ""
+		m.MpesaPochi != "" || m.AirtelMoneyNumber != "" || m.MtnMomoNumber != "" ||
+		m.BankAccountNumber != "" || m.BankAccountName != ""
+}
+
+// resolveDisplayName picks the business name a receipt's header prints: tenantName by default
+// (isHQ true, or the "receipt_show_tenant_name" metadata key absent/true), or outletName when
+// isHQ is false AND that key is explicitly false (a tenant turning off the tenant-name default
+// for one of its non-HQ branches — the BOI Enterprises multi-outlet case). Falls back to
+// outletName whenever tenantName is empty (e.g. the tenant lookup failed), so a receipt header
+// is never blank. Pure/DB-independent — the metadata read is the only OutletSetting-shaped input,
+// passed in as a plain map so this is unit-testable without an ent client.
+func resolveDisplayName(tenantName, outletName string, isHQ bool, metadata map[string]any) string {
+	displayName := tenantName
+	if !isHQ {
+		if show, ok := metadata["receipt_show_tenant_name"].(bool); ok && !show {
+			displayName = outletName
+		}
+	}
+	if displayName == "" {
+		displayName = outletName
+	}
+	return displayName
 }
 
 // ReceiptView is the single canonical snapshot of "what a receipt/bill says". Every printable
@@ -86,6 +109,13 @@ type ReceiptView struct {
 	OrderNumber   string
 	OutletID      uuid.UUID
 	OutletName    string
+	// DisplayName is the resolved business name PRINTED AS THE RECEIPT HEADER — tenant name by
+	// default, or this outlet's own name when the tenant has turned off "show tenant name" for a
+	// non-HQ outlet (see ReceiptHandler.buildReceiptForOrder, the only place this is set; empty
+	// here until that handler populates it). Deliberately separate from OutletName, which stays
+	// the TRUE outlet name for KDS tickets/dispensing labels (orderdata.go) regardless of this
+	// toggle — those must never show the tenant name.
+	DisplayName   string
 	OutletAddress string
 	// OutletPhones is the formatted labeled-phone line from the outlet's contact_phones
 	// (auth outlet metadata, mirrored into address_json) — printed as
@@ -195,6 +225,14 @@ type ReceiptViewOpts struct {
 	PayerName string
 	// PaymentDate — when the payment shown on the receipt settled (nil for unpaid bills).
 	PaymentDate *time.Time
+	// TenantName is the tenant's resolved company name (caller looks this up via tenant
+	// branding — BuildReceiptView has no tenant/branding access of its own). Drives
+	// ReceiptView.DisplayName: shown by default on every outlet's receipts; a non-HQ outlet
+	// with the "receipt_show_tenant_name" metadata toggle turned off shows its own outlet name
+	// instead (see the outlet != nil block below). Empty TenantName (a caller that hasn't wired
+	// branding through yet) falls back to the outlet's own name, matching the pre-existing
+	// behaviour — never a regression, just not yet opted into the tenant-name default.
+	TenantName string
 	// SplitLineIDs, when non-nil, restricts the receipt to only these POSOrderLine ids (a
 	// split-by-item guest bill) and zeroes order-level tax/discount/charges/round-off/payment
 	// figures (a split's total is just the sum of its own line totals).
@@ -505,6 +543,18 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		v.OutletAddress = ""
 	}
 
+	// Multi-outlet tenant name vs outlet name (BOI Enterprises case: several branches under one
+	// tenant) — see resolveDisplayName's doc comment for the exact rule.
+	var meta map[string]any
+	isHQ := true // no outlet loaded => never override away from the tenant name
+	if outlet != nil {
+		isHQ = outlet.IsHq
+	}
+	if setting != nil {
+		meta = setting.Metadata
+	}
+	v.DisplayName = resolveDisplayName(opts.TenantName, v.OutletName, isHQ, meta)
+
 	if setting != nil {
 		if setting.ReceiptHeader != nil {
 			v.ReceiptHeader = *setting.ReceiptHeader
@@ -533,6 +583,12 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 			}
 			if setting.MpesaPochi != nil {
 				pm.MpesaPochi = *setting.MpesaPochi
+			}
+			if setting.AirtelMoneyNumber != nil {
+				pm.AirtelMoneyNumber = *setting.AirtelMoneyNumber
+			}
+			if setting.MtnMomoNumber != nil {
+				pm.MtnMomoNumber = *setting.MtnMomoNumber
 			}
 			if setting.BankName != nil {
 				pm.BankName = *setting.BankName

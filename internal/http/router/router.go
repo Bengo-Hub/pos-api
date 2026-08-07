@@ -637,6 +637,10 @@ func New(
 					// Payments
 					if payments != nil {
 						pos.Get("/gateways", payments.GetGateways)
+						// Currency: proxied from treasury's centralized conversion service —
+						// backs the outlet-currency picker + currency-change confirmation modal.
+						pos.Get("/currency/currencies", payments.GetSupportedCurrencies)
+						pos.Get("/currency/convert", payments.ConvertCurrency)
 						pos.Post("/expenses", payments.RecordExpense)
 						// Dropdown data for the Add-Expense form (proxied from treasury).
 						pos.Get("/expenses/categories", payments.ListExpenseCategories)

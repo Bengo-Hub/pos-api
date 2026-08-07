@@ -226,6 +226,11 @@ func AirtelMoneyNumber(v string) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldAirtelMoneyNumber, v))
 }
 
+// MtnMomoNumber applies equality check predicate on the "mtn_momo_number" field. It's identical to MtnMomoNumberEQ.
+func MtnMomoNumber(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMtnMomoNumber, v))
+}
+
 // MpesaTill applies equality check predicate on the "mpesa_till" field. It's identical to MpesaTillEQ.
 func MpesaTill(v string) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldEQ(FieldMpesaTill, v))
@@ -2219,6 +2224,81 @@ func AirtelMoneyNumberEqualFold(v string) predicate.OutletSetting {
 // AirtelMoneyNumberContainsFold applies the ContainsFold predicate on the "airtel_money_number" field.
 func AirtelMoneyNumberContainsFold(v string) predicate.OutletSetting {
 	return predicate.OutletSetting(sql.FieldContainsFold(FieldAirtelMoneyNumber, v))
+}
+
+// MtnMomoNumberEQ applies the EQ predicate on the "mtn_momo_number" field.
+func MtnMomoNumberEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEQ(FieldMtnMomoNumber, v))
+}
+
+// MtnMomoNumberNEQ applies the NEQ predicate on the "mtn_momo_number" field.
+func MtnMomoNumberNEQ(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNEQ(FieldMtnMomoNumber, v))
+}
+
+// MtnMomoNumberIn applies the In predicate on the "mtn_momo_number" field.
+func MtnMomoNumberIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIn(FieldMtnMomoNumber, vs...))
+}
+
+// MtnMomoNumberNotIn applies the NotIn predicate on the "mtn_momo_number" field.
+func MtnMomoNumberNotIn(vs ...string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotIn(FieldMtnMomoNumber, vs...))
+}
+
+// MtnMomoNumberGT applies the GT predicate on the "mtn_momo_number" field.
+func MtnMomoNumberGT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGT(FieldMtnMomoNumber, v))
+}
+
+// MtnMomoNumberGTE applies the GTE predicate on the "mtn_momo_number" field.
+func MtnMomoNumberGTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldGTE(FieldMtnMomoNumber, v))
+}
+
+// MtnMomoNumberLT applies the LT predicate on the "mtn_momo_number" field.
+func MtnMomoNumberLT(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLT(FieldMtnMomoNumber, v))
+}
+
+// MtnMomoNumberLTE applies the LTE predicate on the "mtn_momo_number" field.
+func MtnMomoNumberLTE(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldLTE(FieldMtnMomoNumber, v))
+}
+
+// MtnMomoNumberContains applies the Contains predicate on the "mtn_momo_number" field.
+func MtnMomoNumberContains(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContains(FieldMtnMomoNumber, v))
+}
+
+// MtnMomoNumberHasPrefix applies the HasPrefix predicate on the "mtn_momo_number" field.
+func MtnMomoNumberHasPrefix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasPrefix(FieldMtnMomoNumber, v))
+}
+
+// MtnMomoNumberHasSuffix applies the HasSuffix predicate on the "mtn_momo_number" field.
+func MtnMomoNumberHasSuffix(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldHasSuffix(FieldMtnMomoNumber, v))
+}
+
+// MtnMomoNumberIsNil applies the IsNil predicate on the "mtn_momo_number" field.
+func MtnMomoNumberIsNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldIsNull(FieldMtnMomoNumber))
+}
+
+// MtnMomoNumberNotNil applies the NotNil predicate on the "mtn_momo_number" field.
+func MtnMomoNumberNotNil() predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldNotNull(FieldMtnMomoNumber))
+}
+
+// MtnMomoNumberEqualFold applies the EqualFold predicate on the "mtn_momo_number" field.
+func MtnMomoNumberEqualFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldEqualFold(FieldMtnMomoNumber, v))
+}
+
+// MtnMomoNumberContainsFold applies the ContainsFold predicate on the "mtn_momo_number" field.
+func MtnMomoNumberContainsFold(v string) predicate.OutletSetting {
+	return predicate.OutletSetting(sql.FieldContainsFold(FieldMtnMomoNumber, v))
 }
 
 // MpesaTillEQ applies the EQ predicate on the "mpesa_till" field.

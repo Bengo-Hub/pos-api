@@ -753,6 +753,12 @@ type PublicGatewaysResponse struct {
 	Wallet        bool `json:"wallet"`
 	COD           bool `json:"cod"`
 	Complimentary bool `json:"complimentary"`
+	// MTNMoMo/AirtelMoney/BankTransfer are Uganda/Kenya/Tanzania payment methods — dormant
+	// (false) until the tenant/platform configures real credentials for the corresponding
+	// treasury gateway (mtn_momo/airtel_money/bank_transfer), same activation model as the rest.
+	MTNMoMo      bool `json:"mtn_momo"`
+	AirtelMoney  bool `json:"airtel_money"`
+	BankTransfer bool `json:"bank_transfer"`
 }
 
 // treasuryGatewaysWire is treasury's ACTUAL response shape for GET /api/v1/pay/{tenant}/gateways:
@@ -765,6 +771,9 @@ type treasuryGatewaysWire struct {
 	Wallet        bool     `json:"wallet"`
 	COD           bool     `json:"cod"`
 	Complimentary bool     `json:"complimentary"`
+	MTNMoMo       bool     `json:"mtn_momo"`
+	AirtelMoney   bool     `json:"airtel_money"`
+	BankTransfer  bool     `json:"bank_transfer"`
 }
 
 // GetPublicGateways fetches the active payment gateways for a tenant from the treasury public endpoint
@@ -780,7 +789,10 @@ func (c *Client) GetPublicGateways(ctx context.Context, tenantSlug string) (*Pub
 	if err != nil {
 		return nil, err
 	}
-	out := &PublicGatewaysResponse{MPesa: wire.MPesa, Paystack: wire.Paystack, Wallet: wire.Wallet, COD: wire.COD, Complimentary: wire.Complimentary}
+	out := &PublicGatewaysResponse{
+		MPesa: wire.MPesa, Paystack: wire.Paystack, Wallet: wire.Wallet, COD: wire.COD, Complimentary: wire.Complimentary,
+		MTNMoMo: wire.MTNMoMo, AirtelMoney: wire.AirtelMoney, BankTransfer: wire.BankTransfer,
+	}
 	for _, g := range wire.Gateways {
 		switch strings.ToLower(strings.TrimSpace(g)) {
 		case "mpesa", "mpesa_paybill", "mpesa_till":
@@ -793,9 +805,55 @@ func (c *Client) GetPublicGateways(ctx context.Context, tenantSlug string) (*Pub
 			out.COD = true
 		case "complimentary":
 			out.Complimentary = true
+		case "mtn_momo", "mtn":
+			out.MTNMoMo = true
+		case "airtel_money", "airtel":
+			out.AirtelMoney = true
+		case "bank_transfer", "bank":
+			out.BankTransfer = true
 		}
 	}
 	return out, nil
+}
+
+// CurrencyInfo mirrors treasury's SupportedCurrencies() entry shape.
+type CurrencyInfo struct {
+	Code          string `json:"code"`
+	Name          string `json:"name"`
+	Symbol        string `json:"symbol"`
+	DecimalPlaces int    `json:"decimal_places"`
+}
+
+// ListCurrenciesResponse is treasury's GET /currencies response shape.
+type ListCurrenciesResponse struct {
+	Currencies []CurrencyInfo `json:"currencies"`
+}
+
+// ConvertCurrencyResponse is treasury's GET /exchange-rates/convert response shape.
+type ConvertCurrencyResponse struct {
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Amount    string `json:"amount"`
+	Converted string `json:"converted"`
+}
+
+// ListSupportedCurrencies fetches the platform's supported ISO 4217 currency list from treasury
+// over S2S — backs the pos-ui outlet-currency picker so it never drifts from treasury's list.
+func (c *Client) ListSupportedCurrencies(ctx context.Context, tenantSlug string) (*ListCurrenciesResponse, error) {
+	u := fmt.Sprintf("%s/api/v1/s2s/%s/currencies", c.baseURL, tenantSlug)
+	return doRequest[ListCurrenciesResponse](ctx, c.httpClient, http.MethodGet, u, c.apiKey, nil)
+}
+
+// ConvertCurrency converts amount from one currency to another via treasury's centralized
+// exchange-rate service (KES-pivoted — see currency.Service.GetCurrentRate) — backs the pos-ui
+// currency-change confirmation modal's live-rate summary.
+func (c *Client) ConvertCurrency(ctx context.Context, tenantSlug, from, to, amount string) (*ConvertCurrencyResponse, error) {
+	q := url.Values{}
+	q.Set("from", from)
+	q.Set("to", to)
+	q.Set("amount", amount)
+	u := fmt.Sprintf("%s/api/v1/s2s/%s/exchange-rates/convert?%s", c.baseURL, tenantSlug, q.Encode())
+	return doRequest[ConvertCurrencyResponse](ctx, c.httpClient, http.MethodGet, u, c.apiKey, nil)
 }
 
 // PayoutRequest is the body for POST /api/v1/{tenant}/payouts/disburse.

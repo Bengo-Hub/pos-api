@@ -173,12 +173,20 @@ type settingsResponse struct {
 	MpesaPaybill             *string `json:"mpesa_paybill"`
 	MpesaAccountReference    *string `json:"mpesa_account_reference"`
 	AirtelMoneyNumber        *string `json:"airtel_money_number"`
+	MtnMomoNumber            *string `json:"mtn_momo_number"`
 	MpesaTill                *string `json:"mpesa_till"`
 	MpesaPochi               *string `json:"mpesa_pochi"`
 	BankName                 *string `json:"bank_name"`
 	BankAccountNumber        *string `json:"bank_account_number"`
 	BankAccountName          *string `json:"bank_account_name"`
 	ShowPaymentInfoOnReceipt bool    `json:"show_payment_info_on_receipt"`
+	// ShowTenantNameOnReceipt: print the TENANT's name as the receipt's business name on this
+	// outlet. Stored in freeform metadata (receipt_show_tenant_name); defaults to TRUE (unchanged
+	// legacy behaviour — every outlet shows the tenant name). The HQ/default outlet (Outlet.IsHq)
+	// always shows the tenant name regardless of this flag; turning it off for a NON-HQ outlet
+	// (e.g. a BOI Enterprises branch) makes that outlet's receipts show the OUTLET's own name
+	// instead — see ReceiptHandler.buildReceiptForOrder.
+	ShowTenantNameOnReceipt bool `json:"show_tenant_name_on_receipt"`
 	// print_agent_online: a paired Local Print Agent polled recently — the till should rely on
 	// server-side background print jobs instead of its client-side transports.
 	PrintAgentOnline bool `json:"print_agent_online"`
@@ -254,12 +262,14 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		MpesaPaybill:                     s.MpesaPaybill,
 		MpesaAccountReference:            s.MpesaAccountReference,
 		AirtelMoneyNumber:                s.AirtelMoneyNumber,
+		MtnMomoNumber:                    s.MtnMomoNumber,
 		MpesaTill:                        s.MpesaTill,
 		MpesaPochi:                       s.MpesaPochi,
 		BankName:                         s.BankName,
 		BankAccountNumber:                s.BankAccountNumber,
 		BankAccountName:                  s.BankAccountName,
 		ShowPaymentInfoOnReceipt:         s.ShowPaymentInfoOnReceipt,
+		ShowTenantNameOnReceipt:          metaBoolDefault(s.Metadata, "receipt_show_tenant_name", true),
 		DisabledModules:                  metaStringSlice(s.Metadata, "disabled_modules"),
 		HiddenItems:                      metaStringSlice(s.Metadata, "hidden_items"),
 		DisabledModulesByRole:            metaStringSliceMap(s.Metadata, "disabled_modules_by_role"),
@@ -539,12 +549,14 @@ type updateSettingsInput struct {
 	MpesaPaybill             *string `json:"mpesa_paybill"`
 	MpesaAccountReference    *string `json:"mpesa_account_reference"`
 	AirtelMoneyNumber        *string `json:"airtel_money_number"`
+	MtnMomoNumber            *string `json:"mtn_momo_number"`
 	MpesaTill                *string `json:"mpesa_till"`
 	MpesaPochi               *string `json:"mpesa_pochi"`
 	BankName                 *string `json:"bank_name"`
 	BankAccountNumber        *string `json:"bank_account_number"`
 	BankAccountName          *string `json:"bank_account_name"`
 	ShowPaymentInfoOnReceipt *bool   `json:"show_payment_info_on_receipt"`
+	ShowTenantNameOnReceipt  *bool   `json:"show_tenant_name_on_receipt"`
 	// cashier / terminal policy — tri-state strings so the UI can reset an override back to the
 	// per-use-case default. For each: a valid value SETS the override; "" or "default" CLEARS it
 	// (column → NULL → inherit default); an absent field (nil) leaves it unchanged.
@@ -709,6 +721,9 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	if input.AirtelMoneyNumber != nil {
 		upd = upd.SetNillableAirtelMoneyNumber(input.AirtelMoneyNumber)
 	}
+	if input.MtnMomoNumber != nil {
+		upd = upd.SetNillableMtnMomoNumber(input.MtnMomoNumber)
+	}
 	if input.MpesaTill != nil {
 		upd = upd.SetNillableMpesaTill(input.MpesaTill)
 	}
@@ -733,7 +748,7 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	// second independent copy-then-SetMetadata block here would silently discard whichever field
 	// the OTHER block wrote first (ent's builder keeps only the last SetMetadata call, not a
 	// merge of both). Any FUTURE freeform-metadata setting must be added to THIS block.
-	if input.ShowLogoOnReceipt != nil || input.ShowTenantEmailOnReceipt != nil || input.RestrictCreditSaleRefundToOffset != nil {
+	if input.ShowLogoOnReceipt != nil || input.ShowTenantEmailOnReceipt != nil || input.RestrictCreditSaleRefundToOffset != nil || input.ShowTenantNameOnReceipt != nil {
 		meta := map[string]any{}
 		for k, v := range setting.Metadata {
 			meta[k] = v
@@ -746,6 +761,9 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 		}
 		if input.RestrictCreditSaleRefundToOffset != nil {
 			meta["restrict_credit_sale_refund_to_offset"] = *input.RestrictCreditSaleRefundToOffset
+		}
+		if input.ShowTenantNameOnReceipt != nil {
+			meta["receipt_show_tenant_name"] = *input.ShowTenantNameOnReceipt
 		}
 		upd = upd.SetMetadata(meta)
 	}

@@ -305,6 +305,12 @@ func BuildReceipt(d ReceiptData) []byte {
 		if pm.MpesaPochi != "" {
 			writeln(formatLine("M-PESA Pochi", pm.MpesaPochi))
 		}
+		if pm.AirtelMoneyNumber != "" {
+			writeln(formatLine("Airtel Money", pm.AirtelMoneyNumber))
+		}
+		if pm.MtnMomoNumber != "" {
+			writeln(formatLine("MTN Mobile Money", pm.MtnMomoNumber))
+		}
 		if pm.BankAccountNumber != "" {
 			label := pm.BankName
 			if label == "" {

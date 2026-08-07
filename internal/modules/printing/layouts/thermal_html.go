@@ -87,8 +87,12 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	if isGrid {
 		buf.WriteString(`<div class="gbox">`)
 	}
-	if rec.OutletName != "" {
-		buf.WriteString(fmt.Sprintf(`<h1>%s</h1>`, escape(rec.OutletName)))
+	headerName := rec.DisplayName
+	if headerName == "" {
+		headerName = rec.OutletName
+	}
+	if headerName != "" {
+		buf.WriteString(fmt.Sprintf(`<h1>%s</h1>`, escape(headerName)))
 	} else {
 		buf.WriteString(`<h1>RECEIPT</h1>`)
 	}
@@ -221,6 +225,12 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 		}
 		if pm.MpesaPochi != "" {
 			buf.WriteString(fmt.Sprintf(`<div class="line"><span>M-PESA Pochi</span><span>%s</span></div>`, escape(pm.MpesaPochi)))
+		}
+		if pm.AirtelMoneyNumber != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="line"><span>Airtel Money</span><span>%s</span></div>`, escape(pm.AirtelMoneyNumber)))
+		}
+		if pm.MtnMomoNumber != "" {
+			buf.WriteString(fmt.Sprintf(`<div class="line"><span>MTN Mobile Money</span><span>%s</span></div>`, escape(pm.MtnMomoNumber)))
 		}
 		if pm.BankName != "" || pm.BankAccountNumber != "" {
 			label := pm.BankName

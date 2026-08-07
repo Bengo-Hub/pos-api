@@ -486,39 +486,53 @@ func (h *PaymentHandler) RecordPayment(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, payment)
 }
 
+// resolveTenantSlugForRequest resolves a tenant slug: JWT claims → httpware context → local
+// Tenant table (PIN JWT fallback). Extracted from GetGateways so the currency-proxy endpoints
+// below share the exact same precedence instead of re-deriving it.
+func resolveTenantSlugForRequest(r *http.Request, client *ent.Client) string {
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+		if slug := claims.GetTenantSlug(); slug != "" {
+			return slug
+		}
+	}
+	if slug := httpware.GetTenantSlug(r.Context()); slug != "" {
+		return slug
+	}
+	if client != nil {
+		if tid, parseErr := parseTenantUUID(r); parseErr == nil {
+			if t, lookupErr := client.Tenant.Get(r.Context(), tid); lookupErr == nil {
+				return t.Slug
+			}
+		}
+	}
+	return ""
+}
+
 // GetGateways handles GET /{tenantID}/pos/gateways
 // Proxies the treasury public gateway availability response so the POS UI can
 // conditionally show only the payment methods the tenant has enabled.
 // Fails open: if treasury is unreachable all gateways are returned as enabled.
 func (h *PaymentHandler) GetGateways(w http.ResponseWriter, r *http.Request) {
-	// Resolve tenant slug: JWT claims → httpware context → local Tenant table (PIN JWT fallback).
-	tenantSlug := ""
+	tenantSlug := resolveTenantSlugForRequest(r, h.client)
 	// payg (pay-as-you-go / service_charge billing): the platform earns only a per-sale
 	// commission, which can ONLY be netted on platform-routed online rails. Cash/offline
 	// (wallet, COD, on-account) would let the commission leak, so they are hidden for PAYG
 	// tenants — they see online methods (M-Pesa, Paystack/Card) only.
 	payg := false
 	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
-		tenantSlug = claims.GetTenantSlug()
 		payg = claims.BillingMode == "service_charge"
-	}
-	if tenantSlug == "" {
-		tenantSlug = httpware.GetTenantSlug(r.Context())
-	}
-	if tenantSlug == "" && h.client != nil {
-		if tid, parseErr := parseTenantUUID(r); parseErr == nil {
-			if t, lookupErr := h.client.Tenant.Get(r.Context(), tid); lookupErr == nil {
-				tenantSlug = t.Slug
-			}
-		}
 	}
 
 	// Online-only default for PAYG; full set otherwise. Used both on the no-treasury
 	// path and the fail-open path so PAYG restriction holds even when treasury is down.
-	// "complimentary" deliberately fails CLOSED (unlike the others) — it's an opt-in tender
-	// that must be explicitly enabled per tenant in treasury; it must never silently appear
-	// just because treasury is unreachable.
-	openDefault := map[string]any{"mpesa": true, "paystack": true, "wallet": !payg, "cod": !payg, "complimentary": false}
+	// "complimentary" and the new Uganda/Kenya rails (mtn_momo/airtel_money/bank_transfer)
+	// deliberately fail CLOSED (unlike mpesa/paystack) — they're opt-in gateways/tenders most
+	// tenants have NOT configured, so they must never silently appear just because treasury is
+	// unreachable (unlike mpesa/paystack, which are the long-standing default expectation).
+	openDefault := map[string]any{
+		"mpesa": true, "paystack": true, "wallet": !payg, "cod": !payg, "complimentary": false,
+		"mtn_momo": false, "airtel_money": false, "bank_transfer": false,
+	}
 
 	if tenantSlug == "" || h.treasuryClient == nil {
 		jsonOK(w, openDefault)
@@ -539,6 +553,50 @@ func (h *PaymentHandler) GetGateways(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, gateways)
+}
+
+// GetSupportedCurrencies handles GET /{tenantID}/pos/currency/currencies — proxies treasury's
+// canonical ISO 4217 currency list (with per-currency decimal places) so the outlet-currency
+// picker never drifts from what treasury's forex/conversion engine actually supports.
+func (h *PaymentHandler) GetSupportedCurrencies(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := resolveTenantSlugForRequest(r, h.client)
+	if tenantSlug == "" || h.treasuryClient == nil {
+		jsonOK(w, map[string]any{"currencies": []any{}})
+		return
+	}
+	resp, err := h.treasuryClient.ListSupportedCurrencies(r.Context(), tenantSlug)
+	if err != nil {
+		h.log.Warn("list supported currencies failed", zap.String("tenant", tenantSlug), zap.Error(err))
+		jsonOK(w, map[string]any{"currencies": []any{}})
+		return
+	}
+	jsonOK(w, resp)
+}
+
+// ConvertCurrency handles GET /{tenantID}/pos/currency/convert?from=&to=&amount= — proxies
+// treasury's centralized, KES-pivoted exchange-rate conversion. Backs the currency-change
+// confirmation modal (GeneralTab) so a rate summary can be shown BEFORE an outlet's currency
+// setting is actually changed.
+func (h *PaymentHandler) ConvertCurrency(w http.ResponseWriter, r *http.Request) {
+	tenantSlug := resolveTenantSlugForRequest(r, h.client)
+	if tenantSlug == "" || h.treasuryClient == nil {
+		jsonError(w, "currency conversion unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	amount := r.URL.Query().Get("amount")
+	if from == "" || to == "" || amount == "" {
+		jsonError(w, "from, to, and amount are required", http.StatusBadRequest)
+		return
+	}
+	resp, err := h.treasuryClient.ConvertCurrency(r.Context(), tenantSlug, from, to, amount)
+	if err != nil {
+		h.log.Warn("currency conversion failed", zap.String("tenant", tenantSlug), zap.String("from", from), zap.String("to", to), zap.Error(err))
+		jsonError(w, "failed to convert currency", http.StatusBadGateway)
+		return
+	}
+	jsonOK(w, resp)
 }
 
 // ListOrderPayments handles GET /{tenantID}/pos/orders/{orderID}/payments

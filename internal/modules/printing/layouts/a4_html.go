@@ -59,7 +59,10 @@ td.r,th.r{text-align:right}
 	if logoURL != "" && rec.ShowLogo {
 		buf.WriteString(fmt.Sprintf(`<img class="logo" src="%s" alt="logo">`, escape(logoURL)))
 	}
-	name := rec.OutletName
+	name := rec.DisplayName
+	if name == "" {
+		name = rec.OutletName
+	}
 	if name == "" {
 		name = "RECEIPT"
 	}

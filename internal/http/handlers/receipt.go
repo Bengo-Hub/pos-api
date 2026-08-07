@@ -156,6 +156,18 @@ func (h *ReceiptHandler) branding(ctx context.Context, tenantID uuid.UUID) recei
 	return b
 }
 
+// tenantNameQuick is a minimal tenant-name lookup (no branding-cache override) for print
+// call sites that don't otherwise need the full branding() logo/color lookup — just enough for
+// ReceiptViewOpts.TenantName to drive the tenant-vs-outlet-name receipt header. Returns "" on any
+// error (falls back to the outlet's own name, never blocks printing).
+func tenantNameQuick(ctx context.Context, client *ent.Client, tenantID uuid.UUID) string {
+	t, err := client.Tenant.Query().Where(enttenant.ID(tenantID)).Only(ctx)
+	if err != nil {
+		return ""
+	}
+	return t.Name
+}
+
 // payerNameFromPayment best-effort extracts the customer/payer name captured on an online payment
 // (M-Pesa / card / Paystack), so a sale with no keyed-in customer still shows who paid. Treasury
 // stamps the resolved payer name into POSPayment.payment_data on settlement (see the treasury
@@ -217,6 +229,8 @@ func newReceiptResponse(v printing.ReceiptView, layout string) receiptResponse {
 			MpesaAccountRef:   v.PaymentMethods.MpesaAccountRef,
 			MpesaTill:         v.PaymentMethods.MpesaTill,
 			MpesaPochi:        v.PaymentMethods.MpesaPochi,
+			AirtelMoneyNumber: v.PaymentMethods.AirtelMoneyNumber,
+			MtnMomoNumber:     v.PaymentMethods.MtnMomoNumber,
 			BankName:          v.PaymentMethods.BankName,
 			BankAccountNumber: v.PaymentMethods.BankAccountNumber,
 			BankAccountName:   v.PaymentMethods.BankAccountName,
@@ -242,6 +256,7 @@ func newReceiptResponse(v printing.ReceiptView, layout string) receiptResponse {
 		OrderNumber:                 v.OrderNumber,
 		OutletID:                    v.OutletID,
 		OutletName:                  v.OutletName,
+		DisplayName:                 v.DisplayName,
 		OutletAddress:               v.OutletAddress,
 		OutletPhones:                v.OutletPhones,
 		OutletEmail:                 v.OutletEmail,
@@ -425,6 +440,13 @@ func (h *ReceiptHandler) buildReceiptForOrder(ctx context.Context, tid uuid.UUID
 		order = h.ensureEtimsFiscal(ctx, outlet.TenantSlug, order)
 	}
 
+	// Tenant branding — fetched BEFORE BuildReceiptView so its resolved company name can drive
+	// ReceiptView.DisplayName (tenant-vs-outlet-name header resolution happens inside
+	// BuildReceiptView itself, the one place every receipt surface — JSON/HTML/PDF here AND the
+	// ESC/POS print-queue path via OrderReceiptDataOpts — shares); also used for the logo
+	// (html/pdf) and as the contact-line FALLBACK below (most tenants only ever configure
+	// contact info at the tenant level, not per-branch).
+	brand := h.branding(ctx, tid)
 	view := printing.BuildReceiptView(order, order.Edges.Lines, outlet, setting, printing.ReceiptViewOpts{
 		Type:           "customer",
 		ReceiptNumber:  h.ensureReceiptNumber(order),
@@ -437,11 +459,12 @@ func (h *ReceiptHandler) buildReceiptForOrder(ctx context.Context, tid uuid.UUID
 		PaymentDate:    paymentDate,
 		SplitLineIDs:   splitLineSet,
 		SplitLabel:     splitLabel,
+		TenantName:     brand.CompanyName,
 	})
-	// Tenant branding — fetched once, used for the logo (html/pdf), the PDF-only company-name
-	// line, and as the contact-line FALLBACK below (most tenants only ever configure contact
-	// info at the tenant level, not per-branch).
-	brand := h.branding(ctx, tid)
+	var settingMeta map[string]any
+	if setting != nil {
+		settingMeta = setting.Metadata
+	}
 	if view.OutletPhones == "" {
 		view.OutletPhones = brand.Phone
 	}
@@ -450,10 +473,6 @@ func (h *ReceiptHandler) buildReceiptForOrder(ctx context.Context, tid uuid.UUID
 	}
 	// Receipt & Printing → "Show tenant email" toggle (freeform metadata; absent = false — the
 	// tenant's email only prints once they explicitly opt in).
-	var settingMeta map[string]any
-	if setting != nil {
-		settingMeta = setting.Metadata
-	}
 	if !metaBoolDefault(settingMeta, "receipt_show_tenant_email", false) {
 		view.OutletEmail = ""
 	}

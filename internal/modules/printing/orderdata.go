@@ -25,13 +25,16 @@ func receiptLocation(outlet *ent.Outlet) *time.Location {
 // canonical ReceiptView (BuildReceiptView) to the thermal-byte shape, shared by the /print
 // handler and the background print queue (never duplicate this mapping; never hand-populate
 // escpos.ReceiptData directly for an order).
-// outlet/setting may be nil. paymentMethod/servedBy/voidReason may be empty.
-func OrderReceiptData(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *ent.Outlet, setting *ent.OutletSetting, typ, paymentMethod, servedBy, voidReason string) ReceiptData {
+// outlet/setting may be nil. paymentMethod/servedBy/voidReason/tenantName may be empty — an
+// empty tenantName falls back to the outlet's own name (see ReceiptView.DisplayName), matching
+// pre-existing behaviour for any caller that hasn't resolved the tenant name yet.
+func OrderReceiptData(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *ent.Outlet, setting *ent.OutletSetting, typ, paymentMethod, servedBy, voidReason, tenantName string) ReceiptData {
 	return OrderReceiptDataOpts(order, lines, outlet, setting, ReceiptViewOpts{
 		Type:          typ,
 		PaymentMethod: paymentMethod,
 		ServedBy:      servedBy,
 		VoidReason:    voidReason,
+		TenantName:    tenantName,
 	})
 }
 
@@ -130,9 +133,16 @@ func receiptDataFromView(v ReceiptView, loc *time.Location) ReceiptData {
 		pm = v.PaymentMethods
 	}
 
+	// The ESC/POS thermal printout uses v.DisplayName (tenant name by default, or the outlet's own
+	// name when that's been turned off for this non-HQ outlet — see ReceiptView.DisplayName),
+	// falling back to the true outlet name when DisplayName hasn't been resolved by the caller.
+	headerName := v.DisplayName
+	if headerName == "" {
+		headerName = v.OutletName
+	}
 	return ReceiptData{
 		Type:                        v.Type,
-		OutletName:                  v.OutletName,
+		OutletName:                  headerName,
 		OutletAddress:               v.OutletAddress,
 		OutletPhones:                v.OutletPhones,
 		OutletEmail:                 v.OutletEmail,

@@ -102,8 +102,10 @@ type OutletSetting struct {
 	MpesaPaybill *string `json:"mpesa_paybill,omitempty"`
 	// Account reference shown in M-PESA payment prompt, e.g. 79319044
 	MpesaAccountReference *string `json:"mpesa_account_reference,omitempty"`
-	// Airtel Money merchant/paybill number for customer payments
+	// Airtel Money merchant/paybill number for customer payments (Kenya or Uganda — same field, country-agnostic)
 	AirtelMoneyNumber *string `json:"airtel_money_number,omitempty"`
+	// MTN Mobile Money merchant number for customer payments (Uganda, etc.)
+	MtnMomoNumber *string `json:"mtn_momo_number,omitempty"`
 	// M-PESA Till (Buy Goods) number
 	MpesaTill *string `json:"mpesa_till,omitempty"`
 	// M-PESA Pochi la Biashara number
@@ -199,7 +201,7 @@ func (*OutletSetting) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case outletsetting.FieldShiftMaxHours, outletsetting.FieldTableMaxOccupationMinutes, outletsetting.FieldReturnWindowDays:
 			values[i] = new(sql.NullInt64)
-		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldDiscountLimitType, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth, outletsetting.FieldReceiptFormat, outletsetting.FieldCashDrawerPrinter, outletsetting.FieldCashDrawerKickCode, outletsetting.FieldCardTerminalMode, outletsetting.FieldCardTerminalProvider, outletsetting.FieldCardTerminalTid, outletsetting.FieldMpesaPaybill, outletsetting.FieldMpesaAccountReference, outletsetting.FieldAirtelMoneyNumber, outletsetting.FieldMpesaTill, outletsetting.FieldMpesaPochi, outletsetting.FieldBankName, outletsetting.FieldBankAccountNumber, outletsetting.FieldBankAccountName, outletsetting.FieldPharmacyWorkflowMode, outletsetting.FieldCashierSalesVisibility, outletsetting.FieldCashierTerminalSurface:
+		case outletsetting.FieldPinLoginMessage, outletsetting.FieldScreensaverURL, outletsetting.FieldDisplayMode, outletsetting.FieldDefaultView, outletsetting.FieldReceiptHeader, outletsetting.FieldReceiptFooter, outletsetting.FieldCurrency, outletsetting.FieldDiscountLimitType, outletsetting.FieldPrinterType, outletsetting.FieldPrinterIP, outletsetting.FieldPaperWidth, outletsetting.FieldReceiptFormat, outletsetting.FieldCashDrawerPrinter, outletsetting.FieldCashDrawerKickCode, outletsetting.FieldCardTerminalMode, outletsetting.FieldCardTerminalProvider, outletsetting.FieldCardTerminalTid, outletsetting.FieldMpesaPaybill, outletsetting.FieldMpesaAccountReference, outletsetting.FieldAirtelMoneyNumber, outletsetting.FieldMtnMomoNumber, outletsetting.FieldMpesaTill, outletsetting.FieldMpesaPochi, outletsetting.FieldBankName, outletsetting.FieldBankAccountNumber, outletsetting.FieldBankAccountName, outletsetting.FieldPharmacyWorkflowMode, outletsetting.FieldCashierSalesVisibility, outletsetting.FieldCashierTerminalSurface:
 			values[i] = new(sql.NullString)
 		case outletsetting.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -500,6 +502,13 @@ func (_m *OutletSetting) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AirtelMoneyNumber = new(string)
 				*_m.AirtelMoneyNumber = value.String
+			}
+		case outletsetting.FieldMtnMomoNumber:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field mtn_momo_number", values[i])
+			} else if value.Valid {
+				_m.MtnMomoNumber = new(string)
+				*_m.MtnMomoNumber = value.String
 			}
 		case outletsetting.FieldMpesaTill:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -861,6 +870,11 @@ func (_m *OutletSetting) String() string {
 	builder.WriteString(", ")
 	if v := _m.AirtelMoneyNumber; v != nil {
 		builder.WriteString("airtel_money_number=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.MtnMomoNumber; v != nil {
+		builder.WriteString("mtn_momo_number=")
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")

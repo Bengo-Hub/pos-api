@@ -12,6 +12,7 @@ import (
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
+	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/modules/providerfooter"
 )
@@ -65,7 +66,11 @@ func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, 
 		if profile := printing.ResolveBillProfile(profiles); profile != nil {
 			outlet, _ := s.client.Outlet.Query().Where(entoutlet.ID(order.OutletID)).Only(ctx)
 			servedBy := printing.ServedByFromContext(ctx)
-			rdata := printing.OrderReceiptData(order, lines, outlet, setting, "customer", "", servedBy, "")
+			tenantName := ""
+			if t, terr := s.client.Tenant.Query().Where(enttenant.ID(tenantID)).Only(ctx); terr == nil {
+				tenantName = t.Name
+			}
+			rdata := printing.OrderReceiptData(order, lines, outlet, setting, "customer", "", servedBy, "", tenantName)
 			rdata.ShowProviderFooter = providerfooter.Resolve(ctx, s.client, tenantID)
 			payload := printing.BuildReceipt(rdata)
 			s.enqueueJob(ctx, tenantID, order, "bill", profile, payload,

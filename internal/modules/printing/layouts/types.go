@@ -28,6 +28,8 @@ type PaymentMethods struct {
 	MpesaAccountRef   string `json:"mpesa_account_reference,omitempty"`
 	MpesaTill         string `json:"mpesa_till,omitempty"`
 	MpesaPochi        string `json:"mpesa_pochi,omitempty"`
+	AirtelMoneyNumber string `json:"airtel_money_number,omitempty"`
+	MtnMomoNumber     string `json:"mtn_momo_number,omitempty"`
 	BankName          string `json:"bank_name,omitempty"`
 	BankAccountNumber string `json:"bank_account_number,omitempty"`
 	BankAccountName   string `json:"bank_account_name,omitempty"`
@@ -55,6 +57,11 @@ type Receipt struct {
 	OrderNumber   string    `json:"order_number"`
 	OutletID      uuid.UUID `json:"outlet_id"`
 	OutletName    string    `json:"outlet_name,omitempty"`
+	// DisplayName is the resolved business name every layout renders as the receipt HEADER —
+	// tenant name by default, or the outlet's own name when the tenant turned that off for a
+	// non-HQ outlet (see printing.ReceiptView.DisplayName). Falls back to OutletName when empty
+	// (older/unresolved receipts) so no layout ever renders a blank header.
+	DisplayName   string    `json:"display_name,omitempty"`
 	OutletAddress string    `json:"outlet_address,omitempty"`
 	// Formatted labeled-phone line from the outlet's contact_phones metadata —
 	// printed under the address as "Mobile: AIRTEL +2547… · MTN +2567…".

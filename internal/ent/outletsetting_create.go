@@ -557,6 +557,20 @@ func (_c *OutletSettingCreate) SetNillableAirtelMoneyNumber(v *string) *OutletSe
 	return _c
 }
 
+// SetMtnMomoNumber sets the "mtn_momo_number" field.
+func (_c *OutletSettingCreate) SetMtnMomoNumber(v string) *OutletSettingCreate {
+	_c.mutation.SetMtnMomoNumber(v)
+	return _c
+}
+
+// SetNillableMtnMomoNumber sets the "mtn_momo_number" field if the given value is not nil.
+func (_c *OutletSettingCreate) SetNillableMtnMomoNumber(v *string) *OutletSettingCreate {
+	if v != nil {
+		_c.SetMtnMomoNumber(*v)
+	}
+	return _c
+}
+
 // SetMpesaTill sets the "mpesa_till" field.
 func (_c *OutletSettingCreate) SetMpesaTill(v string) *OutletSettingCreate {
 	_c.mutation.SetMpesaTill(v)
@@ -1387,6 +1401,10 @@ func (_c *OutletSettingCreate) createSpec() (*OutletSetting, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.AirtelMoneyNumber(); ok {
 		_spec.SetField(outletsetting.FieldAirtelMoneyNumber, field.TypeString, value)
 		_node.AirtelMoneyNumber = &value
+	}
+	if value, ok := _c.mutation.MtnMomoNumber(); ok {
+		_spec.SetField(outletsetting.FieldMtnMomoNumber, field.TypeString, value)
+		_node.MtnMomoNumber = &value
 	}
 	if value, ok := _c.mutation.MpesaTill(); ok {
 		_spec.SetField(outletsetting.FieldMpesaTill, field.TypeString, value)
@@ -2324,6 +2342,24 @@ func (u *OutletSettingUpsert) UpdateAirtelMoneyNumber() *OutletSettingUpsert {
 // ClearAirtelMoneyNumber clears the value of the "airtel_money_number" field.
 func (u *OutletSettingUpsert) ClearAirtelMoneyNumber() *OutletSettingUpsert {
 	u.SetNull(outletsetting.FieldAirtelMoneyNumber)
+	return u
+}
+
+// SetMtnMomoNumber sets the "mtn_momo_number" field.
+func (u *OutletSettingUpsert) SetMtnMomoNumber(v string) *OutletSettingUpsert {
+	u.Set(outletsetting.FieldMtnMomoNumber, v)
+	return u
+}
+
+// UpdateMtnMomoNumber sets the "mtn_momo_number" field to the value that was provided on create.
+func (u *OutletSettingUpsert) UpdateMtnMomoNumber() *OutletSettingUpsert {
+	u.SetExcluded(outletsetting.FieldMtnMomoNumber)
+	return u
+}
+
+// ClearMtnMomoNumber clears the value of the "mtn_momo_number" field.
+func (u *OutletSettingUpsert) ClearMtnMomoNumber() *OutletSettingUpsert {
+	u.SetNull(outletsetting.FieldMtnMomoNumber)
 	return u
 }
 
@@ -3759,6 +3795,27 @@ func (u *OutletSettingUpsertOne) UpdateAirtelMoneyNumber() *OutletSettingUpsertO
 func (u *OutletSettingUpsertOne) ClearAirtelMoneyNumber() *OutletSettingUpsertOne {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearAirtelMoneyNumber()
+	})
+}
+
+// SetMtnMomoNumber sets the "mtn_momo_number" field.
+func (u *OutletSettingUpsertOne) SetMtnMomoNumber(v string) *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMtnMomoNumber(v)
+	})
+}
+
+// UpdateMtnMomoNumber sets the "mtn_momo_number" field to the value that was provided on create.
+func (u *OutletSettingUpsertOne) UpdateMtnMomoNumber() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMtnMomoNumber()
+	})
+}
+
+// ClearMtnMomoNumber clears the value of the "mtn_momo_number" field.
+func (u *OutletSettingUpsertOne) ClearMtnMomoNumber() *OutletSettingUpsertOne {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMtnMomoNumber()
 	})
 }
 
@@ -5444,6 +5501,27 @@ func (u *OutletSettingUpsertBulk) UpdateAirtelMoneyNumber() *OutletSettingUpsert
 func (u *OutletSettingUpsertBulk) ClearAirtelMoneyNumber() *OutletSettingUpsertBulk {
 	return u.Update(func(s *OutletSettingUpsert) {
 		s.ClearAirtelMoneyNumber()
+	})
+}
+
+// SetMtnMomoNumber sets the "mtn_momo_number" field.
+func (u *OutletSettingUpsertBulk) SetMtnMomoNumber(v string) *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.SetMtnMomoNumber(v)
+	})
+}
+
+// UpdateMtnMomoNumber sets the "mtn_momo_number" field to the value that was provided on create.
+func (u *OutletSettingUpsertBulk) UpdateMtnMomoNumber() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.UpdateMtnMomoNumber()
+	})
+}
+
+// ClearMtnMomoNumber clears the value of the "mtn_momo_number" field.
+func (u *OutletSettingUpsertBulk) ClearMtnMomoNumber() *OutletSettingUpsertBulk {
+	return u.Update(func(s *OutletSettingUpsert) {
+		s.ClearMtnMomoNumber()
 	})
 }
 

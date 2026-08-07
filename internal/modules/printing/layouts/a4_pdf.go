@@ -37,7 +37,10 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 			pdf.ClearError()
 		}
 	}
-	name := rec.OutletName
+	name := rec.DisplayName
+	if name == "" {
+		name = rec.OutletName
+	}
 	if name == "" {
 		name = "RECEIPT"
 	}

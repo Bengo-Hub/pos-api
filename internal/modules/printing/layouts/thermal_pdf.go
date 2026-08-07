@@ -79,12 +79,16 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 			pdf.ClearError()
 		}
 	}
-	if brand.CompanyName != "" {
+	headerName := rec.DisplayName
+	if headerName == "" {
+		headerName = brand.CompanyName
+	}
+	if headerName != "" {
 		// Keep the company name black, not the brand colour — POS receipts print on thermal/non-colour
 		// printers where coloured text comes out faint.
-		center(brand.CompanyName, "B", 12)
+		center(headerName, "B", 12)
 	}
-	if rec.OutletName != "" && rec.OutletName != brand.CompanyName {
+	if rec.OutletName != "" && rec.OutletName != headerName {
 		center(rec.OutletName, "B", 11)
 	}
 	if rec.OutletAddress != "" {
@@ -106,7 +110,7 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 	// of the real outlet name + address instead of a trailing note. Also skip it outright when
 	// it just repeats info already shown above (contains the outlet name, or exactly matches the
 	// company name/outlet address) — the outlet's own name/address already say it once.
-	if h := strings.TrimSpace(rec.ReceiptHeader); h != "" && !headerDuplicatesLocation(h, brand.CompanyName, rec.OutletName, rec.OutletAddress) {
+	if h := strings.TrimSpace(rec.ReceiptHeader); h != "" && !headerDuplicatesLocation(h, headerName, rec.OutletName, rec.OutletAddress) {
 		center(h, "B", 9)
 	}
 	pdf.Ln(1)
@@ -265,6 +269,12 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 		}
 		if pm.MpesaPochi != "" {
 			line("M-PESA Pochi", pm.MpesaPochi, "", 9)
+		}
+		if pm.AirtelMoneyNumber != "" {
+			line("Airtel Money", pm.AirtelMoneyNumber, "", 9)
+		}
+		if pm.MtnMomoNumber != "" {
+			line("MTN Mobile Money", pm.MtnMomoNumber, "", 9)
 		}
 		if pm.BankName != "" || pm.BankAccountNumber != "" {
 			label := pm.BankName
