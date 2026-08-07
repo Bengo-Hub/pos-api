@@ -182,6 +182,48 @@ For non-cash tenders, pos-api creates a payment intent in treasury-api before re
 
 > **Publisher note (2026-05-09):** The current `internal/platform/events/publisher.go` only defines three methods: `PublishOrderCreated`, `PublishOrderStatusChanged`, `PublishPaymentRecorded`. The `pos.sale.finalized` and `pos.drawer.closed` events described in the Event Catalog are **planned but not yet published** — they must be added to `publisher.go` in Sprint 6.
 
+### 2.1a Uganda/Kenya/Tanzania Payment Methods (2026-08-07)
+
+Three new tender methods, following the exact same "pos-api is a thin client, treasury owns the
+gateway" pattern as `payment_method: "mpesa"|"paystack"` above:
+
+- `mtn_momo` — MTN Mobile Money (OAuth2 + request-to-pay push, same UX as M-Pesa STK). Routed
+  through `handleDigital('mtn_momo')` in pos-ui, dispatched exactly like `mpesa`/`card` above.
+- `airtel_money` — Airtel Money (same push-prompt shape).
+- `bank_transfer` — manual bank transfer (covers Equity Bank Uganda and any other bank a tenant
+  configures). No live gateway API — treasury's `BankTransferGateway` mirrors COD: it returns
+  `pending_confirmation` immediately and settles once staff confirms the transfer was received.
+
+All three are **dormant** (hidden from the payment modal) until a tenant/platform configures the
+corresponding gateway credentials in treasury — `GET /{tenant}/pos/gateways` (see
+`internal/modules/treasury/client.go GetPublicGateways`) fails **closed** for these (unlike
+mpesa/paystack, which fail open) since they're new opt-in rails most tenants haven't set up.
+
+`OutletSetting.mtn_momo_number`/`airtel_money_number` (display-only merchant numbers, printed on
+receipts when `show_payment_info_on_receipt` is on) are separate from the treasury gateway
+credentials above — one is "what number to show the customer," the other is "how to actually
+collect/confirm the payment."
+
+### 2.1b Multi-Currency & Forex (2026-08-07)
+
+Treasury is the single source of truth for currency conversion — pos-api never computes an
+exchange rate itself. See `internal/modules/treasury/client.go`:
+- `ListSupportedCurrencies` → proxies treasury's `GET /currencies` (ISO 4217 list with
+  per-currency decimal places — feeds the pos-ui outlet-currency picker).
+- `ConvertCurrency` → proxies treasury's `GET /exchange-rates/convert` (KES-pivoted, so any two
+  supported currencies convert even though treasury only fetches KES-based rates live).
+
+Exposed to pos-ui via `GET /{tenant}/pos/currency/currencies` and
+`GET /{tenant}/pos/currency/convert` (`internal/http/handlers/payments.go`). The pos-ui Settings →
+General currency picker calls the convert endpoint to show a live-rate confirmation
+(`CurrencyChangeConfirmModal` from `@bengo-hub/shared-ui-lib`) before an outlet's currency is
+actually changed — never applies silently.
+
+`PaymentIntent`/`PaymentTransaction`/`ARTransaction` in treasury auto-populate a best-effort
+`exchange_rate`/`base_amount` snapshot (converted to KES) whenever a transaction's currency isn't
+already KES — see treasury-api's `EntRepository.convertToBase`. pos-api does not need to compute
+or store this itself; it's populated treasury-side transparently.
+
 ### 2.2 Room Charge Settlement (Hotel Module)
 
 On hotel check-out, pos-api creates a single treasury payment intent for the full folio amount.
