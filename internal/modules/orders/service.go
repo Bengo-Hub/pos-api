@@ -1207,8 +1207,8 @@ func routeLinesToStations(lines []*ent.POSOrderLine, stations []*ent.KDSStation)
 }
 
 // resolveStationForLine returns the single station a line's ticket is PRIMARILY filed under —
-// priorities 1–2 of routeLinesToStations (explicit override → hot-beverage-to-kitchen guard →
-// category_filter match) — or nil when none match. It deliberately excludes the expo/all
+// priorities 1–2 of routeLinesToStations (explicit override → category_filter match →
+// hot-beverage-to-kitchen guess) — or nil when none match. It deliberately excludes the expo/all
 // catch-all fan-out: that's a secondary-copy concern for ticket printing, not a single "owning"
 // station, so callers that need exactly one station (line persistence, reporting) use
 // ResolveStationForLineOrFallback instead.
@@ -1218,37 +1218,22 @@ func resolveStationForLine(name, category string, overrideStationID *uuid.UUID, 
 		return overrideStationID
 	}
 
-	// Coffee & tea (and other hot beverages) are kitchen items, never bar — the bar prepares
-	// alcohol and cold drinks. Force these to the kitchen station when one exists, before the
-	// category_filter fallback can capture them for a "beverages" bar station.
-	var kitchenID *uuid.UUID
-	for _, st := range stations {
-		if st.StationType == "kitchen" {
-			id := st.ID
-			kitchenID = &id
-			break
-		}
-	}
-	isHot := isHotBeverage(name, category)
-	if isHot && kitchenID != nil {
-		return kitchenID
-	}
-
 	// Priority 2: strict category_filter match. The item's CATEGORY (stamped from the live
 	// inventory catalog at sale time) must EXACTLY equal one of the station's category filters
 	// (case-insensitive, trimmed). Because each category is claimed by exactly one station
 	// (enforced on station create/update), this routes every ticket to a single, correct
-	// destination. Only when the line carries no category (legacy/uncategorized item) do we
-	// fall back to a substring match on the item name. Bar stations are skipped for hot
-	// beverages so coffee/tea can't be dragged to the bar by a "beverages" filter.
+	// destination — the TENANT'S OWN configuration always wins here, even for hot beverages: a
+	// café's "Bar" station commonly owns Coffees/Teas (a barista/espresso bar), so a station that
+	// explicitly claims those categories must never be second-guessed by a generic "hot drinks
+	// belong in the kitchen" assumption (2026-08 urban-loft bug — Mixed Tea/Mocha/Cafe Latte/Hot
+	// Water Lemon were all being force-routed to Kitchen despite Bar's category_filter explicitly
+	// listing Coffees/Teas/Milkshakes). Only when the line carries no category (legacy/
+	// uncategorized item) do we fall back to a substring match on the item name.
 	itemCat := strings.ToLower(strings.TrimSpace(category))
 	itemName := strings.ToLower(name)
 	for _, st := range stations {
 		if st.StationType == "expo" || st.StationType == "all" {
 			continue // handled by the caller's catch-all fan-out
-		}
-		if isHot && st.StationType == "bar" {
-			continue
 		}
 		for _, cat := range st.CategoryFilter {
 			needle := strings.ToLower(strings.TrimSpace(cat))
@@ -1258,6 +1243,19 @@ func resolveStationForLine(name, category string, overrideStationID *uuid.UUID, 
 			matched := itemCat != "" && itemCat == needle ||
 				itemCat == "" && strings.Contains(itemName, needle)
 			if matched {
+				id := st.ID
+				return &id
+			}
+		}
+	}
+
+	// Priority 3: nothing claimed this item's category (or it has none) — fall back to a
+	// hot-beverage name guess (coffee/tea/etc. → kitchen) as a last resort for genuinely
+	// unconfigured tenants. This NEVER overrides a station that explicitly claimed the item's
+	// real category above — only reached when priority 2 found no match at all.
+	if isHotBeverage(name, category) {
+		for _, st := range stations {
+			if st.StationType == "kitchen" {
 				id := st.ID
 				return &id
 			}

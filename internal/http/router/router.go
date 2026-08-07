@@ -1123,12 +1123,19 @@ func New(
 							// frontend never called and 404'd unconditionally.
 							rp.Get("/reports/sales-by-hour", reports.SalesByHour)
 							rp.Get("/reports/sales-by-category", reports.SalesByCategory)
-							rp.Get("/reports/sales/by-kds-station", reports.SalesByKDSStation)
 							rp.Get("/reports/stock-consumption", reports.StockConsumptionReport)
 							rp.Get("/reports/returns", reports.ReturnsSummary)
 							rp.Get("/reports/void-summary", reports.VoidSummary)
 							rp.Get("/reports/product-mix", reports.ProductMix)
 							rp.Get("/reports/most-profitable", reports.MostProfitableItems)
+							// KDS Station is a kitchen concept — hospitality/quick_service only (mirrors
+							// pos-ui's isKitchen gate in the analytics/EOD pages). Without this the JSON
+							// route had no use-case check at all — any retail/services/pharmacy outlet
+							// with reports.view could call it directly and get real-but-meaningless
+							// station data back, unlike every other use-case-scoped route group (see the
+							// loyalty routes above) which already enforces RequireUseCase.
+							rp.With(outletmw.RequireUseCase("hospitality", "quick_service")).
+								Get("/reports/sales/by-kds-station", reports.SalesByKDSStation)
 						})
 					}
 
@@ -1138,7 +1145,10 @@ func New(
 						pos.With(reportsView).Group(func(rp chi.Router) {
 							rp.Get("/reports/reset-summary", reportPDF.ResetSummary)
 							rp.Get("/reports/sales-by-item-type", reportPDF.SalesByItemType)
-							rp.Get("/reports/sales-by-kds-station-document", reportPDF.SalesByKDSStationDoc)
+							// Same use-case gate as the JSON route above — a retail/pharmacy outlet
+							// should never be able to export a "Sales by KDS Station" PDF/CSV either.
+							rp.With(outletmw.RequireUseCase("hospitality", "quick_service")).
+								Get("/reports/sales-by-kds-station-document", reportPDF.SalesByKDSStationDoc)
 							rp.Get("/reports/daily-sales", reportPDF.DailySales)
 							rp.Get("/reports/shift/{sessionID}", reportPDF.ShiftReportPDF)
 							rp.Get("/reports/staff", reportPDF.SalesByStaffPDF)
