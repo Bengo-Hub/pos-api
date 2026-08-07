@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,6 +24,26 @@ import (
 	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
+
+// skipCompressForWebsocket wraps a middleware (chi's Compress) so it never runs on a WebSocket
+// upgrade request. chi's compressResponseWriter.Hijack() type-asserts its wrapped writer directly
+// instead of walking an http.ResponseController Unwrap() chain, so wrapping ANY hijack-based
+// handler (nhooyr.io/websocket's Accept, used by every WS stream in this API) in it breaks the
+// hijack with "http.Hijacker is unavailable on the writer" -- confirmed live via kubectl logs
+// during E2E verification. RFC 6455 upgrade requests always carry Connection: Upgrade and
+// Upgrade: websocket, so detecting them here is exact, not a heuristic.
+func skipCompressForWebsocket(compress func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		compressed := compress(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+				next.ServeHTTP(w, r)
+				return
+			}
+			compressed.ServeHTTP(w, r)
+		})
+	}
+}
 
 func New(
 	log *zap.Logger,
@@ -115,8 +136,13 @@ func New(
 	// gzip the JSON responses (catalog lists, order detail w/ lines+payments) — the largest
 	// payloads on this API had no compression at any layer (confirmed: the devops-k8s ingress-nginx
 	// gzip ConfigMap exists but isn't wired into any ArgoCD Application). Skips already-compressed
-	// types (images/pdf/zip) automatically.
-	r.Use(middleware.Compress(5))
+	// types (images/pdf/zip) automatically. skipCompressForWebsocket is REQUIRED: chi's
+	// compressResponseWriter.Hijack() does a raw type-assertion on its wrapped writer rather than
+	// walking an http.ResponseController Unwrap() chain, so wrapping a WebSocket upgrade request in
+	// it breaks nhooyr.io/websocket's Accept() hijack fleet-wide (notifications/KDS/print-agent
+	// streams) with "http.Hijacker is unavailable on the writer" — confirmed live via kubectl logs
+	// during E2E verification (2026-08-07).
+	r.Use(skipCompressForWebsocket(middleware.Compress(5)))
 	r.Use(middleware.Timeout(30 * time.Second))
 	r.Use(middleware.RequestSize(10 << 20)) // 10 MB max body size
 	r.Use(outletmw.IPRateLimit(redisClient, outletmw.DefaultRateLimitConfig()))
