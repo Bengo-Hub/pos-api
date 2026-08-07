@@ -25,22 +25,32 @@ import (
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
-// skipCompressForWebsocket wraps a middleware (chi's Compress) so it never runs on a WebSocket
-// upgrade request. chi's compressResponseWriter.Hijack() type-asserts its wrapped writer directly
-// instead of walking an http.ResponseController Unwrap() chain, so wrapping ANY hijack-based
-// handler (nhooyr.io/websocket's Accept, used by every WS stream in this API) in it breaks the
-// hijack with "http.Hijacker is unavailable on the writer" -- confirmed live via kubectl logs
-// during E2E verification. RFC 6455 upgrade requests always carry Connection: Upgrade and
-// Upgrade: websocket, so detecting them here is exact, not a heuristic.
-func skipCompressForWebsocket(compress func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+// bypassForWebsocket wraps a middleware so it never runs on a WebSocket upgrade request — used
+// for TWO independent hijack-breaking middlewares found live during E2E verification of this
+// session's new WS routes:
+//  1. chi's middleware.Compress: compressResponseWriter.Hijack() type-asserts its wrapped writer
+//     directly instead of walking an http.ResponseController Unwrap() chain.
+//  2. httpware.Logging (github.com/Bengo-Hub/httpware, shared fleet-wide): its status-capturing
+//     responseWriter embeds the http.ResponseWriter INTERFACE (not a concrete type), so Go only
+//     promotes that interface's own three methods (Header/Write/WriteHeader) — Hijack is never
+//     promoted regardless of what the underlying writer supports. This is a PRE-EXISTING bug in
+//     the shared httpware module, unrelated to this session's changes: every WS route in this API
+//     (notifications, KDS, print-agent) has silently never been able to hijack through Logging,
+//     which is why print-agent's real-time wake-up socket ALWAYS fell back to its 10s poll loop
+//     without functional impact (poll-fallback = fully correct, just slower) — the same class of
+//     bug this session's new notification stream hit, minus a working fallback for a fresh push.
+//     Proper fix belongs in httpware itself (a shared module, out of scope here); this local
+//     bypass is the safe, scoped workaround. RFC 6455 upgrade requests always carry
+//     Connection: Upgrade and Upgrade: websocket, so detecting them here is exact, not a heuristic.
+func bypassForWebsocket(mw func(http.Handler) http.Handler) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		compressed := compress(next)
+		wrapped := mw(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
 				next.ServeHTTP(w, r)
 				return
 			}
-			compressed.ServeHTTP(w, r)
+			wrapped.ServeHTTP(w, r)
 		})
 	}
 }
@@ -131,18 +141,20 @@ func New(
 		MaxAge:           300,
 	}))
 	r.Use(httpware.RequestID)
-	r.Use(httpware.Logging(log))
+	// bypassForWebsocket: see its doc comment — httpware.Logging's wrapper structurally cannot
+	// support Hijack (a pre-existing fleet-wide bug), which breaks every WS upgrade in this API.
+	r.Use(bypassForWebsocket(httpware.Logging(log)))
 	r.Use(httpware.Recover(log))
 	// gzip the JSON responses (catalog lists, order detail w/ lines+payments) — the largest
 	// payloads on this API had no compression at any layer (confirmed: the devops-k8s ingress-nginx
 	// gzip ConfigMap exists but isn't wired into any ArgoCD Application). Skips already-compressed
-	// types (images/pdf/zip) automatically. skipCompressForWebsocket is REQUIRED: chi's
+	// types (images/pdf/zip) automatically. bypassForWebsocket is REQUIRED: chi's
 	// compressResponseWriter.Hijack() does a raw type-assertion on its wrapped writer rather than
 	// walking an http.ResponseController Unwrap() chain, so wrapping a WebSocket upgrade request in
 	// it breaks nhooyr.io/websocket's Accept() hijack fleet-wide (notifications/KDS/print-agent
 	// streams) with "http.Hijacker is unavailable on the writer" — confirmed live via kubectl logs
 	// during E2E verification (2026-08-07).
-	r.Use(skipCompressForWebsocket(middleware.Compress(5)))
+	r.Use(bypassForWebsocket(middleware.Compress(5)))
 	r.Use(middleware.Timeout(30 * time.Second))
 	r.Use(middleware.RequestSize(10 << 20)) // 10 MB max body size
 	r.Use(outletmw.IPRateLimit(redisClient, outletmw.DefaultRateLimitConfig()))
