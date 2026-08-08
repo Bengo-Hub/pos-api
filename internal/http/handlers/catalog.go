@@ -787,6 +787,14 @@ type catalogItemDTO struct {
 	// allow decimal quantity entry only for continuous units (ml/l/g/kg/m/cm), never for
 	// discretely-counted items.
 	Unit string
+	// KDSStationID mirrors POSCatalogOverride.kds_station_id (Priority 1 in resolveStationForLine)
+	// — the explicit "always route this item here" pin an admin sets via the KDS item-assignment
+	// panel, e.g. an ice-cream scoop living in a mixed "Kids Corner" category but explicitly
+	// pinned to Bar. Empty when the item has no such override, in which case routing falls
+	// through to category_filter/hot-beverage matching. Surfaced here so client-side ticket
+	// print routing (kitchen-bar-print.ts) can honor it exactly like server-side routing
+	// already does — previously it had no way to see this at all.
+	KDSStationID string
 }
 
 // catalogModifierOption is the terminal-facing wire shape for a single modifier option.
@@ -940,6 +948,9 @@ type overrideEntry struct {
 	// carry a real uom_code. Reused here to surface it to the terminal too, so the UI can allow
 	// decimal-qty entry only for continuous units.
 	uom string
+	// kdsStationID is the explicit per-item KDS routing pin (POSCatalogOverride.kds_station_id),
+	// nil when the item has no override. See catalogItemDTO.KDSStationID.
+	kdsStationID *uuid.UUID
 	// outletSpecific marks a row scoped to a specific outlet (vs. a tenant-wide default) — once
 	// one has won the map slot for a SKU, a tenant-wide row must never replace it.
 	outletSpecific bool
@@ -994,6 +1005,7 @@ func mergeCatalogOverrides(overrides []*ent.POSCatalogOverride) map[string]overr
 			durationMinutes:         o.DurationMinutes,
 			complimentary:           metaBool(o.Metadata, "complimentary"),
 			uom:                     metaString(o.Metadata, "uom"),
+			kdsStationID:            o.KdsStationID,
 			outletSpecific:          isOutletSpecific,
 		}
 	}
@@ -1098,6 +1110,11 @@ func (h *CatalogHandler) assembleMenuItems(
 		}
 
 		o, hasOverride := overrideMap[item.SKU]
+
+		kdsStationIDString := ""
+		if hasOverride && o.kdsStationID != nil {
+			kdsStationIDString = o.kdsStationID.String()
+		}
 
 		// Price: local selling_price > inventory tier > 0
 		price := 0.0
@@ -1287,6 +1304,7 @@ func (h *CatalogHandler) assembleMenuItems(
 			POSOverridePrice: posOverridePrice,
 			ModifierGroups:   item.ModifierGroups,
 			Unit:             o.uom,
+			KDSStationID:     kdsStationIDString,
 		})
 	}
 	return out, nil
@@ -1437,6 +1455,10 @@ func catalogItemToMapBase(item catalogItemDTO, outletID *uuid.UUID) map[string]a
 		// Stock unit abbreviation (e.g. "ml", "kg") — lets the terminal allow decimal
 		// quantity entry only for continuous units. Empty for items with no synced unit.
 		"unit": item.Unit,
+		// Explicit per-item KDS routing pin (POSCatalogOverride.kds_station_id), empty when
+		// unset. Lets client-side ticket print routing honor the same override server-side
+		// order-line creation already does — see catalogItemDTO.KDSStationID.
+		"kds_station_id": item.KDSStationID,
 		// Raw inputs to the price merge above — powers the sync-monitor price-reconcile tab's
 		// inventory-vs-POS-DB-override-vs-merged compare. Nil when that source had no value.
 		"inventory_price":    item.InventoryPrice,
