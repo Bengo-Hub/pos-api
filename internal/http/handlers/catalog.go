@@ -414,11 +414,30 @@ const inventoryPageSize = 100
 // single large-limit request silently truncates the catalog — e.g. urban-loft's 269 sellable
 // items came back as the first 100 only and most of the menu vanished from the terminal.
 // baseURL must NOT carry limit/page params; they are appended per page here.
+// inventoryProxyFields lists exactly the top-level JSON keys inventoryProxyItem decodes (kept in
+// sync with that struct's tags) — passed as inventory-api's own opt-in `?fields=` response
+// projection (see inventory-api's field_projection.go) so a catalog sweep transmits only what any
+// pos-api caller of fetchInventoryItems (catalog sync, clinical_records, pharmacy_checkout,
+// reports_profitability) actually decodes, instead of inventory-api's full ~97-field ItemDTO
+// (tags/metadata, e-commerce/SEO fields, eTIMS fields, event fields, images, etc.). Pure wire-size
+// reduction: inventory-api still computes/enriches the full row server-side either way.
+const inventoryProxyFields = "id,sku,name,description,type,is_active,image_url,category_name," +
+	"brand_id,brand_name,brand_code,manufacturer,model,dosage_form,strength,has_variants,variants," +
+	"barcode,requires_age_verification,is_controlled_substance,track_serial_numbers,non_billable," +
+	"not_for_sale,duration_minutes,use_case,total_capacity,booked_capacity,cost_price," +
+	"suggested_price,min_selling_price,max_selling_price,on_hand,selling_price,food_cost_pct," +
+	"status,purchase_price,purchase_pack_size,purchase_unit,yield_pct,tax_code_id,tax_inclusive," +
+	"tax_rate,net_price,tax_amount,modifier_groups"
+
 func fetchAllInventoryItemPages(ctx context.Context, baseURL, outletID string) ([]inventoryProxyItem, error) {
 	sep := "?"
 	if strings.Contains(baseURL, "?") {
 		sep = "&"
 	}
+	// lean=1 skips inventory-api's image-gallery/preferred-supplier eager loads; fields= trims the
+	// response to what inventoryProxyItem actually decodes. Neither is read by any pos-api caller.
+	baseURL = fmt.Sprintf("%s%slean=1&fields=%s", baseURL, sep, inventoryProxyFields)
+	sep = "&"
 	items := make([]inventoryProxyItem, 0, 2*inventoryPageSize)
 	// Hard page ceiling as a runaway guard (5k items); real catalogs stop on total/short-page.
 	for page := 1; page <= 50; page++ {
