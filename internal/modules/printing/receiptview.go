@@ -605,15 +605,19 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		}
 	}
 
-	// De-duplicate: a custom receipt header that was configured to just repeat the outlet's
-	// name/address (the "Urban Loft Cafe Busia" printed twice report, and later the "Gachie"
-	// outlet printing THREE location-ish lines) prints the same information again. Exact-match
-	// covers a header set to literally the outlet name/address; the outlet-name SUBSTRING check
-	// catches a richer free-text header that embeds the outlet name in a fuller description
-	// (e.g. header "Red Hill - Westbay Mall, Gachie" when the outlet is named "Gachie") — a case
-	// exact-match alone would miss. This is the single canonical builder, so the fix applies to
-	// the JSON API, server HTML/PDF, and ESC/POS thermal receipt at once.
-	if h := strings.TrimSpace(v.ReceiptHeader); h != "" && headerRepeatsOutletIdentity(h, v.OutletName, v.OutletAddress) {
+	// De-duplicate: a custom receipt header that was configured to just repeat the business
+	// name/outlet identity already printed above it (the "Urban Loft Cafe Busia" printed twice
+	// report, later the "Gachie" outlet printing THREE location-ish lines, and the BOI
+	// Enterprises case where a header set to the tenant's own name repeated v.DisplayName)
+	// prints the same information again. Exact-match covers a header set to literally the
+	// outlet name/address; the SUBSTRING check catches a richer free-text header that embeds
+	// the name in a fuller description (e.g. header "Red Hill - Westbay Mall, Gachie" when the
+	// outlet is named "Gachie") — a case exact-match alone would miss. DisplayName is checked
+	// too (not just OutletName) since it — not OutletName — is what actually prints as the
+	// headline above ReceiptHeader; the two only differ on a non-HQ outlet that turned off
+	// "Show Business Name on Receipt". This is the single canonical builder, so the fix applies
+	// to the JSON API, server HTML/PDF, and ESC/POS thermal receipt at once.
+	if h := strings.TrimSpace(v.ReceiptHeader); h != "" && headerRepeatsOutletIdentity(h, v.DisplayName, v.OutletName, v.OutletAddress) {
 		v.ReceiptHeader = ""
 	}
 
@@ -621,10 +625,14 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 }
 
 // headerRepeatsOutletIdentity reports whether a custom receipt-header string just repeats the
-// outlet identity already printed above it on every renderer (name, then address).
-func headerRepeatsOutletIdentity(header, outletName, outletAddress string) bool {
+// business/outlet identity already printed above it on every renderer (display name, then
+// outlet name, then address).
+func headerRepeatsOutletIdentity(header, displayName, outletName, outletAddress string) bool {
 	h := strings.ToLower(header)
 	if eq := strings.ToLower(strings.TrimSpace(outletAddress)); eq != "" && h == eq {
+		return true
+	}
+	if name := strings.ToLower(strings.TrimSpace(displayName)); name != "" && strings.Contains(h, name) {
 		return true
 	}
 	if name := strings.ToLower(strings.TrimSpace(outletName)); name != "" && strings.Contains(h, name) {

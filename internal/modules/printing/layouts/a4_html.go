@@ -79,8 +79,11 @@ td.r,th.r{text-align:right}
 	if rec.EtimsKraPin != "" {
 		buf.WriteString(fmt.Sprintf(`<div class="sub"><b>KRA PIN:</b> %s</div>`, escape(rec.EtimsKraPin)))
 	}
-	if rec.ReceiptHeader != "" {
-		buf.WriteString(fmt.Sprintf(`<div class="sub"><b>%s</b></div>`, escape(rec.ReceiptHeader)))
+	// Custom header text configured in POS settings — skipped when it just repeats the business
+	// name/outlet identity already printed above it (the BOI Enterprises case: a header set to
+	// literally the tenant's own name repeating `name`). Mirrors thermal_html.go/thermal_pdf.go.
+	if h := strings.TrimSpace(rec.ReceiptHeader); h != "" && !headerDuplicatesLocation(h, name, rec.OutletName, rec.OutletAddress) {
+		buf.WriteString(fmt.Sprintf(`<div class="sub"><b>%s</b></div>`, escape(h)))
 	}
 	buf.WriteString(`</div>`)
 

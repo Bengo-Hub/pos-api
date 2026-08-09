@@ -62,9 +62,12 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 		pdf.SetFont("Helvetica", "B", 10)
 		pdf.MultiCell(contentW, 5, "KRA PIN: "+rec.EtimsKraPin, "", "C", false)
 	}
-	if rec.ReceiptHeader != "" {
+	// Custom header text configured in POS settings — skipped when it just repeats the business
+	// name/outlet identity already printed above it (the BOI Enterprises case: a header set to
+	// literally the tenant's own name repeating `name`). Mirrors thermal_pdf.go/a4_html.go.
+	if h := strings.TrimSpace(rec.ReceiptHeader); h != "" && !headerDuplicatesLocation(h, name, rec.OutletName, rec.OutletAddress) {
 		pdf.SetFont("Helvetica", "B", 10)
-		pdf.MultiCell(contentW, 5, rec.ReceiptHeader, "", "C", false)
+		pdf.MultiCell(contentW, 5, h, "", "C", false)
 	}
 	pdf.Ln(1)
 	pdf.SetLineWidth(0.4)

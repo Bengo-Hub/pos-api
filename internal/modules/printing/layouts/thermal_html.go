@@ -3,6 +3,7 @@ package layouts
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/bengobox/pos-service/internal/modules/printing"
 )
@@ -96,6 +97,13 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	} else {
 		buf.WriteString(`<h1>RECEIPT</h1>`)
 	}
+	// The outlet's own name prints as a secondary line only when it differs from the header —
+	// the BOI Enterprises multi-outlet case (a non-HQ outlet that turned off "Show Business Name
+	// on Receipt" already has headerName == OutletName, so this is skipped for it). Mirrors
+	// thermal_pdf.go so the browser/print-agent HTML output never disagrees with the PDF.
+	if rec.OutletName != "" && rec.OutletName != headerName {
+		buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, escape(rec.OutletName)))
+	}
 	if rec.OutletAddress != "" {
 		buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, escape(rec.OutletAddress)))
 	}
@@ -108,9 +116,10 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	if rec.EtimsKraPin != "" {
 		buf.WriteString(fmt.Sprintf(`<p class="sub"><b>KRA PIN:</b> %s</p>`, escape(rec.EtimsKraPin)))
 	}
-	// Custom header text configured in POS settings (business name, address, slogan…).
-	if rec.ReceiptHeader != "" {
-		buf.WriteString(fmt.Sprintf(`<p class="hdr">%s</p>`, escape(rec.ReceiptHeader)))
+	// Custom header text configured in POS settings (business name, address, slogan…) — skipped
+	// when it just repeats the identity already printed above (mirrors thermal_pdf.go).
+	if h := strings.TrimSpace(rec.ReceiptHeader); h != "" && !headerDuplicatesLocation(h, headerName, rec.OutletName, rec.OutletAddress) {
+		buf.WriteString(fmt.Sprintf(`<p class="hdr">%s</p>`, escape(h)))
 	}
 	if isGrid {
 		buf.WriteString(`</div>`)
