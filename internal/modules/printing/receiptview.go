@@ -612,12 +612,15 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 	// prints the same information again. Exact-match covers a header set to literally the
 	// outlet name/address; the SUBSTRING check catches a richer free-text header that embeds
 	// the name in a fuller description (e.g. header "Red Hill - Westbay Mall, Gachie" when the
-	// outlet is named "Gachie") — a case exact-match alone would miss. DisplayName is checked
-	// too (not just OutletName) since it — not OutletName — is what actually prints as the
-	// headline above ReceiptHeader; the two only differ on a non-HQ outlet that turned off
-	// "Show Business Name on Receipt". This is the single canonical builder, so the fix applies
-	// to the JSON API, server HTML/PDF, and ESC/POS thermal receipt at once.
-	if h := strings.TrimSpace(v.ReceiptHeader); h != "" && headerRepeatsOutletIdentity(h, v.DisplayName, v.OutletName, v.OutletAddress) {
+	// outlet is named "Gachie") — a case exact-match alone would miss. Checked against BOTH
+	// DisplayName (what actually prints as the headline) AND the raw opts.TenantName: on a
+	// non-HQ outlet that turned "Show Business Name on Receipt" OFF, DisplayName is the outlet's
+	// own name (so the outlet-name check alone would miss it), yet a header still containing the
+	// literal tenant name (e.g. "BOI ENTERPRISES") would silently defeat the whole point of that
+	// toggle — the outlet chose to hide the parent tenant's identity, so a side-channel free-text
+	// field can't be allowed to keep printing it. This is the single canonical builder, so the
+	// fix applies to the JSON API, server HTML/PDF, and ESC/POS thermal receipt at once.
+	if h := strings.TrimSpace(v.ReceiptHeader); h != "" && headerRepeatsOutletIdentity(h, v.DisplayName, opts.TenantName, v.OutletName, v.OutletAddress) {
 		v.ReceiptHeader = ""
 	}
 
@@ -625,14 +628,18 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 }
 
 // headerRepeatsOutletIdentity reports whether a custom receipt-header string just repeats the
-// business/outlet identity already printed above it on every renderer (display name, then
-// outlet name, then address).
-func headerRepeatsOutletIdentity(header, displayName, outletName, outletAddress string) bool {
+// business/outlet identity already printed above it on every renderer (display name, tenant
+// name, outlet name, then address) — or, on a non-HQ outlet hiding the tenant name, would leak
+// it back in through the free-text header.
+func headerRepeatsOutletIdentity(header, displayName, tenantName, outletName, outletAddress string) bool {
 	h := strings.ToLower(header)
 	if eq := strings.ToLower(strings.TrimSpace(outletAddress)); eq != "" && h == eq {
 		return true
 	}
 	if name := strings.ToLower(strings.TrimSpace(displayName)); name != "" && strings.Contains(h, name) {
+		return true
+	}
+	if name := strings.ToLower(strings.TrimSpace(tenantName)); name != "" && strings.Contains(h, name) {
 		return true
 	}
 	if name := strings.ToLower(strings.TrimSpace(outletName)); name != "" && strings.Contains(h, name) {

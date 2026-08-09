@@ -15,6 +15,7 @@ func TestHeaderRepeatsOutletIdentity(t *testing.T) {
 		name          string
 		header        string
 		displayName   string
+		tenantName    string
 		outletName    string
 		outletAddress string
 		want          bool
@@ -23,6 +24,7 @@ func TestHeaderRepeatsOutletIdentity(t *testing.T) {
 			name:        "header exactly repeats the display name",
 			header:      "BOI Enterprises",
 			displayName: "BOI Enterprises",
+			tenantName:  "BOI Enterprises",
 			outletName:  "Nelly Store",
 			want:        true,
 		},
@@ -30,6 +32,7 @@ func TestHeaderRepeatsOutletIdentity(t *testing.T) {
 			name:        "header embeds the display name in a fuller description",
 			header:      "Proudly part of BOI Enterprises",
 			displayName: "BOI Enterprises",
+			tenantName:  "BOI Enterprises",
 			outletName:  "Nelly Store",
 			want:        true,
 		},
@@ -37,6 +40,7 @@ func TestHeaderRepeatsOutletIdentity(t *testing.T) {
 			name:          "header exactly repeats the outlet address",
 			header:        "Westlands, Nairobi",
 			displayName:   "BOI Enterprises",
+			tenantName:    "BOI Enterprises",
 			outletName:    "Nelly Store",
 			outletAddress: "Westlands, Nairobi",
 			want:          true,
@@ -49,9 +53,18 @@ func TestHeaderRepeatsOutletIdentity(t *testing.T) {
 			want:        true,
 		},
 		{
+			name:        "non-HQ outlet hiding the tenant name still leaks it back in via a custom header",
+			header:      "BOI ENTERPRISES",
+			displayName: "Nelly Store", // toggle off: outlet's own name resolved as the headline
+			tenantName:  "BOI Enterprises",
+			outletName:  "Nelly Store",
+			want:        true,
+		},
+		{
 			name:        "genuinely distinct header/slogan is kept",
 			header:      "Thank you for shopping with us!",
 			displayName: "BOI Enterprises",
+			tenantName:  "BOI Enterprises",
 			outletName:  "Nelly Store",
 			want:        false,
 		},
@@ -59,10 +72,10 @@ func TestHeaderRepeatsOutletIdentity(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := headerRepeatsOutletIdentity(tc.header, tc.displayName, tc.outletName, tc.outletAddress)
+			got := headerRepeatsOutletIdentity(tc.header, tc.displayName, tc.tenantName, tc.outletName, tc.outletAddress)
 			if got != tc.want {
-				t.Errorf("headerRepeatsOutletIdentity(%q, %q, %q, %q) = %v, want %v",
-					tc.header, tc.displayName, tc.outletName, tc.outletAddress, got, tc.want)
+				t.Errorf("headerRepeatsOutletIdentity(%q, %q, %q, %q, %q) = %v, want %v",
+					tc.header, tc.displayName, tc.tenantName, tc.outletName, tc.outletAddress, got, tc.want)
 			}
 		})
 	}
@@ -88,5 +101,30 @@ func TestBuildReceiptViewClearsHeaderRepeatingDisplayName(t *testing.T) {
 	}
 	if v.ReceiptHeader != "" {
 		t.Errorf("ReceiptHeader = %q, want cleared (repeats DisplayName)", v.ReceiptHeader)
+	}
+}
+
+// TestBuildReceiptViewClearsHeaderRepeatingHiddenTenantName reproduces the live BOI Enterprises
+// report: Nelly Store (non-HQ) turned "Show Business Name on Receipt" off, so DisplayName
+// correctly resolves to "Nelly Store" — but the tenant had ALSO configured a custom
+// ReceiptHeader literally set to "BOI ENTERPRISES", which kept printing regardless of the
+// toggle (a side-channel that defeated the whole point of turning it off). BuildReceiptView must
+// clear it too.
+func TestBuildReceiptViewClearsHeaderRepeatingHiddenTenantName(t *testing.T) {
+	order := &ent.POSOrder{OrderNumber: "000173", Currency: "KES"}
+	outlet := &ent.Outlet{Name: "Nelly Store", IsHq: false}
+	header := "BOI ENTERPRISES"
+	setting := &ent.OutletSetting{
+		ReceiptHeader: &header,
+		Metadata:      map[string]any{"receipt_show_tenant_name": false},
+	}
+
+	v := BuildReceiptView(order, nil, outlet, setting, ReceiptViewOpts{TenantName: "BOI Enterprises"})
+
+	if v.DisplayName != "Nelly Store" {
+		t.Fatalf("DisplayName = %q, want %q", v.DisplayName, "Nelly Store")
+	}
+	if v.ReceiptHeader != "" {
+		t.Errorf("ReceiptHeader = %q, want cleared (leaks the hidden tenant name back in)", v.ReceiptHeader)
 	}
 }
