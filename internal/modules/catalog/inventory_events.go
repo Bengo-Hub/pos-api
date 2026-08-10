@@ -146,6 +146,8 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 			handleErr = h.syncBundle(context.Background(), evt)
 		case "stock.updated":
 			handleErr = h.onStockUpdated(context.Background(), evt)
+		case "item.cost_changed":
+			handleErr = h.syncItemCostChanged(context.Background(), evt)
 		default:
 			handleErr = h.syncCatalogItem(context.Background(), evt)
 		}
@@ -165,6 +167,10 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 	subs := []sub{
 		{"inventory.item.created", "pos-inv-item-created"},
 		{"inventory.item.updated", "pos-inv-item-updated"},
+		// Goods-receipt-driven standard-cost recompute (RecomputeStandardCost) fires this instead of
+		// item.updated — a consumer only watching item.updated would miss it and let the cached cost
+		// go stale after every purchase-cost change that isn't a full item edit.
+		{"inventory.item.cost_changed", "pos-inv-item-cost-changed"},
 		{"inventory.bundle.created", "pos-inv-bundle-created"},
 		{"inventory.bundle.updated", "pos-inv-bundle-updated"},
 		// Stock-level changes (restock / adjustment / stock-take / sale deduction) bump the catalog
@@ -185,7 +191,7 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 	}
 
 	h.logger.Info("inventory catalog sync subscriptions active",
-		zap.String("subjects", "inventory.item.created/updated, inventory.bundle.created/updated, inventory.stock.updated"))
+		zap.String("subjects", "inventory.item.created/updated/cost_changed, inventory.bundle.created/updated, inventory.stock.updated"))
 	return nil
 }
 
@@ -277,12 +283,18 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 
 	itemID := uuidFromPayload(evt.Payload["id"])
 	durationMinutes := intPtrFromPayload(evt.Payload["duration_minutes"])
-	// Cache the inventory cost so POS-side profitability reports (Most-Profitable) can compute real
-	// margins without an S2S call. Stored in metadata.cost_price; selling_price stays the price override.
+	// Cache the inventory cost so POS-side profitability reports (Most-Profitable, GetSummary,
+	// SalesByHour) can compute real margins without an S2S call. Stored in metadata.cost_price;
+	// selling_price stays the price override.
 	costPrice := floatPtrFromPayload(evt.Payload["cost_price"])
 	// Cache the item's stock unit so pos.sale.finalized can carry a real uom_code
 	// (inventory converts non-stock-unit sale quantities before deducting).
 	unitName, _ := evt.Payload["unit_name"].(string)
+	// Cache manufacturer/category alongside cost so the ?group_by=manufacturer|category rollup on
+	// MostProfitableItems can also read the local cache instead of a live catalog walk
+	// (orders.CatalogCacheBySKU resolves cost + these two fields together, one query).
+	manufacturer, _ := evt.Payload["manufacturer"].(string)
+	categoryName, _ := evt.Payload["category_name"].(string)
 
 	md := map[string]any{}
 	if costPrice != nil {
@@ -290,6 +302,12 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 	}
 	if unitName != "" {
 		md["uom"] = unitName
+	}
+	if manufacturer != "" {
+		md["manufacturer"] = manufacturer
+	}
+	if categoryName != "" {
+		md["category_name"] = categoryName
 	}
 
 	// Atomic create-or-update against the tenant-wide (outlet_id IS NULL) row — see upsert.go for
@@ -331,6 +349,34 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 			}
 		}
 	}
+	return nil
+}
+
+// syncItemCostChanged reacts to inventory.item.cost_changed — a goods-receipt-driven standard-cost
+// recompute (stock.Service.RecomputeStandardCost) — which carries a much thinner payload than
+// item.updated/item.created: only {item_id, sku, previous_cost, new_cost, source}, no
+// use_case/is_active/tax_code_id/etc. Updates ONLY the cached cost_price metadata key via
+// upsertCatalogCostOnly; it must NOT go through syncCatalogItem/upsertSyncedCatalogOverride, whose
+// DO UPDATE SET item_use_case = EXCLUDED.item_use_case / is_available = EXCLUDED.is_available (both
+// unconditional, not COALESCE) would silently blank those real values back to empty/false from this
+// event's missing fields.
+func (h *InventoryEventHandler) syncItemCostChanged(ctx context.Context, evt *sharedevents.Event) error {
+	sku, _ := evt.Payload["sku"].(string)
+	if sku == "" {
+		return nil
+	}
+	if evt.TenantID.String() == "00000000-0000-0000-0000-000000000000" {
+		return nil
+	}
+	newCost := floatPtrFromPayload(evt.Payload["new_cost"])
+	if newCost == nil {
+		return nil
+	}
+	if err := upsertCatalogCostOnly(ctx, h.db, evt.TenantID, sku, *newCost); err != nil {
+		return err
+	}
+	h.logger.Debug("POS catalog cost-only sync (goods receipt cost recompute)",
+		zap.String("sku", sku), zap.Float64("new_cost", *newCost))
 	return nil
 }
 

@@ -243,14 +243,13 @@ func (h *ClinicalHandler) createRegistrationFeeOrder(r *http.Request, tid, outle
 	}
 
 	tenantSlug := resolveTenantSlug(r, h.db)
-	items, _ := fetchInventoryItems(r.Context(), tenantSlug, "", nil)
+	// A single known item id — fetch it directly rather than walking the whole catalog just to
+	// find one row (the same live-full-catalog-fetch mistake resolveUnitCostsBySKU had, at a
+	// smaller scale, but the same fix: fetch only what's actually needed).
 	var sku, name string
 	var price float64
-	for _, it := range items {
-		if it.ID == setting.RegistrationFeeCatalogItemID.String() {
-			sku, name, price = it.SKU, it.Name, 0
-			break
-		}
+	if item, _ := fetchInventoryItemByID(r.Context(), tenantSlug, setting.RegistrationFeeCatalogItemID.String()); item != nil {
+		sku, name, price = item.SKU, item.Name, 0
 	}
 	if sku == "" {
 		h.log.Warn("registration fee catalog item not found in inventory", zap.String("item_id", setting.RegistrationFeeCatalogItemID.String()))

@@ -81,13 +81,22 @@ func (h *PharmacyHandler) CheckoutPrescription(w http.ResponseWriter, r *http.Re
 	}
 
 	// Resolve each line's SKU from the tenant's inventory catalog — PrescriptionLine stores
-	// catalog_item_id only (no sku column), so this reuses the SAME S2S proxy fetch every other
-	// report/profitability handler already uses rather than adding a new field/migration.
+	// catalog_item_id only (no sku column). Fetch only the handful of specific items this
+	// prescription actually references (deduped) rather than walking the entire catalog just to
+	// build a lookup map for a few known ids — the same fix as resolveUnitCostsBySKU, applied to a
+	// single-item-by-id lookup instead of a cost map.
 	tenantSlug := resolveTenantSlug(r, h.db)
-	items, _ := fetchInventoryItems(r.Context(), tenantSlug, "", nil)
-	byItemID := make(map[string]inventoryProxyItem, len(items))
-	for _, it := range items {
-		byItemID[it.ID] = it
+	uniqueItemIDs := make(map[string]struct{}, len(lines))
+	for _, l := range lines {
+		if l.CatalogItemID != nil {
+			uniqueItemIDs[l.CatalogItemID.String()] = struct{}{}
+		}
+	}
+	byItemID := make(map[string]inventoryProxyItem, len(uniqueItemIDs))
+	for id := range uniqueItemIDs {
+		if it, err := fetchInventoryItemByID(r.Context(), tenantSlug, id); err == nil && it != nil {
+			byItemID[id] = *it
+		}
 	}
 
 	orderLines := make([]orders.OrderLineInput, 0, len(lines))

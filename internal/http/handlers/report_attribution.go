@@ -78,3 +78,26 @@ func AttributeOrderLines(o *ent.POSOrder) []AttributedLine {
 	}
 	return out
 }
+
+// collectOrderSKUs returns the distinct set of SKUs across every line of every given order
+// (orders must already have Edges.Lines loaded via WithLines()). Used to scope a
+// resolveUnitCostsBySKU/resolveManufacturerCategoryBySKU cache lookup to exactly the SKUs a report
+// needs, instead of resolving cost for the tenant's entire catalog. Deliberately reads raw
+// o.Edges.Lines rather than AttributeOrderLines — a voided line still needs its cost resolved if
+// any OTHER, non-voided report elsewhere sums it, and including a few harmless extra SKUs in the
+// cache query costs nothing (it's one indexed query, not a per-SKU network call).
+func collectOrderSKUs(orderLists ...[]*ent.POSOrder) []string {
+	set := make(map[string]struct{})
+	for _, orders := range orderLists {
+		for _, o := range orders {
+			for _, l := range o.Edges.Lines {
+				set[l.Sku] = struct{}{}
+			}
+		}
+	}
+	skus := make([]string, 0, len(set))
+	for sku := range set {
+		skus = append(skus, sku)
+	}
+	return skus
+}

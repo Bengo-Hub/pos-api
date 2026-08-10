@@ -1,14 +1,17 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"sort"
 	"strconv"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/modules/orders"
 )
 
 // MostProfitableItems handles GET /{tenantID}/pos/reports/most-profitable?from=&to=&limit=
@@ -18,11 +21,13 @@ import (
 //
 //	units_sold = sum(quantity)
 //	revenue    = sum(quantity * unit_price)
-//	unit_cost  = the item's real production/goods cost from inventory-api (see resolveUnitCosts):
-//	             GOODS/other stockable types use Item.cost_price (purchase cost); RECIPE items use
-//	             the recipe's cost_per_portion (ingredient cost — RECIPE items have no purchase
-//	             cost of their own). Falls back to 0 (and thus profit==revenue) only when
-//	             inventory-api has no cost data for that sku at all.
+//	unit_cost  = the item's real production/goods cost, read from the local POSCatalogOverride
+//	             cache (see resolveUnitCostsBySKU) — GOODS/other stockable types use
+//	             Item.cost_price (purchase cost); RECIPE items use the recipe's cost_per_portion
+//	             (ingredient cost — RECIPE items have no purchase cost of their own), computed
+//	             server-side by inventory-api into the same cost_price field before it's synced
+//	             here. Falls back to 0 (and thus profit==revenue) only when the cache has no cost
+//	             data for that sku at all.
 //	profit     = revenue - unit_cost * units_sold
 //	margin_pct = profit / revenue   (0 when revenue is 0)
 //
@@ -100,9 +105,13 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	// Resolve real per-sku costs from inventory-api in one batch (not N+1) — see
-	// resolveUnitCostsBySKU for the GOODS-cost_price vs RECIPE-cost_per_portion split.
-	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
+	// Resolve real per-sku costs from the local POSCatalogOverride cache in one batch (not N+1, and
+	// not a live inventory-api call — see resolveUnitCostsBySKU).
+	skus := make([]string, 0, len(buckets))
+	for sku := range buckets {
+		skus = append(skus, sku)
+	}
+	costBySKU := resolveUnitCostsBySKU(r.Context(), h.db, tid, skus)
 	for sku, b := range buckets {
 		b.UnitCost = costBySKU[sku]
 		b.Profit = b.Revenue - b.UnitCost*b.UnitsSold
@@ -128,7 +137,7 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 	if groupBy == "manufacturer" || groupBy == "category" {
 		// Roll the same per-sku profitability numbers up to their manufacturer/category —
 		// same cost/profit math as the item-level ranking, coarser grouping key.
-		metaBySKU := resolveManufacturerCategoryBySKU(r, h.db, h.log)
+		metaBySKU := resolveManufacturerCategoryBySKU(r.Context(), h.db, tid, skus)
 		type groupAggT struct {
 			Group     string  `json:"group"`
 			UnitsSold float64 `json:"units_sold"`
@@ -199,59 +208,32 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 	jsonOK(w, resp)
 }
 
-// resolveUnitCostsBySKU fetches the tenant's full inventory catalog and returns sku → real unit
-// cost: Item.cost_price (falling back to purchase_price) for GOODS/other stockable types, or
-// the recipe's cost_per_portion for RECIPE items — the same precedence inventory-api's own
-// enrichPrices applies (items/pricing_enrich.go), and the same source pos-api's own catalog
-// assembly uses for its (view_cost-gated) CostPrice column. Degrades to an empty map (all costs
-// 0, profit falls back to revenue) on proxy failure rather than failing the whole report.
+// resolveUnitCostsBySKU resolves the tenant's real per-sku unit cost from the LOCAL
+// POSCatalogOverride cache (metadata["cost_price"], kept fresh by the
+// inventory.item.created/updated/cost_changed event consumer — see
+// catalog.InventoryEventHandler) rather than a live S2S call to inventory-api.
 //
-// Shared by every report that needs a true per-item cost — MostProfitableItems (JSON) and
-// MostProfitablePDF/SalesByHourDoc (documents) — so the profit margin a tenant sees on screen and
-// in an exported PDF always agree. Previously the PDF path (report_pdf.go's old resolveUnitCost)
-// read POSCatalogOverride.metadata["cost_price"] per-sku — a field nothing in this codebase ever
-// wrote, so unit_cost there was silently always 0 regardless of this fix landing in the JSON path.
-func resolveUnitCostsBySKU(r *http.Request, db *ent.Client, log *zap.Logger) map[string]float64 {
-	out := map[string]float64{}
-	tenantSlug := resolveTenantSlug(r, db)
-	if tenantSlug == "" {
-		log.Warn("resolveUnitCostsBySKU: could not resolve tenant slug for cost lookup")
-		return out
-	}
-	items, err := fetchInventoryItems(r.Context(), tenantSlug, "", nil)
-	if err != nil {
-		log.Warn("resolveUnitCostsBySKU: inventory items fetch failed — costs will be 0", zap.Error(err))
-		return out
-	}
-	for _, item := range items {
-		if cp := firstNonNilFloat(item.CostPrice, item.PurchasePrice); cp != nil && *cp > 0 {
-			out[item.SKU] = *cp
-		}
-	}
-	return out
+// Previously this made a live paginated fetch of the tenant's ENTIRE catalog on every single
+// report request (up to ~39 sequential HTTP calls for a 3,800-item catalog) just to build this
+// map — slow, and it silently degrades to "all costs 0" (gross profit == revenue) the moment
+// inventory-api's per-IP rate limiter (100 req/60s) rejects even one page of that walk, which is
+// exactly what happened in production for a large-catalog tenant (boi-enterprises, 2026-08-10).
+// The cache this now reads is the SAME one sale-time COGS posting and returns/reversals already
+// rely on (orders.CatalogCostBySKU) — one query scoped to only the SKUs this report actually
+// needs, zero network calls, and it can never silently blank out real costs just because a
+// network path degraded.
+//
+// Shared by every report that needs a true per-item cost — MostProfitableItems, GetSummary, the
+// range summary, and SalesByHour (all in reports.go) — so the profit margin a tenant sees on the
+// dashboard, in most-profitable rankings, and in exported PDFs always agree.
+func resolveUnitCostsBySKU(ctx context.Context, db *ent.Client, tenantID uuid.UUID, skus []string) map[string]float64 {
+	return orders.CatalogCostBySKU(ctx, db, tenantID, skus)
 }
 
-type skuMeta struct {
-	Manufacturer string
-	CategoryName string
-}
-
-// resolveManufacturerCategoryBySKU fetches the tenant's inventory catalog and returns
-// sku → {manufacturer, category_name}, for the group_by=manufacturer|category rollup on
-// MostProfitableItems. Degrades to an empty map on proxy failure (falls back to "Unspecified").
-func resolveManufacturerCategoryBySKU(r *http.Request, db *ent.Client, log *zap.Logger) map[string]skuMeta {
-	out := map[string]skuMeta{}
-	tenantSlug := resolveTenantSlug(r, db)
-	if tenantSlug == "" {
-		return out
-	}
-	items, err := fetchInventoryItems(r.Context(), tenantSlug, "", nil)
-	if err != nil {
-		log.Warn("resolveManufacturerCategoryBySKU: inventory items fetch failed", zap.Error(err))
-		return out
-	}
-	for _, item := range items {
-		out[item.SKU] = skuMeta{Manufacturer: item.Manufacturer, CategoryName: item.CategoryName}
-	}
-	return out
+// resolveManufacturerCategoryBySKU resolves manufacturer/category_name from the SAME local
+// POSCatalogOverride cache resolveUnitCostsBySKU reads (one query, both fields), for the
+// group_by=manufacturer|category rollup on MostProfitableItems. Missing entries just come back
+// zero-valued (the caller already falls back to "Unspecified").
+func resolveManufacturerCategoryBySKU(ctx context.Context, db *ent.Client, tenantID uuid.UUID, skus []string) map[string]orders.CatalogCacheEntry {
+	return orders.CatalogCacheBySKU(ctx, db, tenantID, skus)
 }

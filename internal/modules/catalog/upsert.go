@@ -79,3 +79,35 @@ DO UPDATE SET
 	}
 	return nil
 }
+
+// upsertCatalogCostOnly is a narrower sibling of upsertSyncedCatalogOverride for events that carry
+// ONLY a cost signal (inventory.item.cost_changed, from a goods-receipt-driven standard-cost
+// recompute) — it merges JUST the cost_price metadata key via the same jsonb `||` merge, leaving
+// every other column (item_use_case, is_available, tax_code_id, etc.) untouched on conflict.
+// Reusing the general upsert here would be wrong: item.cost_changed's thin payload has none of
+// those fields, and upsertSyncedCatalogOverride's DO UPDATE SET item_use_case = EXCLUDED.item_use_case
+// / is_available = EXCLUDED.is_available (both unconditional, not COALESCE) would silently blank
+// real values back to empty/false. On first-ever sight of a SKU (no row yet from any item.updated/
+// created event) this creates a minimal row with the schema's own column defaults for everything
+// else — acceptable, since a fuller item event fills those in whenever it arrives.
+func upsertCatalogCostOnly(ctx context.Context, db *sql.DB, tenantID uuid.UUID, sku string, costPrice float64) error {
+	if db == nil {
+		return fmt.Errorf("catalog: upsert called with nil db handle")
+	}
+	metaJSON, err := json.Marshal(map[string]any{"cost_price": costPrice})
+	if err != nil {
+		return fmt.Errorf("catalog: marshal cost metadata for %s: %w", sku, err)
+	}
+	const q = `
+INSERT INTO pos_catalog_overrides (id, tenant_id, inventory_sku, outlet_id, metadata, created_at, updated_at)
+VALUES ($1, $2, $3, NULL, $4::jsonb, now(), now())
+ON CONFLICT (tenant_id, inventory_sku) WHERE outlet_id IS NULL
+DO UPDATE SET
+  metadata   = pos_catalog_overrides.metadata || EXCLUDED.metadata,
+  updated_at = now()`
+
+	if _, err := db.ExecContext(ctx, q, uuid.New(), tenantID, sku, string(metaJSON)); err != nil {
+		return fmt.Errorf("catalog: upsert cost-only override for %s: %w", sku, err)
+	}
+	return nil
+}

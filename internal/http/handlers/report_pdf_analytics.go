@@ -73,9 +73,10 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 	var totalRevenue, totalCost float64
 	var totalOrders int
 
-	// Real per-sku cost (GOODS Item.cost_price vs RECIPE cost_per_portion) — see
-	// resolveUnitCostsBySKU. Mirrors ReportsHandler.SalesByHour's profit calc exactly.
-	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
+	// Real per-sku cost (GOODS Item.cost_price vs RECIPE cost_per_portion), resolved from the
+	// local POSCatalogOverride cache — see resolveUnitCostsBySKU. Mirrors
+	// ReportsHandler.SalesByHour's profit calc exactly.
+	costBySKU := resolveUnitCostsBySKU(ctx, h.db, tid, collectOrderSKUs(orders))
 	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
 	// generated for one tenant's orders, which may not be KES.
 	currency := "KES"

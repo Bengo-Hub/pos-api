@@ -481,6 +481,32 @@ func fetchInventoryItems(ctx context.Context, tenantSlug, outletID string, useCa
 	return fetchAllInventoryItemPages(ctx, url, outletID)
 }
 
+// fetchInventoryItemByID fetches ONE inventory item by its inventory-api UUID (?id=, restricting
+// ListItems to a single row while reusing its full enrichment — the same response shape as
+// fetchAllInventoryItemPages). Use this instead of fetchInventoryItems whenever a caller already
+// knows the specific item id(s) it needs (a handful of catalog_item_id references, e.g. a
+// registration-fee item or a prescription line's linked drug) — a full paginated catalog walk to
+// find one or a few known-id rows is the exact "resolveUnitCostsBySKU" mistake this fix removes
+// elsewhere, just for a single-item lookup instead of a cost map. Returns nil, nil (not an error)
+// when the item isn't found, so callers can treat a missing/deleted item as absent.
+func fetchInventoryItemByID(ctx context.Context, tenantSlug, itemID string) (*inventoryProxyItem, error) {
+	url := fmt.Sprintf("%s/v1/%s/inventory/items?id=%s&lean=1&fields=%s", inventoryURL(), tenantSlug, itemID, inventoryProxyFields)
+	body, err := doInventoryGET(ctx, url, "")
+	if err != nil {
+		return nil, err
+	}
+	var wrapper struct {
+		Data []inventoryProxyItem `json:"data"`
+	}
+	if err := json.Unmarshal(body, &wrapper); err != nil {
+		return nil, err
+	}
+	if len(wrapper.Data) == 0 {
+		return nil, nil
+	}
+	return &wrapper.Data[0], nil
+}
+
 // fetchInventoryServiceItems lists inventory items filtered by use_case (e.g. HOSPITALITY_ROOM,
 // HOSPITALITY_FACILITY, CONFERENCE, AMENITY) — used by hotel forms to pick the authoritative
 // inventory master item to link to a Room/Facility/Amenity. Pages past the 100-row cap.

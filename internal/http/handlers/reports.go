@@ -198,7 +198,11 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	// profitability. Same void-aware attribution + real per-sku cost resolution (GOODS
 	// cost_price vs RECIPE cost_per_portion) as MostProfitableItems/SalesByHour, so this figure
 	// never disagrees with those reports.
-	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
+	//
+	// Cost lookup is scoped to only the SKUs actually sold in EITHER window (cheap, in-memory —
+	// both order lists are already loaded via WithLines()) and resolved from the local
+	// POSCatalogOverride cache, not a live inventory-api catalog walk — see resolveUnitCostsBySKU.
+	costBySKU := resolveUnitCostsBySKU(r.Context(), h.db, tid, collectOrderSKUs(curOrderList, prevOrderList))
 	// Same per-order Currency override pattern as MostProfitableItems/MostProfitablePDF — the
 	// dashboard must label these figures with the tenant's actual currency, not assume KES.
 	currency := "KES"
@@ -295,8 +299,9 @@ func (h *ReportsHandler) SalesSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Gross profit for the range — same cost/attribution machinery as GetSummary/
-	// MostProfitableItems/SalesByHour (resolveUnitCostsBySKU + AttributeOrderLines).
-	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
+	// MostProfitableItems/SalesByHour (resolveUnitCostsBySKU + AttributeOrderLines), resolved from
+	// the local POSCatalogOverride cache scoped to only the SKUs in this range's orders.
+	costBySKU := resolveUnitCostsBySKU(r.Context(), h.db, tid, collectOrderSKUs(orders))
 	var totalCost float64
 	for _, o := range orders {
 		for _, al := range AttributeOrderLines(o) {
@@ -768,7 +773,7 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 		Cost       float64
 	}
 
-	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
+	costBySKU := resolveUnitCostsBySKU(r.Context(), h.db, tid, collectOrderSKUs(orders))
 	buckets := make(map[string]*dayRow)
 	// Same per-order Currency override pattern as MostProfitableItems/MostProfitablePDF — the
 	// column headers below must reflect the tenant's actual currency, not assume KES.
@@ -1094,7 +1099,7 @@ func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
 		buckets[i].Hour = i
 	}
 
-	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
+	costBySKU := resolveUnitCostsBySKU(r.Context(), h.db, tid, collectOrderSKUs(orders))
 	for _, o := range orders {
 		hr := o.CreatedAt.In(loc).Hour()
 		buckets[hr].OrderCount++

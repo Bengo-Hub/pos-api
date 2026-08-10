@@ -674,7 +674,8 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 	}
 	// Same cost/attribution machinery as MostProfitableItems/SalesByHour/GetSummary, so the
 	// Gross Profit card here always agrees with the on-screen dashboard and other reports.
-	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
+	// Resolved from the local POSCatalogOverride cache — see resolveUnitCostsBySKU.
+	costBySKU := resolveUnitCostsBySKU(ctx, h.db, tid, collectOrderSKUs(orders))
 	buckets := make(map[string]*dayRow)
 	var totOrders int
 	var totNet, totTax, totGross, totCost float64
@@ -907,7 +908,7 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
+	costBySKU := resolveUnitCostsBySKU(ctx, h.db, tid, collectOrderSKUs(completed))
 
 	type staffBucket struct {
 		orders            int
@@ -1184,9 +1185,10 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 			b.revenue += al.Revenue
 		}
 	}
-	// Batched (not N+1) — see resolveUnitCostsBySKU for the GOODS-cost_price vs
-	// RECIPE-cost_per_portion split. Mirrors ReportsHandler.MostProfitableItems exactly.
-	costBySKU := resolveUnitCostsBySKU(r, h.db, h.log)
+	// Batched (not N+1), resolved from the local POSCatalogOverride cache — see
+	// resolveUnitCostsBySKU for the GOODS-cost_price vs RECIPE-cost_per_portion split. Mirrors
+	// ReportsHandler.MostProfitableItems exactly.
+	costBySKU := resolveUnitCostsBySKU(ctx, h.db, tid, collectOrderSKUs(orders))
 	for sku, b := range buckets {
 		b.unitCost = costBySKU[sku]
 		b.profit = b.revenue - b.unitCost*b.units
