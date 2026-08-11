@@ -572,9 +572,20 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		}
 	}
 	// Resolve the canonical AR key — the selected customer's marketflow CRM contact (the SAME source
-	// the return path uses), via the loyalty account for this phone. Sending both the CRM id and the
-	// phone lets treasury net the credit sale, its returns and its opening balance on ONE customer row.
-	crmContactID := s.ResolveCrmContactID(ctx, req.TenantID, phone)
+	// the return path uses). Sending both the CRM id and the phone lets treasury net the credit
+	// sale, its returns and its opening balance on ONE customer row. Resolve-OR-CREATE (not just
+	// resolve): a customer who never separately enrolled in loyalty must still get a real CRM link
+	// on their very first credit sale, or this charge lands on a phone-only treasury row that a
+	// later CRM-linked flow (opening balance, an invoice) can never be merged with (treasury's own
+	// dedup correctly refuses to merge across two distinct crm_contact_id values). "staff:"-keyed
+	// fallback debtors (fund-from-salary off/not entitled) have no real phone — never mistake that
+	// synthetic key for one to upsert into the CRM.
+	crmContactID := ""
+	if isStaff {
+		crmContactID = s.ResolveCrmContactID(ctx, req.TenantID, phone)
+	} else {
+		crmContactID = s.ResolveOrCreateCrmContactID(ctx, req.TenantID, phone, name)
+	}
 
 	creditResp, err := s.treasuryClient.RecordCreditSale(ctx, req.TenantSlug, treasury.CreditSaleRequest{
 		CrmContactID:       crmContactID,
@@ -707,6 +718,10 @@ func (s *Service) recordComplimentarySale(ctx context.Context, order *ent.POSOrd
 // ResolveCrmContactID returns the marketflow CRM contact id for a customer phone (via the loyalty
 // account), or "" when none is linked. This is the canonical treasury AR key — the same resolution
 // the return path uses — so a credit sale, its returns and its opening balance all land on one row.
+// Read-only by design (no marketflow round-trip, no side effects) — safe for display/validation
+// call sites (receipt rendering, quotation crm-link lookups). For a WRITE path that needs an
+// authoritative CRM link even for a customer who never enrolled in loyalty, use
+// ResolveOrCreateCrmContactID instead.
 func (s *Service) ResolveCrmContactID(ctx context.Context, tenantID uuid.UUID, phone string) string {
 	if strings.TrimSpace(phone) == "" {
 		return ""
@@ -718,6 +733,34 @@ func (s *Service) ResolveCrmContactID(ctx context.Context, tenantID uuid.UUID, p
 		return ""
 	}
 	return acc.CrmContactID.String()
+}
+
+// ResolveOrCreateCrmContactID is ResolveCrmContactID's write-path counterpart: when no cached
+// LoyaltyAccount link exists (the customer never separately enrolled in the loyalty program — the
+// common case for a first-time or infrequent credit customer), it resolves/creates the customer's
+// marketflow CRM contact directly via S2S upsert (dedup-safe: marketflow's Contact.Create is now
+// atomic against concurrent duplicates) instead of leaving the caller with an empty id.
+//
+// This closes the actual root cause behind the "split customer" bug (boi-enterprises, 2026-08-11):
+// recordCreditSale used to post to treasury with an empty CRM id whenever the customer had no
+// LoyaltyAccount, landing on a phone-only CustomerBalance row permanently disconnected from
+// whatever CRM contact a LATER flow (opening balance, an invoice, "Add New Client") creates for
+// the exact same person — treasury's own dedup then correctly refuses to merge across two
+// distinct crm_contact_id values, so the split became permanent. Best-effort: if marketflow is
+// unreachable or disabled, degrades to the same phone-only behaviour as before (never fails the
+// sale over a CRM sync issue).
+func (s *Service) ResolveOrCreateCrmContactID(ctx context.Context, tenantID uuid.UUID, phone, name string) string {
+	if crmID := s.ResolveCrmContactID(ctx, tenantID, phone); crmID != "" {
+		return crmID
+	}
+	if strings.TrimSpace(phone) == "" || s.marketflow == nil || !s.marketflow.Enabled() {
+		return ""
+	}
+	crmID := s.marketflow.UpsertContactByPhone(ctx, tenantID, phone, name)
+	if crmID == uuid.Nil {
+		return ""
+	}
+	return crmID.String()
 }
 
 // staffCreditFromOrderParty extracts the staff BILL-TO party from an order's metadata
