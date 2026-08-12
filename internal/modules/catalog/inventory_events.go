@@ -148,6 +148,8 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 			handleErr = h.onStockUpdated(context.Background(), evt)
 		case "item.cost_changed":
 			handleErr = h.syncItemCostChanged(context.Background(), evt)
+		case "item.pricing_updated":
+			handleErr = h.onItemPricingUpdated(context.Background(), evt)
 		default:
 			handleErr = h.syncCatalogItem(context.Background(), evt)
 		}
@@ -171,6 +173,17 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 		// item.updated — a consumer only watching item.updated would miss it and let the cached cost
 		// go stale after every purchase-cost change that isn't a full item edit.
 		{"inventory.item.cost_changed", "pos-inv-item-cost-changed"},
+		// A tiered price edit (inventory-ui's Catalog item detail page, PUT .../items/{id}/pricing,
+		// AND the bulk "Generate tier pricing" action) publishes THIS event, never item.updated — it
+		// was never subscribed to here at all, so a price change made through that specific screen
+		// bumped no version, busted no cache, and pushed no WS broadcast. The only thing that ever
+		// surfaced it was pos-ui's unrelated 5-min full-catalog background pull, landing anywhere from
+		// ~0-5 minutes later (averaging the reported "2-3 minutes, not instant") depending on where in
+		// its cycle the edit happened. Confirmed live 2026-08-12 against boi-enterprises SKU 17606 via
+		// this exact endpoint, AFTER today's earlier notifHub cross-pod-relay and cache-bust/broadcast-
+		// decouple fixes — those two fixes were real and necessary but didn't cover this event type at
+		// all, which is why the symptom kept recurring even once both were live.
+		{"inventory.item.pricing_updated", "pos-inv-item-pricing-updated"},
 		{"inventory.bundle.created", "pos-inv-bundle-created"},
 		{"inventory.bundle.updated", "pos-inv-bundle-updated"},
 		// Stock-level changes (restock / adjustment / stock-take / sale deduction) bump the catalog
@@ -191,7 +204,7 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 	}
 
 	h.logger.Info("inventory catalog sync subscriptions active",
-		zap.String("subjects", "inventory.item.created/updated/cost_changed, inventory.bundle.created/updated, inventory.stock.updated"))
+		zap.String("subjects", "inventory.item.created/updated/cost_changed/pricing_updated, inventory.bundle.created/updated, inventory.stock.updated"))
 	return nil
 }
 
@@ -228,6 +241,35 @@ func (h *InventoryEventHandler) onStockUpdated(ctx context.Context, evt *sharede
 	}
 	h.bustCatalogSourceCache(ctx, tenant)
 	h.broadcastCatalogChangedDebounced(ctx, tenant, evt.TenantID, "pos:catver-lock:")
+	return nil
+}
+
+// onItemPricingUpdated reacts to inventory.item.pricing_updated — published only by the dedicated
+// per-tier pricing endpoints (single-item PUT .../items/{id}/pricing and the bulk tier-generate
+// action), never by item.updated. Its payload is deliberately thin ({item_id, pricing_tier_id,
+// price, previous_price, currency, effective_from, is_active, updated_at} — no sku/use_case/etc.),
+// so unlike syncCatalogItem this can't upsert a POSCatalogOverride row; there's nothing here to
+// upsert anyway, since the numeric price itself is never cached on that row (pos-api reads it live
+// from inventory-api's item_pricings through the pos:catalogsrc cache, per catalog three-layer
+// pricing — see [[catalog-three-layer-pricing]]). All that's actually needed is the same
+// version-bump + cache-bust + debounced-broadcast triplet onStockUpdated already does, so a price
+// edit through this specific screen gets the identical instant path instead of relying on the
+// unrelated 5-min full-catalog background pull as its only way to ever surface. Own lock prefix
+// (pos:catprice-lock:) so a bulk tier-regenerate (one event per item, easily thousands in a burst)
+// can't starve a concurrent stock-driven broadcast, or vice versa.
+func (h *InventoryEventHandler) onItemPricingUpdated(ctx context.Context, evt *sharedevents.Event) error {
+	if h.redis == nil {
+		return nil
+	}
+	tenant := evt.TenantID.String()
+	if tenant == "" || tenant == "00000000-0000-0000-0000-000000000000" {
+		return nil
+	}
+	if err := h.redis.Set(ctx, CatalogStockVersionKey(tenant), fmt.Sprintf("%d", time.Now().UnixMilli()), 0).Err(); err != nil {
+		h.logger.Debug("catalog price version bump failed", zap.String("tenant", tenant), zap.Error(err))
+	}
+	h.bustCatalogSourceCache(ctx, tenant)
+	h.broadcastCatalogChangedDebounced(ctx, tenant, evt.TenantID, "pos:catprice-lock:")
 	return nil
 }
 
