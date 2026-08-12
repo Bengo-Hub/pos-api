@@ -505,6 +505,14 @@ func fetchAllInventoryItemPages(ctx context.Context, baseURL, outletID string) (
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
+			// A panic in this goroutine (e.g. a downstream library bug) would otherwise be
+			// unrecoverable and crash the ENTIRE pos-api process — every tenant's in-flight
+			// request, not just this one. Convert it into an ordinary page error instead.
+			defer func() {
+				if r := recover(); r != nil {
+					results[p] = pageResult{err: fmt.Errorf("panic fetching page %d: %v", p, r)}
+				}
+			}()
 			pageItems, _, pageHasMore, pageErr := fetchPage(p)
 			results[p] = pageResult{items: pageItems, err: pageErr}
 			// A short/terminal page reached before the total-derived ceiling is not an error —
@@ -588,12 +596,11 @@ type inventoryProxyBundle struct {
 // can pick an authoritative package by name instead of pasting a raw UUID. Pages past the
 // shared 100-row pagination cap like the item fetches.
 func fetchInventoryBundles(ctx context.Context, tenantSlug string) ([]inventoryProxyBundle, error) {
-	bundles := make([]inventoryProxyBundle, 0, inventoryPageSize)
-	for page := 1; page <= 50; page++ {
+	fetchPage := func(page int) ([]inventoryProxyBundle, int, bool, error) {
 		url := fmt.Sprintf("%s/v1/%s/inventory/bundles?limit=%d&page=%d", inventoryURL(), tenantSlug, inventoryPageSize, page)
 		body, err := doInventoryGET(ctx, url, "")
 		if err != nil {
-			return nil, err
+			return nil, 0, false, err
 		}
 		var wrapper struct {
 			Data    []inventoryProxyBundle `json:"data"`
@@ -601,18 +608,68 @@ func fetchInventoryBundles(ctx context.Context, tenantSlug string) ([]inventoryP
 			HasMore *bool                  `json:"hasMore"`
 		}
 		if err := json.Unmarshal(body, &wrapper); err != nil {
-			return nil, err
+			return nil, 0, false, err
 		}
-		bundles = append(bundles, wrapper.Data...)
-		if len(wrapper.Data) < inventoryPageSize {
+		hasMore := len(wrapper.Data) >= inventoryPageSize
+		if wrapper.HasMore != nil {
+			hasMore = *wrapper.HasMore
+		}
+		return wrapper.Data, wrapper.Total, hasMore, nil
+	}
+
+	// Same fix as fetchAllInventoryItemPages: page 1 tells us the total, so every remaining
+	// page can fire concurrently instead of one-at-a-time (see the doc comment there for why
+	// a serial walk of this shape reliably 502s a large catalog).
+	first, total, hasMore, err := fetchPage(1)
+	if err != nil {
+		return nil, err
+	}
+	bundles := make([]inventoryProxyBundle, len(first))
+	copy(bundles, first)
+	if !hasMore {
+		return bundles, nil
+	}
+
+	maxPages := 50
+	if total > 0 {
+		if needed := (total + inventoryPageSize - 1) / inventoryPageSize; needed < maxPages {
+			maxPages = needed
+		}
+	}
+
+	type pageResult struct {
+		items []inventoryProxyBundle
+		err   error
+	}
+	results := make([]pageResult, maxPages+1)
+	sem := make(chan struct{}, inventoryPageFetchConcurrency)
+	var wg sync.WaitGroup
+	for page := 2; page <= maxPages; page++ {
+		wg.Add(1)
+		go func(p int) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			defer func() {
+				if r := recover(); r != nil {
+					results[p] = pageResult{err: fmt.Errorf("panic fetching bundle page %d: %v", p, r)}
+				}
+			}()
+			pageItems, _, _, pageErr := fetchPage(p)
+			results[p] = pageResult{items: pageItems, err: pageErr}
+		}(page)
+	}
+	wg.Wait()
+
+	for page := 2; page <= maxPages; page++ {
+		res := results[page]
+		if res.err != nil {
+			return nil, res.err
+		}
+		if len(res.items) == 0 {
 			break
 		}
-		if wrapper.HasMore != nil && !*wrapper.HasMore {
-			break
-		}
-		if wrapper.Total > 0 && len(bundles) >= wrapper.Total {
-			break
-		}
+		bundles = append(bundles, res.items...)
 	}
 	return bundles, nil
 }
