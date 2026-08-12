@@ -2,14 +2,12 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
-	"github.com/bengobox/pos-service/internal/ent/enttest"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 )
 
@@ -48,8 +46,7 @@ func seedOrderWithCompletedReturn(t *testing.T, client *ent.Client, tenantID uui
 // of the correct 76, confirmed live). The unfiltered display fields (total/count/status) must stay
 // unaffected — they never feed the owed-amount math.
 func TestReturnsRollupFor_ExcludesOffsetInvoiceFromCompletedTotal(t *testing.T) {
-	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:handlers_returnsrollup_%s?mode=memory&cache=shared", uuid.NewString()))
-	t.Cleanup(func() { _ = client.Close() })
+	client := openSQLiteTestClient(t, "handlers_returnsrollup")
 	tenantID := uuid.New()
 	order := seedOrderWithCompletedReturn(t, client, tenantID, 40, posreturn.RefundChannelOffsetInvoice)
 
@@ -69,8 +66,7 @@ func TestReturnsRollupFor_ExcludesOffsetInvoiceFromCompletedTotal(t *testing.T) 
 // store_credit-channel return never reaches treasury AR, so it never gets reflected in paid_total
 // any other way and completedTotal must still net it, exactly as before this fix.
 func TestReturnsRollupFor_IncludesStoreCreditInCompletedTotal(t *testing.T) {
-	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:handlers_returnsrollup_%s?mode=memory&cache=shared", uuid.NewString()))
-	t.Cleanup(func() { _ = client.Close() })
+	client := openSQLiteTestClient(t, "handlers_returnsrollup")
 	tenantID := uuid.New()
 	order := seedOrderWithCompletedReturn(t, client, tenantID, 40, posreturn.RefundChannelStoreCredit)
 

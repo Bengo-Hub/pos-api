@@ -35,6 +35,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/identity"
 	inventorymodule "github.com/bengobox/pos-service/internal/modules/inventory"
 	kdsmodule "github.com/bengobox/pos-service/internal/modules/kds"
+	notifmodule "github.com/bengobox/pos-service/internal/modules/notifications"
 	ordermodule "github.com/bengobox/pos-service/internal/modules/orders"
 	paymentmodule "github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/printing"
@@ -77,6 +78,7 @@ type App struct {
 	treasuryIntentReconciler *paymentmodule.TreasuryIntentReconciler
 	kdsHub                   *kdsmodule.Hub
 	printHub                 *printing.Hub
+	notifHub                 *notifmodule.Hub
 	layawayReminderScheduler *scheduler.LayawayReminderScheduler
 }
 
@@ -302,6 +304,13 @@ func New(ctx context.Context) (*App, error) {
 		deviceHandler.SetPublisher(pub)
 	}
 	notificationsHandler := handlers.NewNotificationsHandler(log, entClient)
+	// Cross-pod relay: with multiple pos-api replicas, the pod that consumes an inventory/treasury
+	// event (or handles the triggering HTTP request) is rarely the same pod a given terminal's
+	// WebSocket is connected to. Without this, catalog_changed/eTIMS-block/treasury-balance pushes
+	// only reached terminals lucky enough to share a pod with the event — see notifications.Hub's
+	// doc comment. Mirrors kdsHandler/printHub's SetRedis+Start below.
+	notifHub := notificationsHandler.Hub()
+	notifHub.SetRedis(redisClient)
 	// Push the eTIMS fiscal block to the selling cashier's terminal the instant a sale is signed
 	// (sync checkout sign OR async treasury.etims.invoice_transmitted), so the receipt's KRA TIMS
 	// details appear via WebSocket push instead of the terminal polling the receipt endpoint.
@@ -729,6 +738,7 @@ func New(ctx context.Context) (*App, error) {
 		treasuryIntentReconciler: treasuryIntentReconciler,
 		kdsHub:                   kdsHub,
 		printHub:                 printHub,
+		notifHub:                 notifHub,
 		layawayReminderScheduler: layawayReminder,
 	}, nil
 }
@@ -767,9 +777,10 @@ func (a *App) Run(ctx context.Context) error {
 		go a.treasuryIntentReconciler.Start(ctx)
 	}
 
-	// Start KDS hub Redis pub/sub relay — no-op if Redis is not configured
+	// Start KDS/print/notification hub Redis pub/sub relays — no-op if Redis is not configured
 	go a.kdsHub.Start(ctx)
 	go a.printHub.Start(ctx)
+	go a.notifHub.Start(ctx)
 
 	// Start layaway payment-due reminder scheduler — fires once at startup then every 24h
 	if a.layawayReminderScheduler != nil {

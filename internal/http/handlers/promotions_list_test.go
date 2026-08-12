@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +12,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
-	"github.com/bengobox/pos-service/internal/ent/enttest"
 	promotions "github.com/bengobox/pos-service/internal/modules/promotions"
 )
 
@@ -21,9 +19,7 @@ import (
 // via held_items_test.go's init() in this same package).
 func newPromoTestClient(t *testing.T) *ent.Client {
 	t.Helper()
-	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:promolisttest_%s?mode=memory&cache=shared", uuid.NewString()))
-	t.Cleanup(func() { _ = client.Close() })
-	return client
+	return openSQLiteTestClient(t, "promolisttest")
 }
 
 func seedListTenant(t *testing.T, client *ent.Client) uuid.UUID {

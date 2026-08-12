@@ -2,23 +2,19 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/bengobox/pos-service/internal/ent"
-	"github.com/bengobox/pos-service/internal/ent/enttest"
 )
 
 // newResolverTestClient opens a fresh in-memory sqlite ent client (same pure-Go shim used by
 // held_items_test.go — the sqlite3 driver is registered once via that file's init()).
 func newResolverTestClient(t *testing.T) *ent.Client {
 	t.Helper()
-	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:resolvertest_%s?mode=memory&cache=shared", uuid.NewString()))
-	t.Cleanup(func() { _ = client.Close() })
-	return client
+	return openSQLiteTestClient(t, "resolvertest")
 }
 
 // seedRole creates a POSRoleV2 (global if tenantID is uuid.Nil, else tenant-scoped) with the

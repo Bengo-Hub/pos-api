@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,7 +16,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
-	"github.com/bengobox/pos-service/internal/ent/enttest"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 )
 
@@ -25,8 +23,7 @@ import (
 // already registered by held_items_test.go's init() in this same package — do not re-register).
 func newStaffTestHandler(t *testing.T) (*StaffHandler, *ent.Client) {
 	t.Helper()
-	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:stafftest_%s?mode=memory&cache=shared", uuid.NewString()))
-	t.Cleanup(func() { _ = client.Close() })
+	client := openSQLiteTestClient(t, "stafftest")
 	return NewStaffHandler(zap.NewNop(), client, "", ""), client
 }
 
