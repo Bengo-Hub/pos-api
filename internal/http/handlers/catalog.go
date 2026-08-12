@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -429,6 +430,16 @@ const inventoryProxyFields = "id,sku,name,description,type,is_active,image_url,c
 	"status,purchase_price,purchase_pack_size,purchase_unit,yield_pct,tax_code_id,tax_inclusive," +
 	"tax_rate,net_price,tax_amount,modifier_groups"
 
+// inventoryPageFetchConcurrency bounds how many pages of a single catalog sweep run in flight at
+// once. A tenant with a large central-warehouse catalog (e.g. an HQ outlet holding the union of
+// every branch's stock) can need ~35-40 pages at inventoryPageSize=100; fetched serially that
+// reliably pushed total handler time past a minute for boi-enterprises' HQ outlet (~3,800 items)
+// and the request died (502) before ever producing a response — so the per-outlet Redis cache
+// (cachedCatalogSource) never got a chance to populate either, making the outlet permanently
+// unable to load its catalog. Fanning pages out concurrently cuts wall-clock roughly by this
+// factor while staying gentle on inventory-api.
+const inventoryPageFetchConcurrency = 8
+
 func fetchAllInventoryItemPages(ctx context.Context, baseURL, outletID string) ([]inventoryProxyItem, error) {
 	sep := "?"
 	if strings.Contains(baseURL, "?") {
@@ -438,14 +449,12 @@ func fetchAllInventoryItemPages(ctx context.Context, baseURL, outletID string) (
 	// response to what inventoryProxyItem actually decodes. Neither is read by any pos-api caller.
 	baseURL = fmt.Sprintf("%s%slean=1&fields=%s", baseURL, sep, inventoryProxyFields)
 	sep = "&"
-	items := make([]inventoryProxyItem, 0, 2*inventoryPageSize)
-	// Hard page ceiling as a runaway guard (5k items); real catalogs stop on total/short-page.
-	for page := 1; page <= 50; page++ {
+
+	fetchPage := func(page int) ([]inventoryProxyItem, int, bool, error) {
 		url := fmt.Sprintf("%s%slimit=%d&page=%d", baseURL, sep, inventoryPageSize, page)
 		body, err := doInventoryGET(ctx, url, outletID)
 		if err != nil {
-			// Never silently serve a truncated catalog: a mid-loop failure is a failure.
-			return nil, err
+			return nil, 0, false, err
 		}
 		var wrapper struct {
 			Data    []inventoryProxyItem `json:"data"`
@@ -453,18 +462,68 @@ func fetchAllInventoryItemPages(ctx context.Context, baseURL, outletID string) (
 			HasMore *bool                `json:"hasMore"`
 		}
 		if err := json.Unmarshal(body, &wrapper); err != nil {
-			return nil, err
+			return nil, 0, false, err
 		}
-		items = append(items, wrapper.Data...)
-		if len(wrapper.Data) < inventoryPageSize {
+		hasMore := len(wrapper.Data) >= inventoryPageSize
+		if wrapper.HasMore != nil {
+			hasMore = *wrapper.HasMore
+		}
+		return wrapper.Data, wrapper.Total, hasMore, nil
+	}
+
+	// Page 1 alone tells us whether there's more to fetch and (usually) the authoritative total,
+	// which lets every remaining page fire in parallel instead of one-at-a-time.
+	first, total, hasMore, err := fetchPage(1)
+	if err != nil {
+		// Never silently serve a truncated catalog: a mid-loop failure is a failure.
+		return nil, err
+	}
+	items := make([]inventoryProxyItem, len(first))
+	copy(items, first)
+	if !hasMore {
+		return items, nil
+	}
+
+	// Hard page ceiling as a runaway guard (5k items); real catalogs stop on total/short-page.
+	maxPages := 50
+	if total > 0 {
+		if needed := (total + inventoryPageSize - 1) / inventoryPageSize; needed < maxPages {
+			maxPages = needed
+		}
+	}
+
+	type pageResult struct {
+		items []inventoryProxyItem
+		err   error
+	}
+	results := make([]pageResult, maxPages+1) // 1-indexed by page number
+	sem := make(chan struct{}, inventoryPageFetchConcurrency)
+	var wg sync.WaitGroup
+	for page := 2; page <= maxPages; page++ {
+		wg.Add(1)
+		go func(p int) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			pageItems, _, pageHasMore, pageErr := fetchPage(p)
+			results[p] = pageResult{items: pageItems, err: pageErr}
+			// A short/terminal page reached before the total-derived ceiling is not an error —
+			// nothing to do here, the range below already stops appending once items run out.
+			_ = pageHasMore
+		}(page)
+	}
+	wg.Wait()
+
+	for page := 2; page <= maxPages; page++ {
+		res := results[page]
+		if res.err != nil {
+			// Never silently serve a truncated catalog: a mid-loop failure is a failure.
+			return nil, res.err
+		}
+		if len(res.items) == 0 {
 			break
 		}
-		if wrapper.HasMore != nil && !*wrapper.HasMore {
-			break
-		}
-		if wrapper.Total > 0 && len(items) >= wrapper.Total {
-			break
-		}
+		items = append(items, res.items...)
 	}
 	return items, nil
 }
