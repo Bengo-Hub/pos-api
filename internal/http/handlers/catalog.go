@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/Bengo-Hub/httpware"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
@@ -41,6 +42,10 @@ type CatalogHandler struct {
 	client *ent.Client
 	redis  *redis.Client
 	rbac   middleware.PermissionChecker
+	// sweepGroup coalesces concurrent cachedCatalogSource cache-misses for the SAME
+	// (tenant, outlet, use-case-set) key onto a single in-flight inventory-api sweep — see the
+	// doc comment on cachedCatalogSource for why this matters for a large catalog.
+	sweepGroup singleflight.Group
 }
 
 func NewCatalogHandler(log *zap.Logger, client *ent.Client) *CatalogHandler {
@@ -1052,42 +1057,65 @@ func (h *CatalogHandler) cachedCatalogSource(ctx context.Context, tid uuid.UUID,
 		}
 	}
 
-	// Fetch items + pricing from inventory-api in parallel.
-	type itemsResult struct {
-		items []inventoryProxyItem
-		err   error
-	}
-	type priceResult struct {
-		prices map[string]float64
-		tiers  map[string]map[string]float64
-		err    error
-	}
-	itemsCh := make(chan itemsResult, 1)
-	priceCh := make(chan priceResult, 1)
-	go func() {
-		items, err := fetchInventoryItems(ctx, tenantSlug, outletIDStr, useCases)
-		itemsCh <- itemsResult{items, err}
-	}()
-	go func() {
-		prices, tiers, err := fetchInventoryPricing(ctx, tenantSlug, outletIDStr)
-		priceCh <- priceResult{prices, tiers, err}
-	}()
-	ir := <-itemsCh
-	pr := <-priceCh
-	if ir.err != nil {
-		return nil, ir.err
-	}
-	if pr.err != nil {
-		h.log.Warn("inventory pricing fetch failed — prices will be 0", zap.Error(pr.err))
-	}
+	// Concurrent requests that all miss the cache for the SAME key (several terminals at a
+	// large-catalog outlet loading within the same ~60s window, or the cache simply being cold
+	// after a deploy) would otherwise each independently re-run the full inventory-api sweep — a
+	// "cache stampede" that multiplies S2S load exactly when the system is already under the most
+	// pressure. This is not hypothetical: it reproduced live during this fix's own verification
+	// (multiple concurrent test requests against boi-enterprises' HQ outlet turned isolated
+	// 1-2s page fetches into repeated 502s). singleflight coalesces same-key misses onto one
+	// in-flight sweep per pod; every waiting caller gets the same result.
+	v, err, _ := h.sweepGroup.Do(key, func() (any, error) {
+		// Deliberately NOT the triggering caller's ctx: singleflight shares this single
+		// in-flight call across every concurrent caller, so if it were tied to whichever
+		// caller happened to trigger it, that one caller disconnecting (a client timeout, a
+		// closed browser tab) would cancel the fetch for every OTHER waiter too. A bounded,
+		// independent context lets the sweep run to completion (or its own timeout) regardless
+		// of any individual caller's fate.
+		sweepCtx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+		defer cancel()
 
-	src := &catalogSourceSet{Items: ir.items, Prices: pr.prices, Tiers: pr.tiers}
-	if h.redis != nil && pr.err == nil {
-		if raw, err := json.Marshal(src); err == nil {
-			_ = h.redis.Set(ctx, key, raw, catalogSourceTTL).Err()
+		// Fetch items + pricing from inventory-api in parallel.
+		type itemsResult struct {
+			items []inventoryProxyItem
+			err   error
 		}
+		type priceResult struct {
+			prices map[string]float64
+			tiers  map[string]map[string]float64
+			err    error
+		}
+		itemsCh := make(chan itemsResult, 1)
+		priceCh := make(chan priceResult, 1)
+		go func() {
+			items, err := fetchInventoryItems(sweepCtx, tenantSlug, outletIDStr, useCases)
+			itemsCh <- itemsResult{items, err}
+		}()
+		go func() {
+			prices, tiers, err := fetchInventoryPricing(sweepCtx, tenantSlug, outletIDStr)
+			priceCh <- priceResult{prices, tiers, err}
+		}()
+		ir := <-itemsCh
+		pr := <-priceCh
+		if ir.err != nil {
+			return nil, ir.err
+		}
+		if pr.err != nil {
+			h.log.Warn("inventory pricing fetch failed — prices will be 0", zap.Error(pr.err))
+		}
+
+		src := &catalogSourceSet{Items: ir.items, Prices: pr.prices, Tiers: pr.tiers}
+		if h.redis != nil && pr.err == nil {
+			if raw, err := json.Marshal(src); err == nil {
+				_ = h.redis.Set(sweepCtx, key, raw, catalogSourceTTL).Err()
+			}
+		}
+		return src, nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	return src, nil
+	return v.(*catalogSourceSet), nil
 }
 
 // overrideEntry is the POS-specific per-SKU override merged onto an inventory-api item.
