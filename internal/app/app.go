@@ -140,10 +140,17 @@ func New(ctx context.Context) (*App, error) {
 	entClient := ent.NewClient(ent.Driver(drv))
 
 	// Run versioned migrations only when explicitly enabled.
-	// In production, migrations are run by the entrypoint before the server starts.
+	// In production, migrations are run by the entrypoint (cmd/migrate) before the server starts —
+	// this inline path is a dev/local convenience only. Same WithDropColumn/WithDropIndex flags as
+	// cmd/migrate/main.go for dev-parity: without them ent's live diff silently skips any
+	// index/column removal a struct change implies (the 2026-07-26 outage this service's
+	// cmd/migrate binary was fixed for), and a dev testing locally with RunMigrations=true should
+	// see the same drop behavior production's real migrate job does.
 	if cfg.Postgres.RunMigrations {
 		if err := entClient.Schema.Create(ctx,
 			schema.WithDir(migrate.Dir),
+			schema.WithDropColumn(true),
+			schema.WithDropIndex(true),
 		); err != nil {
 			return nil, fmt.Errorf("ent schema create: %w", err)
 		}

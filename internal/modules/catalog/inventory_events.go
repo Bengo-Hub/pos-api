@@ -200,9 +200,20 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 // per-(tenant,outlet,use-case) catalog source cache so that refresh reads fresh on_hand instead of
 // the up-to-60s-stale Redis snapshot.
 //
-// Debounced to at most once per tenant per 30s: a busy till emits a stock.updated per sale, and an
-// un-debounced version bump would make every terminal refetch the whole (potentially multi-thousand
-// item) catalog on every sale. 30s bounds the refetch rate while still healing a stale row quickly.
+// The version bump and cache-bust ALWAYS run, on every event — both are cheap (a Redis SET and a
+// SCAN+DEL) and neither causes any client-side work by itself. Only the real-time WS broadcast is
+// rate-limited (at most once per tenant per 30s, see the lock below): a busy till emits a
+// stock.updated per sale, and an un-debounced broadcast would make every terminal refetch the whole
+// (potentially multi-thousand item) catalog on every sale. Terminals whose socket is momentarily
+// down (or between broadcasts) still get the fresh version+cache within their next ~45s poll.
+//
+// NOTE (2026-08-12): the cache-bust used to be INSIDE the same debounce gate as the broadcast — on
+// a busy multi-thousand-item store, a run of stock.updated events every few seconds meant the
+// debounce lock was almost always already held, so a human's specific edit (price, availability)
+// could have its cache-bust silently skipped too, not just its broadcast. The Redis catalogsrc
+// cache then stayed stale for up to its own 60s TTL on top of the poll interval, compounding into
+// the "took a couple of minutes, not instant" symptom reported live against boi-enterprises SKU
+// 17606. Splitting these apart so the cache-bust is unconditional closes that gap.
 func (h *InventoryEventHandler) onStockUpdated(ctx context.Context, evt *sharedevents.Event) error {
 	if h.redis == nil {
 		return nil
@@ -211,27 +222,31 @@ func (h *InventoryEventHandler) onStockUpdated(ctx context.Context, evt *sharede
 	if tenant == "" || tenant == "00000000-0000-0000-0000-000000000000" {
 		return nil
 	}
-	// Debounce lock — skip (still Ack) when another stock event bumped this tenant in the last 30s.
-	ok, err := h.redis.SetNX(ctx, "pos:catver-lock:"+tenant, "1", 30*time.Second).Result()
-	if err != nil || !ok {
-		return nil
-	}
 	// Bump the stock version → /pos/catalog/version changes → terminals force-refresh.
 	if err := h.redis.Set(ctx, CatalogStockVersionKey(tenant), fmt.Sprintf("%d", time.Now().UnixMilli()), 0).Err(); err != nil {
 		h.logger.Debug("catalog stock version bump failed", zap.String("tenant", tenant), zap.Error(err))
 	}
 	h.bustCatalogSourceCache(ctx, tenant)
-	// Real-time: push a catalog-changed signal to every terminal on this tenant so they refresh
-	// immediately instead of waiting up to ~45s for their version poll. Debounced by the 30s lock
-	// above, so this fires at most once per tenant per 30s (no WS spam). The version poll stays as
-	// a fallback for terminals whose socket is momentarily down.
-	if h.notifHub != nil {
-		h.notifHub.BroadcastToTenant(evt.TenantID, notifications.Message{
-			Type:    "catalog_changed",
-			Payload: map[string]any{"tenant_id": tenant},
-		})
-	}
+	h.broadcastCatalogChangedDebounced(ctx, tenant, evt.TenantID, "pos:catver-lock:")
 	return nil
+}
+
+// broadcastCatalogChangedDebounced pushes a real-time catalog-changed signal to every terminal on
+// the tenant, at most once per tenant per 30s per lockPrefix (onStockUpdated and syncCatalogItem
+// each use their own prefix so a burst of one kind of event can't starve the other's broadcast
+// entirely). Never gates the cache-bust — call this AFTER busting the cache, not instead of it.
+func (h *InventoryEventHandler) broadcastCatalogChangedDebounced(ctx context.Context, tenant string, tenantID uuid.UUID, lockPrefix string) {
+	if h.redis == nil || h.notifHub == nil {
+		return
+	}
+	ok, err := h.redis.SetNX(ctx, lockPrefix+tenant, "1", 30*time.Second).Result()
+	if err != nil || !ok {
+		return
+	}
+	h.notifHub.BroadcastToTenant(tenantID, notifications.Message{
+		Type:    "catalog_changed",
+		Payload: map[string]any{"tenant_id": tenant},
+	})
 }
 
 // bustCatalogSourceCache deletes all pos:catalogsrc:{tenant}:* cache entries (one per outlet /
@@ -337,17 +352,15 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 	// stock.updated already gets, so a price correction shows up on the terminal immediately
 	// instead of "eventually, maybe" — this was the root cause of "I changed the price and POS
 	// never reflects it, even after refresh."
+	//
+	// The cache-bust always runs (cheap, no client-visible side effect by itself); only the WS
+	// broadcast is debounced (own lock prefix, separate from onStockUpdated's, so a burst of
+	// unrelated stock events can't starve a price/availability edit's broadcast — see
+	// broadcastCatalogChangedDebounced's doc comment for why these used to be bundled together).
 	if h.redis != nil {
 		tenant := tenantID.String()
-		if ok, lockErr := h.redis.SetNX(ctx, "pos:catsync-lock:"+tenant, "1", 30*time.Second).Result(); lockErr == nil && ok {
-			h.bustCatalogSourceCache(ctx, tenant)
-			if h.notifHub != nil {
-				h.notifHub.BroadcastToTenant(tenantID, notifications.Message{
-					Type:    "catalog_changed",
-					Payload: map[string]any{"tenant_id": tenant},
-				})
-			}
-		}
+		h.bustCatalogSourceCache(ctx, tenant)
+		h.broadcastCatalogChangedDebounced(ctx, tenant, tenantID, "pos:catsync-lock:")
 	}
 	return nil
 }
