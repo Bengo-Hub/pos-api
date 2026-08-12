@@ -153,6 +153,12 @@ func (h *StaffHandler) ListStaffForAdmin(w http.ResponseWriter, r *http.Request)
 
 	p := pagination.Parse(r)
 	baseQ := h.client.StaffMember.Query().Where(entstaff.TenantID(tid))
+	// Same search-past-pagination fix as inventory-api's supplier picker: without this, a
+	// staff member sorting past the default page limit is invisible to any frontend picker
+	// that searches by typing (assign-staff selects on layaway/shift-rotation/staff-credit).
+	if search := strings.TrimSpace(r.URL.Query().Get("search")); search != "" {
+		baseQ = baseQ.Where(entstaff.NameContainsFold(search))
+	}
 	total, _ := baseQ.Clone().Count(r.Context())
 	members, err := baseQ.Order(ent.Asc(entstaff.FieldName)).
 		WithOutlets(func(soq *ent.StaffOutletQuery) {
