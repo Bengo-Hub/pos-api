@@ -6,6 +6,7 @@ package staffcredit
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -163,10 +164,17 @@ func (s *Service) Provision(ctx context.Context, tenantID uuid.UUID, in Provisio
 }
 
 // List returns a tenant's staff-credit links (optionally filtered by status), newest first.
-func (s *Service) List(ctx context.Context, tenantID uuid.UUID, status string, limit, offset int) ([]*ent.StaffPurchaseLink, int, error) {
+// from/to (zero value = no bound) optionally narrow the list to a created_at range.
+func (s *Service) List(ctx context.Context, tenantID uuid.UUID, status string, from, to time.Time, limit, offset int) ([]*ent.StaffPurchaseLink, int, error) {
 	q := s.db.StaffPurchaseLink.Query().Where(staffpurchaselink.TenantID(tenantID))
 	if status != "" {
 		q = q.Where(staffpurchaselink.StatusEQ(staffpurchaselink.Status(status)))
+	}
+	if !from.IsZero() {
+		q = q.Where(staffpurchaselink.CreatedAtGTE(from))
+	}
+	if !to.IsZero() {
+		q = q.Where(staffpurchaselink.CreatedAtLTE(to))
 	}
 	total, err := q.Clone().Count(ctx)
 	if err != nil {
