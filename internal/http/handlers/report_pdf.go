@@ -671,6 +671,7 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 	type dayRow struct {
 		orders                int
 		net, tax, gross, cost float64
+		netRevenue, profit    float64
 	}
 	// Same cost/attribution machinery as MostProfitableItems/SalesByHour/GetSummary, so the
 	// Gross Profit card here always agrees with the on-screen dashboard and other reports.
@@ -678,7 +679,7 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 	costBySKU := resolveUnitCostsBySKU(ctx, h.db, tid, collectOrderSKUs(orders))
 	buckets := make(map[string]*dayRow)
 	var totOrders int
-	var totNet, totTax, totGross, totCost float64
+	var totNet, totTax, totGross, totCost, totNetRevenue, totProfit float64
 	// Same per-order Currency override pattern as MostProfitablePDF/MostProfitableItems — a
 	// report is generated for one tenant's orders, which may not be KES.
 	currency := "KES"
@@ -698,10 +699,17 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 		totNet += o.Subtotal
 		totTax += o.TaxTotal
 		totGross += o.TotalAmount
+		// LineProfit nets VAT out of revenue before subtracting cost — see report_attribution.go —
+		// so "Profit" here always agrees with GetSummary/SalesSummary/MostProfitableItems instead
+		// of subtracting cost from the VAT-inclusive gross column.
 		for _, al := range AttributeOrderLines(o) {
-			cost := costBySKU[al.SKU] * al.Quantity
+			netRevenue, cost, profit := LineProfit(al, costBySKU[al.SKU])
 			buckets[day].cost += cost
+			buckets[day].netRevenue += netRevenue
+			buckets[day].profit += profit
 			totCost += cost
+			totNetRevenue += netRevenue
+			totProfit += profit
 		}
 	}
 	days := make([]string, 0, len(buckets))
@@ -718,13 +726,13 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 			docs.Text(fmtAmount(b.net)),
 			docs.Text(fmtAmount(b.tax)),
 			docs.Text(fmtAmount(b.gross)),
-			docs.Text(fmtAmount(b.gross - b.cost)),
+			docs.Text(fmtAmount(b.profit)),
 		})
 	}
-	grossProfit := totGross - totCost
+	grossProfit := totProfit
 	marginPct := 0.0
-	if totGross != 0 {
-		marginPct = grossProfit / totGross * 100
+	if totNetRevenue != 0 {
+		marginPct = grossProfit / totNetRevenue * 100
 	}
 
 	report := h.newReport(ctx, tid, oid, "Daily Sales", "", from, to, false)
@@ -914,7 +922,11 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 		orders            int
 		revenue, discount float64
 		cost              float64
-		voids             int
+		// netRevenue/profit use the centralized LineProfit formula (VAT netted out of revenue) —
+		// see report_attribution.go — so this report's Gross Profit card always agrees with
+		// GetSummary/SalesSummary/MostProfitableItems.
+		netRevenue, profit float64
+		voids              int
 	}
 	buckets := make(map[uuid.UUID]*staffBucket)
 	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
@@ -931,7 +943,10 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 		buckets[o.UserID].revenue += o.TotalAmount
 		buckets[o.UserID].discount += o.DiscountTotal
 		for _, al := range AttributeOrderLines(o) {
-			buckets[o.UserID].cost += costBySKU[al.SKU] * al.Quantity
+			netRevenue, cost, profit := LineProfit(al, costBySKU[al.SKU])
+			buckets[o.UserID].cost += cost
+			buckets[o.UserID].netRevenue += netRevenue
+			buckets[o.UserID].profit += profit
 		}
 	}
 	for _, o := range voided {
@@ -962,28 +977,27 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 
 	rows := make([][]docs.Cell, 0, len(list))
 	var totOrders, totVoids int
-	var totRevenue, totDiscount, totCost float64
+	var totRevenue, totDiscount, totNetRevenue, totProfit float64
 	for _, s := range list {
 		b := s.bucket
-		profit := b.revenue - b.cost
 		rows = append(rows, []docs.Cell{
 			docs.Text(s.name),
 			docs.Text(strconv.Itoa(b.orders)),
 			docs.Text(fmtAmount(b.revenue)),
 			docs.Text(fmtAmount(b.discount)),
 			docs.Text(strconv.Itoa(b.voids)),
-			docs.Text(fmtAmount(profit)),
+			docs.Text(fmtAmount(b.profit)),
 		})
 		totOrders += b.orders
 		totVoids += b.voids
 		totRevenue += b.revenue
 		totDiscount += b.discount
-		totCost += b.cost
+		totNetRevenue += b.netRevenue
+		totProfit += b.profit
 	}
-	totProfit := totRevenue - totCost
 	marginPct := 0.0
-	if totRevenue != 0 {
-		marginPct = totProfit / totRevenue * 100
+	if totNetRevenue != 0 {
+		marginPct = totProfit / totNetRevenue * 100
 	}
 
 	// Chart: revenue by server. Capped at the top 12 so the bar labels stay readable — the
@@ -1161,6 +1175,7 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 	type itemAgg struct {
 		sku, name                                   string
 		units, revenue, unitCost, profit, marginPct float64
+		tax                                         float64
 	}
 	buckets := make(map[string]*itemAgg)
 	currency := "KES"
@@ -1183,6 +1198,7 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 			}
 			b.units += al.Quantity
 			b.revenue += al.Revenue
+			b.tax += al.Tax
 		}
 	}
 	// Batched (not N+1), resolved from the local POSCatalogOverride cache — see
@@ -1191,18 +1207,22 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 	costBySKU := resolveUnitCostsBySKU(ctx, h.db, tid, collectOrderSKUs(orders))
 	for sku, b := range buckets {
 		b.unitCost = costBySKU[sku]
-		b.profit = b.revenue - b.unitCost*b.units
-		if b.revenue != 0 {
-			b.marginPct = b.profit / b.revenue * 100
+		// netRevenue excludes VAT — same centralized basis as GetSummary/SalesSummary (see
+		// LineProfit) — so this ranking's Profit/Margin never disagrees with the dashboard.
+		netRevenue := b.revenue - b.tax
+		b.profit = netRevenue - b.unitCost*b.units
+		if netRevenue != 0 {
+			b.marginPct = b.profit / netRevenue * 100
 		}
 	}
 	list := make([]*itemAgg, 0, len(buckets))
-	var totRevenue, totCost, totProfit float64
+	var totRevenue, totCost, totProfit, totNetRevenue float64
 	for _, b := range buckets {
 		list = append(list, b)
 		totRevenue += b.revenue
 		totCost += b.unitCost * b.units
 		totProfit += b.profit
+		totNetRevenue += b.revenue - b.tax
 	}
 	sort.Slice(list, func(i, j int) bool {
 		if list[i].profit != list[j].profit {
@@ -1230,8 +1250,8 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 		})
 	}
 	totMargin := 0.0
-	if totRevenue != 0 {
-		totMargin = totProfit / totRevenue * 100
+	if totNetRevenue != 0 {
+		totMargin = totProfit / totNetRevenue * 100
 	}
 
 	report := h.newReport(ctx, tid, oid, "Most Profitable Items", "", from, to, true)

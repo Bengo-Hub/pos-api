@@ -123,6 +123,7 @@ func New(
 	screensaverMedia *handlers.ScreensaverMediaHandler,
 	mediaRoot string,
 	recipeCOGSBackfill *handlers.RecipeCOGSBackfillHandler,
+	catalogCostBackfill *handlers.CatalogCostBackfillHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -184,7 +185,7 @@ func New(
 
 				// Platform-default backup destination (OneDrive/GDrive/S3/WebDAV/
 				// SFTP/SMB) — platform-owner only. Secret params encrypted at rest.
-				if backupDest != nil || recipeCOGSBackfill != nil {
+				if backupDest != nil || recipeCOGSBackfill != nil || catalogCostBackfill != nil {
 					admin.Group(func(platform chi.Router) {
 						platform.Use(requirePlatformOwner)
 						if backupDest != nil {
@@ -194,6 +195,11 @@ func New(
 						// platform-owner only, same gate as the backup-destination routes above.
 						if recipeCOGSBackfill != nil {
 							recipeCOGSBackfill.RegisterRoutes(platform)
+						}
+						// One-time catalog-cost cache reconciliation (see
+						// pos_catalog_cost_backfill.go) — same gate, tenant-scoped or fleet-wide.
+						if catalogCostBackfill != nil {
+							catalogCostBackfill.RegisterRoutes(platform)
 						}
 					})
 				}

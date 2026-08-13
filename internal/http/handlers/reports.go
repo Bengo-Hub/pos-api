@@ -206,29 +206,25 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	// Same per-order Currency override pattern as MostProfitableItems/MostProfitablePDF — the
 	// dashboard must label these figures with the tenant's actual currency, not assume KES.
 	currency := "KES"
-	var curCost, prevCost float64
+	var curLines, prevLines []AttributedLine
 	for _, o := range curOrderList {
 		if o.Currency != "" {
 			currency = o.Currency
 		}
-		for _, al := range AttributeOrderLines(o) {
-			curCost += costBySKU[al.SKU] * al.Quantity
-		}
+		curLines = append(curLines, AttributeOrderLines(o)...)
 	}
 	for _, o := range prevOrderList {
-		for _, al := range AttributeOrderLines(o) {
-			prevCost += costBySKU[al.SKU] * al.Quantity
-		}
+		prevLines = append(prevLines, AttributeOrderLines(o)...)
 	}
-	grossProfit := curRev - curCost
-	grossMarginPct := 0.0
-	if curRev != 0 {
-		grossMarginPct = grossProfit / curRev * 100
-	}
-	prevGrossProfit := prevRev - prevCost
+	// SumLineProfits nets VAT out of revenue before subtracting cost (see LineProfit) — the same
+	// centralized formula MostProfitableItems/SalesByHour/SalesSummary/etc. use, so this figure can
+	// never disagree with them, and can never again silently equal revenue just because a sold
+	// SKU's cost never made it into the local cache (SKUsMissingCost surfaces that instead).
+	curTotals := SumLineProfits(curLines, costBySKU)
+	prevTotals := SumLineProfits(prevLines, costBySKU)
 	grossProfitGrowth := 0.0
-	if prevGrossProfit > 0 {
-		grossProfitGrowth = (grossProfit - prevGrossProfit) / prevGrossProfit * 100
+	if prevTotals.Profit > 0 {
+		grossProfitGrowth = (curTotals.Profit - prevTotals.Profit) / prevTotals.Profit * 100
 	}
 
 	jsonOK(w, map[string]any{
@@ -239,9 +235,10 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 		"items_sold":          itemsSold,
 		"revenue_growth":      revenueGrowth,
 		"orders_growth":       ordersGrowth,
-		"gross_profit":        grossProfit,
-		"gross_margin_pct":    grossMarginPct,
+		"gross_profit":        curTotals.Profit,
+		"gross_margin_pct":    curTotals.MarginPct,
 		"gross_profit_growth": grossProfitGrowth,
+		"skus_missing_cost":   curTotals.SKUsMissingCost,
 		"currency":            currency,
 		"from":                curFrom.Format(time.RFC3339),
 		"to":                  curTo.Format(time.RFC3339),
@@ -298,33 +295,29 @@ func (h *ReportsHandler) SalesSummary(w http.ResponseWriter, r *http.Request) {
 		avgOrderValue = totalRevenue / float64(len(orders))
 	}
 
-	// Gross profit for the range — same cost/attribution machinery as GetSummary/
-	// MostProfitableItems/SalesByHour (resolveUnitCostsBySKU + AttributeOrderLines), resolved from
-	// the local POSCatalogOverride cache scoped to only the SKUs in this range's orders.
+	// Gross profit for the range — same centralized formula as GetSummary/MostProfitableItems/
+	// SalesByHour (LineProfit/SumLineProfits: nets tax out of revenue, then subtracts cost
+	// resolved from the local POSCatalogOverride cache scoped to only the SKUs in this range's
+	// orders — see resolveUnitCostsBySKU).
 	costBySKU := resolveUnitCostsBySKU(r.Context(), h.db, tid, collectOrderSKUs(orders))
-	var totalCost float64
+	var lines []AttributedLine
 	for _, o := range orders {
-		for _, al := range AttributeOrderLines(o) {
-			totalCost += costBySKU[al.SKU] * al.Quantity
-		}
+		lines = append(lines, AttributeOrderLines(o)...)
 	}
-	grossProfit := totalRevenue - totalCost
-	grossMarginPct := 0.0
-	if totalRevenue != 0 {
-		grossMarginPct = grossProfit / totalRevenue * 100
-	}
+	totals := SumLineProfits(lines, costBySKU)
 
 	jsonOK(w, map[string]any{
-		"from":             from.Format(time.RFC3339),
-		"to":               to.Format(time.RFC3339),
-		"order_count":      len(orders),
-		"total_revenue":    totalRevenue,
-		"total_tax":        totalTax,
-		"total_discount":   totalDiscount,
-		"avg_order_value":  avgOrderValue,
-		"gross_profit":     grossProfit,
-		"gross_margin_pct": grossMarginPct,
-		"currency":         currency,
+		"from":              from.Format(time.RFC3339),
+		"to":                to.Format(time.RFC3339),
+		"order_count":       len(orders),
+		"total_revenue":     totalRevenue,
+		"total_tax":         totalTax,
+		"total_discount":    totalDiscount,
+		"avg_order_value":   avgOrderValue,
+		"gross_profit":      totals.Profit,
+		"gross_margin_pct":  totals.MarginPct,
+		"skus_missing_cost": totals.SKUsMissingCost,
+		"currency":          currency,
 	})
 }
 
@@ -771,6 +764,11 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 		Tax        float64
 		Net        float64
 		Cost       float64
+		// Profit is computed via the centralized LineProfit formula (tax netted out of the
+		// per-line attributed revenue, not row.Revenue-row.Cost) — so this column always agrees
+		// with GetSummary/SalesSummary/MostProfitableItems, and reconciles with treasury's GL,
+		// which books Revenue net of VAT.
+		Profit float64
 	}
 
 	costBySKU := resolveUnitCostsBySKU(r.Context(), h.db, tid, collectOrderSKUs(orders))
@@ -791,7 +789,9 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 		buckets[day].Tax += o.TaxTotal
 		buckets[day].Net += o.Subtotal
 		for _, al := range AttributeOrderLines(o) {
-			buckets[day].Cost += costBySKU[al.SKU] * al.Quantity
+			_, cost, profit := LineProfit(al, costBySKU[al.SKU])
+			buckets[day].Cost += cost
+			buckets[day].Profit += profit
 		}
 	}
 
@@ -827,7 +827,7 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 			fmt.Sprintf("%.2f", row.Net),
 			fmt.Sprintf("%.2f", row.Tax),
 			fmt.Sprintf("%.2f", row.Revenue),
-			fmt.Sprintf("%.2f", row.Revenue-row.Cost),
+			fmt.Sprintf("%.2f", row.Profit),
 		})
 	}
 	cw.Flush()
@@ -1093,6 +1093,10 @@ func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
 		Cost       float64 `json:"cost"`
 		Profit     float64 `json:"profit"`
 		MarginPct  float64 `json:"margin_pct"`
+		// netRevenue (VAT-excluded) is the correct margin-pct denominator — Revenue above stays
+		// VAT-inclusive (matches what customers actually paid) for display, same as every other
+		// report's headline "revenue" figure.
+		netRevenue float64
 	}
 	buckets := make([]hourBucket, 24)
 	for i := range buckets {
@@ -1104,16 +1108,19 @@ func (h *ReportsHandler) SalesByHour(w http.ResponseWriter, r *http.Request) {
 		hr := o.CreatedAt.In(loc).Hour()
 		buckets[hr].OrderCount++
 		buckets[hr].Revenue += o.TotalAmount
-		// Cost must use the ACTIVE (void-adjusted) quantity — a voided line was never actually
-		// sold, so costing it overstates cost and understates the reported profit margin.
+		// Cost/profit use the centralized LineProfit formula (void-adjusted quantity, tax netted
+		// out of revenue) — see report_attribution.go — so this never disagrees with GetSummary/
+		// MostProfitableItems/SalesSummary.
 		for _, al := range AttributeOrderLines(o) {
-			buckets[hr].Cost += costBySKU[al.SKU] * al.Quantity
+			netRevenue, cost, profit := LineProfit(al, costBySKU[al.SKU])
+			buckets[hr].netRevenue += netRevenue
+			buckets[hr].Cost += cost
+			buckets[hr].Profit += profit
 		}
 	}
 	for i := range buckets {
-		buckets[i].Profit = buckets[i].Revenue - buckets[i].Cost
-		if buckets[i].Revenue != 0 {
-			buckets[i].MarginPct = buckets[i].Profit / buckets[i].Revenue * 100
+		if buckets[i].netRevenue != 0 {
+			buckets[i].MarginPct = buckets[i].Profit / buckets[i].netRevenue * 100
 		}
 	}
 

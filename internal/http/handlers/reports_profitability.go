@@ -77,6 +77,9 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 		UnitCost  float64 `json:"unit_cost"`
 		Profit    float64 `json:"profit"`
 		MarginPct float64 `json:"margin_pct"`
+		// tax is this SKU's attributed share of order VAT (unexported — not part of the response,
+		// used only to net revenue before computing Profit/MarginPct below).
+		tax float64
 	}
 
 	buckets := make(map[string]*itemAgg)
@@ -102,6 +105,7 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 			}
 			b.UnitsSold += al.Quantity
 			b.Revenue += al.Revenue
+			b.tax += al.Tax
 		}
 	}
 
@@ -112,11 +116,20 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 		skus = append(skus, sku)
 	}
 	costBySKU := resolveUnitCostsBySKU(r.Context(), h.db, tid, skus)
+	var skusMissingCost int
 	for sku, b := range buckets {
-		b.UnitCost = costBySKU[sku]
-		b.Profit = b.Revenue - b.UnitCost*b.UnitsSold
-		if b.Revenue != 0 {
-			b.MarginPct = b.Profit / b.Revenue * 100
+		cost, ok := costBySKU[sku]
+		if !ok || cost == 0 {
+			skusMissingCost++
+		}
+		b.UnitCost = cost
+		// netRevenue excludes VAT — the same centralized basis LineProfit/SumLineProfits use for
+		// GetSummary/SalesSummary/SalesByHour, so this ranking's Profit/MarginPct never disagrees
+		// with the dashboard. Revenue itself (displayed per row) stays VAT-inclusive.
+		netRevenue := b.Revenue - b.tax
+		b.Profit = netRevenue - b.UnitCost*b.UnitsSold
+		if netRevenue != 0 {
+			b.MarginPct = b.Profit / netRevenue * 100
 		}
 	}
 
@@ -127,11 +140,12 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 	}
 
 	resp := map[string]any{
-		"currency":      currency,
-		"from":          from.Format("2006-01-02"),
-		"to":            to.Format("2006-01-02"),
-		"total_revenue": totalRevenue,
-		"total_profit":  totalProfit,
+		"currency":          currency,
+		"from":              from.Format("2006-01-02"),
+		"to":                to.Format("2006-01-02"),
+		"total_revenue":     totalRevenue,
+		"total_profit":      totalProfit,
+		"skus_missing_cost": skusMissingCost,
 	}
 
 	if groupBy == "manufacturer" || groupBy == "category" {
@@ -144,6 +158,8 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 			Revenue   float64 `json:"revenue"`
 			Profit    float64 `json:"profit"`
 			MarginPct float64 `json:"margin_pct"`
+			// netRevenue (unexported) is the margin-pct denominator — see itemAgg.tax above.
+			netRevenue float64
 		}
 		groups := make(map[string]*groupAggT)
 		for sku, b := range buckets {
@@ -163,11 +179,12 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 			g.UnitsSold += b.UnitsSold
 			g.Revenue += b.Revenue
 			g.Profit += b.Profit
+			g.netRevenue += b.Revenue - b.tax
 		}
 		groupRows := make([]*groupAggT, 0, len(groups))
 		for _, g := range groups {
-			if g.Revenue != 0 {
-				g.MarginPct = g.Profit / g.Revenue * 100
+			if g.netRevenue != 0 {
+				g.MarginPct = g.Profit / g.netRevenue * 100
 			}
 			groupRows = append(groupRows, g)
 		}

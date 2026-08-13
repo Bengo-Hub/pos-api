@@ -66,11 +66,12 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 	}
 
 	type hourBucket struct {
-		orders        int
-		revenue, cost float64
+		orders             int
+		revenue, cost      float64
+		netRevenue, profit float64
 	}
 	buckets := make([]hourBucket, 24)
-	var totalRevenue, totalCost float64
+	var totalRevenue, totalNetRevenue, totalProfit float64
 	var totalOrders int
 
 	// Real per-sku cost (GOODS Item.cost_price vs RECIPE cost_per_portion), resolved from the
@@ -89,12 +90,16 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 		buckets[hr].revenue += o.TotalAmount
 		totalOrders++
 		totalRevenue += o.TotalAmount
-		// Cost must use the ACTIVE (void-adjusted) quantity — a voided line was never actually
-		// sold, so costing it overstates cost and understates the printed profit margin.
+		// LineProfit uses the ACTIVE (void-adjusted) quantity and nets VAT out of revenue before
+		// subtracting cost — see report_attribution.go — so this printed margin always agrees with
+		// GetSummary/SalesSummary/MostProfitableItems.
 		for _, al := range AttributeOrderLines(o) {
-			c := costBySKU[al.SKU] * al.Quantity
-			buckets[hr].cost += c
-			totalCost += c
+			netRevenue, cost, profit := LineProfit(al, costBySKU[al.SKU])
+			buckets[hr].cost += cost
+			buckets[hr].netRevenue += netRevenue
+			buckets[hr].profit += profit
+			totalNetRevenue += netRevenue
+			totalProfit += profit
 		}
 	}
 	peakHour, peakRevenue := 0, 0.0
@@ -108,21 +113,19 @@ func (h *ReportPDFHandler) SalesByHourDoc(w http.ResponseWriter, r *http.Request
 	bars := make([]docs.Bar, 0, 24)
 	for hr, b := range buckets {
 		label := strconv.Itoa(hr) + ":00"
-		profit := b.revenue - b.cost
 		marginPct := 0.0
-		if b.revenue != 0 {
-			marginPct = profit / b.revenue * 100
+		if b.netRevenue != 0 {
+			marginPct = b.profit / b.netRevenue * 100
 		}
 		rows = append(rows, []docs.Cell{
 			docs.Text(label), docs.Text(strconv.Itoa(b.orders)), docs.Text(fmtAmount(b.revenue)),
-			docs.Text(fmtAmount(profit)), docs.Text(fmtQty(marginPct) + "%"),
+			docs.Text(fmtAmount(b.profit)), docs.Text(fmtQty(marginPct) + "%"),
 		})
 		bars = append(bars, docs.Bar{Label: label, Value: b.revenue})
 	}
-	totalProfit := totalRevenue - totalCost
 	totalMarginPct := 0.0
-	if totalRevenue != 0 {
-		totalMarginPct = totalProfit / totalRevenue * 100
+	if totalNetRevenue != 0 {
+		totalMarginPct = totalProfit / totalNetRevenue * 100
 	}
 
 	report := h.newReport(ctx, tid, oid, "Sales by Hour", dateStr, dayStart, dayStart, true)

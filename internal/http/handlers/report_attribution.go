@@ -38,6 +38,12 @@ type AttributedLine struct {
 	// Revenue is this line's prorated share of order.TotalAmount (net of discount, incl. its
 	// share of tax/charges/round-off) — NOT line.TotalPrice.
 	Revenue float64
+	// Tax is this line's prorated share of order.TaxTotal, using the SAME void-adjusted
+	// active-gross fraction as Revenue — so a partially-voided or discounted line's tax
+	// contribution shrinks exactly in step with its revenue. Used by LineProfit/SumLineProfits to
+	// net VAT out of Revenue before computing profit (see those functions' doc comments for why
+	// Revenue itself, which every non-profit report already relies on, is left VAT-inclusive).
+	Tax float64
 }
 
 // AttributeOrderLines prorates one order's net total_amount across its active lines. Orders with
@@ -62,9 +68,11 @@ func AttributeOrderLines(o *ent.POSOrder) []AttributedLine {
 	}
 	out := make([]AttributedLine, len(lines))
 	for i, l := range lines {
-		var revenue float64
+		var revenue, tax float64
 		if orderActiveGross > 0 {
-			revenue = activeGross[i] / orderActiveGross * o.TotalAmount
+			fraction := activeGross[i] / orderActiveGross
+			revenue = fraction * o.TotalAmount
+			tax = fraction * o.TaxTotal
 		}
 		out[i] = AttributedLine{
 			OrderID:      o.ID,
@@ -74,9 +82,69 @@ func AttributeOrderLines(o *ent.POSOrder) []AttributedLine {
 			KdsStationID: l.KdsStationID,
 			Quantity:     activeQty[i],
 			Revenue:      revenue,
+			Tax:          tax,
 		}
 	}
 	return out
+}
+
+// LineProfit is the single formula every profit report (GetSummary, SalesSummary,
+// MostProfitableItems, SalesByHour, DailySales, ExportDailyReport, SalesByStaffPDF,
+// MostProfitablePDF, SalesByHourDoc) must use to turn an attributed line + its resolved unit cost
+// into a profit figure. netRevenue nets tax out of al.Revenue first — matching what treasury
+// actually books as Revenue at sale time (Cr Revenue = amount - tax_total, Cr VAT Payable =
+// tax_total; see finance-service/treasury-api internal/modules/pos/subscriber.go
+// handleSaleFinalized) — rather than the VAT-inclusive amount the customer paid. Every OTHER use
+// of al.Revenue (total_revenue KPIs, Sales-by-Category, Sales-by-Staff, etc.) is deliberately left
+// untouched and stays VAT-inclusive, matching what a receipt/invoice actually shows; only the
+// profit/margin calculation itself must be net-of-tax to ever reconcile with treasury's P&L.
+//
+// unitCost is the per-unit cost resolved via resolveUnitCostsBySKU (0 when the local
+// POSCatalogOverride cache has no cost data for the SKU — an honest, unchanged fallback, not a
+// bug in itself; see TestGetSummary_GrossProfitZeroCost_WhenNoCatalogCacheRow). Callers that want
+// COVERAGE visibility (whether that 0 means "genuinely free" or "cost data missing") should also
+// check costBySKU's own ", ok" map lookup — see SumLineProfits.
+func LineProfit(al AttributedLine, unitCost float64) (netRevenue, cost, profit float64) {
+	netRevenue = al.Revenue - al.Tax
+	cost = unitCost * al.Quantity
+	return netRevenue, cost, netRevenue - cost
+}
+
+// ProfitTotals is the aggregate result of summing LineProfit across a set of attributed lines,
+// plus a cost-coverage signal: SKUsMissingCost counts distinct sold SKUs the cost cache had NO
+// entry for at all (or an explicit zero), so a future sync gap (like the one that produced
+// artificially-inflated margins for boi-enterprises, 2026-08-10 through 2026-08-13) is visible on
+// the dashboard/report instead of silently hiding inside an inflated Gross Profit number. This is
+// purely additive visibility — it does not change the profit/margin math itself, which keeps the
+// existing, deliberate 0-cost fallback.
+type ProfitTotals struct {
+	Revenue         float64
+	Cost            float64
+	Profit          float64
+	MarginPct       float64
+	SKUsMissingCost int
+}
+
+// SumLineProfits aggregates LineProfit across every line, resolving each line's unit cost from
+// costBySKU (as produced by resolveUnitCostsBySKU/orders.CatalogCacheBySKU).
+func SumLineProfits(lines []AttributedLine, costBySKU map[string]float64) ProfitTotals {
+	var t ProfitTotals
+	missing := map[string]struct{}{}
+	for _, al := range lines {
+		unitCost, ok := costBySKU[al.SKU]
+		if !ok || unitCost == 0 {
+			missing[al.SKU] = struct{}{}
+		}
+		netRevenue, cost, profit := LineProfit(al, unitCost)
+		t.Revenue += netRevenue
+		t.Cost += cost
+		t.Profit += profit
+	}
+	t.SKUsMissingCost = len(missing)
+	if t.Revenue != 0 {
+		t.MarginPct = t.Profit / t.Revenue * 100
+	}
+	return t
 }
 
 // collectOrderSKUs returns the distinct set of SKUs across every line of every given order

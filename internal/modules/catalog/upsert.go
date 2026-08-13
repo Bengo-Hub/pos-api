@@ -91,12 +91,47 @@ DO UPDATE SET
 // created event) this creates a minimal row with the schema's own column defaults for everything
 // else — acceptable, since a fuller item event fills those in whenever it arrives.
 func upsertCatalogCostOnly(ctx context.Context, db *sql.DB, tenantID uuid.UUID, sku string, costPrice float64) error {
+	return upsertMetadataMerge(ctx, db, tenantID, sku, map[string]any{"cost_price": costPrice})
+}
+
+// BackfillCatalogCostFields is the safe-to-merge subset of POSCatalogOverride.metadata the one-time
+// catalog-cost reconciliation tool (handlers.CatalogCostBackfillHandler) re-populates from
+// inventory-api's authoritative item data — cost_price plus the manufacturer/category_name fields
+// the same cache row also stores (used by MostProfitableItems' ?group_by rollup).
+type BackfillCatalogCostFields struct {
+	CostPrice    float64
+	Manufacturer string
+	CategoryName string
+}
+
+// BackfillCatalogCost is the exported entry point the catalog-cost reconciliation backfill uses —
+// it goes through the SAME merge-only, jsonb `||` DB upsert (upsertMetadataMerge) the
+// inventory.item.cost_changed event consumer's upsertCatalogCostOnly already uses, so the backfill
+// can never clobber unrelated metadata keys and never needs a second write path. Manufacturer/
+// category_name are included only when non-empty (a backfill run that couldn't resolve them from
+// inventory-api's response must not blank out values a prior event already synced).
+func BackfillCatalogCost(ctx context.Context, db *sql.DB, tenantID uuid.UUID, sku string, f BackfillCatalogCostFields) error {
+	md := map[string]any{"cost_price": f.CostPrice}
+	if f.Manufacturer != "" {
+		md["manufacturer"] = f.Manufacturer
+	}
+	if f.CategoryName != "" {
+		md["category_name"] = f.CategoryName
+	}
+	return upsertMetadataMerge(ctx, db, tenantID, sku, md)
+}
+
+// upsertMetadataMerge is the shared merge-only upsert both upsertCatalogCostOnly and
+// BackfillCatalogCost use: a bare jsonb `||` merge of the given keys into the tenant-wide
+// (outlet_id IS NULL) POSCatalogOverride row, creating it (with the schema's own column defaults
+// for everything else) on first sight of a SKU.
+func upsertMetadataMerge(ctx context.Context, db *sql.DB, tenantID uuid.UUID, sku string, md map[string]any) error {
 	if db == nil {
 		return fmt.Errorf("catalog: upsert called with nil db handle")
 	}
-	metaJSON, err := json.Marshal(map[string]any{"cost_price": costPrice})
+	metaJSON, err := json.Marshal(md)
 	if err != nil {
-		return fmt.Errorf("catalog: marshal cost metadata for %s: %w", sku, err)
+		return fmt.Errorf("catalog: marshal metadata for %s: %w", sku, err)
 	}
 	const q = `
 INSERT INTO pos_catalog_overrides (id, tenant_id, inventory_sku, outlet_id, metadata, created_at, updated_at)
@@ -107,7 +142,7 @@ DO UPDATE SET
   updated_at = now()`
 
 	if _, err := db.ExecContext(ctx, q, uuid.New(), tenantID, sku, string(metaJSON)); err != nil {
-		return fmt.Errorf("catalog: upsert cost-only override for %s: %w", sku, err)
+		return fmt.Errorf("catalog: upsert metadata-merge override for %s: %w", sku, err)
 	}
 	return nil
 }

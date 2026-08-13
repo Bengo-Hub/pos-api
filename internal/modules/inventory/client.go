@@ -614,3 +614,81 @@ func (c *Client) fetchRecipeCostPage(ctx context.Context, tenantID string, limit
 	}
 	return page.Data, nil
 }
+
+// CatalogItemCost is one sellable item's SKU/cost/manufacturer/category — the subset the pos-api
+// catalog-cost reconciliation backfill needs (see handlers.CatalogCostBackfillHandler). Unlike
+// RecipeItemCost this is fetched with NO type filter (GOODS, RECIPE, SERVICE, VOUCHER — every
+// sellable type the POS catalog sync cares about), since the bug this backfill closes affects
+// GOODS and RECIPE identically (both flow through the same POSCatalogOverride cache). Manufacturer
+// falls back to brand_name — the enriched item list exposes brand_name, not a separate
+// manufacturer column, for most catalogs (the inventory.item.* event payload's own "manufacturer"
+// key is a distinct schema from this REST list projection).
+type CatalogItemCost struct {
+	SKU          string  `json:"sku"`
+	CostPrice    float64 `json:"cost_price"`
+	Manufacturer string  `json:"manufacturer"`
+	BrandName    string  `json:"brand_name"`
+	CategoryName string  `json:"category_name"`
+}
+
+type listCatalogCostsPage struct {
+	Data  []CatalogItemCost `json:"data"`
+	Total int               `json:"total"`
+}
+
+// ListCatalogCosts fetches every sellable item's current cost_price/manufacturer/category_name for
+// a tenant, paginating until exhausted. Used by the one-time catalog-cost reconciliation backfill
+// to re-populate pos-api's local POSCatalogOverride cost cache for SKUs whose last relevant
+// inventory.item.* event landed before/during the 2026-08-10 rate-limit incident (see
+// resolveUnitCostsBySKU's doc comment in pos-api's reports_profitability.go) and were never
+// backfilled once that fix switched cost resolution to a local-cache-only read with no live
+// fallback — confirmed live against boi-enterprises 2026-08-13 (SKUs with real, non-zero
+// inventory-api cost_price still reading as 0 in every pos-api profit report).
+func (c *Client) ListCatalogCosts(ctx context.Context, tenantID string) (map[string]CatalogItemCost, error) {
+	// Same server-side pagination cap as ListRecipeCosts — must match exactly (100) or the loop
+	// silently stops after page 1 for any tenant with a larger catalog.
+	const pageSize = 100
+	out := map[string]CatalogItemCost{}
+	for offset := 0; ; offset += pageSize {
+		page, err := c.fetchCatalogCostPage(ctx, tenantID, pageSize, offset)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range page {
+			if item.SKU == "" {
+				continue
+			}
+			if item.Manufacturer == "" {
+				item.Manufacturer = item.BrandName
+			}
+			out[item.SKU] = item
+		}
+		if len(page) < pageSize {
+			return out, nil
+		}
+	}
+}
+
+func (c *Client) fetchCatalogCostPage(ctx context.Context, tenantID string, limit, offset int) ([]CatalogItemCost, error) {
+	reqURL := fmt.Sprintf("%s/v1/%s/inventory/items?limit=%d&offset=%d", c.baseURL, tenantID, limit, offset)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.ListCatalogCosts: build request: %w", err)
+	}
+	httpReq.Header.Set("X-API-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.ListCatalogCosts: http: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("inventory.Client.ListCatalogCosts: status %d", resp.StatusCode)
+	}
+	var page listCatalogCostsPage
+	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+		return nil, fmt.Errorf("inventory.Client.ListCatalogCosts: decode: %w", err)
+	}
+	return page.Data, nil
+}
