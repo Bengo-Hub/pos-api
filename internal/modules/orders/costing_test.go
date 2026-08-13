@@ -109,6 +109,40 @@ func TestCatalogCacheBySKU_ResolvesManufacturerAndCategoryAlongsideCost(t *testi
 	}
 }
 
+// TestCatalogCacheBySKU_IgnoresOutletScopedAvailabilityRow guards the exact production bug (boi-
+// enterprises, 2026-08-13, found while verifying the 2026-08-13 cost backfill): a per-outlet
+// POSCatalogOverride row (created by stock_subscriber.go's low/out/in-stock availability toggle —
+// SetOutletID + no metadata) coexisting with the correct tenant-wide (outlet_id NULL) cost row for
+// the SAME sku must never clobber the real cost. Before this test's fix, the query fetched both
+// rows with no defined order, so the outlet-scoped row's zero-valued metadata could win at random.
+func TestCatalogCacheBySKU_IgnoresOutletScopedAvailabilityRow(t *testing.T) {
+	client := newCostingTestClient(t)
+	ctx := context.Background()
+	tid := uuid.New()
+
+	if _, err := client.POSCatalogOverride.Create().
+		SetTenantID(tid).
+		SetInventorySku("SKU-1").
+		SetMetadata(map[string]any{"cost_price": 16800.0}).
+		Save(ctx); err != nil {
+		t.Fatalf("seed tenant-wide override: %v", err)
+	}
+	// The availability-toggle row: real outlet_id, empty metadata (no cost_price key at all).
+	if _, err := client.POSCatalogOverride.Create().
+		SetTenantID(tid).
+		SetOutletID(uuid.New()).
+		SetInventorySku("SKU-1").
+		SetIsAvailable(true).
+		Save(ctx); err != nil {
+		t.Fatalf("seed outlet-scoped availability override: %v", err)
+	}
+
+	got := CatalogCostBySKU(ctx, client, tid, []string{"SKU-1"})
+	if got["SKU-1"] != 16800.0 {
+		t.Errorf("CatalogCostBySKU[SKU-1] = %v, want 16800.0 (tenant-wide row, not clobbered by the outlet-scoped row)", got["SKU-1"])
+	}
+}
+
 // TestCatalogCacheBySKU_EmptyInputs guards the degrade-gracefully contract every existing caller
 // (sale-time COGS posting, returns/reversals) relies on: nil client or empty SKU list must never
 // panic or error, just return an empty map.

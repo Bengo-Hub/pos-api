@@ -31,8 +31,19 @@ func CatalogCacheBySKU(ctx context.Context, client *ent.Client, tenantID uuid.UU
 	if client == nil || len(skus) == 0 {
 		return out
 	}
+	// outlet_id IS NULL only: cost_price/manufacturer/category_name are tenant-wide item facts
+	// (mirroring inventory-api's Item.CostPrice, which has no per-outlet concept) and are ONLY
+	// ever written to the tenant-wide row (syncCatalogItem, BackfillCatalogCost). An outlet-scoped
+	// row (e.g. stock_subscriber.go's low/out/in-stock availability toggle, which creates a
+	// (tenant, outlet, sku) row with empty metadata) can ALSO exist for the same SKU — without this
+	// filter, this query fetched both rows with no defined order, so whichever landed last in the
+	// unordered scan won, silently clobbering a correct cached cost with the availability-only
+	// row's zero-valued metadata roughly at random. Confirmed live against boi-enterprises
+	// 2026-08-13: high-volume/frequently-restocked SKUs (which trigger stock-event availability
+	// rows constantly) kept reporting unit_cost=0 even after a cost backfill that only (correctly)
+	// ever targets this same tenant-wide row.
 	overrides, err := client.POSCatalogOverride.Query().
-		Where(entoverride.TenantID(tenantID), entoverride.InventorySkuIn(skus...)).
+		Where(entoverride.TenantID(tenantID), entoverride.InventorySkuIn(skus...), entoverride.OutletIDIsNil()).
 		All(ctx)
 	if err != nil {
 		return out
