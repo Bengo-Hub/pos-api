@@ -44,6 +44,9 @@ func (h *CommissionHandler) List(w http.ResponseWriter, r *http.Request) {
 			q = q.Where(entcr.OrderID(orderID))
 		}
 	}
+	if from, to, ok := parseCreatedAtRange(r); ok {
+		q = q.Where(entcr.CreatedAtGTE(from), entcr.CreatedAtLTE(to))
+	}
 
 	p := pagination.Parse(r)
 	total, _ := q.Clone().Count(r.Context())

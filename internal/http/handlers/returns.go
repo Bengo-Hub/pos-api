@@ -230,6 +230,9 @@ func (h *ReturnHandler) ListReturns(w http.ResponseWriter, r *http.Request) {
 			baseQ = baseQ.Where(posreturn.OrderID(orderUID))
 		}
 	}
+	if from, to, ok := parseCreatedAtRange(r); ok {
+		baseQ = baseQ.Where(posreturn.CreatedAtGTE(from), posreturn.CreatedAtLTE(to))
+	}
 
 	total, _ := baseQ.Clone().Count(r.Context())
 	rets, err := baseQ.WithLines().Order(ent.Desc(posreturn.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
