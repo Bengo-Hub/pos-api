@@ -347,11 +347,12 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 	// Cache the item's stock unit so pos.sale.finalized can carry a real uom_code
 	// (inventory converts non-stock-unit sale quantities before deducting).
 	unitName, _ := evt.Payload["unit_name"].(string)
-	// Cache manufacturer/category alongside cost so the ?group_by=manufacturer|category rollup on
-	// MostProfitableItems can also read the local cache instead of a live catalog walk
-	// (orders.CatalogCacheBySKU resolves cost + these two fields together, one query).
+	// Cache manufacturer/category/brand alongside cost so the ?group_by=manufacturer|category|brand
+	// rollup on MostProfitableItems can also read the local cache instead of a live catalog walk
+	// (orders.CatalogCacheBySKU resolves cost + these fields together, one query).
 	manufacturer, _ := evt.Payload["manufacturer"].(string)
 	categoryName, _ := evt.Payload["category_name"].(string)
+	brandName, _ := evt.Payload["brand_name"].(string)
 
 	md := map[string]any{}
 	if costPrice != nil {
@@ -365,6 +366,9 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 	}
 	if categoryName != "" {
 		md["category_name"] = categoryName
+	}
+	if brandName != "" {
+		md["brand_name"] = brandName
 	}
 
 	// Atomic create-or-update against the tenant-wide (outlet_id IS NULL) row — see upsert.go for

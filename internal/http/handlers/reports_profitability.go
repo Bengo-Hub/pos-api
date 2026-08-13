@@ -11,7 +11,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
-	"github.com/bengobox/pos-service/internal/modules/orders"
+	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 )
 
 // MostProfitableItems handles GET /{tenantID}/pos/reports/most-profitable?from=&to=&limit=
@@ -49,9 +49,12 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 			limit = n
 		}
 	}
-	// groupBy: "manufacturer" or "category" rolls the same per-sku profitability numbers up to
-	// their manufacturer/category instead of ranking individual items — same cost/profit math,
-	// different aggregation key. Empty (default) keeps the existing per-item ranking.
+	// groupBy: "manufacturer"/"category"/"brand" roll the same per-sku profitability numbers up to
+	// that item-level attribute instead of ranking individual items — same cost/profit math,
+	// different aggregation key (see the block below). "outlet"/"staff"/"day"/"customer" instead
+	// group by an ORDER-level attribute (see the second block, further down, which aggregates
+	// directly off `orders` rather than the per-sku `buckets`). Empty (default) keeps the existing
+	// per-item ranking.
 	groupBy := r.URL.Query().Get("group_by")
 
 	orders, err := h.db.POSOrder.Query().
@@ -67,19 +70,6 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 		h.log.Error("most-profitable query failed", zap.Error(err))
 		jsonError(w, "failed to generate most-profitable report", http.StatusInternalServerError)
 		return
-	}
-
-	type itemAgg struct {
-		SKU       string  `json:"sku"`
-		Name      string  `json:"name"`
-		UnitsSold float64 `json:"units_sold"`
-		Revenue   float64 `json:"revenue"`
-		UnitCost  float64 `json:"unit_cost"`
-		Profit    float64 `json:"profit"`
-		MarginPct float64 `json:"margin_pct"`
-		// tax is this SKU's attributed share of order VAT (unexported — not part of the response,
-		// used only to net revenue before computing Profit/MarginPct below).
-		tax float64
 	}
 
 	buckets := make(map[string]*itemAgg)
@@ -148,57 +138,9 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 		"skus_missing_cost": skusMissingCost,
 	}
 
-	if groupBy == "manufacturer" || groupBy == "category" {
-		// Roll the same per-sku profitability numbers up to their manufacturer/category —
-		// same cost/profit math as the item-level ranking, coarser grouping key.
-		metaBySKU := resolveManufacturerCategoryBySKU(r.Context(), h.db, tid, skus)
-		type groupAggT struct {
-			Group     string  `json:"group"`
-			UnitsSold float64 `json:"units_sold"`
-			Revenue   float64 `json:"revenue"`
-			Profit    float64 `json:"profit"`
-			MarginPct float64 `json:"margin_pct"`
-			// netRevenue (unexported) is the margin-pct denominator — see itemAgg.tax above.
-			netRevenue float64
-		}
-		groups := make(map[string]*groupAggT)
-		for sku, b := range buckets {
-			key := "Unspecified"
-			if meta, ok := metaBySKU[sku]; ok {
-				if groupBy == "manufacturer" && meta.Manufacturer != "" {
-					key = meta.Manufacturer
-				} else if groupBy == "category" && meta.CategoryName != "" {
-					key = meta.CategoryName
-				}
-			}
-			g, ok := groups[key]
-			if !ok {
-				g = &groupAggT{Group: key}
-				groups[key] = g
-			}
-			g.UnitsSold += b.UnitsSold
-			g.Revenue += b.Revenue
-			g.Profit += b.Profit
-			g.netRevenue += b.Revenue - b.tax
-		}
-		groupRows := make([]*groupAggT, 0, len(groups))
-		for _, g := range groups {
-			if g.netRevenue != 0 {
-				g.MarginPct = g.Profit / g.netRevenue * 100
-			}
-			groupRows = append(groupRows, g)
-		}
-		sort.Slice(groupRows, func(i, j int) bool {
-			if groupRows[i].Profit != groupRows[j].Profit {
-				return groupRows[i].Profit > groupRows[j].Profit
-			}
-			return groupRows[i].Revenue > groupRows[j].Revenue
-		})
-		if len(groupRows) > limit {
-			groupRows = groupRows[:limit]
-		}
+	if groups, recognized := computeProfitabilityGroups(r.Context(), h.db, h.log, tid, groupBy, buckets, skus, orders, costBySKU, limit); recognized {
 		resp["group_by"] = groupBy
-		resp["groups"] = groupRows
+		resp["groups"] = groups
 		jsonOK(w, resp)
 		return
 	}
@@ -244,13 +186,13 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 // range summary, and SalesByHour (all in reports.go) — so the profit margin a tenant sees on the
 // dashboard, in most-profitable rankings, and in exported PDFs always agree.
 func resolveUnitCostsBySKU(ctx context.Context, db *ent.Client, tenantID uuid.UUID, skus []string) map[string]float64 {
-	return orders.CatalogCostBySKU(ctx, db, tenantID, skus)
+	return ordersmod.CatalogCostBySKU(ctx, db, tenantID, skus)
 }
 
-// resolveManufacturerCategoryBySKU resolves manufacturer/category_name from the SAME local
-// POSCatalogOverride cache resolveUnitCostsBySKU reads (one query, both fields), for the
-// group_by=manufacturer|category rollup on MostProfitableItems. Missing entries just come back
-// zero-valued (the caller already falls back to "Unspecified").
-func resolveManufacturerCategoryBySKU(ctx context.Context, db *ent.Client, tenantID uuid.UUID, skus []string) map[string]orders.CatalogCacheEntry {
-	return orders.CatalogCacheBySKU(ctx, db, tenantID, skus)
+// resolveManufacturerCategoryBySKU resolves manufacturer/category_name/brand_name from the SAME
+// local POSCatalogOverride cache resolveUnitCostsBySKU reads (one query, all fields), for the
+// group_by=manufacturer|category|brand rollup on MostProfitableItems. Missing entries just come
+// back zero-valued (the caller already falls back to "Unspecified").
+func resolveManufacturerCategoryBySKU(ctx context.Context, db *ent.Client, tenantID uuid.UUID, skus []string) map[string]ordersmod.CatalogCacheEntry {
+	return ordersmod.CatalogCacheBySKU(ctx, db, tenantID, skus)
 }

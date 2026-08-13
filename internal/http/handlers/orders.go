@@ -415,6 +415,13 @@ type orderListItem struct {
 	ReturnCount  int     `json:"return_count"`
 	ReturnTotal  float64 `json:"return_total"`
 	ReturnStatus string  `json:"return_status,omitempty"` // pending | approved | completed (most-advanced across the order's returns)
+	// Profit/MarginPct are this order's gross profit, computed via the SAME AttributeOrderLines +
+	// resolveUnitCostsBySKU + LineProfit machinery every other profitability report uses (report_
+	// attribution.go) — the Profitability page's Invoice tab is this same sales list with these two
+	// columns added, not a separate fetch, so it can never disagree with the item/category/etc.
+	// rollups for the same date range.
+	Profit    float64 `json:"profit"`
+	MarginPct float64 `json:"margin_pct"`
 	// HasCorrectionHistory mirrors orders.HasCorrectionHistory (any return/refund/reversal on
 	// record, any status) — lets pos-ui disable/relabel the Delete Sale action for a row it
 	// already knows will be refused, instead of only learning after a confusing 422 whose
@@ -537,6 +544,8 @@ func (h *POSOrderHandler) enrichSingleOrder(ctx context.Context, tenantID uuid.U
 	}
 	st := orders.ComputeSettlement(order, completedReturns)
 	correctionHistory := orders.CorrectionHistoryRollup(ctx, h.client, tenantID, []uuid.UUID{order.ID})
+	costBySKU := resolveUnitCostsBySKU(ctx, h.client, tenantID, collectOrderSKUs([]*ent.POSOrder{order}))
+	profit, marginPct := computeOrderProfit(order, costBySKU)
 	item := orderListItem{
 		POSOrder:             order,
 		ItemCount:            len(order.Edges.Lines),
@@ -547,6 +556,8 @@ func (h *POSOrderHandler) enrichSingleOrder(ctx context.Context, tenantID uuid.U
 		CashierName:          staffNames[order.UserID],
 		ServedByName:         servedByName(order, staffNames),
 		HasCorrectionHistory: correctionHistory[order.ID],
+		Profit:               profit,
+		MarginPct:            marginPct,
 	}
 	if retAgg != nil {
 		item.ReturnCount = retAgg.count
@@ -556,10 +567,29 @@ func (h *POSOrderHandler) enrichSingleOrder(ctx context.Context, tenantID uuid.U
 	return item
 }
 
+// computeOrderProfit sums this order's LineProfit contribution across its attributed lines — the
+// SAME per-line Revenue/Tax/cost math MostProfitableItems/GetSummary/SalesByHour use, so a
+// per-order profit figure surfaced on the sales list can never disagree with the item/category/
+// day/etc. rollups for the same date range. costBySKU is a pre-resolved batch (see
+// resolveUnitCostsBySKU) — callers with more than one order MUST batch-resolve it once, not per row.
+func computeOrderProfit(o *ent.POSOrder, costBySKU map[string]float64) (profit, marginPct float64) {
+	var netRevenue float64
+	for _, al := range AttributeOrderLines(o) {
+		lineNetRevenue := al.Revenue - al.Tax
+		netRevenue += lineNetRevenue
+		profit += lineNetRevenue - costBySKU[al.SKU]*al.Quantity
+	}
+	if netRevenue != 0 {
+		marginPct = profit / netRevenue * 100
+	}
+	return profit, marginPct
+}
+
 // enrichOrderList computes the derived display columns for a page of orders, resolving
 // payment-method labels via a single batched Tender lookup (id → type) and cashier display
 // names via a single batched User lookup (shared resolveStaffNames helper).
 func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUID, list []*ent.POSOrder) []orderListItem {
+	costBySKU := resolveUnitCostsBySKU(ctx, h.client, tenantID, collectOrderSKUs(list))
 	// Batch-resolve cashier + served-by names so every list row (drafts, recent transactions, all
 	// sales) shows WHO rang the sale up / who served it without an N+1 user lookup.
 	uidSet := map[uuid.UUID]struct{}{}
@@ -636,6 +666,7 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 			completedReturns = retAgg.completedTotal
 		}
 		st := orders.ComputeSettlement(o, completedReturns)
+		profit, marginPct := computeOrderProfit(o, costBySKU)
 		item := orderListItem{
 			POSOrder:             o,
 			ItemCount:            len(o.Edges.Lines),
@@ -646,6 +677,8 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 			CashierName:          staffNames[o.UserID], // "" when unknown — the UI falls back gracefully
 			ServedByName:         servedByName(o, staffNames),
 			HasCorrectionHistory: correctionHistory[o.ID],
+			Profit:               profit,
+			MarginPct:            marginPct,
 		}
 		if agg := retAgg; agg != nil {
 			item.ReturnCount = agg.count

@@ -398,8 +398,15 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 	}
 	allSalesReturns := returnsRollupFor(ctx, h.db, h.log, tid, allSalesOrderIDs)
 
+	// Profit/Margin columns — the Profitability page's Invoice tab exports THIS SAME document
+	// (PDF or CSV, both rendered from the one `report` below via h.write) rather than a separate
+	// fetch, so it needs these two columns added here, computed via the SAME AttributeOrderLines +
+	// resolveUnitCostsBySKU machinery every other profitability surface uses (computeOrderProfit,
+	// orders.go) — never a hand-derived figure that could drift from the on-screen rollups.
+	costBySKU := resolveUnitCostsBySKU(ctx, h.db, tid, collectOrderSKUs(list))
+
 	rows := make([][]docs.Cell, 0, len(list))
-	var sumSubtotal, sumDiscount, sumTax, sumTotal, sumPaid, sumDue float64
+	var sumSubtotal, sumDiscount, sumTax, sumTotal, sumPaid, sumDue, sumProfit float64
 	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
 	// generated for one tenant's orders, which may not be KES.
 	currency := "KES"
@@ -461,6 +468,7 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 		if outletName == "" {
 			outletName = "—"
 		}
+		profit, marginPct := computeOrderProfit(o, costBySKU)
 
 		rows = append(rows, []docs.Cell{
 			docs.Text(when),
@@ -478,6 +486,8 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 			docs.Text(fmtAmount(o.TotalAmount)),
 			docs.Text(fmtAmount(paid)),
 			docs.Text(fmtAmount(due)),
+			docs.Text(fmtAmount(profit)),
+			docs.Text(fmt.Sprintf("%.1f%%", marginPct)),
 		})
 		// Voided/cancelled/draft rows print on their own line above (so the audit trail stays
 		// complete) but are excluded from the grand-total footer for the same reason as the
@@ -490,6 +500,7 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 			sumTotal += o.TotalAmount
 			sumPaid += paid
 			sumDue += due
+			sumProfit += profit
 		}
 	}
 
@@ -518,6 +529,7 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 		{Label: "Net Total", Value: currency + " " + fmtAmount(sumTotal)},
 		{Label: "Paid", Value: currency + " " + fmtAmount(sumPaid)},
 		{Label: "Outstanding", Value: currency + " " + fmtAmount(sumDue)},
+		{Label: "Gross Profit", Value: currency + " " + fmtAmount(sumProfit)},
 	}
 	note := ""
 	if total > len(list) {
@@ -543,6 +555,8 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 			{Header: "Total", Weight: 1, Money: true},
 			{Header: "Paid", Weight: 1, Money: true},
 			{Header: "Due", Weight: 1, Money: true},
+			{Header: "Profit", Weight: 1, Money: true},
+			{Header: "Margin", Weight: 0.8},
 		},
 		Rows: rows,
 		Total: []docs.Cell{
@@ -555,6 +569,8 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 			docs.BoldText(fmtAmount(sumTotal)),
 			docs.BoldText(fmtAmount(sumPaid)),
 			docs.BoldText(fmtAmount(sumDue)),
+			docs.BoldText(fmtAmount(sumProfit)),
+			docs.BoldText(""),
 		},
 	}}
 	h.write(w, r, report, "all-sales")

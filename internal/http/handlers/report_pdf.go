@@ -1284,3 +1284,125 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 	}}
 	h.write(w, r, report, "most-profitable-document")
 }
+
+// ProfitabilityGroupedDocument handles GET /{tenantID}/pos/reports/profitability-grouped-document
+// ?group_by=manufacturer|category|brand|outlet|staff|day|customer — the PDF/CSV export (both
+// rendered from the one `report` below via h.write) for the Profitability page's non-Products
+// tabs. All 7 dimensions share one row shape ({group, units_sold, revenue, profit, margin_pct}),
+// so this is ONE handler rather than one per dimension — reuses the EXACT SAME
+// computeProfitabilityGroups (reports_profitability_groups.go) the JSON ?group_by= endpoint
+// (MostProfitableItems) calls, so an exported PDF/CSV can never disagree with what's on screen.
+// The ungrouped per-item ranking (Products tab) is unaffected — that's still MostProfitablePDF.
+func (h *ReportPDFHandler) ProfitabilityGroupedDocument(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	ctx := r.Context()
+	oid := h.outletScope(r)
+	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
+
+	groupBy := r.URL.Query().Get("group_by")
+
+	limit := 20
+	if ls := r.URL.Query().Get("limit"); ls != "" {
+		if n, perr := strconv.Atoi(ls); perr == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	orders, err := h.completedOrders(ctx, tid, oid, from, to, true)
+	if err != nil {
+		h.log.Error("profitability grouped export: orders query failed", zap.Error(err))
+		jsonError(w, "failed to generate profitability report", http.StatusInternalServerError)
+		return
+	}
+
+	// Same per-sku attribution MostProfitableItems/MostProfitablePDF use — needed here too since
+	// the manufacturer/category/brand dimensions roll UP from per-sku numbers, not per-order ones.
+	buckets := make(map[string]*itemAgg)
+	currency := "KES"
+	for _, o := range orders {
+		if o.Currency != "" {
+			currency = o.Currency
+		}
+		for i, al := range AttributeOrderLines(o) {
+			l := o.Edges.Lines[i]
+			b, ok := buckets[al.SKU]
+			if !ok {
+				b = &itemAgg{SKU: al.SKU, Name: l.Name}
+				buckets[al.SKU] = b
+			}
+			b.UnitsSold += al.Quantity
+			b.Revenue += al.Revenue
+			b.tax += al.Tax
+		}
+	}
+	skus := make([]string, 0, len(buckets))
+	for sku := range buckets {
+		skus = append(skus, sku)
+	}
+	costBySKU := resolveUnitCostsBySKU(ctx, h.db, tid, skus)
+	for sku, b := range buckets {
+		b.UnitCost = costBySKU[sku]
+		netRevenue := b.Revenue - b.tax
+		b.Profit = netRevenue - b.UnitCost*b.UnitsSold
+	}
+
+	groups, recognized := computeProfitabilityGroups(ctx, h.db, h.log, tid, groupBy, buckets, skus, orders, costBySKU, limit)
+	if !recognized {
+		jsonError(w, "invalid or missing group_by (want one of: manufacturer, category, brand, outlet, staff, day, customer)", http.StatusBadRequest)
+		return
+	}
+
+	rows := make([][]docs.Cell, 0, len(groups))
+	var totRevenue, totProfit float64
+	for _, g := range groups {
+		rows = append(rows, []docs.Cell{
+			docs.Text(g.Group),
+			docs.Text(fmtQty(g.UnitsSold)),
+			docs.Text(fmtAmount(g.Revenue)),
+			docs.Text(fmtAmount(g.Profit)),
+			docs.Text(fmtQty(g.MarginPct) + "%"),
+		})
+		totRevenue += g.Revenue
+		totProfit += g.Profit
+	}
+	totMargin := 0.0
+	if totRevenue != 0 {
+		totMargin = totProfit / totRevenue * 100
+	}
+
+	groupByLabel := map[string]string{
+		"manufacturer": "Manufacturer", "category": "Category", "brand": "Brand",
+		"outlet": "Location", "staff": "Service Staff", "day": "Date", "customer": "Customer",
+	}[groupBy]
+
+	report := h.newReport(ctx, tid, oid, "Profitability by "+groupByLabel, "", from, to, true)
+	report.Currency = currency
+	report.Cards = []docs.Card{
+		{Label: "Total Revenue", Value: currency + " " + fmtAmount(totRevenue)},
+		{Label: "Gross Profit", Value: currency + " " + fmtAmount(totProfit), Sub: fmt.Sprintf("%.1f%% margin", totMargin)},
+	}
+	report.Sections = []docs.Section{{
+		Kind:  docs.SectionTable,
+		Title: groupByLabel,
+		Columns: []docs.Column{
+			{Header: groupByLabel, Weight: 2.4},
+			{Header: "Qty", Weight: 1, Align: "R"},
+			{Header: "Revenue", Weight: 1.4, Money: true},
+			{Header: "Profit", Weight: 1.4, Money: true},
+			{Header: "Margin", Weight: 1, Align: "R"},
+		},
+		Rows: rows,
+		Total: []docs.Cell{
+			docs.BoldText("Total"),
+			docs.Text(""),
+			docs.BoldText(fmtAmount(totRevenue)),
+			docs.BoldText(fmtAmount(totProfit)),
+			docs.BoldText(fmtQty(totMargin) + "%"),
+		},
+	}}
+	h.write(w, r, report, "profitability-"+groupBy)
+}

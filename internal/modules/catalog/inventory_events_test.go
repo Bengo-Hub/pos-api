@@ -68,6 +68,7 @@ func TestSyncCatalogItem_CachesCostManufacturerCategory(t *testing.T) {
 		"cost_price":    75.0,
 		"manufacturer":  "Acme",
 		"category_name": "Widgets",
+		"brand_name":    "Acme Premium",
 		"unit_name":     "PIECE",
 	})
 
@@ -89,6 +90,9 @@ func TestSyncCatalogItem_CachesCostManufacturerCategory(t *testing.T) {
 	}
 	if ov.Metadata["category_name"] != "Widgets" {
 		t.Errorf("metadata[category_name] = %v, want Widgets", ov.Metadata["category_name"])
+	}
+	if ov.Metadata["brand_name"] != "Acme Premium" {
+		t.Errorf("metadata[brand_name] = %v, want %q", ov.Metadata["brand_name"], "Acme Premium")
 	}
 	if ov.Metadata["uom"] != "PIECE" {
 		t.Errorf("metadata[uom] = %v, want PIECE", ov.Metadata["uom"])

@@ -1212,6 +1212,10 @@ func New(
 							rp.Get("/reports/staff", reportPDF.SalesByStaffPDF)
 							rp.Get("/reports/tax-document", reportPDF.TaxReportPDF)
 							rp.Get("/reports/most-profitable-document", reportPDF.MostProfitablePDF)
+						// Profitability page's non-Products tabs (?group_by=manufacturer|category|
+						// brand|outlet|staff|day|customer) — one shared handler, all 7 dimensions
+						// share the same {group, units_sold, revenue, profit, margin_pct} row shape.
+						rp.Get("/reports/profitability-grouped-document", reportPDF.ProfitabilityGroupedDocument)
 							// Analytics-page reports (cards + table + bar chart; ?format=pdf|csv).
 							rp.Get("/reports/sales-by-hour-document", reportPDF.SalesByHourDoc)
 							rp.Get("/reports/sales-by-category-document", reportPDF.SalesByCategoryDoc)
