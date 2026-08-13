@@ -274,9 +274,6 @@ func New(ctx context.Context) (*App, error) {
 	orderHandler.SetInventoryClient(inventoryClient)
 	// Only used to confirm actual fiscal status before a void-refusal message mentions KRA eTIMS.
 	orderHandler.SetTreasuryClient(treasuryClient)
-	// Lets a total-reducing line void/edit recheck payment completion (see orders.go's
-	// paymentSvc field doc for the incident this fixes).
-	orderHandler.SetPaymentService(paymentSvc)
 	catalogHandler := handlers.NewCatalogHandler(log, entClient)
 	catalogHandler.SetRedisClient(redisClient)
 	tableHandler := handlers.NewTableHandler(log, entClient)
