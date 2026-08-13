@@ -10,6 +10,8 @@ github.com/Bengo-Hub/httpware v0.5.2 h1:Lu4D0iIaQF+kHcIgKc594AQgASk1pLCH3IxK3xXr
 github.com/Bengo-Hub/httpware v0.5.2/go.mod h1:TZYP+f/fbbqw3xXGpcvVNZL5Ah1WGCasTcbQynJtI4o=
 github.com/Bengo-Hub/pagination v0.3.0 h1:cvFHj+A5fMD5B+L89Epw/SfVxIPAzL82JViXAYlxjEM=
 github.com/Bengo-Hub/pagination v0.3.0/go.mod h1:qXxXpX45Shf6qplVtxqEeOMeKiSr/W4nT4nMLQqF4/g=
+github.com/Bengo-Hub/pagination v0.4.0 h1:l2QxsUSrdqDTekHOhifJUfZqp5FHAD20Y1Zmzii7JQQ=
+github.com/Bengo-Hub/pagination v0.4.0/go.mod h1:qXxXpX45Shf6qplVtxqEeOMeKiSr/W4nT4nMLQqF4/g=
 github.com/Bengo-Hub/shared-events v0.6.2 h1:wqUCPOwJIOWILOm6hod1bWRdqbrWfXSH85AosYNVEhw=
 github.com/Bengo-Hub/shared-events v0.6.2/go.mod h1:eLz1wguUzi7PRZC29V/E4lq/YbT3yGDb8H2oXX7DXQU=
 github.com/Bengo-Hub/shared-ratelimit v0.1.0 h1:mm0vp8294UNsoQR76bhQPYddAReapsu0ULYWRYEnIu8=

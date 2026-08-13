@@ -10,7 +10,7 @@ require (
 	entgo.io/ent v0.14.5
 	github.com/Bengo-Hub/cache v0.4.0
 	github.com/Bengo-Hub/httpware v0.5.2
-	github.com/Bengo-Hub/pagination v0.3.0
+	github.com/Bengo-Hub/pagination v0.4.0
 	github.com/Bengo-Hub/shared-auth-client v0.6.0
 	github.com/Bengo-Hub/shared-events v0.6.2
 	github.com/Bengo-Hub/shared-ratelimit v0.1.0
