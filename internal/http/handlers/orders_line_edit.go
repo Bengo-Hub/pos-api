@@ -76,6 +76,7 @@ func (h *POSOrderHandler) EditOrderLine(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	h.recheckCompletionAfterTotalsChange(r.Context(), tid, orderID)
 
 	if h.auditSvc != nil {
 		oid := result.Order.OutletID

@@ -1002,8 +1002,11 @@ func (s *Service) RecomputePaidTotal(ctx context.Context, orderID uuid.UUID) (co
 // This exists as a manual recovery tool for orders whose totals were corrected out-of-band (e.g. a
 // direct DB fix for a stuck order) after the completion check had already failed once against a
 // wrong total — normal payment submission never re-checks a $0-outstanding order, so nothing else
-// re-triggers this. Not wired to any public route; call only via the S2S recheck-completion
-// endpoint (internal ops tool, INTERNAL_SERVICE_KEY-gated).
+// re-triggers this. Reachable two ways: the S2S recheck-completion endpoint (internal ops tool,
+// INTERNAL_SERVICE_KEY-gated) for manual data-fix follow-up, and in-process from
+// POSOrderHandler.recheckCompletionAfterTotalsChange, called after VoidOrderLine/EditOrderLine
+// reduce a still-open order's total — the everyday way this same stuck state arises (a line voided
+// or shrunk after a partial payment already closed the gap).
 func (s *Service) RecheckCompletion(ctx context.Context, tenantID, orderID uuid.UUID) error {
 	order, err := s.client.POSOrder.Query().
 		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).

@@ -179,6 +179,7 @@ func (h *POSOrderHandler) VoidOrderLine(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	h.recheckCompletionAfterTotalsChange(r.Context(), tid, orderID)
 
 	action := "order.line_remove"
 	if voidQty < line.Quantity {

@@ -30,6 +30,7 @@ import (
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
+	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
@@ -54,6 +55,14 @@ type POSOrderHandler struct {
 	// into thinking they were being monitored. Optional — nil means the message never
 	// mentions eTIMS (safer default than a false claim).
 	treasuryClient *treasury.Client
+	// paymentSvc lets a total-reducing line edit re-evaluate payment completion (see
+	// recheckCompletionAfterTotalsChange): voiding/reducing a line on a still-open order
+	// after a partial payment was already taken can drop the new total to at-or-below what's
+	// already been collected, and nothing else re-checks that order for completion afterward
+	// (order #000504, urban-loft, 2026-08-13 — stuck "open" with paid_total==total_amount
+	// since a line was voided 29 minutes after a partial mpesa_manual payment exactly closed
+	// the gap). Optional — nil skips the recheck, same as before this fix existed.
+	paymentSvc *payments.Service
 }
 
 func NewPOSOrderHandler(log *zap.Logger, client *ent.Client, orderSvc *orders.Service, subsClient *subscriptions.Client) *POSOrderHandler {
@@ -66,6 +75,29 @@ func (h *POSOrderHandler) SetAuditService(a *audit.Service) { h.auditSvc = a }
 // SetInventoryClient wires the inventory S2S client used to propagate order-line price
 // corrections to the catalog (EditOrderLine's update_catalog_price option).
 func (h *POSOrderHandler) SetInventoryClient(c *inventory.Client) { h.inventoryClient = c }
+
+// SetPaymentService wires the payments service so a total-reducing line edit can recheck
+// payment completion afterward (see recheckCompletionAfterTotalsChange).
+func (h *POSOrderHandler) SetPaymentService(p *payments.Service) { h.paymentSvc = p }
+
+// recheckCompletionAfterTotalsChange re-evaluates whether an order's already-completed
+// payments now cover its (just-reduced) total, driving it through the real completion path
+// if so. Voiding or shrinking a line on a still-open order never removes money already
+// collected, only the total owed — so a line change that happens to close the remaining gap
+// must trigger the same completion check a payment submission would, or the order is left
+// stuck open forever with paid_total already equal to total_amount (see paymentSvc's doc
+// comment on POSOrderHandler for the incident this fixes). Best-effort: the line
+// change itself already committed, so a recheck failure is only logged, never surfaced as
+// an error on this response.
+func (h *POSOrderHandler) recheckCompletionAfterTotalsChange(ctx context.Context, tid, orderID uuid.UUID) {
+	if h.paymentSvc == nil {
+		return
+	}
+	if err := h.paymentSvc.RecheckCompletion(ctx, tid, orderID); err != nil {
+		h.log.Warn("recheck order completion after totals change failed",
+			zap.String("order_id", orderID.String()), zap.Error(err))
+	}
+}
 
 // SetTreasuryClient wires the treasury S2S client used only to confirm fiscal status before a
 // void-refusal message mentions KRA eTIMS (see isFiscalized).
