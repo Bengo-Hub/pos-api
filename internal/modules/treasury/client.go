@@ -501,6 +501,10 @@ type ARPaymentRequest struct {
 	Amount        float64 `json:"amount"`
 	PaymentMethod string  `json:"payment_method,omitempty"`
 	Reference     string  `json:"reference,omitempty"`
+	// PaidAt is when the money actually changed hands — nil defaults to now on the treasury
+	// side. Lets a backdated till settlement (see credit_settlement.go) carry the same business
+	// date into the linked AR receipt instead of drifting by the S2S round-trip time.
+	PaidAt *time.Time `json:"paid_at,omitempty"`
 }
 
 // ARPaymentResponse is the updated treasury customer-balance row.

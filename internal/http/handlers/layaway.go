@@ -234,7 +234,8 @@ func (h *LayawayHandler) ListStaffCredit(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	p := pagination.Parse(r)
-	rows, total, err := h.staffCredit.List(r.Context(), tid, r.URL.Query().Get("status"), p.Limit, p.Offset)
+	from, to, _ := parseCreatedAtRange(r)
+	rows, total, err := h.staffCredit.List(r.Context(), tid, r.URL.Query().Get("status"), from, to, p.Limit, p.Offset)
 	if err != nil {
 		h.log.Error("list staff-credit links failed", zap.Error(err))
 		jsonError(w, "failed to list staff credit", http.StatusInternalServerError)
@@ -244,7 +245,8 @@ func (h *LayawayHandler) ListStaffCredit(w http.ResponseWriter, r *http.Request)
 }
 
 // List handles GET /{tenantID}/pos/layaways
-// Optional query params: ?status=, ?customer_phone= and ?outlet_id= (branch filter; "all" = every outlet)
+// Optional query params: ?status=, ?customer_phone=, ?outlet_id= (branch filter; "all" = every
+// outlet), ?from=&to= (YYYY-MM-DD, filters on created_at)
 func (h *LayawayHandler) List(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -264,6 +266,9 @@ func (h *LayawayHandler) List(w http.ResponseWriter, r *http.Request) {
 		if oid, perr := uuid.Parse(outlet); perr == nil {
 			q = q.Where(layawayplan.OutletID(oid))
 		}
+	}
+	if from, to, ok := parseCreatedAtRange(r); ok {
+		q = q.Where(layawayplan.CreatedAtGTE(from), layawayplan.CreatedAtLTE(to))
 	}
 
 	p := pagination.Parse(r)
@@ -319,11 +324,26 @@ func (h *LayawayHandler) Get(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]any{"plan": plan, "payments": payments})
 }
 
+// resolvePaidAt validates and defaults a user-supplied "when did this payment actually happen"
+// timestamp: nil defaults to now; a small clock-skew allowance is given, but anything
+// meaningfully in the future is rejected — this is backdating support, not postdating.
+func resolvePaidAt(t *time.Time) (time.Time, error) {
+	if t == nil || t.IsZero() {
+		return time.Now(), nil
+	}
+	if t.After(time.Now().Add(5 * time.Minute)) {
+		return time.Time{}, fmt.Errorf("paid_at cannot be in the future")
+	}
+	return *t, nil
+}
+
 type recordLayawayPaymentInput struct {
 	Amount        decimal.Decimal `json:"amount"`
 	PaymentMethod string          `json:"payment_method"`
 	Reference     string          `json:"reference"`
 	Notes         string          `json:"notes"`
+	// PaidAt is when the money actually changed hands — nil defaults to now (backdating support).
+	PaidAt *time.Time `json:"paid_at,omitempty"`
 }
 
 // RecordPayment handles POST /{tenantID}/pos/layaways/{id}/payments
@@ -348,6 +368,11 @@ func (h *LayawayHandler) RecordPayment(w http.ResponseWriter, r *http.Request) {
 	}
 	if input.Amount.IsZero() {
 		jsonError(w, "amount is required", http.StatusBadRequest)
+		return
+	}
+	paidAt, err := resolvePaidAt(input.PaidAt)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -395,7 +420,8 @@ func (h *LayawayHandler) RecordPayment(w http.ResponseWriter, r *http.Request) {
 	pc := tx.LayawayPayment.Create().
 		SetLayawayPlanID(planID).
 		SetTenantID(tid).
-		SetAmount(input.Amount)
+		SetAmount(input.Amount).
+		SetPaidAt(paidAt)
 	if input.PaymentMethod != "" {
 		pc.SetPaymentMethod(input.PaymentMethod)
 	}

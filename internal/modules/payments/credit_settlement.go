@@ -31,6 +31,10 @@ type SettleCreditRequest struct {
 	Amount       float64 // 0 → settle the full outstanding balance
 	ExternalRef  string  // M-Pesa code / cheque no. for manual methods
 	Currency     string
+	// OccurredAt is when the money actually changed hands (e.g. cash handed over yesterday but
+	// only entered today) — nil defaults to now. Backdating support, not postdating: a future
+	// value is rejected by resolveOccurredAt.
+	OccurredAt *time.Time
 }
 
 // SettleCreditResult reports what was applied and where the order now stands.
@@ -44,8 +48,25 @@ type SettleCreditResult struct {
 	TreasurySynced bool `json:"treasury_synced"`
 }
 
+// resolveOccurredAt validates and defaults a user-supplied "when did this payment actually
+// happen" timestamp: nil defaults to now; a small clock-skew allowance is given, but anything
+// meaningfully in the future is rejected — this is backdating support, not postdating.
+func resolveOccurredAt(t *time.Time) (time.Time, error) {
+	if t == nil || t.IsZero() {
+		return time.Now(), nil
+	}
+	if t.After(time.Now().Add(5 * time.Minute)) {
+		return time.Time{}, fmt.Errorf("payments: occurred_at cannot be in the future")
+	}
+	return *t, nil
+}
+
 // SettleCreditPayment applies a collected payment to a completed on-account sale.
 func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditRequest) (*SettleCreditResult, error) {
+	occurredAt, err := resolveOccurredAt(req.OccurredAt)
+	if err != nil {
+		return nil, err
+	}
 	req.TenderMethod = canonicalTenderMethod(req.TenderMethod)
 	if strings.EqualFold(req.TenderMethod, TenderOnAccount) || strings.EqualFold(req.TenderMethod, TenderComplimentary) {
 		return nil, fmt.Errorf("payments: %s is not a settlement method", req.TenderMethod)
@@ -134,10 +155,18 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 	if req.Amount > freshOutstanding+0.01 {
 		req.Amount = freshOutstanding
 	}
+	paymentData := map[string]any{"method": req.TenderMethod, "credit_settlement": true}
+	if req.OccurredAt != nil {
+		// Backdated — leave a breadcrumb of when this was actually entered, since occurred_at
+		// itself is now user-editable and no longer doubles as a system-record-time audit trail.
+		paymentData["backdated"] = true
+		paymentData["recorded_at"] = time.Now().Format(time.RFC3339)
+	}
 	if _, err := tx.POSPayment.Create().
 		SetOrderID(order.ID).SetTenderID(req.TenderID).SetAmount(req.Amount).
 		SetCurrency(currency).SetStatus(StatusCompleted).
-		SetPaymentData(map[string]any{"method": req.TenderMethod, "credit_settlement": true}).
+		SetOccurredAt(occurredAt).
+		SetPaymentData(paymentData).
 		SetNillableExternalReference(nilIfEmpty(req.ExternalRef)).
 		Save(ctx); err != nil {
 		_ = tx.Rollback()
@@ -177,6 +206,7 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 			Amount:        req.Amount,
 			PaymentMethod: req.TenderMethod,
 			Reference:     order.OrderNumber,
+			PaidAt:        &occurredAt,
 		}); terr != nil {
 			s.log.Error("credit settlement: treasury AR receipt failed — settle from treasury Customers page",
 				zap.String("order", order.OrderNumber), zap.Error(terr))

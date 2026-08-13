@@ -207,11 +207,12 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 
 // settleCreditInput is the body for POST /{tenantID}/pos/orders/{orderID}/payments/settle-credit.
 type settleCreditInput struct {
-	TenderID     uuid.UUID `json:"tenderId"`
-	TenderMethod string    `json:"tenderMethod"`
-	Amount       float64   `json:"amount"` // 0 → full outstanding balance
-	ExternalRef  string    `json:"externalRef,omitempty"`
-	Currency     string    `json:"currency,omitempty"`
+	TenderID     uuid.UUID  `json:"tenderId"`
+	TenderMethod string     `json:"tenderMethod"`
+	Amount       float64    `json:"amount"` // 0 → full outstanding balance
+	ExternalRef  string     `json:"externalRef,omitempty"`
+	Currency     string     `json:"currency,omitempty"`
+	OccurredAt   *time.Time `json:"occurredAt,omitempty"` // when the money actually changed hands; nil → now (backdating support)
 }
 
 // SettleCreditPayment handles POST /{tenantID}/pos/orders/{orderID}/payments/settle-credit —
@@ -247,6 +248,7 @@ func (h *PaymentHandler) SettleCreditPayment(w http.ResponseWriter, r *http.Requ
 		Amount:       input.Amount,
 		ExternalRef:  strings.TrimSpace(input.ExternalRef),
 		Currency:     input.Currency,
+		OccurredAt:   input.OccurredAt,
 	})
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)
