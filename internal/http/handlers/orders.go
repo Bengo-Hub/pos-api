@@ -234,6 +234,10 @@ type createOrderInput struct {
 	ApprovalToken  string             `json:"approval_token,omitempty"`   // manager step-up token for an over-limit discount / order adjustment
 	ApprovalCode   string             `json:"approval_code,omitempty"`    // manager-generated one-time code (alternative to a live step-up token)
 	Source         string             `json:"source,omitempty"`           // "pos_terminal" (default) | "back_office" (Add Sale flow)
+	// BusinessDate lets admin/manager backdate a sale at entry ("YYYY-MM-DD"). Requires
+	// pos.orders.manage — CreateOrder rejects the whole request (403) if a caller without that
+	// permission supplies a non-empty value, rather than silently dropping their explicit input.
+	BusinessDate string `json:"business_date,omitempty"`
 }
 
 // updateStatusInput is the body for PATCH /pos/orders/{id}/status.
@@ -932,6 +936,14 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Backdate-at-entry (admin/manager only) — checked here, before any other work, so a caller
+	// without pos.orders.manage gets a clear 403 rather than having their explicit input silently
+	// dropped further down the pipeline.
+	if strings.TrimSpace(input.BusinessDate) != "" && !outletmw.HasServicePermission(r, h.rbac, "pos.orders.manage") {
+		jsonError(w, "only admins/managers may backdate a sale", http.StatusForbidden)
+		return
+	}
+
 	// Get user ID from auth claims
 	var userID uuid.UUID
 	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims.Subject != "" {
@@ -1261,10 +1273,15 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		OrderTaxAmount:   input.OrderTaxAmount,
 		Charges:          input.Charges,
 		Source:           input.Source,
+		BusinessDate:     input.BusinessDate,
 	})
 	if err != nil {
 		if errors.Is(err, orders.ErrInvalidOrderSubtype) {
 			jsonError(w, "invalid order_subtype: must be one of dine_in, takeaway, room_service, delivery, bar_tab, retail", http.StatusBadRequest)
+			return
+		}
+		if errors.Is(err, orders.ErrInvalidBusinessDate) {
+			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		h.log.Error("create order failed", zap.Error(err))

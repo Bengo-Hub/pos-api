@@ -64,6 +64,13 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 		} else {
 			filters = append(filters, posorder.Status(statuses[0]))
 		}
+	} else {
+		// No explicit status filter (the All-Sales/Order-History default view): a "draft" is a
+		// parked, unfinalized sale — it must never appear alongside real sales, only in the
+		// dedicated Drafts list (which always passes ?status=draft explicitly, so it's unaffected
+		// by this default). Applies uniformly to the on-screen list, the summary footer, and the
+		// PDF/CSV export since they all share this filter builder.
+		filters = append(filters, posorder.StatusNEQ(orders.StatusDraft))
 	}
 	// staff_id / user_id scope the list to orders created by a specific staff member.
 	staffFilter := q.Get("staff_id")

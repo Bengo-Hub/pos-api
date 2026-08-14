@@ -68,6 +68,11 @@ func lineIsNonBillable(meta map[string]any) bool {
 // the schema enum. Handlers map it to a 400 (it used to surface as an opaque 500).
 var ErrInvalidOrderSubtype = errors.New("invalid order_subtype")
 
+// ErrInvalidBusinessDate is returned when CreateOrder's optional admin/manager backdate-at-entry
+// field fails parseAndValidateEffectiveDate (malformed, future, or too far in the past). Handlers
+// map it to a 400 with the wrapped message, mirroring ErrInvalidOrderSubtype.
+var ErrInvalidBusinessDate = errors.New("invalid business_date")
+
 // validOrderSubtypes mirrors the posorder.OrderSubtype enum values. "draft" is deliberately
 // absent — it is an order STATUS, not a subtype (legacy clients send it from Save as Draft).
 var validOrderSubtypes = map[string]struct{}{
@@ -123,6 +128,14 @@ type CreateOrderRequest struct {
 	// Source marks where the sale originated: "pos_terminal" (default) or "back_office"
 	// (the back-office Add Sale flow). Drives the All-Sales Sources filter + POS-only list.
 	Source string
+	// BusinessDate lets an admin/manager backdate a sale AT ENTRY time — e.g. ringing up a sale
+	// that actually happened yesterday (a missed sale, an offline recovery) under its real day
+	// instead of today, without needing the separate retroactive MoveOrderDate tool afterward.
+	// "YYYY-MM-DD"; empty = report under created_at as today (the default for every ordinary
+	// sale). Parsed/bounded the same way MoveOrderDate's newDateStr is (see
+	// parseAndValidateEffectiveDate). The caller (handler) is responsible for the
+	// pos.orders.manage permission check before forwarding a non-empty value here.
+	BusinessDate string
 }
 
 // OrderLineInput represents a single line item in an order.
@@ -666,6 +679,19 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		}
 	}
 
+	// Admin/manager backdate-at-entry (the caller already checked pos.orders.manage before
+	// forwarding a non-empty value). Fail fast, before opening the transaction, on a malformed
+	// or out-of-range date — same bounds MoveOrderDate enforces for the retroactive tool.
+	var businessDate *time.Time
+	if strings.TrimSpace(req.BusinessDate) != "" {
+		loc := s.tenantLocation(ctx, req.TenantID)
+		parsed, err := parseAndValidateEffectiveDate(loc, req.BusinessDate)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", ErrInvalidBusinessDate, err.Error())
+		}
+		businessDate = &parsed
+	}
+
 	currency := req.Currency
 	if currency == "" {
 		currency = s.outletCurrency(ctx, req.OutletID)
@@ -850,6 +876,9 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	}
 	if req.OfflineCreatedAt != nil {
 		orderBuilder = orderBuilder.SetOfflineCreatedAt(*req.OfflineCreatedAt)
+	}
+	if businessDate != nil {
+		orderBuilder = orderBuilder.SetBusinessDate(*businessDate)
 	}
 	order, err := orderBuilder.Save(ctx)
 	if err != nil {
@@ -2305,6 +2334,28 @@ func (s *Service) tenantLocation(ctx context.Context, tenantID uuid.UUID) *time.
 	return time.UTC
 }
 
+// parseAndValidateEffectiveDate parses a "YYYY-MM-DD" calendar day in the given tenant
+// timezone and bounds it to a sane window: not in the future, and not more than
+// maxMoveDateBackDays before today (both computed against the tenant-local calendar
+// day). Shared by MoveOrderDate (retroactive correction) and CreateOrder's optional
+// admin/manager backdate-at-entry field — both need the identical "well-formed,
+// backdate-only, capped" contract, so the validation lives in exactly one place.
+func parseAndValidateEffectiveDate(loc *time.Location, dateStr string) (time.Time, error) {
+	newDate, err := time.ParseInLocation("2006-01-02", strings.TrimSpace(dateStr), loc)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("orders: date must be YYYY-MM-DD")
+	}
+	nowLocal := time.Now().In(loc)
+	today := time.Date(nowLocal.Year(), nowLocal.Month(), nowLocal.Day(), 0, 0, 0, 0, loc)
+	if newDate.After(today) {
+		return time.Time{}, fmt.Errorf("orders: date cannot be in the future")
+	}
+	if newDate.Before(today.AddDate(0, 0, -maxMoveDateBackDays)) {
+		return time.Time{}, fmt.Errorf("orders: date is too far in the past (more than %d days before today)", maxMoveDateBackDays)
+	}
+	return newDate, nil
+}
+
 // MoveOrderDate sets the admin override of which calendar day an order counts toward
 // in reports — the tool for correcting a sale that was rung up/settled late (e.g.
 // blocked by a missing recipe, or synced from an offline device the next day) so it
@@ -2331,19 +2382,9 @@ func (s *Service) MoveOrderDate(ctx context.Context, tenantID, orderID, actorID 
 	}
 
 	loc := s.tenantLocation(ctx, tenantID)
-	newDate, err := time.ParseInLocation("2006-01-02", strings.TrimSpace(newDateStr), loc)
+	newDate, err := parseAndValidateEffectiveDate(loc, newDateStr)
 	if err != nil {
-		return nil, fmt.Errorf("orders: new_date must be YYYY-MM-DD")
-	}
-
-	// Bound the move to a sane window, computed against the tenant-local calendar day.
-	nowLocal := time.Now().In(loc)
-	today := time.Date(nowLocal.Year(), nowLocal.Month(), nowLocal.Day(), 0, 0, 0, 0, loc)
-	if newDate.After(today) {
-		return nil, fmt.Errorf("orders: cannot move a sale to a future date")
-	}
-	if newDate.Before(today.AddDate(0, 0, -maxMoveDateBackDays)) {
-		return nil, fmt.Errorf("orders: new_date is too far in the past (more than %d days before today)", maxMoveDateBackDays)
+		return nil, err
 	}
 
 	before := EffectiveOrderDate(order).In(loc)
