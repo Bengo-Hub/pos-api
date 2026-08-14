@@ -635,6 +635,20 @@ func (s *Service) DefaultCurrency() string {
 	return s.defaultCurrency
 }
 
+// isHospitalitySubtype reports whether an order subtype is kitchen/service-routed (needs a KDS
+// ticket the instant it's placed) as opposed to plain retail. CreateOrder uses this to decide the
+// initial status (open vs. draft); AddOrderLines uses it to decide whether a still-draft order
+// gets re-opened when items are added — a retail order must stay "draft" until actually checked
+// out (see CreateOrder's own comment), since "open" is treated as a committed, reportable sale
+// everywhere else (NonCommittedStatus, All-Sales due/outstanding totals).
+func isHospitalitySubtype(subtype string) bool {
+	switch subtype {
+	case "dine_in", "takeaway", "room_service", "bar_tab", "delivery":
+		return true
+	}
+	return false
+}
+
 // CreateOrder creates a new POS order with proper tax/discount calculation.
 //
 // Idempotency: when req.ClientReference is set (an offline-created sale), this is
@@ -787,7 +801,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	// prepare the food (delivery is then dispatched to a rider, takeaway is packed for pickup).
 	// Only "retail" (non-prepared goods) stays a draft until paid.
 	initialStatus := StatusDraft
-	isHospitalityOrder := subtype == "dine_in" || subtype == "takeaway" || subtype == "room_service" || subtype == "bar_tab" || subtype == "delivery"
+	isHospitalityOrder := isHospitalitySubtype(subtype)
 	if isHospitalityOrder {
 		initialStatus = StatusOpen
 	}
@@ -1975,9 +1989,17 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 		SetMetadata(orderMeta).
 		SetRoundOff(totals.RoundOff.InexactFloat64()).
 		SetTotalAmount(totals.TotalAmount.InexactFloat64())
-	// Adding items to a bill that was awaiting payment (or still a draft) re-opens it — there is now
-	// more to pay, so it must not stay in a pending/draft state.
-	if order.Status == StatusPendingPayment || order.Status == StatusDraft {
+	// Adding items to a bill that was awaiting payment re-opens it — there is now more to pay, so
+	// it must not stay pending. A still-draft order is only promoted to "open" for hospitality
+	// subtypes (mirrors CreateOrder's own initial-status rule): a plain retail cart is meant to
+	// stay "draft" until it's actually checked out, and "open" (unlike "draft") is treated as a
+	// committed, reportable sale everywhere downstream (NonCommittedStatus, All-Sales due/
+	// outstanding totals, the Record-Payment action) — promoting a never-checked-out retail cart
+	// to "open" the moment its price is edited pre-checkout made it falsely appear as a due/
+	// outstanding sale (confirmed live: order 000278, a still-uncompleted retail cart, showed
+	// "Outstanding: 215,000" and offered Record Payment, which correctly rejected it since no
+	// credit sale was ever actually finalized).
+	if order.Status == StatusPendingPayment || (order.Status == StatusDraft && isHospitalitySubtype(string(order.OrderSubtype))) {
 		upd = upd.SetStatus(StatusOpen)
 	}
 	if _, err = upd.Save(ctx); err != nil {
