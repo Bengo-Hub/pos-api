@@ -1701,6 +1701,24 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		}
 	}
 
+	customerPhone := ""
+	if order.CustomerPhone != nil {
+		customerPhone = *order.CustomerPhone
+	}
+	customerName := ""
+	if order.CustomerName != nil {
+		customerName = *order.CustomerName
+	}
+	// Resolve the same CRM link recordCreditSale already resolves for on-account sales, so a
+	// fully-settled (cash/mpesa/card) sale for an existing CRM-linked customer lands treasury's
+	// RecordSettledSale on their real row instead of creating a phone-only duplicate — see
+	// ResolveOrCreateCrmContactID's doc comment. Best-effort: "" degrades to the old phone-only
+	// match, never blocks the sale.
+	crmContactID := ""
+	if customerPhone != "" {
+		crmContactID = s.ResolveOrCreateCrmContactID(ctx, order.TenantID, customerPhone, customerName)
+	}
+
 	data := map[string]any{
 		"order_id":     order.ID.String(),
 		"order_number": order.OrderNumber,
@@ -1729,22 +1747,16 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		"prescription_id":       insurancePrescriptionID,
 		"payer_amount":          insurancePayerAmount,
 		"copay_amount":          insuranceCopayAmount,
-		"customer_phone": func() string {
-			if order.CustomerPhone != nil {
-				return *order.CustomerPhone
-			}
-			return ""
-		}(),
+		"customer_phone": customerPhone,
 		// customer_name is a display-only snapshot — treasury uses it (alongside customer_phone)
 		// to log the sale on the customer's AR ledger for statement/purchase-history visibility
 		// (arpa.RecordSettledSale), so a registered customer's cash/mpesa/card sales show up
 		// alongside their credit activity instead of only debt.
-		"customer_name": func() string {
-			if order.CustomerName != nil {
-				return *order.CustomerName
-			}
-			return ""
-		}(),
+		"customer_name": customerName,
+		// crm_contact_id lets treasury's RecordSettledSale match an existing CRM-linked
+		// CustomerBalance row directly, instead of only by raw phone string (see this func's
+		// resolution above). Empty when unresolved/anonymous — treasury falls back to phone-only.
+		"crm_contact_id": crmContactID,
 	}
 
 	if err := s.publisher.PublishSaleFinalized(ctx, order.TenantID, data); err != nil {
