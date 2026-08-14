@@ -82,6 +82,16 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 	if order.Status == orders.StatusCancelled || order.Status == orders.StatusVoided || order.Status == orders.StatusRefunded {
 		return nil, fmt.Errorf("payments: cannot settle a %s order", order.Status)
 	}
+	// A genuine on-account sale is ALWAYS orders.StatusCompleted — recordCreditSale stamps
+	// on_account then completes the order in the same call (extending credit IS the settlement
+	// event, even though no cash moved yet). So a still-draft/open/pending_payment order can never
+	// be a real credit sale, regardless of what its metadata/payment-status label claims — this is
+	// the real security boundary behind the frontend's identical gate (SalesActionsMenu), closing
+	// the exact confusion that let a still-unfinished retail cart (boi-enterprises order 000278)
+	// reach this far and fail confusingly on the on-account check below instead of here.
+	if order.Status != orders.StatusCompleted {
+		return nil, fmt.Errorf("payments: order %s is not a completed sale", order.OrderNumber)
+	}
 	if on, _ := order.Metadata["on_account"].(bool); !on {
 		return nil, fmt.Errorf("payments: order %s is not an on-account (credit) sale", order.OrderNumber)
 	}
