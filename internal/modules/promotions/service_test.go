@@ -292,3 +292,73 @@ func TestCorrespondingPairBOGO_ScalesWithBuyQty(t *testing.T) {
 		t.Fatalf("expected 2 free PIZ001, got %+v", perSKU["PIZ001"])
 	}
 }
+
+// burgerDayRuleWithSelfEntry reproduces the exact corrupted get_pair_map found on the Urban Loft
+// "BURGER DAY" promotion in production (2026-08-15): five legitimate burger -> Urban Vege Burger
+// pairs, plus a stray self-referencing "BUR005":"BUR005" entry that never appeared as a 6th row in
+// the discount-form UI (which renders one row per map entry — so this key must have been written
+// by a path other than the current pair editor) but WAS evaluated by calculateCorrespondingPairBOGO,
+// earning every Urban Vege Burger sold a free credit for itself and zeroing its own price.
+func burgerDayRuleWithSelfEntry() *ent.PromotionRule {
+	return &ent.PromotionRule{
+		DiscountType: promotionrule.DiscountTypeBogo,
+		ScopeType:    promotionrule.ScopeTypeItem,
+		ScopeIds:     []string{"BUR001", "BUR002", "BUR003", "BUR004", "BUR005", "BUR006"},
+		GetPairMap: map[string]string{
+			"BUR001": "BUR005",
+			"BUR002": "BUR005",
+			"BUR003": "BUR005",
+			"BUR004": "BUR005",
+			"BUR005": "BUR005", // the corrupted self-pair
+			"BUR006": "BUR005",
+		},
+		BuyQuantity:        1,
+		GetQuantity:        1,
+		GetDiscountPercent: 100,
+	}
+}
+
+// Buying ONLY the free item (Urban Vege Burger), with none of the qualifying burgers in the
+// cart, must never discount it — the self-referencing entry must be ignored entirely.
+func TestCorrespondingPairBOGO_SelfPairedEntryIgnored_SoloGetItemNeverFree(t *testing.T) {
+	s := &Service{}
+	lines := []DiscountLine{line("BUR005", 3, 450)} // 3 Urban Vege Burgers, nothing else bought
+	total, perSKU := s.calculateBOGODiscount(burgerDayRuleWithSelfEntry(), lines)
+	if !total.IsZero() {
+		t.Fatalf("Urban Vege Burger bought alone must never self-discount, got %s (perSKU=%+v)", total, perSKU)
+	}
+}
+
+// A legitimate pair (buy a qualifying burger, get the vege burger free) still works correctly
+// even with the stray self-entry present in the same map.
+func TestCorrespondingPairBOGO_SelfPairedEntryIgnored_LegitPairStillFrees(t *testing.T) {
+	s := &Service{}
+	lines := []DiscountLine{
+		line("BUR001", 1, 550), // Beef Burger Bacon-No Cheese (buy)
+		line("BUR005", 1, 450), // Urban Vege Burger (its mapped free)
+	}
+	total, perSKU := s.calculateBOGODiscount(burgerDayRuleWithSelfEntry(), lines)
+	if !total.Equal(decimal.NewFromInt(450)) {
+		t.Fatalf("expected 450 discount (free vege burger), got %s", total)
+	}
+	if got := perSKU["BUR005"]; got.FreeQty != 1 {
+		t.Fatalf("expected exactly 1 free BUR005, got %+v", got)
+	}
+}
+
+// A qualifying burger + TWO vege burgers must free exactly ONE (the earned credit), not both —
+// the self-entry must not grant the second vege burger a free credit of its own.
+func TestCorrespondingPairBOGO_SelfPairedEntryIgnored_DoesNotOverFree(t *testing.T) {
+	s := &Service{}
+	lines := []DiscountLine{
+		line("BUR001", 1, 550),
+		line("BUR005", 2, 450),
+	}
+	total, perSKU := s.calculateBOGODiscount(burgerDayRuleWithSelfEntry(), lines)
+	if !total.Equal(decimal.NewFromInt(450)) {
+		t.Fatalf("expected only 1 free vege burger (450), got %s", total)
+	}
+	if got := perSKU["BUR005"]; got.FreeQty != 1 {
+		t.Fatalf("expected FreeQty=1 (not 2), got %+v", got)
+	}
+}

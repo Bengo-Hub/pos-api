@@ -771,10 +771,20 @@ func (s *Service) calculateCrossItemBOGO(rule *ent.PromotionRule, lines []Discou
 // are consumed as they're freed so a get SKU that happens to be shared across two mappings isn't
 // double-counted. Mirrors the terminal's client-side calcCorrespondingPairBogo exactly.
 func (s *Service) calculateCorrespondingPairBOGO(rule *ent.PromotionRule, lines []DiscountLine, buyQty, getQty int, getPct float64, label string) (decimal.Decimal, map[string]LineDiscount) {
-	// lower(buySKU) → mapped get SKU (original case preserved for the per-SKU output).
+	// lower(buySKU) → mapped get SKU (original case preserved for the per-SKU output). A
+	// self-mapped entry (buySKU == getSKU) is skipped defensively: the handler layer rejects
+	// this shape on write (see handlers.validateGetPairMap), but a row written before that
+	// guard existed — or by any future path that bypasses it — would otherwise earn an item a
+	// free credit for itself the moment it's bought, zeroing its own price outright (the Urban
+	// Loft "BURGER DAY" bug, 2026-08-15: get_pair_map carried a stray "BUR005":"BUR005" entry).
 	pair := make(map[string]string, len(rule.GetPairMap))
 	for k, v := range rule.GetPairMap {
-		pair[strings.ToLower(strings.TrimSpace(k))] = v
+		bk := strings.ToLower(strings.TrimSpace(k))
+		gk := strings.ToLower(strings.TrimSpace(v))
+		if bk == "" || gk == "" || bk == gk {
+			continue
+		}
+		pair[bk] = v
 	}
 	if len(pair) == 0 {
 		return decimal.Zero, nil

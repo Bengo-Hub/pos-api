@@ -83,6 +83,10 @@ func (h *PromotionHandler) S2SCreateDiscount(w http.ResponseWriter, r *http.Requ
 		jsonError(w, "name required", http.StatusBadRequest)
 		return
 	}
+	if err := validateGetPairMap(input.GetPairMap); err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	// S2S calls carry no user JWT (X-API-Key only), so bannerFeatureLocked falls back to the
 	// tenant-id entitlement lookup (h.subs.ConsumerHasFeature) rather than claims.FeatureEnabled.
 	if h.bannerFeatureLocked(r.Context(), tid, input) {
