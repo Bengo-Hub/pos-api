@@ -34,9 +34,12 @@ func (s *Service) applyCustomerCreditTender(ctx context.Context, order *ent.POSO
 		return nil, fmt.Errorf("payments: applying stored credit requires a selected customer with a phone number")
 	}
 
-	// Resolve the canonical AR key the SAME way a credit sale does, so the applied credit nets
-	// against the identical treasury CustomerBalance row a return or credit sale would touch.
-	crmContactID := s.ResolveCrmContactID(ctx, req.TenantID, phone)
+	// Resolve the canonical AR key the SAME way recordCreditSale does for a non-staff customer
+	// (resolve-OR-CREATE, not just resolve) — a customer whose credit sale landed on a crm-linked
+	// row via the fuller resolver, but who never separately enrolled in loyalty, would otherwise
+	// resolve to "" here and fall back to a bare phone that can't match that row, silently failing
+	// to net against their real stored credit (same bug class as the credit-settlement key fix).
+	crmContactID := s.ResolveOrCreateCrmContactID(ctx, req.TenantID, phone, name)
 	key := crmContactID
 	if key == "" {
 		key = phone

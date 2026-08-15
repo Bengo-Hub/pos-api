@@ -1354,7 +1354,15 @@ func (s *Service) resolveSaleSettlementWithInsurance(ctx context.Context, order 
 				typ = method
 			}
 			tenders = append(tenders, saleTender{Type: typ, Amount: p.Amount, Status: p.Status})
-			if strings.EqualFold(tType, TenderOnAccount) && p.Status == StatusCompleted {
+			// Use typ (falls back to PaymentData["method"] when the payment's tender_id doesn't
+			// resolve a row in the tenders table) — NOT the raw tenders-table-only tType. A tenant
+			// with no rows in `tenders` at all (confirmed live: boi-enterprises) would otherwise
+			// have onAccount/insurance permanently stuck at 0 regardless of the real payment
+			// method, silently misclassifying every credit/insurance sale as "cash" and posting a
+			// spurious full-amount "settled" AR line alongside the real credit_sale/insurance
+			// posting. The complimentary check below already used the fallback-aware field
+			// (`method`) correctly — this mirrors that.
+			if strings.EqualFold(typ, TenderOnAccount) && p.Status == StatusCompleted {
 				onAccount += p.Amount
 			}
 			if strings.EqualFold(method, TenderComplimentary) && p.Status == StatusCompleted {
@@ -1363,7 +1371,7 @@ func (s *Service) resolveSaleSettlementWithInsurance(ctx context.Context, order 
 					compReason = reason
 				}
 			}
-			if strings.EqualFold(tType, TenderInsurance) && p.Status == StatusCompleted {
+			if strings.EqualFold(typ, TenderInsurance) && p.Status == StatusCompleted {
 				providerID, _ := p.PaymentData["insurance_provider_id"].(string)
 				coverageID, _ := p.PaymentData["insurance_coverage_id"].(string)
 				prescriptionID, _ := p.PaymentData["prescription_id"].(string)

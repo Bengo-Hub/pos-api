@@ -238,8 +238,19 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 }
 
 // creditSettlementKey resolves the treasury AR customer key for an order: the CRM contact of
-// the customer's phone (same resolution recordCreditSale used), falling back to the raw phone,
-// falling back to the staff key for staff credit sales.
+// the customer's phone (same resolve-or-create resolution recordCreditSale used to open the
+// credit sale in the first place), falling back to the raw phone, falling back to the staff key
+// for staff credit sales.
+//
+// Was ResolveCrmContactID (cached-loyalty-only, no marketflow fallback) until 2026-08-15 — a
+// customer with no loyalty enrollment resolved to "", so this fell back to a bare phone. When the
+// original credit sale had already landed on a crm-linked row with no customer_identifier set
+// (the common case once contact resolution is fixed to prefer the real CRM id), a phone-keyed
+// RecordARPayment call can't match it: the payment silently fails to post (only logged, never
+// surfaced or retried — see SettleCreditPayment's TreasurySynced=false path), leaving the
+// customer's treasury balance showing them still owing money they already paid. Confirmed live:
+// boi-enterprises order 000278 (MR OKELO TORORO) — paid_total=215000, credit_settled_at stamped,
+// but zero ar_receipt ever reached treasury and balance_due stayed at 215000.
 func (s *Service) creditSettlementKey(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder) string {
 	phone := ""
 	if order.CustomerPhone != nil {
@@ -251,7 +262,11 @@ func (s *Service) creditSettlementKey(ctx context.Context, tenantID uuid.UUID, o
 		}
 		return ""
 	}
-	if crmID := s.ResolveCrmContactID(ctx, tenantID, phone); crmID != "" {
+	name := ""
+	if order.CustomerName != nil {
+		name = *order.CustomerName
+	}
+	if crmID := s.ResolveOrCreateCrmContactID(ctx, tenantID, phone, name); crmID != "" {
 		return crmID
 	}
 	return phone
