@@ -80,7 +80,7 @@ func (c *Client) authHeaders(tenantID, bearerToken string) map[string]string {
 func (c *Client) IsSubscriptionActive(ctx context.Context, tenantID, tenantSlug, bearerToken string) bool {
 	// Use the S2S tenant-scoped path — subscriptions-api resolves tenant from URL param,
 	// not from JWT claims, so API-key auth works correctly without a user JWT in context.
-	resp, err := c.sc.Get(ctx, fmt.Sprintf("/api/v1/tenants/%s/subscription", tenantID), c.authHeaders(tenantID, bearerToken))
+	resp, err := c.sc.Get(ctx, fmt.Sprintf("/api/v1/tenants/%s/subscription?include_usage=false", tenantID), c.authHeaders(tenantID, bearerToken))
 	if err != nil {
 		return true // fail open
 	}
@@ -138,7 +138,12 @@ func (c *Client) GetEntitlements(ctx context.Context, tenantID string) *Entitlem
 	if c.cfg.ServiceURL == "" {
 		return nil
 	}
-	resp, err := c.sc.Get(ctx, fmt.Sprintf("/api/v1/tenants/%s/subscription", tenantID), c.authHeaders(tenantID, ""))
+	// include_usage=false skips subscriptions-api's per-tenant usage_events aggregate — this
+	// method never reads that field (Entitlements has no usage_limits), but every terminal PIN
+	// login calls GetEntitlements on its critical path. Without this flag every login paid for
+	// an aggregate it threw away, measured live at 4-9s and climbing under load (the direct
+	// cause of a login->timeout->fake-offline-session->401-loop incident).
+	resp, err := c.sc.Get(ctx, fmt.Sprintf("/api/v1/tenants/%s/subscription?include_usage=false", tenantID), c.authHeaders(tenantID, ""))
 	if err != nil || resp.StatusCode != 200 {
 		return nil
 	}
@@ -154,7 +159,7 @@ func (c *Client) GetEntitlements(ctx context.Context, tenantID string) *Entitlem
 // or subscriptions-api is unreachable — callers MUST fail open (allow the action) in
 // that case so a subscriptions-api outage never blocks core operations.
 func (c *Client) GetLimit(ctx context.Context, tenantID, limitKey string) (limit int, ok bool) {
-	resp, err := c.sc.Get(ctx, fmt.Sprintf("/api/v1/tenants/%s/subscription", tenantID), c.authHeaders(tenantID, ""))
+	resp, err := c.sc.Get(ctx, fmt.Sprintf("/api/v1/tenants/%s/subscription?include_usage=false", tenantID), c.authHeaders(tenantID, ""))
 	if err != nil || resp.StatusCode != 200 {
 		return 0, false
 	}
