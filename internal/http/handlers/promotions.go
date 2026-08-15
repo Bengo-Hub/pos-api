@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -259,23 +258,6 @@ func pairMapScopes(m map[string]string) (buy []string, get []string) {
 	return buy, get
 }
 
-// validateGetPairMap rejects a corresponding-pair BOGO map where a "buy" SKU is paired with
-// itself as its own "get" SKU. calculateCorrespondingPairBOGO (promotions.Service) treats every
-// buy-side key as earning a free credit for its mapped get-side value with no same-item check —
-// a self-mapped entry therefore earns the item a free credit for itself the moment it's bought,
-// zeroing its own price outright. That is never a valid "buy X, get a DIFFERENT item Y free" deal,
-// so it's caught here before it ever reaches the rule. Root cause of the Urban Loft "BURGER DAY"
-// bug (2026-08-15): its get_pair_map carried a stray "BUR005":"BUR005" entry alongside the 5
-// legitimate pairs, so every Urban Vege Burger sold discounted itself to zero.
-func validateGetPairMap(m map[string]string) error {
-	for k, v := range m {
-		if strings.EqualFold(strings.TrimSpace(k), strings.TrimSpace(v)) {
-			return fmt.Errorf("get_pair_map: %q cannot be paired with itself — the free item must be a different SKU from the bought item", k)
-		}
-	}
-	return nil
-}
-
 // CreatePromotion handles POST /{tenantID}/pos/promotions
 func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
@@ -287,10 +269,6 @@ func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Reques
 	var input createPromoInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-	if err := validateGetPairMap(input.GetPairMap); err != nil {
-		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -548,10 +526,6 @@ func (h *PromotionHandler) UpdatePromotion(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	input.normalize()
-	if err := validateGetPairMap(input.GetPairMap); err != nil {
-		jsonError(w, err.Error(), http.StatusBadRequest)
-		return
-	}
 
 	if h.bannerFeatureLocked(r.Context(), tid, input) {
 		authclient.WriteFeatureLocked(w, subscriptions.FeatureStorefrontBanner, "")

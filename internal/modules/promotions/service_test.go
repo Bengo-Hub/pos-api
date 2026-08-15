@@ -293,13 +293,69 @@ func TestCorrespondingPairBOGO_ScalesWithBuyQty(t *testing.T) {
 	}
 }
 
-// burgerDayRuleWithSelfEntry reproduces the exact corrupted get_pair_map found on the Urban Loft
-// "BURGER DAY" promotion in production (2026-08-15): five legitimate burger -> Urban Vege Burger
-// pairs, plus a stray self-referencing "BUR005":"BUR005" entry that never appeared as a 6th row in
-// the discount-form UI (which renders one row per map entry — so this key must have been written
-// by a path other than the current pair editor) but WAS evaluated by calculateCorrespondingPairBOGO,
-// earning every Urban Vege Burger sold a free credit for itself and zeroing its own price.
-func burgerDayRuleWithSelfEntry() *ent.PromotionRule {
+// selfPairRule models a "buy X of this item, get Y more of the SAME item free" deal expressed
+// via get_pair_map (the tenant picks the same item for both sides of a row in the "Pairings"
+// editor) rather than the plain buy_quantity/get_quantity same-SKU path. This is a legitimate,
+// supported configuration — it must never zero the item's price outright regardless of quantity
+// (the Urban Loft "BURGER DAY" incident, 2026-08-15, where an equivalent stray self-entry did
+// exactly that under the old buyQty-only earning formula).
+func selfPairRule() *ent.PromotionRule {
+	return &ent.PromotionRule{
+		DiscountType:       promotionrule.DiscountTypeBogo,
+		ScopeType:          promotionrule.ScopeTypeItem,
+		ScopeIds:           []string{"BUR005"},
+		GetPairMap:         map[string]string{"BUR005": "BUR005"},
+		BuyQuantity:        1,
+		GetQuantity:        1,
+		GetDiscountPercent: 100,
+	}
+}
+
+// One unit of a self-paired item hasn't completed a buy-1-get-1 cycle (needs 2), so nothing is
+// free yet — the regression case for "must not zero the price": the old buyQty-only formula
+// would have freed this single unit outright with no minimum quantity at all.
+func TestCorrespondingPairBOGO_SelfPair_SingleUnitNotYetEarned(t *testing.T) {
+	s := &Service{}
+	lines := []DiscountLine{line("BUR005", 1, 450)}
+	total, _ := s.calculateBOGODiscount(selfPairRule(), lines)
+	if !total.IsZero() {
+		t.Fatalf("1 unit of a self-paired item hasn't completed a buy-1-get-1 cycle, expected 0, got %s", total)
+	}
+}
+
+// Two units complete exactly one buy-1-get-1 cycle: one is freed, one stays full price — never
+// both (the original zero-price bug) and never neither.
+func TestCorrespondingPairBOGO_SelfPair_OneCycleFreesExactlyOne(t *testing.T) {
+	s := &Service{}
+	lines := []DiscountLine{line("BUR005", 2, 450)}
+	total, perSKU := s.calculateBOGODiscount(selfPairRule(), lines)
+	if !total.Equal(decimal.NewFromInt(450)) {
+		t.Fatalf("expected exactly 1 unit (450) freed out of 2, got %s", total)
+	}
+	if got := perSKU["BUR005"]; got.FreeQty != 1 {
+		t.Fatalf("expected FreeQty=1, got %+v", got)
+	}
+}
+
+// Scales with completed cycles: 4 units = 2 cycles = 2 free, 2 paid (never all 4 free).
+func TestCorrespondingPairBOGO_SelfPair_ScalesWithCompletedCycles(t *testing.T) {
+	s := &Service{}
+	lines := []DiscountLine{line("BUR005", 4, 450)}
+	total, perSKU := s.calculateBOGODiscount(selfPairRule(), lines)
+	if !total.Equal(decimal.NewFromInt(900)) {
+		t.Fatalf("expected 2 units (900) freed out of 4, got %s", total)
+	}
+	if got := perSKU["BUR005"]; got.FreeQty != 2 {
+		t.Fatalf("expected FreeQty=2, got %+v", got)
+	}
+}
+
+// burgerDayRuleWithSelfPair models a promotion combining a cross-item deal (buy any of 5
+// burgers, get the Urban Vege Burger free) with an ADDITIONAL self-paired row for the vege
+// burger itself (buy 1, get 1 more of the same item free) — the shape a tenant can now
+// legitimately configure by picking the same item for both sides of a "Pairings" row. Exercises
+// the two mechanisms coexisting in one rule without either one zeroing or over-freeing.
+func burgerDayRuleWithSelfPair() *ent.PromotionRule {
 	return &ent.PromotionRule{
 		DiscountType: promotionrule.DiscountTypeBogo,
 		ScopeType:    promotionrule.ScopeTypeItem,
@@ -309,7 +365,7 @@ func burgerDayRuleWithSelfEntry() *ent.PromotionRule {
 			"BUR002": "BUR005",
 			"BUR003": "BUR005",
 			"BUR004": "BUR005",
-			"BUR005": "BUR005", // the corrupted self-pair
+			"BUR005": "BUR005", // self-paired: vege burgers also buy-1-get-1 on their own
 			"BUR006": "BUR005",
 		},
 		BuyQuantity:        1,
@@ -318,26 +374,40 @@ func burgerDayRuleWithSelfEntry() *ent.PromotionRule {
 	}
 }
 
-// Buying ONLY the free item (Urban Vege Burger), with none of the qualifying burgers in the
-// cart, must never discount it — the self-referencing entry must be ignored entirely.
-func TestCorrespondingPairBOGO_SelfPairedEntryIgnored_SoloGetItemNeverFree(t *testing.T) {
+// Buying only 1 Urban Vege Burger, with none of the qualifying burgers in the cart, hasn't
+// completed the self-pair's buy-1-get-1 cycle (needs 2) — nothing is free yet.
+func TestCorrespondingPairBOGO_MixedSelfAndCrossItem_SoloSingleUnitNotYetEarned(t *testing.T) {
 	s := &Service{}
-	lines := []DiscountLine{line("BUR005", 3, 450)} // 3 Urban Vege Burgers, nothing else bought
-	total, perSKU := s.calculateBOGODiscount(burgerDayRuleWithSelfEntry(), lines)
+	lines := []DiscountLine{line("BUR005", 1, 450)}
+	total, _ := s.calculateBOGODiscount(burgerDayRuleWithSelfPair(), lines)
 	if !total.IsZero() {
-		t.Fatalf("Urban Vege Burger bought alone must never self-discount, got %s (perSKU=%+v)", total, perSKU)
+		t.Fatalf("1 solo Vege Burger hasn't completed a self-pair cycle, expected 0, got %s", total)
 	}
 }
 
-// A legitimate pair (buy a qualifying burger, get the vege burger free) still works correctly
-// even with the stray self-entry present in the same map.
-func TestCorrespondingPairBOGO_SelfPairedEntryIgnored_LegitPairStillFrees(t *testing.T) {
+// 3 Urban Vege Burgers bought alone complete exactly 1 self-pair cycle (floor(3/2)=1) — 1 free,
+// 2 paid, never all 3 (the original zero-price bug reproduced with a realistic quantity).
+func TestCorrespondingPairBOGO_MixedSelfAndCrossItem_SoloThreeFreesExactlyOne(t *testing.T) {
+	s := &Service{}
+	lines := []DiscountLine{line("BUR005", 3, 450)}
+	total, perSKU := s.calculateBOGODiscount(burgerDayRuleWithSelfPair(), lines)
+	if !total.Equal(decimal.NewFromInt(450)) {
+		t.Fatalf("expected exactly 1 unit (450) freed out of 3 solo Vege Burgers, got %s", total)
+	}
+	if got := perSKU["BUR005"]; got.FreeQty != 1 {
+		t.Fatalf("expected FreeQty=1, got %+v", got)
+	}
+}
+
+// A legitimate cross-item pair (buy a qualifying burger, get the vege burger free) still works
+// correctly when only 1 Vege Burger is present — too few to also trigger its own self-pair cycle.
+func TestCorrespondingPairBOGO_MixedSelfAndCrossItem_LegitPairStillFreesOne(t *testing.T) {
 	s := &Service{}
 	lines := []DiscountLine{
 		line("BUR001", 1, 550), // Beef Burger Bacon-No Cheese (buy)
 		line("BUR005", 1, 450), // Urban Vege Burger (its mapped free)
 	}
-	total, perSKU := s.calculateBOGODiscount(burgerDayRuleWithSelfEntry(), lines)
+	total, perSKU := s.calculateBOGODiscount(burgerDayRuleWithSelfPair(), lines)
 	if !total.Equal(decimal.NewFromInt(450)) {
 		t.Fatalf("expected 450 discount (free vege burger), got %s", total)
 	}
@@ -346,19 +416,21 @@ func TestCorrespondingPairBOGO_SelfPairedEntryIgnored_LegitPairStillFrees(t *tes
 	}
 }
 
-// A qualifying burger + TWO vege burgers must free exactly ONE (the earned credit), not both —
-// the self-entry must not grant the second vege burger a free credit of its own.
-func TestCorrespondingPairBOGO_SelfPairedEntryIgnored_DoesNotOverFree(t *testing.T) {
+// A qualifying burger + TWO vege burgers legitimately earns free credit from BOTH mechanisms at
+// once — 1 from the cross-item pair (buying BUR001) and 1 from the vege burgers' own completed
+// self-pair cycle (2 of them) — freeing both, which is correct stacking, not over-freeing: each
+// mechanism independently earned exactly 1, and 2 units happen to be available to cover both.
+func TestCorrespondingPairBOGO_MixedSelfAndCrossItem_BothMechanismsStack(t *testing.T) {
 	s := &Service{}
 	lines := []DiscountLine{
 		line("BUR001", 1, 550),
 		line("BUR005", 2, 450),
 	}
-	total, perSKU := s.calculateBOGODiscount(burgerDayRuleWithSelfEntry(), lines)
-	if !total.Equal(decimal.NewFromInt(450)) {
-		t.Fatalf("expected only 1 free vege burger (450), got %s", total)
+	total, perSKU := s.calculateBOGODiscount(burgerDayRuleWithSelfPair(), lines)
+	if !total.Equal(decimal.NewFromInt(900)) {
+		t.Fatalf("expected both vege burgers (900) freed — 1 from the cross-item pair, 1 from the self-pair cycle, got %s", total)
 	}
-	if got := perSKU["BUR005"]; got.FreeQty != 1 {
-		t.Fatalf("expected FreeQty=1 (not 2), got %+v", got)
+	if got := perSKU["BUR005"]; got.FreeQty != 2 {
+		t.Fatalf("expected FreeQty=2, got %+v", got)
 	}
 }

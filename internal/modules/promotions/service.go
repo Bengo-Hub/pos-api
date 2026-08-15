@@ -772,16 +772,13 @@ func (s *Service) calculateCrossItemBOGO(rule *ent.PromotionRule, lines []Discou
 // double-counted. Mirrors the terminal's client-side calcCorrespondingPairBogo exactly.
 func (s *Service) calculateCorrespondingPairBOGO(rule *ent.PromotionRule, lines []DiscountLine, buyQty, getQty int, getPct float64, label string) (decimal.Decimal, map[string]LineDiscount) {
 	// lower(buySKU) → mapped get SKU (original case preserved for the per-SKU output). A
-	// self-mapped entry (buySKU == getSKU) is skipped defensively: the handler layer rejects
-	// this shape on write (see handlers.validateGetPairMap), but a row written before that
-	// guard existed — or by any future path that bypasses it — would otherwise earn an item a
-	// free credit for itself the moment it's bought, zeroing its own price outright (the Urban
-	// Loft "BURGER DAY" bug, 2026-08-15: get_pair_map carried a stray "BUR005":"BUR005" entry).
+	// self-mapped entry (buySKU == getSKU) is a valid deal shape — "buy X of this item, get Y
+	// more of the SAME item free" — handled below by cycling on buyQty+getQty instead of buyQty
+	// alone (see the denom comment in the earning loop).
 	pair := make(map[string]string, len(rule.GetPairMap))
 	for k, v := range rule.GetPairMap {
 		bk := strings.ToLower(strings.TrimSpace(k))
-		gk := strings.ToLower(strings.TrimSpace(v))
-		if bk == "" || gk == "" || bk == gk {
+		if bk == "" || strings.TrimSpace(v) == "" {
 			continue
 		}
 		pair[bk] = v
@@ -815,12 +812,22 @@ func (s *Service) calculateCorrespondingPairBOGO(rule *ent.PromotionRule, lines 
 	freeQtyBySku := map[string]float64{}
 	amtBySku := map[string]decimal.Decimal{}
 	for buyLk, qty := range buyQtyBySku {
-		pairs := int(qty) / buyQty
+		gk := strings.ToLower(strings.TrimSpace(pair[buyLk]))
+		// A self-pair (gk == buyLk) draws its "buy" and "get" units from the exact same
+		// physical stack, so the earning cycle must be buyQty+getQty (mirroring
+		// calculateSameSKUBOGO), never buyQty alone: with buyQty alone, every single unit
+		// bought would earn a free credit against itself, zeroing the item's price outright
+		// regardless of quantity (the Urban Loft "BURGER DAY" bug, 2026-08-15 — get_pair_map
+		// carried a stray "BUR005":"BUR005" entry evaluated with the buyQty-only formula).
+		denom := buyQty
+		if gk == buyLk {
+			denom = buyQty + getQty
+		}
+		pairs := int(qty) / denom
 		if pairs <= 0 {
 			continue
 		}
 		earned := pairs * getQty
-		gk := strings.ToLower(strings.TrimSpace(pair[buyLk]))
 		avail := getUnits[gk]
 		sort.Slice(avail, func(i, j int) bool { return avail[i].LessThan(avail[j]) })
 		n := earned

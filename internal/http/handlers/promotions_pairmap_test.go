@@ -10,45 +10,19 @@ import (
 	"github.com/Bengo-Hub/httpware"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/ent/promotion"
+	"github.com/bengobox/pos-service/internal/ent/promotionrule"
 	promotions "github.com/bengobox/pos-service/internal/modules/promotions"
 )
 
-// TestValidateGetPairMap_RejectsSelfPair is a pure regression test for the exact corruption found
-// on the Urban Loft "BURGER DAY" promotion in production (2026-08-15): a get_pair_map entry whose
-// buy SKU equals its own get SKU. That shape earns the item a free credit for itself the moment
-// it's bought (calculateCorrespondingPairBOGO has no same-item check), zeroing its own price.
-func TestValidateGetPairMap_RejectsSelfPair(t *testing.T) {
-	err := validateGetPairMap(map[string]string{
-		"BUR001": "BUR005",
-		"BUR005": "BUR005", // self-paired — must be rejected
-		"BUR006": "BUR005",
-	})
-	if err == nil {
-		t.Fatal("expected an error for a self-paired get_pair_map entry, got nil")
-	}
-}
-
-func TestValidateGetPairMap_AllowsLegitimateMap(t *testing.T) {
-	err := validateGetPairMap(map[string]string{
-		"BUR001": "BUR005",
-		"BUR002": "BUR005",
-		"BUR006": "BUR005",
-	})
-	if err != nil {
-		t.Fatalf("expected no error for a legitimate map, got %v", err)
-	}
-}
-
-func TestValidateGetPairMap_EmptyMapOK(t *testing.T) {
-	if err := validateGetPairMap(nil); err != nil {
-		t.Fatalf("expected no error for an empty/nil map, got %v", err)
-	}
-}
-
-// TestCreatePromotion_RejectsSelfPairedGetPairMap is the end-to-end HTTP check: POSTing a BOGO
-// promotion whose get_pair_map self-pairs an item must 400 and must NOT persist a rule at all —
-// the exact request shape that produced the Urban Loft bug must now be refused at the door.
-func TestCreatePromotion_RejectsSelfPairedGetPairMap(t *testing.T) {
+// TestCreatePromotion_AllowsSelfPairedGetPairMap is the end-to-end HTTP check for the Urban Loft
+// "BURGER DAY" incident (2026-08-15): a get_pair_map entry where a buy SKU maps to itself (e.g.
+// the tenant deliberately configures "buy 1 Urban Vege Burger, get 1 more Vege Burger free"
+// alongside its cross-item pairs) is a legitimate deal shape and must be accepted — the actual
+// bug was that calculateCorrespondingPairBOGO priced it wrong (zeroed the item outright), not
+// that the shape itself was invalid. See TestCorrespondingPairBOGO_SelfPair* in the promotions
+// package for the pricing-correctness coverage.
+func TestCreatePromotion_AllowsSelfPairedGetPairMap(t *testing.T) {
 	client := newPromoTestClient(t)
 	tid := seedListTenant(t, client)
 	h := NewPromotionHandler(zap.NewNop(), client, promotions.NewService(client, zap.NewNop()))
@@ -64,7 +38,7 @@ func TestCreatePromotion_RejectsSelfPairedGetPairMap(t *testing.T) {
 		"get_discount_percent": 100,
 		"get_pair_map": map[string]string{
 			"BUR001": "BUR005",
-			"BUR005": "BUR005",
+			"BUR005": "BUR005", // self-paired — must be allowed
 			"BUR006": "BUR005",
 		},
 	}
@@ -75,20 +49,25 @@ func TestCreatePromotion_RejectsSelfPairedGetPairMap(t *testing.T) {
 
 	h.CreatePromotion(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400 for a self-paired get_pair_map, got %d: %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for a self-paired get_pair_map, got %d: %s", rec.Code, rec.Body.String())
 	}
-	count, err := client.Promotion.Query().Count(req.Context())
+
+	promo, err := client.Promotion.Query().Where(promotion.TenantID(tid)).Only(req.Context())
 	if err != nil {
-		t.Fatalf("count promotions: %v", err)
+		t.Fatalf("query created promotion: %v", err)
 	}
-	if count != 0 {
-		t.Fatalf("expected no promotion persisted after a rejected create, found %d", count)
+	rule, err := client.PromotionRule.Query().Where(promotionrule.PromotionID(promo.ID)).Only(req.Context())
+	if err != nil {
+		t.Fatalf("query created rule: %v", err)
+	}
+	if got := rule.GetPairMap["BUR005"]; got != "BUR005" {
+		t.Fatalf("expected the self-paired entry to persist unchanged, got %+v", rule.GetPairMap)
 	}
 }
 
-// TestCreatePromotion_AllowsLegitimatePairedGetPairMap ensures the new validation doesn't
-// collateral-damage the normal, valid cross-item pairing shape.
+// TestCreatePromotion_AllowsLegitimatePairedGetPairMap ensures the ordinary cross-item pairing
+// shape (no self-pairs at all) still works.
 func TestCreatePromotion_AllowsLegitimatePairedGetPairMap(t *testing.T) {
 	client := newPromoTestClient(t)
 	tid := seedListTenant(t, client)
