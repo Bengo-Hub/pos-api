@@ -780,7 +780,11 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 		if o.Currency != "" {
 			currency = o.Currency
 		}
-		day := o.CreatedAt.UTC().Format("2006-01-02")
+		// Bucket by the EFFECTIVE reporting date (business_date override when set), not raw
+		// created_at — otherwise a backdated sale (admin/manager "Sale date" at entry, or a
+		// MoveOrderDate correction) exports under the day it was keyed in instead of the day it
+		// actually happened, disagreeing with every other report this same helper feeds.
+		day := ordersmod.EffectiveOrderDate(o).UTC().Format("2006-01-02")
 		if _, ok := buckets[day]; !ok {
 			buckets[day] = &dayRow{Date: day}
 		}

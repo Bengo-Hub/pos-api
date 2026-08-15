@@ -262,7 +262,7 @@ func newReceiptResponse(v printing.ReceiptView, layout string) receiptResponse {
 		OutletEmail:                 v.OutletEmail,
 		BillTo:                      v.BillTo,
 		BillToLabel:                 v.BillToLabel,
-		IssuedAt:                    v.IssuedAt,
+		IssuedAt:                    v.DisplayDate,
 		Timezone:                    v.Timezone,
 		Lines:                       lines,
 		Subtotal:                    v.Subtotal,

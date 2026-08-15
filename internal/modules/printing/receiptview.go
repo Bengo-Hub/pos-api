@@ -98,6 +98,18 @@ func resolveDisplayName(tenantName, outletName string, isHQ bool, metadata map[s
 	return displayName
 }
 
+// effectiveOrderDate mirrors orders.Service's EffectiveOrderDate (modules/orders/service.go)
+// byte-for-byte: the admin-set business_date backdate/move (see CreateOrder's backdate-at-entry
+// field and MoveOrderDate) when present, else CreatedAt. Duplicated locally rather than imported
+// because modules/orders already imports this printing package (service.go / print_enqueue.go),
+// so the reverse import would be a cycle. Keep both copies in sync by hand.
+func effectiveOrderDate(o *ent.POSOrder) time.Time {
+	if o.BusinessDate != nil {
+		return *o.BusinessDate
+	}
+	return o.CreatedAt
+}
+
 // ReceiptView is the single canonical snapshot of "what a receipt/bill says". Every printable
 // surface — the JSON API, the server-rendered HTML/PDF, and the ESC/POS thermal bytes — renders
 // FROM this, built by BuildReceiptView. Do not hand-populate a ReceiptView; a background-printed
@@ -126,7 +138,18 @@ type ReceiptView struct {
 	// hasn't configured its own (see printing.Brand.Phone/Email).
 	OutletEmail string
 	Timezone    string // outlet IANA timezone, e.g. "Africa/Nairobi"
-	IssuedAt    time.Time
+	// IssuedAt is the order's real, immutable creation timestamp (server ingestion time) — used
+	// ONLY for internal same-order time math (e.g. receiptDataFromView's "added HH:MM" line
+	// note), never rendered directly. What every layout prints as "Date:" is DisplayDate.
+	IssuedAt time.Time
+	// DisplayDate is the calendar day printed on the receipt/invoice/packing-slip as "Date:":
+	// the admin backdate-at-entry / MoveOrderDate override (business_date) when present, else
+	// IssuedAt. A backdated business_date is stored at tenant midnight (see
+	// parseAndValidateEffectiveDate), so it naturally prints as "11-08-2026 00:00" rather than a
+	// fabricated ring-up time — a plain, honest signal that this is a reporting day, not a live
+	// timestamp. Matches orders.EffectiveOrderDate so a receipt never disagrees with the
+	// All-Sales list or reports for the same order.
+	DisplayDate time.Time
 	BillTo      string
 	// BillToLabel is "Customer" for a keyed-in/walk-in customer, or "Paid by" when the name was
 	// resolved from an identified online payment (M-Pesa / card / Paystack payer).
@@ -468,6 +491,7 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		OrderNumber:    order.OrderNumber,
 		OutletID:       order.OutletID,
 		IssuedAt:       order.CreatedAt,
+		DisplayDate:    effectiveOrderDate(order),
 		BillTo:         billTo,
 		BillToLabel:    billToLabel,
 		ServedBy:       opts.ServedBy,

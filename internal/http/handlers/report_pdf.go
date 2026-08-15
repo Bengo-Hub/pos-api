@@ -26,6 +26,7 @@ import (
 	enttender "github.com/bengobox/pos-service/internal/ent/tender"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/docs"
+	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/providerfooter"
 )
 
@@ -687,7 +688,11 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 		if o.Currency != "" {
 			currency = o.Currency
 		}
-		day := o.CreatedAt.UTC().Format("2006-01-02")
+		// Bucket by the EFFECTIVE reporting date (business_date override when set), not raw
+		// created_at — completedOrders already SELECTS rows by effective date range
+		// (effectiveDateGTE/LTE above), so bucketing by raw created_at here would land a
+		// backdated sale in the wrong day's row even though it was correctly included.
+		day := ordersmod.EffectiveOrderDate(o).UTC().Format("2006-01-02")
 		if buckets[day] == nil {
 			buckets[day] = &dayRow{}
 		}

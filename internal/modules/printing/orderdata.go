@@ -151,7 +151,7 @@ func receiptDataFromView(v ReceiptView, loc *time.Location) ReceiptData {
 		BillToLabel:                 v.BillToLabel,
 		ServedBy:                    v.ServedBy,
 		TableRef:                    v.TableRef,
-		DateTime:                    v.IssuedAt,
+		DateTime:                    v.DisplayDate,
 		Header:                      v.ReceiptHeader,
 		Footer:                      v.ReceiptFooter,
 		Items:                       items,
