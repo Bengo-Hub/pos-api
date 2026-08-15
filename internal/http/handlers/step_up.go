@@ -142,7 +142,14 @@ func (h *PINAuthHandler) StepUp(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if member == nil {
-		jsonError(w, "invalid credentials", http.StatusUnauthorized)
+		// 403, not 401: this PIN belongs to the step-up APPROVAL attempt, not the calling
+		// cashier's own session. A 401 here gets caught by the frontend's global axios
+		// interceptor as "the session's bearer token is invalid" — triggering a silent token
+		// refresh and, if that refresh fails (e.g. a rotating refresh token already consumed by
+		// a concurrent request), a full forced logout of the cashier mid-sale. A wrong manager
+		// PIN on an out-of-stock/void/discount override is an everyday business rejection, not
+		// a session-auth failure, and must never be able to nuke the terminal session.
+		jsonError(w, "invalid credentials", http.StatusForbidden)
 		return
 	}
 	if !canApproveAction(member.Role, input.Action) {
@@ -295,7 +302,9 @@ func (h *PINAuthHandler) StepUpByCard(w http.ResponseWriter, r *http.Request) {
 	}
 	staffUserID, ok := verifyCardToken(input.CardToken, h.jwtSecret)
 	if !ok {
-		jsonError(w, "invalid or expired card", http.StatusUnauthorized)
+		// 403, not 401 — same reasoning as StepUp above: this is a rejection of the SCANNED
+		// CARD, not of the calling cashier's own session, and must not risk a forced logout.
+		jsonError(w, "invalid or expired card", http.StatusForbidden)
 		return
 	}
 	member, err := h.client.StaffMember.Query().
