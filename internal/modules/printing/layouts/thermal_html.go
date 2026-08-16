@@ -140,6 +140,9 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 			buf.WriteString(`<td>Walk-in customer</td>`)
 		}
 		buf.WriteString(fmt.Sprintf(`<td class="c">%s</td></tr></table>`, escape(rec.ReceiptNumber)))
+		if ra := returnAgainstLine(rec); ra != "" {
+			buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, escape(ra)))
+		}
 		buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, receiptTime(rec.IssuedAt, rec.Timezone)))
 		if rec.ServedBy != "" {
 			buf.WriteString(fmt.Sprintf(`<div class="gserved"><b>SERVED BY</b><span>%s</span></div>`, escape(rec.ServedBy)))
@@ -147,6 +150,9 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	} else {
 		buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, receiptTime(rec.IssuedAt, rec.Timezone)))
 		buf.WriteString(fmt.Sprintf(`<p class="sub">Receipt: %s</p>`, escape(rec.ReceiptNumber)))
+		if ra := returnAgainstLine(rec); ra != "" {
+			buf.WriteString(fmt.Sprintf(`<p class="sub">%s</p>`, escape(ra)))
+		}
 		if rec.BillTo != "" {
 			buf.WriteString(fmt.Sprintf(`<p class="sub">%s: %s</p>`, escape(billLabel), escape(rec.BillTo)))
 		}
@@ -199,7 +205,7 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	if rec.RoundOff > 0 {
 		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Round Off</span><span>%s</span></div>`, amount(rec.RoundOff)))
 	}
-	buf.WriteString(fmt.Sprintf(`<div class="line bold tot"><span>TOTAL</span><span>%s %s</span></div>`, amount(rec.TotalAmount), escape(rec.Currency)))
+	buf.WriteString(fmt.Sprintf(`<div class="line bold tot"><span>%s</span><span>%s %s</span></div>`, escape(totalLabel(rec, "")), amount(rec.TotalAmount), escape(rec.Currency)))
 	// Payment method with settle date on retail ("Cash (14-07-2026)") — matches ESC/POS.
 	if rec.UseCase == "retail" {
 		if pl := paymentMethodLabel(rec); pl != "" {

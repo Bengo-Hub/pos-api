@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -25,10 +26,24 @@ type ReturnHandler struct {
 	log    *zap.Logger
 	client *ent.Client
 	svc    *returns.Service
+	// cache/authURL back the printed refund receipt (see returns_receipt.go): tenant branding
+	// (logo/company name/contact fallbacks) and the platform-owner footer are both resolved
+	// through the shared tenant cache, exactly as ReceiptHandler does for a sale receipt.
+	cache   *sharedcache.Aside
+	authURL string
 }
 
 func NewReturnHandler(log *zap.Logger, client *ent.Client, svc *returns.Service) *ReturnHandler {
 	return &ReturnHandler{log: log, client: client, svc: svc}
+}
+
+// WithBranding wires the shared tenant cache + auth-api URL used by the refund receipt endpoint.
+// Optional; nil/empty simply prints with the local tenant name and the static platform-owner
+// footer (never blocks printing).
+func (h *ReturnHandler) WithBranding(cache *sharedcache.Aside, authURL string) *ReturnHandler {
+	h.cache = cache
+	h.authURL = authURL
+	return h
 }
 
 func requestUserID(r *http.Request) uuid.UUID {

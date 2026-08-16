@@ -224,6 +224,13 @@ type ReceiptView struct {
 	CustomerAccountBalanceLabel string // "Amount Owing" | "Store Credit Available"
 
 	VoidReason string
+
+	// IsReturn marks the document a REFUND/return rather than a sale: every layout swaps the
+	// grand-total label to "REFUND TOTAL" and prints OriginalOrderNumber instead of framing the
+	// document as an order/invoice. Set only by BuildReturnReceiptView.
+	IsReturn bool
+	// OriginalOrderNumber is the sale this return reverses (only meaningful when IsReturn).
+	OriginalOrderNumber string
 }
 
 // ReceiptViewOpts carries the bits BuildReceiptView cannot derive from the order/outlet/setting
@@ -486,31 +493,31 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 	}
 
 	v := ReceiptView{
-		Type:           typ,
-		ReceiptNumber:  receiptNumber,
-		OrderNumber:    order.OrderNumber,
-		OutletID:       order.OutletID,
-		IssuedAt:       order.CreatedAt,
-		DisplayDate:    effectiveOrderDate(order),
-		BillTo:         billTo,
-		BillToLabel:    billToLabel,
-		ServedBy:       opts.ServedBy,
-		TableRef:       tableRef,
-		Lines:          items,
-		Currency:       currency,
-		Subtotal:       subtotal,
-		TaxAmount:      taxAmount,
-		DiscountAmount: discountAmount,
-		ChargesTotal:   chargesTotal,
-		Charges:        chargesBreakdown(order.Metadata),
-		RoundOff:       roundOff,
-		TotalAmount:    totalAmount,
-		AmountPaid:     amountPaid,
-		PaymentMethod:  opts.PaymentMethod,
-		PaymentDate:    opts.PaymentDate,
-		BalanceDue:     balanceDue,
-		AmountTendered: amountTendered,
-		ChangeDue:      changeDue,
+		Type:               typ,
+		ReceiptNumber:      receiptNumber,
+		OrderNumber:        order.OrderNumber,
+		OutletID:           order.OutletID,
+		IssuedAt:           order.CreatedAt,
+		DisplayDate:        effectiveOrderDate(order),
+		BillTo:             billTo,
+		BillToLabel:        billToLabel,
+		ServedBy:           opts.ServedBy,
+		TableRef:           tableRef,
+		Lines:              items,
+		Currency:           currency,
+		Subtotal:           subtotal,
+		TaxAmount:          taxAmount,
+		DiscountAmount:     discountAmount,
+		ChargesTotal:       chargesTotal,
+		Charges:            chargesBreakdown(order.Metadata),
+		RoundOff:           roundOff,
+		TotalAmount:        totalAmount,
+		AmountPaid:         amountPaid,
+		PaymentMethod:      opts.PaymentMethod,
+		PaymentDate:        opts.PaymentDate,
+		BalanceDue:         balanceDue,
+		AmountTendered:     amountTendered,
+		ChangeDue:          changeDue,
 		VoidReason:         opts.VoidReason,
 		ShowLogo:           true,
 		ShowProviderFooter: true,
@@ -540,113 +547,9 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 	if order.EtimsInternalData != nil {
 		v.EtimsInternalData = *order.EtimsInternalData
 	}
-
-	if outlet != nil {
-		v.OutletName = outlet.Name
-		v.Timezone = outlet.Timezone
-		if outlet.UseCase != nil {
-			v.UseCase = *outlet.UseCase
-		}
-		if addr := outlet.AddressJSON; addr != nil {
-			if street, ok := addr["street"].(string); ok && street != "" {
-				v.OutletAddress = street
-			} else if city, ok := addr["city"].(string); ok {
-				v.OutletAddress = city
-			}
-			v.OutletPhones = formatContactPhones(addr["contact_phones"])
-			if email, ok := addr["contact_email"].(string); ok {
-				v.OutletEmail = strings.TrimSpace(email)
-			}
-		}
-	}
-
-	// De-duplicate: when the outlet's address was set to the same text as its name (a common
-	// mis-configuration — see "Urban Loft Cafe Busia" printed twice), drop the address so the
-	// receipt shows each piece of information exactly once.
-	if strings.EqualFold(strings.TrimSpace(v.OutletAddress), strings.TrimSpace(v.OutletName)) {
-		v.OutletAddress = ""
-	}
-
-	// Multi-outlet tenant name vs outlet name (BOI Enterprises case: several branches under one
-	// tenant) — see resolveDisplayName's doc comment for the exact rule.
-	var meta map[string]any
-	isHQ := true // no outlet loaded => never override away from the tenant name
-	if outlet != nil {
-		isHQ = outlet.IsHq
-	}
-	if setting != nil {
-		meta = setting.Metadata
-	}
-	v.DisplayName = resolveDisplayName(opts.TenantName, v.OutletName, isHQ, meta)
-
-	if setting != nil {
-		if setting.ReceiptHeader != nil {
-			v.ReceiptHeader = *setting.ReceiptHeader
-		}
-		if setting.ReceiptFooter != nil {
-			v.ReceiptFooter = *setting.ReceiptFooter
-		}
-		v.VatEnabled = setting.VatEnabled
-		v.VatRate = setting.VatRate
-		v.PaperWidth = setting.PaperWidth
-		// Receipt & Printing → "Show logo" toggle (freeform metadata; absent = true).
-		if b, ok := setting.Metadata["receipt_show_logo"].(bool); ok {
-			v.ShowLogo = b
-		}
-
-		if setting.ShowPaymentInfoOnReceipt {
-			pm := &ReceiptPaymentMethods{}
-			if setting.MpesaPaybill != nil {
-				pm.MpesaPaybill = *setting.MpesaPaybill
-			}
-			if setting.MpesaAccountReference != nil {
-				pm.MpesaAccountRef = *setting.MpesaAccountReference
-			}
-			if setting.MpesaTill != nil {
-				pm.MpesaTill = *setting.MpesaTill
-			}
-			if setting.MpesaPochi != nil {
-				pm.MpesaPochi = *setting.MpesaPochi
-			}
-			if setting.AirtelMoneyNumber != nil {
-				pm.AirtelMoneyNumber = *setting.AirtelMoneyNumber
-			}
-			if setting.MtnMomoNumber != nil {
-				pm.MtnMomoNumber = *setting.MtnMomoNumber
-			}
-			if setting.BankName != nil {
-				pm.BankName = *setting.BankName
-			}
-			if setting.BankAccountNumber != nil {
-				pm.BankAccountNumber = *setting.BankAccountNumber
-			}
-			if setting.BankAccountName != nil {
-				pm.BankAccountName = *setting.BankAccountName
-			}
-			if pm.HasAny() {
-				v.PaymentMethods = pm
-			}
-		}
-	}
-
-	// De-duplicate: a custom receipt header that was configured to just repeat the business
-	// name/outlet identity already printed above it (the "Urban Loft Cafe Busia" printed twice
-	// report, later the "Gachie" outlet printing THREE location-ish lines, and the BOI
-	// Enterprises case where a header set to the tenant's own name repeated v.DisplayName)
-	// prints the same information again. Exact-match covers a header set to literally the
-	// outlet name/address; the SUBSTRING check catches a richer free-text header that embeds
-	// the name in a fuller description (e.g. header "Red Hill - Westbay Mall, Gachie" when the
-	// outlet is named "Gachie") — a case exact-match alone would miss. Checked against BOTH
-	// DisplayName (what actually prints as the headline) AND the raw opts.TenantName: on a
-	// non-HQ outlet that turned "Show Business Name on Receipt" OFF, DisplayName is the outlet's
-	// own name (so the outlet-name check alone would miss it), yet a header still containing the
-	// literal tenant name (e.g. "BOI ENTERPRISES") would silently defeat the whole point of that
-	// toggle — the outlet chose to hide the parent tenant's identity, so a side-channel free-text
-	// field can't be allowed to keep printing it. This is the single canonical builder, so the
-	// fix applies to the JSON API, server HTML/PDF, and ESC/POS thermal receipt at once.
-	if h := strings.TrimSpace(v.ReceiptHeader); h != "" && headerRepeatsOutletIdentity(h, v.DisplayName, opts.TenantName, v.OutletName, v.OutletAddress) {
-		v.ReceiptHeader = ""
-	}
+	// Business identity, receipt settings and the header de-duplication guards — shared with
+	// every other document type built in this package (see receiptview_outlet.go).
+	applyOutletContext(&v, outlet, setting, opts.TenantName)
 
 	return v
 }

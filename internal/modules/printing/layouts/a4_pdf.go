@@ -79,16 +79,26 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 	if billLabel == "" {
 		billLabel = "Customer"
 	}
+	// A refund document has no order number of its own — the boxed number cell carries the
+	// return/credit-note number, and the sale it reverses is named on the line below.
+	docLabel, docNumber := "INVOICE.NO", rec.OrderNumber
+	if rec.IsReturn {
+		docLabel, docNumber = "REFUND NO", rec.ReceiptNumber
+	}
 	custW, invW, dateW := contentW*0.45, contentW*0.22, contentW*0.33
 	pdf.SetFont("Helvetica", "B", 11)
 	pdf.CellFormat(custW, 7, billLabel, "1", 0, "L", false, 0, "")
-	pdf.CellFormat(invW, 7, "INVOICE.NO", "1", 0, "C", false, 0, "")
+	pdf.CellFormat(invW, 7, docLabel, "1", 0, "C", false, 0, "")
 	pdf.CellFormat(dateW, 7, "DATE", "1", 1, "C", false, 0, "")
 	pdf.SetFont("Helvetica", "B", 10)
 	pdf.CellFormat(custW, 8, strings.ToUpper(truncate(rec.BillTo, 38)), "1", 0, "L", false, 0, "")
 	pdf.SetFont("Helvetica", "", 10)
-	pdf.CellFormat(invW, 8, rec.OrderNumber, "1", 0, "C", false, 0, "")
+	pdf.CellFormat(invW, 8, docNumber, "1", 0, "C", false, 0, "")
 	pdf.CellFormat(dateW, 8, shortDateTime(rec.IssuedAt, rec.Timezone), "1", 1, "C", false, 0, "")
+	if ra := returnAgainstLine(rec); ra != "" {
+		pdf.SetFont("Helvetica", "B", 10)
+		pdf.CellFormat(contentW, 6, ra, "", 1, "L", false, 0, "")
+	}
 	pdf.Ln(2)
 
 	// ── SERVED BY ──
@@ -156,7 +166,7 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 	if rec.RoundOff > 0 {
 		trow("Round Off:", money(rec.Currency, rec.RoundOff), false)
 	}
-	trow("TOTAL:", money(rec.Currency, rec.TotalAmount), true)
+	trow(totalLabel(rec, ":"), money(rec.Currency, rec.TotalAmount), true)
 	if pl := paymentMethodLabel(rec); pl != "" && rec.AmountPaid > 0 {
 		trow(pl, money(rec.Currency, rec.AmountPaid), false)
 	}

@@ -92,13 +92,22 @@ td.r,th.r{text-align:right}
 	if billLabel == "" {
 		billLabel = "Customer"
 	}
+	// A refund document has no order number of its own — the boxed number cell carries the
+	// return/credit-note number, and the sale it reverses is named on the line below.
+	docLabel, docNumber := "INVOICE.NO", rec.OrderNumber
+	if rec.IsReturn {
+		docLabel, docNumber = "REFUND NO", rec.ReceiptNumber
+	}
 	buf.WriteString(`<table><tr>`)
-	buf.WriteString(fmt.Sprintf(`<th style="width:45%%">%s</th><th class="c" style="width:22%%">INVOICE.NO</th><th class="c">DATE</th>`, escape(billLabel)))
+	buf.WriteString(fmt.Sprintf(`<th style="width:45%%">%s</th><th class="c" style="width:22%%">%s</th><th class="c">DATE</th>`, escape(billLabel), escape(docLabel)))
 	buf.WriteString(`</tr><tr>`)
 	buf.WriteString(fmt.Sprintf(`<td><b>%s</b></td>`, escape(strings.ToUpper(rec.BillTo))))
-	buf.WriteString(fmt.Sprintf(`<td class="c">%s</td>`, escape(rec.OrderNumber)))
+	buf.WriteString(fmt.Sprintf(`<td class="c">%s</td>`, escape(docNumber)))
 	buf.WriteString(fmt.Sprintf(`<td class="c">%s</td>`, shortDateTime(rec.IssuedAt, rec.Timezone)))
 	buf.WriteString(`</tr></table>`)
+	if ra := returnAgainstLine(rec); ra != "" {
+		buf.WriteString(fmt.Sprintf(`<div class="sub"><b>%s</b></div>`, escape(ra)))
+	}
 
 	// ── SERVED BY ──
 	if rec.ServedBy != "" {
@@ -150,7 +159,7 @@ td.r,th.r{text-align:right}
 	if rec.RoundOff > 0 {
 		trow("Round Off:", money(rec.Currency, rec.RoundOff), false)
 	}
-	trow("TOTAL:", money(rec.Currency, rec.TotalAmount), true)
+	trow(totalLabel(rec, ":"), money(rec.Currency, rec.TotalAmount), true)
 	if pl := paymentMethodLabel(rec); pl != "" && rec.AmountPaid > 0 {
 		trow(pl, money(rec.Currency, rec.AmountPaid), false)
 	}

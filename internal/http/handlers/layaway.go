@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -36,10 +37,24 @@ type LayawayHandler struct {
 	staffCredit    *staffcredit.Service
 	finalizer      SaleFinalizer
 	treasuryClient *treasury.Client
+	// cache/authURL back the printed layaway receipts (see layaway_receipt.go): tenant branding
+	// (logo/company name/contact fallbacks) and the platform-owner footer are both resolved
+	// through the shared tenant cache, exactly as ReceiptHandler does for a sale receipt.
+	cache   *sharedcache.Aside
+	authURL string
 }
 
 func NewLayawayHandler(log *zap.Logger, db *ent.Client) *LayawayHandler {
 	return &LayawayHandler{log: log, db: db}
+}
+
+// WithBranding wires the shared tenant cache + auth-api URL used by the layaway receipt
+// endpoints. Optional; nil/empty simply prints the receipt with the local tenant name and the
+// static platform-owner footer (never blocks printing).
+func (h *LayawayHandler) WithBranding(cache *sharedcache.Aside, authURL string) *LayawayHandler {
+	h.cache = cache
+	h.authURL = authURL
+	return h
 }
 
 // WithTreasuryClient wires the treasury S2S client so Cancel can refund any deposit/installments
@@ -638,9 +653,18 @@ func (h *LayawayHandler) Complete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Idempotent: if the order was already created, return it.
+	// Idempotent: if the order was already created, return it — with the order NUMBER as well as
+	// the id, so a re-tapped "Complete / Hand Over" gives the till the same payload (and the same
+	// receipt link) the first call did instead of an id-only stub.
 	if plan.OrderID != nil {
-		jsonOK(w, map[string]any{"order_id": plan.OrderID})
+		resp := map[string]any{"order_id": plan.OrderID}
+		if existing, oerr := h.db.POSOrder.Query().
+			Where(posorder.ID(*plan.OrderID), posorder.TenantID(tid)).
+			Select(posorder.FieldOrderNumber).
+			Only(ctx); oerr == nil && existing != nil {
+			resp["order_number"] = existing.OrderNumber
+		}
+		jsonOK(w, resp)
 		return
 	}
 
@@ -654,6 +678,8 @@ func (h *LayawayHandler) Complete(w http.ResponseWriter, r *http.Request) {
 
 	orderNumber := fmt.Sprintf("LAY-%s-%d", planID.String()[:8], time.Now().UnixMilli())
 	totalFloat := plan.TotalAmount.InexactFloat64()
+	paidFloat := plan.PaidAmount.InexactFloat64()
+	currency := resolveOutletCurrency(ctx, h.db, plan.OutletID)
 
 	order, err := h.db.POSOrder.Create().
 		SetTenantID(tid).
@@ -666,7 +692,12 @@ func (h *LayawayHandler) Complete(w http.ResponseWriter, r *http.Request) {
 		SetTaxTotal(0).
 		SetDiscountTotal(0).
 		SetTotalAmount(totalFloat).
-		SetCurrency(resolveOutletCurrency(ctx, h.db, plan.OutletID)).
+		// The deposit + every instalment were already collected on the plan, so the order this
+		// completion creates is fully settled the moment it exists — paid_total is the maintained
+		// source of truth behind the paid/partial/due filter and the row badge, and leaving it 0
+		// made a completed layaway show up as an unpaid sale everywhere it's read.
+		SetPaidTotal(paidFloat).
+		SetCurrency(currency).
 		SetOrderSubtype(posorder.OrderSubtypeRetail).
 		SetMetadata(map[string]any{"source": "layaway", "layaway_plan_id": planID.String()}).
 		SetNillableCustomerPhone(func() *string {
@@ -686,6 +717,29 @@ func (h *LayawayHandler) Complete(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("create layaway order failed", zap.Error(err))
 		jsonError(w, "failed to create order: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Record the money as a real POSPayment against the new order. Without this row the order
+	// looks like it was never paid on every surface that reads order.Edges.Payments — most
+	// visibly the receipt (printing.BuildReceiptView derives the payment method, amount paid,
+	// change and balance-due lines from it), which rendered a fully-settled layaway as an unpaid
+	// bill. TenderID is uuid.Nil for the same reason the terminal's own tender flows send a nil
+	// placeholder: there is no per-method Tender catalog row to resolve; payment_data.method is
+	// the value every reader (receipt.go, the All-Sales export) actually keys off.
+	if _, perr := h.db.POSPayment.Create().
+		SetOrderID(order.ID).
+		SetTenderID(uuid.Nil).
+		SetAmount(paidFloat).
+		SetCurrency(currency).
+		SetStatus("completed").
+		SetPaymentData(map[string]any{"method": "layaway", "layaway_plan_id": planID.String()}).
+		SetExternalReference(orderNumber).
+		SetOccurredAt(time.Now()).
+		Save(ctx); perr != nil {
+		// Non-fatal: the goods are handed over and the order exists. Log loudly — the payment row
+		// can be reconciled — rather than failing a completion the customer already paid for.
+		h.log.Error("create layaway order payment failed (order created; receipt will show unpaid)",
+			zap.Error(perr), zap.String("order_id", order.ID.String()), zap.String("plan_id", planID.String()))
 	}
 
 	// Rebuild the real order lines from the captured cart snapshot so the sale posts GL, backflushes

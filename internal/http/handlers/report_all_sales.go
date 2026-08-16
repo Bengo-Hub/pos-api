@@ -312,7 +312,7 @@ var exportMethodLabels = map[string]string{
 	"mpesa": "M-Pesa", "mpesa_manual": "M-Pesa (Code)", "manual": "M-Pesa (Code)",
 	"wallet": "Wallet", "cod": "Cash on Delivery", "on_account": "On Account",
 	"room_charge": "Room Charge", "complimentary": "Complimentary", "loyalty": "Loyalty Points",
-	"multiple": "Multiple",
+	"multiple": "Multiple", "layaway": "Layaway",
 }
 
 func exportMethodLabel(code string) string {

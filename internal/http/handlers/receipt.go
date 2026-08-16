@@ -129,19 +129,26 @@ func (h *ReceiptHandler) ReprintReceipt(w http.ResponseWriter, r *http.Request) 
 // branding fetches tenant branding (logo/name/primary-color) from the shared cache, mirroring the
 // documents module. Best-effort: returns a zero-value brand if anything is unavailable.
 func (h *ReceiptHandler) branding(ctx context.Context, tenantID uuid.UUID) receiptBrand {
+	return tenantBranding(ctx, h.client, h.cache, h.authURL, tenantID)
+}
+
+// tenantBranding is the package-level form of branding() — the SINGLE tenant-branding resolver
+// shared by every receipt-producing handler (sale receipts, layaway payment slips, refund
+// receipts), so all of them render the same logo/company name/contact fallbacks.
+func tenantBranding(ctx context.Context, client *ent.Client, cache *sharedcache.Aside, authURL string, tenantID uuid.UUID) receiptBrand {
 	var b receiptBrand
 	// Read the local tenant name FIRST, independent of the cache lookup below — otherwise a receipt
 	// generated while the cache/authURL isn't configured renders with a fully blank brand (no name
 	// at all) even though the tenant's name is sitting right there in the local DB.
-	t, err := h.client.Tenant.Query().Where(enttenant.ID(tenantID)).Only(ctx)
+	t, err := client.Tenant.Query().Where(enttenant.ID(tenantID)).Only(ctx)
 	if err != nil {
 		return b
 	}
 	b.CompanyName = t.Name
-	if h.cache == nil || h.authURL == "" {
+	if cache == nil || authURL == "" {
 		return b
 	}
-	td, err := sharedcache.GetTenantDetails(ctx, h.cache, h.authURL, t.Slug, sharedcache.DefaultTenantTTL)
+	td, err := sharedcache.GetTenantDetails(ctx, cache, authURL, t.Slug, sharedcache.DefaultTenantTTL)
 	if err != nil {
 		return b
 	}
@@ -303,6 +310,8 @@ func newReceiptResponse(v printing.ReceiptView, layout string) receiptResponse {
 		ProviderFooterLead:          v.ProviderFooter.OrDefault().Lead,
 		ProviderFooterContact:       v.ProviderFooter.OrDefault().Contact,
 		ShowProviderFooter:          v.ShowProviderFooter,
+		IsReturn:                    v.IsReturn,
+		OriginalOrderNumber:         v.OriginalOrderNumber,
 	}
 }
 

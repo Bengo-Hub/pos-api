@@ -351,7 +351,9 @@ func New(ctx context.Context) (*App, error) {
 	erpClient := erp.NewClient(cfg.ERP.ServiceURL, cfg.ERP.APIKey, cfg.ERP.RequestTimeout, log)
 	staffCreditSvc := staffcredit.NewService(entClient, erpClient, eventPub, subsClient, log)
 	paymentSvc.SetStaffCredit(staffCreditSvc) // staff credit sales route the debt to ERP payroll
-	layawayHandler := handlers.NewLayawayHandler(log, entClient).WithStaffCredit(staffCreditSvc).WithFinalizer(paymentSvc).WithTreasuryClient(treasuryClient)
+	layawayHandler := handlers.NewLayawayHandler(log, entClient).WithStaffCredit(staffCreditSvc).WithFinalizer(paymentSvc).WithTreasuryClient(treasuryClient).
+		// Branding + platform-owner footer for the printable layaway deposit/instalment slips.
+		WithBranding(tenantCache, cfg.Auth.ServiceURL)
 	scaleHandler := handlers.NewScaleHandler(log, entClient)
 
 	// Pharmacy + Service modules (Sprint 8/9)
@@ -433,7 +435,8 @@ func New(ctx context.Context) (*App, error) {
 	returnsSvc.WithSequence(docSeqSvc) // pos_return numbers via the document sequence
 	// Exchange fulfilment creates the replacement order through the normal sale pipeline.
 	returnsSvc.SetOrderService(orderSvc)
-	returnHandler := handlers.NewReturnHandler(log, entClient, returnsSvc)
+	// Branding + platform-owner footer for the printable refund receipt.
+	returnHandler := handlers.NewReturnHandler(log, entClient, returnsSvc).WithBranding(tenantCache, cfg.Auth.ServiceURL)
 	// Transaction reversals (platform-owner data-repair tool): orchestrates pos totals,
 	// inventory consumption reversal, treasury GL and eTIMS credit note per reversal.
 	reversalSvc := reversals.NewService(log, entClient, orderSvc, treasuryClient, inventoryClient)

@@ -132,6 +132,9 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 		}
 		pdf.CellFormat(half, 5.5, truncate(billTo, 20), "1", 0, "L", false, 0, "")
 		pdf.CellFormat(half, 5.5, rec.ReceiptNumber, "1", 1, "C", false, 0, "")
+		if ra := returnAgainstLine(rec); ra != "" {
+			center(ra, "", 8)
+		}
 		pdf.Ln(1)
 		center(receiptTime(rec.IssuedAt, rec.Timezone), "", 8)
 		if rec.ServedBy != "" {
@@ -145,7 +148,15 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 		hr()
 		// Meta
 		line("Receipt:", rec.ReceiptNumber, "", 9)
-		line("Order:", rec.OrderNumber, "", 9)
+		if rec.IsReturn {
+			// A refund document is against the ORIGINAL sale — print that, not a blank
+			// "Order:" row (a return has no order number of its own).
+			if rec.OriginalOrderNumber != "" {
+				line("Return against Order #", rec.OriginalOrderNumber, "", 9)
+			}
+		} else {
+			line("Order:", rec.OrderNumber, "", 9)
+		}
 		line("Date:", shortDateTime(rec.IssuedAt, rec.Timezone), "", 9)
 		if rec.BillTo != "" {
 			custLabel := rec.BillToLabel
@@ -225,7 +236,7 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 	if rec.RoundOff > 0 {
 		line("Round Off", moneyLine(rec.RoundOff), "", 9)
 	}
-	line("TOTAL", moneyLine(rec.TotalAmount), "B", 12)
+	line(totalLabel(rec, ""), moneyLine(rec.TotalAmount), "B", 12)
 	hr()
 
 	// Payment

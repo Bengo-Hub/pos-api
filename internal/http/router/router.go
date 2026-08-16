@@ -855,6 +855,9 @@ func New(
 						}
 						pos.Get("/returns", returns.ListReturns)
 						pos.Get("/returns/{returnID}", returns.GetReturn)
+						// Printable refund receipt (?format=json|html|pdf) — the same shared
+						// receipt template as a sale, flagged as a return.
+						pos.Get("/returns/{returnID}/receipt", returns.GetReturnReceipt)
 						// Transaction reversals — the platform-owner data-repair tool for
 						// FINALIZED sales (whole order or items), orchestrating pos totals,
 						// inventory consumption, treasury GL and the eTIMS credit note with a
@@ -893,6 +896,11 @@ func New(
 						// Staff fund-from-salary links (admin/reconcile view).
 						pos.With(layawayRead).Get("/staff-credit", layaway.ListStaffCredit)
 						pos.With(layawayRead).Get("/layaways/{id}", layaway.Get)
+						// Printable layaway slips (?format=json|html|pdf) — the deposit taken at
+						// create time and each recorded instalment both predate the POSOrder a
+						// completion creates, so the sale receipt endpoint can't serve them.
+						pos.With(layawayRead).Get("/layaways/{id}/receipt", layaway.GetLayawayReceipt)
+						pos.With(layawayRead).Get("/layaways/{id}/payments/{paymentID}/receipt", layaway.GetLayawayPaymentReceipt)
 						pos.With(layawayFeat, outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
 							Post("/layaways/{id}/payments", layaway.RecordPayment)
 						layawayManage := outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")

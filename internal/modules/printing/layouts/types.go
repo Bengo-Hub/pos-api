@@ -147,6 +147,31 @@ type Receipt struct {
 	ProviderFooterLead    string `json:"provider_footer_lead,omitempty"`
 	ProviderFooterContact string `json:"provider_footer_contact,omitempty"`
 	ShowProviderFooter    bool   `json:"show_provider_footer"`
+	// IsReturn marks this as a refund/return document rather than a sale — renderers swap
+	// "TOTAL"→"REFUND TOTAL" and show OriginalOrderNumber instead of the usual order-number framing.
+	IsReturn bool `json:"is_return,omitempty"`
+	// OriginalOrderNumber is the order number this return/refund is against (only set when IsReturn).
+	OriginalOrderNumber string `json:"original_order_number,omitempty"`
+}
+
+// totalLabel is the grand-total row label every layout prints: "TOTAL" on a sale,
+// "REFUND TOTAL" on a return/refund document. suffix lets a layout keep its own
+// punctuation (the A4 sheet renders "TOTAL:").
+func totalLabel(rec Receipt, suffix string) string {
+	if rec.IsReturn {
+		return "REFUND TOTAL" + suffix
+	}
+	return "TOTAL" + suffix
+}
+
+// returnAgainstLine is the "Return against Order #1234" note every layout prints next to the
+// document number on a return/refund receipt, so the refund is always traceable back to the
+// sale it reverses. "" when this isn't a return (or the original number is unknown).
+func returnAgainstLine(rec Receipt) string {
+	if !rec.IsReturn || rec.OriginalOrderNumber == "" {
+		return ""
+	}
+	return "Return against Order #" + rec.OriginalOrderNumber
 }
 
 // escape escapes user-configured text (header/footer/item names) before embedding it in
