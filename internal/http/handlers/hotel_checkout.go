@@ -230,6 +230,17 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RoomGuest doesn't carry outlet_id itself (only Room does) — resolve it so hotel revenue
+	// gets the SAME per-outlet GL attribution every normal POS sale already gets (see
+	// payments/service.go's OutletID: order.OutletID.String() for the equivalent non-hotel path).
+	// Without this, a mixed retail+hospitality tenant's guest-house revenue was silently
+	// unattributed to any outlet in treasury's ledger and per-outlet P&L.
+	room, err := h.client.Room.Get(r.Context(), roomID)
+	if err != nil {
+		jsonError(w, "room not found", http.StatusNotFound)
+		return
+	}
+
 	tenantSlug := chi.URLParam(r, "tenantID")
 	immediate := isImmediateHotelMethod(input.Method)
 	status := "pending"
@@ -250,7 +261,7 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 			Currency:      "KES",
 			PaymentMethod: immediateOrPending(immediate, treasuryMethodForHotel(input.Method)),
 			Description:   fmt.Sprintf("Hotel folio payment - %s", guest.GuestName),
-			OutletID:      "",
+			OutletID:      room.OutletID.String(),
 			Metadata: map[string]any{"service": "pos", "room_id": roomID.String(), "guest_id": guest.ID.String(), "entity_id": guest.ID.String(), "method": input.Method},
 		}
 		if input.Reference != "" {
