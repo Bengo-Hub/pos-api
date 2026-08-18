@@ -13,8 +13,8 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entroom "github.com/bengobox/pos-service/internal/ent/room"
-	entroomfoliopayment "github.com/bengobox/pos-service/internal/ent/roomfoliopayment"
 	entroomfolioitem "github.com/bengobox/pos-service/internal/ent/roomfolioitem"
+	entroomfoliopayment "github.com/bengobox/pos-service/internal/ent/roomfoliopayment"
 	entroomguest "github.com/bengobox/pos-service/internal/ent/roomguest"
 	treasury "github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/payref"
@@ -35,22 +35,22 @@ type folioPaymentDTO struct {
 // charge, every folio charge, payments taken, and the outstanding balance — everything the checkout
 // screen needs to show "the person who booked, the nights and the price" and settle the bill.
 type folioSummaryResponse struct {
-	RoomID        string            `json:"room_id"`
-	RoomNumber    string            `json:"room_number"`
-	RatePerNight  float64           `json:"rate_per_night"`
-	GuestID       string            `json:"guest_id"`
-	GuestName     string            `json:"guest_name"`
-	Phone         string            `json:"phone,omitempty"`
-	Nights        int               `json:"nights"`
-	CheckInDate   time.Time         `json:"check_in_date"`
-	CheckOutDate  time.Time         `json:"check_out_date"`
-	RoomCharge    float64           `json:"room_charge"`
-	ChargesTotal  float64           `json:"charges_total"`
-	PaidTotal     float64           `json:"paid_total"`
-	Balance       float64           `json:"balance"`
-	Currency      string            `json:"currency"`
-	Items         []folioItemDTO    `json:"items"`
-	Payments      []folioPaymentDTO `json:"payments"`
+	RoomID       string            `json:"room_id"`
+	RoomNumber   string            `json:"room_number"`
+	RatePerNight float64           `json:"rate_per_night"`
+	GuestID      string            `json:"guest_id"`
+	GuestName    string            `json:"guest_name"`
+	Phone        string            `json:"phone,omitempty"`
+	Nights       int               `json:"nights"`
+	CheckInDate  time.Time         `json:"check_in_date"`
+	CheckOutDate time.Time         `json:"check_out_date"`
+	RoomCharge   float64           `json:"room_charge"`
+	ChargesTotal float64           `json:"charges_total"`
+	PaidTotal    float64           `json:"paid_total"`
+	Balance      float64           `json:"balance"`
+	Currency     string            `json:"currency"`
+	Items        []folioItemDTO    `json:"items"`
+	Payments     []folioPaymentDTO `json:"payments"`
 }
 
 type folioItemDTO struct {
@@ -248,6 +248,27 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 		status = "completed"
 	}
 
+	// Room-vs-ancillary revenue split for GL categorization (treasury's PostPaymentToLedgerItemized):
+	// proportional to the guest's overall room-vs-other charge mix across their whole folio to
+	// date. This is a simple, self-consistent model rather than a full waterfall against payment
+	// history (RoomFolioPayment doesn't track which charge_type each prior payment cleared) — see
+	// D:\Projects\Codevertex\.claude\plans\boi-multi-use-case-subscription-and-hospitality-audit-2026-08-18.md.
+	var roomRevenueAmount float64
+	if folioItems, ferr := h.client.RoomFolioItem.Query().
+		Where(entroomfolioitem.RoomGuestID(guest.ID)).
+		All(r.Context()); ferr == nil {
+		var totalCharges, roomCharges float64
+		for _, it := range folioItems {
+			totalCharges += it.Amount
+			if it.ChargeType == entroomfolioitem.ChargeTypeRoomCharge {
+				roomCharges += it.Amount
+			}
+		}
+		if totalCharges > 0 {
+			roomRevenueAmount = input.Amount * (roomCharges / totalCharges)
+		}
+	}
+
 	// Capture in treasury (immediate-settle for cash/card; pending intent for online gateways).
 	var intentID, initiateURL string
 	if h.treasuryClient != nil {
@@ -262,7 +283,10 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 			PaymentMethod: immediateOrPending(immediate, treasuryMethodForHotel(input.Method)),
 			Description:   fmt.Sprintf("Hotel folio payment - %s", guest.GuestName),
 			OutletID:      room.OutletID.String(),
-			Metadata: map[string]any{"service": "pos", "room_id": roomID.String(), "guest_id": guest.ID.String(), "entity_id": guest.ID.String(), "method": input.Method},
+			Metadata: map[string]any{
+				"service": "pos", "room_id": roomID.String(), "guest_id": guest.ID.String(), "entity_id": guest.ID.String(), "method": input.Method,
+				"room_revenue_amount": fmt.Sprintf("%.2f", roomRevenueAmount),
+			},
 		}
 		if input.Reference != "" {
 			intentReq.Metadata["external_ref"] = input.Reference
