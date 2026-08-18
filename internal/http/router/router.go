@@ -1202,6 +1202,14 @@ func New(
 							// loyalty routes above) which already enforces RequireUseCase.
 							rp.With(outletmw.RequireUseCase("hospitality", "quick_service")).
 								Get("/reports/sales/by-kds-station", reports.SalesByKDSStation)
+							// Occupancy %, ADR, RevPAR, room-vs-ancillary revenue split — hotel-module
+							// tenants only (rooms/RoomGuest/RoomFolioItem are meaningless without it),
+							// same double gate the /hotel group itself uses (RequireUseCase +
+							// FeatureHotelModule) rather than the broader hospitality/quick_service set
+							// above, which also covers restaurants/bars with no rooms at all.
+							rp.With(outletmw.RequireUseCase("hospitality")).
+								With(subscriptions.RequireFeature(subscriptions.FeatureHotelModule)).
+								Get("/reports/hotel-occupancy", reports.HotelOccupancyReport)
 						})
 					}
 
