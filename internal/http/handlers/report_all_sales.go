@@ -39,7 +39,13 @@ import (
 // Tenant scoping and the per-cashier visibility predicate are NOT applied here — callers prepend
 // posorder.TenantID(tid) and ownOrdersScope themselves (they differ in how they obtain the rbac
 // checker).
-func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, loc *time.Location) []predicate.POSOrder {
+//
+// The second return value is the normalized payment_status filter ("" when none requested,
+// "unpaid" folded into "due"). Callers that need the paid/partial/due/overdue buckets to be
+// EXACT (see the payment-status comment below for why) must post-filter their enriched rows by
+// comparing each row's own server-computed PaymentStatus against it — never trust the coarse SQL
+// predicate alone to have narrowed to precisely that bucket.
+func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, loc *time.Location) ([]predicate.POSOrder, string) {
 	q := r.URL.Query()
 	var filters []predicate.POSOrder
 
@@ -111,53 +117,39 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 			posorder.CustomerNameContainsFold(cust),
 		))
 	}
-	// Payment status — driven by the stored paid_total column (sum of completed payments,
-	// maintained by the payments service) so the filter provably agrees with the per-row
-	// badge from derivePaymentStatus: paid = settled in full, partial = 0 < paid < total,
-	// due = nothing paid yet. Terminal/non-committed statuses (refunded/voided/cancelled/
-	// draft) are filterable too, and "overdue" surfaces sales past their
-	// metadata.payment_due_date — either still owing at the till, or on-account credit sales
-	// (stamped by recordCreditSale from the customer's payment period) whose settlement lives
-	// in treasury AR. A "draft" (parked, not yet finalized) order must never match paid/
-	// partial/due/overdue even if it happens to carry a deposit — derivePaymentStatus always
-	// labels it "draft" regardless of paid amount, so the filter mirrors that here.
-	switch strings.ToLower(q.Get("payment_status")) {
-	case "paid":
-		// A completed on-account (credit) sale whose money hasn't been collected is a DEBT —
-		// it must NOT match "paid" even though the order status is completed.
-		filters = append(filters, posorder.Or(
-			posorder.And(
-				posorder.Status("completed"),
-				posorder.Not(posorder.And(onAccountOrder(), paidBelowTotal())),
-			),
-			posorder.And(
-				posorder.StatusNotIn("refunded", "voided", "cancelled", "draft"),
-				paidCoversTotal(),
-			),
-		))
-	case "partial":
-		// Completed credit sales with partial collections surface here too (on-account only —
-		// regular completed sales are always fully settled by definition).
-		filters = append(filters, posorder.And(
-			posorder.StatusNotIn("refunded", "voided", "cancelled", "draft"),
-			posorder.PaidTotalGT(0),
-			paidBelowTotal(),
-			posorder.Or(posorder.StatusNEQ("completed"), onAccountOrder()),
-		))
-	case "due", "unpaid":
-		filters = append(filters, posorder.And(
-			posorder.StatusNotIn("refunded", "voided", "cancelled", "draft"),
-			posorder.PaidTotalLTE(0),
-			posorder.Or(posorder.StatusNEQ("completed"), onAccountOrder()),
-		))
-	case "overdue":
-		filters = append(filters, posorder.And(
-			posorder.StatusNotIn("refunded", "voided", "cancelled", "draft"),
-			pastPaymentDueDate(),
-			posorder.Or(paidBelowTotal(), onAccountOrder()),
-		))
+	// Payment status. The 4 terminal labels (refunded/voided/cancelled/draft) map 1:1 onto
+	// o.Status with zero ambiguity (derivePaymentStatus's own first switch returns the status
+	// verbatim for these), so they stay a precise SQL predicate.
+	//
+	// paid/partial/due/overdue are different: the authoritative badge for these
+	// (orders.ComputeSettlement / DerivePaymentStatus, in settlement.go) nets settled sell-returns
+	// on top of the stored paid_total, and that netting lives in a separate table (POSReturn) —
+	// it cannot be replicated as a single-order SQL predicate without a hand-written correlated
+	// subquery that inevitably drifts from ComputeSettlement the moment that function's logic
+	// changes. That drift is exactly how this filter broke before this fix: "overdue"'s predicate
+	// matched ANY on-account order past its due date regardless of whether it had since been paid
+	// off in full (paidBelowTotal() was OR'd with onAccountOrder(), not required), so a fully
+	// settled on-account sale still surfaced under "Overdue" even though its badge read "Paid".
+	// The "due"/"partial"/"paid" predicates had the same class of gap: none of them accounted for
+	// a completed sell-return settling the balance, so a row's filter bucket could disagree with
+	// its own displayed badge.
+	//
+	// Rather than hand-duplicate that logic a second time (and risk it drifting again), only a
+	// COARSE, always-safe predicate is applied here for these 4 buckets — excluding the terminal
+	// statuses, which never fall in any of them. Callers MUST post-filter the exact bucket by
+	// comparing each enriched row's own PaymentStatus (computed via ComputeSettlement) against the
+	// returned paymentStatusFilter string; see allSalesOrderFilters' doc comment.
+	paymentStatusFilter := strings.ToLower(strings.TrimSpace(q.Get("payment_status")))
+	if paymentStatusFilter == "unpaid" {
+		paymentStatusFilter = "due"
+	}
+	switch paymentStatusFilter {
+	case "paid", "partial", "due", "overdue":
+		filters = append(filters, posorder.StatusNotIn("refunded", "voided", "cancelled", "draft"))
 	case "refunded", "voided", "cancelled", "draft":
-		filters = append(filters, posorder.Status(strings.ToLower(q.Get("payment_status"))))
+		filters = append(filters, posorder.Status(paymentStatusFilter))
+	default:
+		paymentStatusFilter = ""
 	}
 	// Payment method → the real method the terminal used is stamped on each payment's
 	// payment_data.method (the POS reuses ONE generic tender across cash/card/mpesa/…, so the
@@ -220,7 +212,7 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 	if cat := strings.TrimSpace(q.Get("category")); cat != "" && !strings.EqualFold(cat, "all") {
 		filters = append(filters, posorder.HasLinesWith(posorderline.CategoryEqualFold(cat)))
 	}
-	return filters
+	return filters, paymentStatusFilter
 }
 
 // ownOrdersScope limits order reads to the caller's own orders (+ shared active bills) when the
@@ -347,7 +339,8 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 	if ownPred, scoped := ownOrdersScope(r, h.rbac, h.db); scoped {
 		preds = append(preds, ownPred)
 	}
-	preds = append(preds, allSalesOrderFilters(r, h.db, tid, loc)...)
+	extraFilters, paymentStatusFilter := allSalesOrderFilters(r, h.db, tid, loc)
+	preds = append(preds, extraFilters...)
 
 	baseQ := h.db.POSOrder.Query().Where(preds...)
 	total, _ := baseQ.Clone().Count(ctx)
@@ -443,6 +436,11 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 			completedReturns = agg.completedTotal
 		}
 		st := orders.ComputeSettlement(o, completedReturns)
+		// Exact payment-status match (see allSalesOrderFilters' doc comment) — the SQL predicate
+		// above only narrowed to a coarse candidate set for paid/partial/due/overdue.
+		if paymentStatusFilter != "" && st.PaymentStatus != paymentStatusFilter {
+			continue
+		}
 		paid := st.Collected
 		ps := st.PaymentStatus
 		due := st.AmountDue
@@ -527,10 +525,20 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 		to = time.Now()
 	}
 
+	// total (the SQL Count) is exact when there's no payment_status filter, or when it's one of
+	// the 4 terminal statuses — both map 1:1 to the SQL predicate. For the paid/partial/due/
+	// overdue buckets it's only a coarse superset; len(rows) (the post-exact-filter row count) is
+	// the true figure UNLESS the coarse fetch itself got capped, in which case the true total is
+	// unknowable without scanning past the cap and the note below already flags that.
+	exactTotal := total
+	if total <= len(list) {
+		exactTotal = len(rows)
+	}
+
 	report := h.newReport(ctx, tid, h.outletScope(r), "All Sales", "Every sale in the selected filters — audit detail", from, to, true)
 	report.Currency = currency
 	report.Cards = []docs.Card{
-		{Label: "Sales", Value: strconv.Itoa(total)},
+		{Label: "Sales", Value: strconv.Itoa(exactTotal)},
 		{Label: "Gross", Value: currency + " " + fmtAmount(sumSubtotal)},
 		{Label: "Discounts", Value: currency + " " + fmtAmount(sumDiscount)},
 		{Label: "Net Total", Value: currency + " " + fmtAmount(sumTotal)},

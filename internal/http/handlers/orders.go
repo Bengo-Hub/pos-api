@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/Bengo-Hub/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -273,20 +271,52 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	// (report_all_sales.go AllSalesDocument) so the exported document always contains exactly
 	// the rows this list shows.
 	loc := tenantLocation(r.Context(), h.client, tid)
-	filters = append(filters, allSalesOrderFilters(r, h.client, tid, loc)...)
+	extraFilters, paymentStatusFilter := allSalesOrderFilters(r, h.client, tid, loc)
+	filters = append(filters, extraFilters...)
 
 	p := pagination.Parse(r)
 	baseQ := h.client.POSOrder.Query().Where(filters...)
-	total, _ := baseQ.Clone().Count(r.Context())
-	orderList, err := baseQ.WithLines().WithPayments().Order(ent.Desc(posorder.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
+
+	if paymentStatusFilter == "" {
+		total, _ := baseQ.Clone().Count(r.Context())
+		orderList, err := baseQ.WithLines().WithPayments().Order(ent.Desc(posorder.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
+		if err != nil {
+			h.log.Error("list orders failed", zap.Error(err))
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		items := h.enrichOrderList(r.Context(), tid, orderList)
+		jsonOK(w, pagination.NewResponse(items, total, p))
+		return
+	}
+
+	// A paid/partial/due/overdue payment-status filter depends on the server-derived settlement
+	// (orders.ComputeSettlement, which nets settled sell-returns on top of paid_total) — see
+	// allSalesOrderFilters' doc comment for why that can't be a precise single-order SQL predicate.
+	// Scan the coarse candidate set (bounded like the export/summary) and paginate the EXACT match
+	// in memory, so this page can never show a row whose badge disagrees with the requested filter.
+	candidates, err := baseQ.WithLines().WithPayments().Order(ent.Desc(posorder.FieldCreatedAt)).Limit(allSalesExportCap).All(r.Context())
 	if err != nil {
 		h.log.Error("list orders failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-
-	items := h.enrichOrderList(r.Context(), tid, orderList)
-	jsonOK(w, pagination.NewResponse(items, total, p))
+	matched := make([]orderListItem, 0, len(candidates))
+	for _, it := range h.enrichOrderList(r.Context(), tid, candidates) {
+		if it.PaymentStatus == paymentStatusFilter {
+			matched = append(matched, it)
+		}
+	}
+	total := len(matched)
+	start := p.Offset
+	if start > total {
+		start = total
+	}
+	end := start + p.Limit
+	if end > total {
+		end = total
+	}
+	jsonOK(w, pagination.NewResponse(matched[start:end], total, p))
 }
 
 // ordersSummary is the aggregate footer for the All-Sales / POS-Sales list: money-column
@@ -342,7 +372,8 @@ func (h *POSOrderHandler) OrdersSummary(w http.ResponseWriter, r *http.Request) 
 		filters = append(filters, ownPred)
 	}
 	loc := tenantLocation(r.Context(), h.client, tid)
-	filters = append(filters, allSalesOrderFilters(r, h.client, tid, loc)...)
+	extraFilters, paymentStatusFilter := allSalesOrderFilters(r, h.client, tid, loc)
+	filters = append(filters, extraFilters...)
 
 	baseQ := h.client.POSOrder.Query().Where(filters...)
 	totalMatching, _ := baseQ.Clone().Count(r.Context())
@@ -357,10 +388,26 @@ func (h *POSOrderHandler) OrdersSummary(w http.ResponseWriter, r *http.Request) 
 	}
 
 	items := h.enrichOrderList(r.Context(), tid, list)
+	truncated := totalMatching > len(list)
+	// paid/partial/due/overdue depend on the server-derived settlement (sell-returns netted in,
+	// per orders.ComputeSettlement) — exact-match it here rather than trusting the coarse SQL
+	// predicate allSalesOrderFilters applied, for the same reason ListOrders does (see its comment).
+	if paymentStatusFilter != "" {
+		filtered := make([]orderListItem, 0, len(items))
+		for _, it := range items {
+			if it.PaymentStatus == paymentStatusFilter {
+				filtered = append(filtered, it)
+			}
+		}
+		items = filtered
+		if !truncated {
+			totalMatching = len(items)
+		}
+	}
 	sum := ordersSummary{
 		Count:         len(items),
 		TotalMatching: totalMatching,
-		Truncated:     totalMatching > len(items),
+		Truncated:     truncated,
 		StatusCounts:  map[string]int{},
 		StatusAmounts: map[string]float64{},
 		MethodCounts:  map[string]int{},
@@ -692,44 +739,6 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 		items = append(items, item)
 	}
 	return items
-}
-
-// paidCoversTotal matches orders whose stored paid_total settles the full total_amount
-// (with the same 1-cent tolerance derivePaymentStatus uses). Zero-total orders are
-// excluded — they display as "due", never "paid".
-func paidCoversTotal() predicate.POSOrder {
-	return predicate.POSOrder(func(s *sql.Selector) {
-		s.Where(sql.And(
-			sql.GT(s.C(posorder.FieldTotalAmount), 0),
-			sql.ExprP(s.C(posorder.FieldPaidTotal)+" + 0.01 >= "+s.C(posorder.FieldTotalAmount)),
-		))
-	})
-}
-
-// paidBelowTotal matches orders whose stored paid_total does NOT settle total_amount.
-func paidBelowTotal() predicate.POSOrder {
-	return predicate.POSOrder(func(s *sql.Selector) {
-		s.Where(sql.ExprP(s.C(posorder.FieldPaidTotal) + " + 0.01 < " + s.C(posorder.FieldTotalAmount)))
-	})
-}
-
-// pastPaymentDueDate matches orders whose metadata.payment_due_date (RFC3339, stamped on
-// credit sales from the customer's payment period) is in the past. RFC3339 strings compare
-// lexicographically, so a plain string comparison is chronologically correct; orders without
-// a due date never match.
-func pastPaymentDueDate() predicate.POSOrder {
-	now := time.Now().Format(time.RFC3339)
-	return predicate.POSOrder(func(s *sql.Selector) {
-		s.Where(sqljson.ValueLT(posorder.FieldMetadata, now, sqljson.Path("payment_due_date")))
-	})
-}
-
-// onAccountOrder matches credit sales settled on account (metadata.on_account, stamped by
-// recordCreditSale) — at the till they read "paid", but their money is a treasury AR debt.
-func onAccountOrder() predicate.POSOrder {
-	return predicate.POSOrder(func(s *sql.Selector) {
-		s.Where(sqljson.ValueEQ(posorder.FieldMetadata, true, sqljson.Path("on_account")))
-	})
 }
 
 // isOrderOverdue / isOnAccount / derivePaymentStatus delegate to the canonical
