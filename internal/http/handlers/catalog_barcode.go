@@ -79,7 +79,13 @@ func (h *CatalogHandler) BarcodeLookup(w http.ResponseWriter, r *http.Request) {
 	// (contains, case-insensitive) — its list handler does NOT read a `barcode=` param, so the old
 	// `?barcode=` returned an arbitrary first item. Use `search=` and then pick the row whose
 	// barcode EXACTLY equals the scanned code (search is a contains match, so a few rows may match).
-	invURL := fmt.Sprintf("%s/v1/%s/inventory/items?search=%s&limit=10", inventoryURL(), tenantSlug, url.QueryEscape(barcode))
+	// lean=1 skips inventory-api's image-gallery/preferred-supplier eager loads — a pure opt-in
+	// cost reduction (see inventory-api's leanFetch doc comment), already used by every other
+	// pos-api reader of this endpoint (fetchAllInventoryItemPages) except this one. Deliberately
+	// NOT applying the catalog sweep's `fields=` projection here: unlike that typed path, this
+	// handler decodes into a raw map and passes most of it straight through to the frontend, so
+	// trimming fields would risk silently dropping something the barcode-scan UI still reads.
+	invURL := fmt.Sprintf("%s/v1/%s/inventory/items?search=%s&limit=10&lean=1", inventoryURL(), tenantSlug, url.QueryEscape(barcode))
 	body, err := doInventoryGET(r.Context(), invURL, "")
 	if err != nil {
 		h.log.Warn("barcode lookup: inventory-api error", zap.String("barcode", barcode), zap.Error(err))

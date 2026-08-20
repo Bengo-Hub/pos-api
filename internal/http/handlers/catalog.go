@@ -46,6 +46,10 @@ type CatalogHandler struct {
 	// (tenant, outlet, use-case-set) key onto a single in-flight inventory-api sweep — see the
 	// doc comment on cachedCatalogSource for why this matters for a large catalog.
 	sweepGroup singleflight.Group
+	// localSrc/localSrcMu — see catalogSourceLocalTTL doc comment: a short in-process cache in
+	// front of the Redis round-trip in cachedCatalogSource.
+	localSrcMu sync.RWMutex
+	localSrc   map[string]localCatalogEntry
 }
 
 func NewCatalogHandler(log *zap.Logger, client *ent.Client) *CatalogHandler {
@@ -1042,16 +1046,68 @@ type catalogSourceSet struct {
 // full-catalog load (8–20 requests in a few seconds) hits upstream exactly once.
 const catalogSourceTTL = 60 * time.Second
 
+// catalogSourceLocalTTL is a short in-process (per-pod) cache in front of cachedCatalogSource's
+// Redis round-trip + full JSON decode of the tenant's entire catalog. assembleMenuItems calls
+// cachedCatalogSource on EVERY request (every Add Sale search keystroke, every terminal poll) —
+// even on a Redis hit that means re-unmarshaling a potentially thousands-of-items payload just
+// to answer one filtered/paginated request. A burst of requests landing on the SAME pod within
+// this window reuses the already-decoded slice instead. Deliberately much shorter than
+// catalogSourceTTL — this only smooths bursts, it does not change the staleness budget: worst
+// case adds at most this many extra seconds on top of the 60s a caller already tolerates. Only
+// the raw upstream source is memoized; POSCatalogOverride merge/filtering in assembleMenuItems
+// still re-runs on every call unchanged, so live availability/price edits are unaffected.
+const catalogSourceLocalTTL = 5 * time.Second
+
+// localCatalogSourceCap bounds localSrc's size (opportunistic sweep on write) — a low-traffic
+// safety net, not a real limit at this platform's scale (hundreds of tenant/outlet combos).
+const localCatalogSourceCap = 500
+
+type localCatalogEntry struct {
+	src     *catalogSourceSet
+	expires time.Time
+}
+
+func (h *CatalogHandler) localCatalogSource(key string) *catalogSourceSet {
+	h.localSrcMu.RLock()
+	defer h.localSrcMu.RUnlock()
+	e, ok := h.localSrc[key]
+	if !ok || time.Now().After(e.expires) {
+		return nil
+	}
+	return e.src
+}
+
+func (h *CatalogHandler) setLocalCatalogSource(key string, src *catalogSourceSet) {
+	h.localSrcMu.Lock()
+	defer h.localSrcMu.Unlock()
+	if h.localSrc == nil {
+		h.localSrc = make(map[string]localCatalogEntry)
+	}
+	if len(h.localSrc) >= localCatalogSourceCap {
+		now := time.Now()
+		for k, e := range h.localSrc {
+			if now.After(e.expires) {
+				delete(h.localSrc, k)
+			}
+		}
+	}
+	h.localSrc[key] = localCatalogEntry{src: src, expires: time.Now().Add(catalogSourceLocalTTL)}
+}
+
 // cachedCatalogSource returns the (items + pricing) upstream fetch through a per-
 // (tenant, outlet, use-case-set) Redis cache. Fail-open on every cache path: no Redis or
 // a decode error just means a live upstream fetch. A degraded fetch (pricing failed) is
 // served but NOT cached, so the next request retries pricing instead of pinning zeros.
 func (h *CatalogHandler) cachedCatalogSource(ctx context.Context, tid uuid.UUID, tenantSlug, outletIDStr string, useCases []string) (*catalogSourceSet, error) {
 	key := fmt.Sprintf("pos:catalogsrc:%s:%s:%s", tid, outletIDStr, strings.Join(useCases, ","))
+	if src := h.localCatalogSource(key); src != nil {
+		return src, nil
+	}
 	if h.redis != nil {
 		if raw, err := h.redis.Get(ctx, key).Bytes(); err == nil {
 			var cached catalogSourceSet
 			if json.Unmarshal(raw, &cached) == nil {
+				h.setLocalCatalogSource(key, &cached)
 				return &cached, nil
 			}
 		}
@@ -1115,7 +1171,9 @@ func (h *CatalogHandler) cachedCatalogSource(ctx context.Context, tid uuid.UUID,
 	if err != nil {
 		return nil, err
 	}
-	return v.(*catalogSourceSet), nil
+	result := v.(*catalogSourceSet)
+	h.setLocalCatalogSource(key, result)
+	return result, nil
 }
 
 // overrideEntry is the POS-specific per-SKU override merged onto an inventory-api item.
