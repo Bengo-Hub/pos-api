@@ -707,7 +707,12 @@ func (h *LoyaltyHandler) CreateReferral(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, "referred_phone is required", http.StatusBadRequest)
 		return
 	}
-	if phone == acc.CustomerPhone {
+	// Format-tolerant self-referral check: the phone UI now emits E.164 (PhoneInputField), which
+	// will almost never exact-match acc.CustomerPhone's stored format, silently defeating this
+	// guard — compare by national subscriber digits too, same tolerance CompleteReferral's own
+	// matching (sale_finalized.go) already applies.
+	selfDigits := nationalSubscriberDigits(phone)
+	if phone == acc.CustomerPhone || (selfDigits != "" && selfDigits == nationalSubscriberDigits(acc.CustomerPhone)) {
 		jsonError(w, "cannot refer your own number", http.StatusBadRequest)
 		return
 	}
@@ -715,10 +720,20 @@ func (h *LoyaltyHandler) CreateReferral(w http.ResponseWriter, r *http.Request) 
 	if bonus <= 0 {
 		bonus = defaultReferralBonus
 	}
-	// Idempotent: if a pending referral for this phone already exists, return it instead of duplicating.
-	if existing, e := h.db.Referral.Query().
+	// Idempotent: if a pending referral for this phone already exists, return it instead of
+	// duplicating. Exact match first, then format-tolerant (national subscriber digits) — mirrors
+	// CompleteReferral's own matching in sale_finalized.go, so a cashier re-entering the same
+	// number in a different format (national vs. this PhoneInputField's E.164 output) doesn't
+	// create a redundant pending referral.
+	existing, e := h.db.Referral.Query().
 		Where(entref.TenantID(tid), entref.ReferredPhone(phone), entref.StatusEQ("pending")).
-		First(r.Context()); e == nil && existing != nil {
+		First(r.Context())
+	if (e != nil || existing == nil) && selfDigits != "" {
+		existing, e = h.db.Referral.Query().
+			Where(entref.TenantID(tid), entref.ReferredPhoneHasSuffix(selfDigits), entref.StatusEQ("pending")).
+			First(r.Context())
+	}
+	if e == nil && existing != nil {
 		jsonOK(w, existing)
 		return
 	}
