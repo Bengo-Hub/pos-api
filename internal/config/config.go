@@ -107,8 +107,13 @@ type HTTPConfig struct {
 }
 
 type PostgresConfig struct {
-	URL                      string        `envconfig:"POSTGRES_URL" default:"postgres://postgres:postgres@localhost:5432/pos?sslmode=disable"`
-	MigrateURL               string        `envconfig:"POSTGRES_MIGRATE_URL"` // Direct PostgreSQL URL bypassing PgBouncer; falls back to URL if empty
+	URL        string `envconfig:"POSTGRES_URL" default:"postgres://postgres:postgres@localhost:5432/pos?sslmode=disable"`
+	MigrateURL string `envconfig:"POSTGRES_MIGRATE_URL"` // Direct PostgreSQL URL bypassing PgBouncer; falls back to URL if empty
+	// ReadOnlyURL points at a read replica (through pgbouncer's *_ro database alias) for the
+	// handful of heavy, staleness-tolerant read endpoints wired to use it (All-Sales list/export
+	// today — see app.go). Empty (the default everywhere this isn't explicitly configured, incl.
+	// local dev) falls back to the primary client — zero behavior change when unset.
+	ReadOnlyURL string `envconfig:"POSTGRES_READONLY_URL"`
 	MaxOpenConns             int           `envconfig:"POSTGRES_MAX_OPEN_CONNS" default:"8"`
 	MaxIdleConns             int           `envconfig:"POSTGRES_MAX_IDLE_CONNS" default:"4"`
 	ConnMaxLifetime          time.Duration `envconfig:"POSTGRES_CONN_MAX_LIFETIME" default:"15m"`

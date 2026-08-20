@@ -82,6 +82,31 @@ type App struct {
 	layawayReminderScheduler *scheduler.LayawayReminderScheduler
 }
 
+// newReadOnlyEntClient opens a separate Ent client against cfg.ReadOnlyURL (a read replica, via
+// pgbouncer's pos_ro alias in prod) for the read-routing described on readEntClient in New(). A
+// smaller pool than the primary's — this backs a handful of specific endpoints, not general
+// traffic. No migration/schema management here; the replica streams the primary's schema.
+func newReadOnlyEntClient(cfg config.PostgresConfig) (*ent.Client, error) {
+	sqlDB, err := sql.Open("pgx", cfg.ReadOnlyURL)
+	if err != nil {
+		return nil, fmt.Errorf("sql open for read-replica ent client: %w", err)
+	}
+	if err := sqlDB.Ping(); err != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("read-replica ping: %w", err)
+	}
+	maxOpen := cfg.MaxOpenConns / 2
+	if maxOpen < 2 {
+		maxOpen = 2
+	}
+	sqlDB.SetMaxOpenConns(maxOpen)
+	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+	sqlDB.SetConnMaxIdleTime(1 * time.Minute)
+	drv := entsql.OpenDB(dialect.Postgres, sqlDB)
+	return ent.NewClient(ent.Driver(drv)), nil
+}
+
 func New(ctx context.Context) (*App, error) {
 	cfg, err := config.Load()
 	if err != nil {
@@ -138,6 +163,21 @@ func New(ctx context.Context) (*App, error) {
 	sqlDB.SetConnMaxIdleTime(1 * time.Minute)
 	drv := entsql.OpenDB(dialect.Postgres, sqlDB)
 	entClient := ent.NewClient(ent.Driver(drv))
+
+	// readEntClient points a handful of heavy, staleness-tolerant read endpoints (All-Sales
+	// list/export today) at a read replica instead of the primary, via cfg.Postgres.ReadOnlyURL
+	// (pgbouncer's pos_ro alias in prod — see devops-k8s). Unset (every environment that hasn't
+	// been explicitly given the env var, incl. local dev) falls back to entClient itself — zero
+	// behavior change. A replica connection failure at startup is logged and swallowed, not
+	// fatal: those endpoints just keep using the primary, same as before this existed.
+	readEntClient := entClient
+	if cfg.Postgres.ReadOnlyURL != "" {
+		if roClient, err := newReadOnlyEntClient(cfg.Postgres); err != nil {
+			log.Warn("read-replica postgres connection failed — read-heavy endpoints will use the primary", zap.Error(err))
+		} else {
+			readEntClient = roClient
+		}
+	}
 
 	// Run versioned migrations only when explicitly enabled.
 	// In production, migrations are run by the entrypoint (cmd/migrate) before the server starts —
@@ -277,6 +317,8 @@ func New(ctx context.Context) (*App, error) {
 	// Lets a total-reducing line void/edit recheck payment completion (see orders.go's
 	// paymentSvc field doc for the incident this fixes).
 	orderHandler.SetPaymentService(paymentSvc)
+	// All-Sales list routed to a read replica when configured — see readEntClient above.
+	orderHandler.SetReadClient(readEntClient)
 	catalogHandler := handlers.NewCatalogHandler(log, entClient)
 	catalogHandler.SetRedisClient(redisClient)
 	tableHandler := handlers.NewTableHandler(log, entClient)
@@ -391,6 +433,8 @@ func New(ctx context.Context) (*App, error) {
 	// Branded, printable report documents (PDF/CSV) — reuses the report ent queries + tenant
 	// branding cache, mirroring ReceiptHandler wiring.
 	reportPDFHandler := handlers.NewReportPDFHandler(log, entClient, tenantCache, cfg.Auth.ServiceURL)
+	// All-Sales export routed to a read replica when configured — see readEntClient above.
+	reportPDFHandler.SetReadClient(readEntClient)
 
 	// Webhook subscriptions (Sprint 12)
 	webhookHandler := handlers.NewWebhookHandler(log, entClient)

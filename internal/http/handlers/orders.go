@@ -61,10 +61,27 @@ type POSOrderHandler struct {
 	// since a line was voided 29 minutes after a partial mpesa_manual payment exactly closed
 	// the gap). Optional — nil skips the recheck, same as before this fix existed.
 	paymentSvc *payments.Service
+	// readClient, when set, is used ONLY for the All-Sales list query (see rc()) — a heavy,
+	// staleness-tolerant read routed to a replica when one is configured. Every other method on
+	// this handler (order creation/edits/voids, everything else) always uses client (primary),
+	// unchanged.
+	readClient *ent.Client
 }
 
 func NewPOSOrderHandler(log *zap.Logger, client *ent.Client, orderSvc *orders.Service, subsClient *subscriptions.Client) *POSOrderHandler {
 	return &POSOrderHandler{log: log, client: client, orderSvc: orderSvc, subsClient: subsClient}
+}
+
+// SetReadClient wires an optional read-replica Ent client for the All-Sales list query. Nil (the
+// default) means rc() falls back to the primary client — zero behavior change when unset.
+func (h *POSOrderHandler) SetReadClient(c *ent.Client) { h.readClient = c }
+
+// rc returns the read-replica client when one is configured, else the primary — see readClient.
+func (h *POSOrderHandler) rc() *ent.Client {
+	if h.readClient != nil {
+		return h.readClient
+	}
+	return h.client
 }
 
 // SetAuditService wires the centralized audit trail for void/line-removal events.
@@ -275,7 +292,10 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	filters = append(filters, extraFilters...)
 
 	p := pagination.Parse(r)
-	baseQ := h.client.POSOrder.Query().Where(filters...)
+	// The heavy multi-row fetch below (potentially thousands of orders + joined lines/payments)
+	// is the one part of this handler routed to a read replica when configured — see rc(). Every
+	// other lookup here (filters, enrichment) stays on the primary, unchanged.
+	baseQ := h.rc().POSOrder.Query().Where(filters...)
 
 	if paymentStatusFilter == "" {
 		total, _ := baseQ.Clone().Count(r.Context())

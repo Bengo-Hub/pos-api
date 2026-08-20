@@ -342,7 +342,9 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 	extraFilters, paymentStatusFilter := allSalesOrderFilters(r, h.db, tid, loc)
 	preds = append(preds, extraFilters...)
 
-	baseQ := h.db.POSOrder.Query().Where(preds...)
+	// Potentially thousands of rows (allSalesExportCap) — routed to a read replica when
+	// configured (see ReportPDFHandler.rc()); everything else on this handler stays on primary.
+	baseQ := h.rc().POSOrder.Query().Where(preds...)
 	total, _ := baseQ.Clone().Count(ctx)
 	list, err := baseQ.WithLines().WithPayments().
 		Order(ent.Desc(posorder.FieldCreatedAt)).

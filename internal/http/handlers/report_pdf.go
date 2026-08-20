@@ -42,11 +42,27 @@ type ReportPDFHandler struct {
 	// rbac backs the per-cashier visibility scoping on the All-Sales export (see SetRBAC /
 	// ownOrdersScope in report_all_sales.go) — a view_own cashier exports only their own sales.
 	rbac outletmw.PermissionChecker
+	// readClient, when set, is used ONLY for the All-Sales export's heavy order fetch (see rc())
+	// — a staleness-tolerant read routed to a replica when one is configured. Everything else on
+	// this handler always uses db (primary), unchanged.
+	readClient *ent.Client
 }
 
 // NewReportPDFHandler creates a new ReportPDFHandler.
 func NewReportPDFHandler(log *zap.Logger, db *ent.Client, cache *sharedcache.Aside, authURL string) *ReportPDFHandler {
 	return &ReportPDFHandler{log: log, db: db, cache: cache, authURL: authURL}
+}
+
+// SetReadClient wires an optional read-replica Ent client for the All-Sales export's heavy order
+// fetch. Nil (the default) means rc() falls back to db (primary) — zero behavior change unset.
+func (h *ReportPDFHandler) SetReadClient(c *ent.Client) { h.readClient = c }
+
+// rc returns the read-replica client when one is configured, else the primary — see readClient.
+func (h *ReportPDFHandler) rc() *ent.Client {
+	if h.readClient != nil {
+		return h.readClient
+	}
+	return h.db
 }
 
 // ── shared helpers ────────────────────────────────────────────────────────────
