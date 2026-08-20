@@ -372,6 +372,12 @@ type CreditSaleRequest struct {
 	CustomerIdentifier string `json:"customer_identifier,omitempty"`
 	CustomerName       string `json:"customer_name,omitempty"`
 	POSOrderID         string `json:"pos_order_id,omitempty"`
+	// OutletID is the sale's own outlet — the credit sale demonstrably happened at one specific
+	// outlet, so the resulting AR-reclass GL entry should be attributable to it too, even though
+	// the customer's aggregate CustomerBalance stays tenant-wide (their debt is owed to the
+	// business as a whole, not to one branch — collapsing multiple outlets' debts into one running
+	// balance is correct; losing which outlet EXTENDED each slice of credit is not).
+	OutletID string `json:"outlet_id,omitempty"`
 	// Reference is the human invoice number (POS-…) treasury shows on customer statements
 	// instead of the raw order UUID.
 	Reference string  `json:"reference,omitempty"`
@@ -505,6 +511,10 @@ type ARPaymentRequest struct {
 	// side. Lets a backdated till settlement (see credit_settlement.go) carry the same business
 	// date into the linked AR receipt instead of drifting by the S2S round-trip time.
 	PaidAt *time.Time `json:"paid_at,omitempty"`
+	// OutletID is the outlet whose till actually collected this payment — set only when the
+	// receipt is tied to a real POS order (credit_settlement.go); empty for a manual Treasury-UI
+	// "Receive Payment" with no till/order context, which genuinely has no outlet to attribute.
+	OutletID string `json:"outlet_id,omitempty"`
 }
 
 // ARPaymentResponse is the updated treasury customer-balance row.

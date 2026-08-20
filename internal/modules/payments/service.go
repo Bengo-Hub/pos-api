@@ -592,6 +592,7 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		CustomerIdentifier: phone,
 		CustomerName:       name,
 		POSOrderID:         order.ID.String(),
+		OutletID:           order.OutletID.String(),
 		Reference:          order.OrderNumber,
 		Amount:             req.Amount,
 		Currency:           currency,

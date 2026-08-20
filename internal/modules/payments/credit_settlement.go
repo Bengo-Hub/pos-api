@@ -217,6 +217,7 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 			PaymentMethod: req.TenderMethod,
 			Reference:     order.OrderNumber,
 			PaidAt:        &occurredAt,
+			OutletID:      order.OutletID.String(),
 		}); terr != nil {
 			s.log.Error("credit settlement: treasury AR receipt failed — settle from treasury Customers page",
 				zap.String("order", order.OrderNumber), zap.Error(terr))
