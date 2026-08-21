@@ -14,7 +14,9 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/user"
+	"github.com/bengobox/pos-service/internal/ent/userposrole"
 )
 
 // staffPinFastHash computes hex(SHA256(tenantID+":"+userID+":"+pin)).
@@ -78,6 +80,7 @@ func (h *AuthEventHandler) SubscribeToAuthEvents(nc *nats.Conn) error {
 		{"auth.user.created", "pos-auth-user-created", h.handleUserCreated},
 		{"auth.user.updated", "pos-auth-user-updated", h.handleUserUpdated},
 		{"auth.user.pin_set", "pos-auth-user-pin-set", h.handleUserPINSet},
+		{"auth.user.deleted", "pos-auth-user-deleted", h.handleUserDeleted},
 	}
 
 	for _, s := range subs {
@@ -424,6 +427,63 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 	h.logger.Info("staff PIN updated from auth.user.pin_set event",
 		zap.String("user_id", userIDStr),
 		zap.String("role", existing.Role))
+	return nil
+}
+
+// handleUserDeleted hard-deletes this user's local pos-api rows after auth-api
+// permanently deletes the account (AdminPurgeUser). Child rows first, in FK order
+// (both user_pos_roles->users and staff_outlets->staff_members carry a real
+// OnDelete:NoAction constraint, so deleting the parent before its children errors
+// instead of cascading): staff_outlets -> user_pos_roles -> staff_members -> users.
+// Payroll/advance/commission/purchase-link/housekeeping rows that softly reference
+// staff_member_id (no DB FK, comment-only) are deliberately left alone — those are
+// financial/audit records, not identity data, matching auth-api's own AdminPurgeUser
+// doc comment about LoginAttempt/AuditLog rows staying in place with a dangling ID.
+func (h *AuthEventHandler) handleUserDeleted(ctx context.Context, evt *sharedevents.Event) error {
+	userIDStr, _ := evt.Payload["user_id"].(string)
+	authServiceUserID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return fmt.Errorf("invalid user_id %q: %w", userIDStr, err)
+	}
+
+	tx, err := h.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("start tx: %w", err)
+	}
+
+	staffMembers, err := tx.StaffMember.Query().Where(staffmember.UserID(authServiceUserID)).All(ctx)
+	if err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("query staff members: %w", err)
+	}
+	staffMemberIDs := make([]uuid.UUID, 0, len(staffMembers))
+	for _, sm := range staffMembers {
+		staffMemberIDs = append(staffMemberIDs, sm.ID)
+	}
+	if len(staffMemberIDs) > 0 {
+		if _, err := tx.StaffOutlet.Delete().Where(staffoutlet.StaffMemberIDIn(staffMemberIDs...)).Exec(ctx); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("delete staff outlets: %w", err)
+		}
+	}
+	if _, err := tx.UserPOSRole.Delete().Where(userposrole.UserID(authServiceUserID)).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("delete user pos roles: %w", err)
+	}
+	if _, err := tx.StaffMember.Delete().Where(staffmember.UserID(authServiceUserID)).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("delete staff members: %w", err)
+	}
+	if _, err := tx.User.Delete().Where(user.AuthServiceUserIDEQ(authServiceUserID)).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("delete user: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+
+	h.logger.Info("user hard-deleted from auth.user.deleted event", zap.String("user_id", userIDStr))
 	return nil
 }
 
