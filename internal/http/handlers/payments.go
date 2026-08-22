@@ -873,6 +873,48 @@ func (h *PaymentHandler) ListC2BCandidates(w http.ResponseWriter, r *http.Reques
 	_, _ = w.Write(resp)
 }
 
+// SimulateC2BPayment handles POST /{tenant}/pos/c2b/simulate — proxies treasury-api's sandbox-only
+// C2B simulation so a cashier testing the POS terminal's C2B matcher can trigger a real (simulated)
+// Daraja confirmation without an actual phone/till, using the exact order amount they're testing
+// against. treasury-api independently hard-blocks this against a "production" environment
+// credential; pos-ui additionally only shows the trigger for the demo tenant.
+func (h *PaymentHandler) SimulateC2BPayment(w http.ResponseWriter, r *http.Request) {
+	tid, terr := parseTenantUUID(r)
+	if terr != nil || h.treasuryClient == nil {
+		jsonError(w, "tenant context required", http.StatusBadRequest)
+		return
+	}
+	var body struct {
+		Amount        float64 `json:"amount"`
+		Msisdn        string  `json:"msisdn"`
+		BillRefNumber string  `json:"bill_ref_number"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if body.Amount <= 0 {
+		jsonError(w, "amount must be positive", http.StatusBadRequest)
+		return
+	}
+	msisdn := body.Msisdn
+	if msisdn == "" {
+		// Safaricom's own publicly documented sandbox test MSISDN — used throughout their Daraja
+		// docs/Postman examples for exactly this kind of simulate call. Any valid-format number
+		// works for a simulation; this is just a sane default when the caller doesn't supply one.
+		msisdn = "254708374149"
+	}
+
+	resp, err := h.treasuryClient.SimulateC2BPayment(r.Context(), tid.String(), body.Amount, msisdn, body.BillRefNumber)
+	if err != nil {
+		h.log.Error("simulate c2b payment failed", zap.Error(err))
+		jsonError(w, "failed to simulate c2b payment", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(resp)
+}
+
 // ClaimC2BPayment handles POST /{tenant}/pos/c2b/payments/{transID}/claim — binds a C2B payment to a sale.
 func (h *PaymentHandler) ClaimC2BPayment(w http.ResponseWriter, r *http.Request) {
 	tid, terr := parseTenantUUID(r)

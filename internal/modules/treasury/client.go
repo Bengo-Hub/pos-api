@@ -1108,6 +1108,26 @@ func (c *Client) ClaimC2BPayment(ctx context.Context, tenantSlug, transID, posOr
 	return *resp, nil
 }
 
+// SimulateC2BPayment triggers treasury-api's sandbox-only C2B simulation (Safaricom's own
+// "Simulate C2B Payment" API) — lets a cashier test the POS terminal's C2B matcher without a real
+// phone, since sandbox shortcodes don't exist on the production M-Pesa network. treasury-api
+// hard-blocks this against a "production" environment credential, so it's safe to expose even if a
+// real tenant's frontend somehow called it (pos-ui gates the button to the demo tenant only, but
+// this is the actual safety net).
+func (c *Client) SimulateC2BPayment(ctx context.Context, tenantSlug string, amount float64, msisdn, billRefNumber string) (json.RawMessage, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/gateways/mpesa/simulate-c2b", c.baseURL, tenantSlug)
+	body := map[string]any{
+		"amount":          amount,
+		"msisdn":          msisdn,
+		"bill_ref_number": billRefNumber,
+	}
+	resp, err := doRequest[json.RawMessage](ctx, c.httpClient, http.MethodPost, url, c.apiKey, body)
+	if err != nil {
+		return nil, err
+	}
+	return *resp, nil
+}
+
 // COGSBackfillRequest is the body for POST /api/v1/s2s/{tenant}/pos/cogs-backfill — see
 // ledger.go's S2SPostRecipeCOGSBackfill on the treasury side.
 type COGSBackfillRequest struct {
