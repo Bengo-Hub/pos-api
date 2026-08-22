@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -932,6 +933,15 @@ func (h *PaymentHandler) ClaimC2BPayment(w http.ResponseWriter, r *http.Request)
 	_ = json.NewDecoder(r.Body).Decode(&body)
 	resp, err := h.treasuryClient.ClaimC2BPayment(r.Context(), tid.String(), transID, body.POSOrderID)
 	if err != nil {
+		// treasury returns 409 when the code doesn't match any unreconciled inbox row or was
+		// already claimed — a real business-logic rejection the cashier can act on (re-check the
+		// code, or it's already settled), not a gateway/network failure. Surface it as such
+		// instead of the generic 502 so the terminal can show an accurate message.
+		var httpErr *treasury.HTTPError
+		if errors.As(err, &httpErr) && httpErr.StatusCode == http.StatusConflict {
+			jsonError(w, "this M-Pesa code was not found or has already been claimed", http.StatusConflict)
+			return
+		}
 		h.log.Error("claim c2b payment failed", zap.Error(err))
 		jsonError(w, "failed to claim c2b payment", http.StatusBadGateway)
 		return

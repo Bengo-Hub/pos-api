@@ -943,6 +943,20 @@ func (c *Client) CheckInsuranceEligibility(ctx context.Context, tenantSlug, prov
 	return resp.Data, nil
 }
 
+// HTTPError preserves the upstream status code from a treasury call so callers can distinguish a
+// real business-logic rejection (404 not found, 409 conflict) from a genuine gateway/network
+// failure instead of collapsing every non-2xx response into the same generic 502. The message
+// format is kept identical to the old inline fmt.Errorf so isNotFound's string matching below
+// still works unchanged for existing callers that only check the error text.
+type HTTPError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *HTTPError) Error() string {
+	return fmt.Sprintf("treasury: upstream error %d: %s", e.StatusCode, e.Body)
+}
+
 func isNotFound(err error) bool {
 	if err == nil {
 		return false
@@ -1004,7 +1018,7 @@ func doRequestWithHeaders[T any](ctx context.Context, client *http.Client, metho
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("treasury: upstream error %d: %s", resp.StatusCode, string(respBody))
+		return nil, &HTTPError{StatusCode: resp.StatusCode, Body: string(respBody)}
 	}
 
 	var result T
