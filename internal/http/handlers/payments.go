@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -936,10 +937,25 @@ func (h *PaymentHandler) ClaimC2BPayment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Settle for what the claimed inbox row actually says M-Pesa received, not whatever the client
+	// sent — the client's `amount` is only a query hint (used earlier to filter candidates), and
+	// trusting it blindly here would let a claim settle for more than the real payment if the two
+	// ever diverge (e.g. a customer paying short and a cashier keying the sale total by habit).
+	// Falls back to the client-supplied amount only if the claimed row's own amount fails to parse.
+	settleAmount := body.Amount
+	var claimed struct {
+		Amount string `json:"amount"`
+	}
+	if jerr := json.Unmarshal(resp, &claimed); jerr == nil && claimed.Amount != "" {
+		if parsed, perr := strconv.ParseFloat(claimed.Amount, 64); perr == nil && parsed > 0 {
+			settleAmount = parsed
+		}
+	}
+
 	// Settle the POS order with the claimed C2B amount: record a completed payment (reference =
 	// M-Pesa TransID) and close the order if it is now fully paid. Best-effort — the treasury bind
 	// already succeeded, so a settle error must not fail the claim.
-	if body.POSOrderID != "" && body.Amount > 0 && h.paymentSvc != nil {
+	if body.POSOrderID != "" && settleAmount > 0 && h.paymentSvc != nil {
 		if tid, terr := parseTenantUUID(r); terr == nil {
 			if orderID, oerr := uuid.Parse(body.POSOrderID); oerr == nil {
 				tenderID, _ := uuid.Parse(body.TenderID) // uuid.Nil when not supplied
@@ -953,7 +969,7 @@ func (h *PaymentHandler) ClaimC2BPayment(w http.ResponseWriter, r *http.Request)
 					TenantID:  tid,
 					OrderID:   orderID,
 					TenderID:  tenderID,
-					Amount:    body.Amount,
+					Amount:    settleAmount,
 					Currency:  currency,
 					Reference: transID,
 				}); perr != nil {

@@ -478,6 +478,23 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	if req.Amount > freshOutstanding+0.01 {
 		req.Amount = freshOutstanding
 	}
+
+	// M-Pesa "Code" entry is trust-based (the cashier sights the SMS, nothing here calls Safaricom
+	// to verify it) — with no check, the SAME code could be typed against a SECOND, unrelated sale
+	// and settle it too, since nothing else ties a manual code to the one real payment it came
+	// from. Reject a code that's already settled another completed payment for this tenant.
+	if strings.EqualFold(req.TenderMethod, "mpesa_manual") && cashRef != "" {
+		reused, rerr := s.isMpesaManualCodeReused(ctx, req.TenantID, cashRef)
+		if rerr != nil {
+			_ = tx.Rollback()
+			return nil, fmt.Errorf("payments: check m-pesa code reuse: %w", rerr)
+		}
+		if reused {
+			_ = tx.Rollback()
+			return nil, fmt.Errorf("payments: M-Pesa code %q has already been used to settle another sale", cashRef)
+		}
+	}
+
 	payment, err := tx.POSPayment.Create().
 		SetOrderID(req.OrderID).
 		SetTenderID(req.TenderID).
@@ -499,6 +516,21 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	// Off the request path: create the treasury intent now that the till already shows "paid".
 	s.dispatchTreasuryIntent(payment.ID, req.TenantSlug, req.OrderID, intentReq)
 	return &CreateIntentResult{IsCash: true}, nil
+}
+
+// isMpesaManualCodeReused reports whether an M-Pesa confirmation code has already settled a
+// completed payment for this tenant. Queries the non-transactional client rather than the
+// enclosing tx: this is a fraud-deterrence check on a code a cashier retypes from an SMS, not a
+// financial-precision invariant like the outstanding-balance row lock, so the narrow read/insert
+// race window is an acceptable trade-off for keeping the check independently testable.
+func (s *Service) isMpesaManualCodeReused(ctx context.Context, tenantID uuid.UUID, code string) (bool, error) {
+	return s.client.POSPayment.Query().
+		Where(
+			pospayment.ExternalReferenceEqualFold(code),
+			pospayment.Status(StatusCompleted),
+			pospayment.HasOrderWith(posorder.TenantID(tenantID)),
+		).
+		Exist(ctx)
 }
 
 // recordCreditSale settles an order "on account" (credit sale). It posts the amount to the
