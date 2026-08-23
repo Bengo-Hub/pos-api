@@ -3,6 +3,8 @@ package handlers
 import (
 	"time"
 
+	"entgo.io/ent/dialect/sql"
+
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 )
@@ -40,4 +42,29 @@ func effectiveDateLT(t time.Time) predicate.POSOrder {
 		posorder.And(posorder.BusinessDateNotNil(), posorder.BusinessDateLT(t)),
 		posorder.And(posorder.BusinessDateIsNil(), posorder.CreatedAtLT(t)),
 	)
+}
+
+// orderByEffectiveDate sorts POSOrder rows by the same effective date effectiveDateGTE/LTE
+// filter on (business_date when set, else created_at), descending by default — so a backdated or
+// postdated (business_date-moved) sale sorts into its true chronological position among the rows
+// actually entered on that day, instead of always floating to the top/bottom of the list under
+// its real entry date. Without this, a sale entered today but business_date-moved to last week
+// would still sort as if it happened today, defeating the point of correcting its reporting date.
+//
+// Needs a raw SQL expression because ent's generated Asc/Desc only order by a single column, not
+// a COALESCE across two — mirrors effectiveDateGTE/LTE's Or/And predicate shape, just expressed
+// as an ORDER BY instead of a WHERE. A secondary "created_at DESC" term keeps same-effective-date
+// rows in a stable, real-entry-order tiebreak (matters for ties and for the un-backdated common
+// case, where business_date is nil and created_at already IS the effective date).
+func orderByEffectiveDate(desc bool) posorder.OrderOption {
+	dir := "ASC"
+	if desc {
+		dir = "DESC"
+	}
+	return func(s *sql.Selector) {
+		expr := "COALESCE(" + s.C(posorder.FieldBusinessDate) + ", " + s.C(posorder.FieldCreatedAt) + ")"
+		s.OrderExprFunc(func(b *sql.Builder) {
+			b.WriteString(expr + " " + dir + ", " + s.C(posorder.FieldCreatedAt) + " " + dir)
+		})
+	}
 }

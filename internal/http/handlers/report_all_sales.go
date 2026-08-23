@@ -347,7 +347,7 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 	baseQ := h.rc().POSOrder.Query().Where(preds...)
 	total, _ := baseQ.Clone().Count(ctx)
 	list, err := baseQ.WithLines().WithPayments().
-		Order(ent.Desc(posorder.FieldCreatedAt)).
+		Order(orderByEffectiveDate(true)).
 		Limit(allSalesExportCap).
 		All(ctx)
 	if err != nil {

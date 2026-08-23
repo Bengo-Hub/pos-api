@@ -299,7 +299,7 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 
 	if paymentStatusFilter == "" {
 		total, _ := baseQ.Clone().Count(r.Context())
-		orderList, err := baseQ.WithLines().WithPayments().Order(ent.Desc(posorder.FieldCreatedAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
+		orderList, err := baseQ.WithLines().WithPayments().Order(orderByEffectiveDate(true)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 		if err != nil {
 			h.log.Error("list orders failed", zap.Error(err))
 			jsonError(w, "internal error", http.StatusInternalServerError)
@@ -315,7 +315,7 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	// allSalesOrderFilters' doc comment for why that can't be a precise single-order SQL predicate.
 	// Scan the coarse candidate set (bounded like the export/summary) and paginate the EXACT match
 	// in memory, so this page can never show a row whose badge disagrees with the requested filter.
-	candidates, err := baseQ.WithLines().WithPayments().Order(ent.Desc(posorder.FieldCreatedAt)).Limit(allSalesExportCap).All(r.Context())
+	candidates, err := baseQ.WithLines().WithPayments().Order(orderByEffectiveDate(true)).Limit(allSalesExportCap).All(r.Context())
 	if err != nil {
 		h.log.Error("list orders failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -398,7 +398,7 @@ func (h *POSOrderHandler) OrdersSummary(w http.ResponseWriter, r *http.Request) 
 	baseQ := h.client.POSOrder.Query().Where(filters...)
 	totalMatching, _ := baseQ.Clone().Count(r.Context())
 	list, err := baseQ.WithLines().WithPayments().
-		Order(ent.Desc(posorder.FieldCreatedAt)).
+		Order(orderByEffectiveDate(true)).
 		Limit(allSalesExportCap).
 		All(r.Context())
 	if err != nil {
