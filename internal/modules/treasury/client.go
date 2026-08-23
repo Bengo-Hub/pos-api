@@ -1084,6 +1084,20 @@ func (c *Client) ListExpenseAccounts(ctx context.Context, tenantSlug string) (js
 	return *resp, nil
 }
 
+// CreateExpenseAccount creates a real, ledger-linked financial account (bank/mobile_money/cash)
+// in treasury over S2S — backs the POS Add-Expense form's "+ Create account" inline action
+// (shared-ui-lib's AccountForm). Raw passthrough (pos-api doesn't need to interpret the payload
+// or response shape, both already defined by treasury's bank_accounts.go) rather than mirroring
+// a typed struct pos-api has no other use for. Returns the created account's raw JSON.
+func (c *Client) CreateExpenseAccount(ctx context.Context, tenantSlug string, body json.RawMessage) (json.RawMessage, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/bank-accounts", c.baseURL, tenantSlug)
+	resp, err := doRequest[json.RawMessage](ctx, c.httpClient, http.MethodPost, url, c.apiKey, body)
+	if err != nil {
+		return nil, err
+	}
+	return *resp, nil
+}
+
 // PreviewNextExpenseNumber fetches a live "next number" preview (e.g. "EXP-260710-000123") from
 // treasury's document-sequence service, to show as a placeholder on the POS Add-Expense form's
 // "Reference No" field — the same server-authoritative sequence treasury-ui's own document forms

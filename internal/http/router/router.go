@@ -651,6 +651,8 @@ func New(
 						// Dropdown data for the Add-Expense form (proxied from treasury).
 						pos.Get("/expenses/categories", payments.ListExpenseCategories)
 						pos.Get("/expenses/accounts", payments.ListExpenseAccounts)
+						// "+ Create account" inline action (shared-ui-lib AccountForm) on the same dropdown.
+						pos.Post("/expenses/accounts", payments.CreateExpenseAccount)
 						// Supplier/vendor search-select for the "Expense for" field (proxied from inventory-api).
 						pos.Get("/expenses/suppliers", payments.ListExpenseSuppliers)
 						// Live "Reference No" preview from treasury's document-sequence service.

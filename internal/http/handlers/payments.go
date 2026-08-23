@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -787,6 +788,33 @@ func (h *PaymentHandler) ListExpenseAccounts(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(resp)
+}
+
+// CreateExpenseAccount handles POST /{tenant}/pos/expenses/accounts — proxies treasury's real-
+// account creation (bank/mobile_money/cash) so the Add-Expense form's "+ Create account" action
+// (shared-ui-lib AccountForm) can add one inline instead of forcing the cashier out to
+// treasury-ui first. Raw passthrough — the request/response shapes are treasury's own
+// (bank_accounts.go), pos-api doesn't need to interpret them, just forward the body/response.
+func (h *PaymentHandler) CreateExpenseAccount(w http.ResponseWriter, r *http.Request) {
+	tid, terr := parseTenantUUID(r)
+	if terr != nil || h.treasuryClient == nil {
+		jsonError(w, "tenant context required", http.StatusBadRequest)
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	resp, cerr := h.treasuryClient.CreateExpenseAccount(r.Context(), tid.String(), body)
+	if cerr != nil {
+		h.log.Error("create expense account failed", zap.Error(cerr))
+		jsonError(w, "failed to create account", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 	_, _ = w.Write(resp)
 }
 
