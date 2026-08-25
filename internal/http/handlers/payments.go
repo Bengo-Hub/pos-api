@@ -631,17 +631,26 @@ func (h *PaymentHandler) ListOrderPayments(w http.ResponseWriter, r *http.Reques
 }
 
 type recordExpenseInput struct {
-	CategoryID   string  `json:"category_id,omitempty"`
-	ReferenceNo  string  `json:"reference_no,omitempty"` // "Reference No" → treasury expense_number (autogen when empty)
-	Description  string  `json:"description"`            // "Expense note"
-	Amount       float64 `json:"amount"`                 // "Total amount"
-	TaxAmount    float64 `json:"tax_amount,omitempty"`   // "Applicable Tax" (computed amount)
-	Currency     string  `json:"currency,omitempty"`
-	ReceiptURL   string  `json:"receipt_url,omitempty"`
-	ExpenseDate  string  `json:"expense_date,omitempty"` // "Date" (ISO date/datetime); defaults to today server-side
-	AccountID    string  `json:"account_id,omitempty"`   // "Payment Account" (chart-of-accounts UUID)
-	VendorID     string  `json:"vendor_id,omitempty"`    // "Expense for" (when a vendor is chosen)
-	CostCenterID string  `json:"cost_center_id,omitempty"`
+	CategoryID  string  `json:"category_id,omitempty"`
+	ReferenceNo string  `json:"reference_no,omitempty"` // "Reference No" → treasury expense_number (autogen when empty)
+	Description string  `json:"description"`            // "Expense note"
+	Amount      float64 `json:"amount"`                 // "Total amount"
+	TaxAmount   float64 `json:"tax_amount,omitempty"`   // "Applicable Tax" (computed amount)
+	Currency    string  `json:"currency,omitempty"`
+	ReceiptURL  string  `json:"receipt_url,omitempty"`
+	ExpenseDate string  `json:"expense_date,omitempty"` // "Date" (ISO date/datetime); defaults to today server-side
+	// AccountID is the GL expense-classification leaf — not sent by the current Add-Expense form
+	// (treasury auto-resolves it from CategoryID); kept for a future caller that knows a specific
+	// leaf. NOT the payment source — see PaidFromAccountID for that.
+	AccountID string `json:"account_id,omitempty"`
+	// PaidFromAccountID is the "Payment Account" field on the Add-Expense form — a REAL treasury
+	// bank_accounts id (bank/mobile-money/cash), not a chart-of-accounts id. Previously this form
+	// sent that value as AccountID, which treasury then (mis)used for both the expense's GL
+	// classification AND its settlement leg — the two postings against the same account netted to
+	// zero, so no real expense was ever recognized and that account's balance never actually moved.
+	PaidFromAccountID string `json:"paid_from_account_id,omitempty"`
+	VendorID          string `json:"vendor_id,omitempty"` // "Expense for" (when a vendor is chosen)
+	CostCenterID      string `json:"cost_center_id,omitempty"`
 	// PaymentMethod/PaidOn/PaymentNote/ExpenseFor are the GoDigital payment block + label fields.
 	// Treasury has no dedicated columns for them, so they are forwarded into the expense metadata.
 	PaymentMethod string  `json:"payment_method,omitempty"`
@@ -729,21 +738,22 @@ func (h *PaymentHandler) RecordExpense(w http.ResponseWriter, r *http.Request) {
 
 	// Treasury S2S resolves {tenant} as a UUID — pass the URL tenant UUID, not the slug.
 	resp, err := h.treasuryClient.RecordExpense(r.Context(), chi.URLParam(r, "tenantID"), treasury.ExpenseRequest{
-		ExpenseNumber: in.ReferenceNo,
-		CategoryID:    in.CategoryID,
-		Description:   in.Description,
-		Amount:        in.Amount,
-		TaxAmount:     in.TaxAmount,
-		Currency:      in.Currency,
-		ReceiptURL:    in.ReceiptURL,
-		ExpenseDate:   expenseDate,
-		AccountID:     in.AccountID,
-		VendorID:      in.VendorID,
-		CostCenterID:  in.CostCenterID,
-		OutletID:      httpware.GetOutletID(r.Context()),
-		SubmittedBy:   submittedBy,
-		SourceService: "pos",
-		Metadata:      metadata,
+		ExpenseNumber:     in.ReferenceNo,
+		CategoryID:        in.CategoryID,
+		Description:       in.Description,
+		Amount:            in.Amount,
+		TaxAmount:         in.TaxAmount,
+		Currency:          in.Currency,
+		ReceiptURL:        in.ReceiptURL,
+		ExpenseDate:       expenseDate,
+		AccountID:         in.AccountID,
+		PaidFromAccountID: in.PaidFromAccountID,
+		VendorID:          in.VendorID,
+		CostCenterID:      in.CostCenterID,
+		OutletID:          httpware.GetOutletID(r.Context()),
+		SubmittedBy:       submittedBy,
+		SourceService:     "pos",
+		Metadata:          metadata,
 	})
 	if err != nil {
 		h.log.Error("record expense failed", zap.Error(err))
@@ -773,8 +783,11 @@ func (h *PaymentHandler) ListExpenseCategories(w http.ResponseWriter, r *http.Re
 	_, _ = w.Write(resp)
 }
 
-// ListExpenseAccounts handles GET /{tenant}/pos/expenses/accounts — proxies treasury's chart of
-// accounts so the Add-Expense form can populate the "Payment Account" dropdown.
+// ListExpenseAccounts handles GET /{tenant}/pos/expenses/accounts — proxies treasury's real
+// bank_accounts (bank/mobile-money/cash) so the Add-Expense form can populate the "Payment
+// Account" dropdown with actual settlement accounts, matching what CreateExpenseAccount below
+// creates into (previously this proxied the chart of accounts instead — a different id space
+// than what the form's picked value is used for, see ExpenseRequest.PaidFromAccountID).
 func (h *PaymentHandler) ListExpenseAccounts(w http.ResponseWriter, r *http.Request) {
 	tid, terr := parseTenantUUID(r)
 	if terr != nil || h.treasuryClient == nil {

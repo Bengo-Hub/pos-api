@@ -1030,21 +1030,32 @@ func doRequestWithHeaders[T any](ctx context.Context, client *http.Client, metho
 
 // ExpenseRequest is the body for POST /api/v1/s2s/{tenant}/expenses (register "Add Expense").
 type ExpenseRequest struct {
-	ExpenseNumber string         `json:"expense_number,omitempty"` // "Reference No" (treasury autogenerates when empty)
-	CategoryID    string         `json:"category_id,omitempty"`
-	Description   string         `json:"description"`
-	Amount        float64        `json:"amount"`
-	TaxAmount     float64        `json:"tax_amount,omitempty"`
-	Currency      string         `json:"currency,omitempty"`
-	ExpenseDate   string         `json:"expense_date,omitempty"`
-	ReceiptURL    string         `json:"receipt_url,omitempty"`
-	VendorID      string         `json:"vendor_id,omitempty"`      // "Expense for", when a vendor is selected
-	AccountID     string         `json:"account_id,omitempty"`     // Payment Account (chart-of-accounts UUID)
-	CostCenterID  string         `json:"cost_center_id,omitempty"` // optional cost-center dimension
-	OutletID      string         `json:"outlet_id,omitempty"`
-	SubmittedBy   string         `json:"submitted_by,omitempty"`
-	SourceService string         `json:"source_service,omitempty"`
-	Metadata      map[string]any `json:"metadata,omitempty"` // payment_method, paid_on, payment_note, expense_for, tax_rate
+	ExpenseNumber string  `json:"expense_number,omitempty"` // "Reference No" (treasury autogenerates when empty)
+	CategoryID    string  `json:"category_id,omitempty"`
+	Description   string  `json:"description"`
+	Amount        float64 `json:"amount"`
+	TaxAmount     float64 `json:"tax_amount,omitempty"`
+	Currency      string  `json:"currency,omitempty"`
+	ExpenseDate   string  `json:"expense_date,omitempty"`
+	ReceiptURL    string  `json:"receipt_url,omitempty"`
+	VendorID      string  `json:"vendor_id,omitempty"` // "Expense for", when a vendor is selected
+	// AccountID is the GL expense-classification leaf — deliberately left unset by pos-api's own
+	// caller (the till UI has no such concept beyond CategoryID; treasury auto-resolves the debit
+	// account from the category's own default). Kept on the wire for a future caller that does
+	// know a specific leaf. NOT the payment source — see PaidFromAccountID for that.
+	AccountID string `json:"account_id,omitempty"`
+	// PaidFromAccountID is the REAL bank/mobile-money/cash account (treasury bank_accounts id,
+	// not a chart-of-accounts id) the money actually left — required for a register expense
+	// (treasury rejects a create-and-settle call with neither this nor a tenant default
+	// resolvable). Previously this request only had AccountID, reused for both the classification
+	// leg and the settlement leg — the two postings against the SAME account net to zero, so no
+	// real expense was ever recognized and that account's balance never reflected the payment.
+	PaidFromAccountID string         `json:"paid_from_account_id,omitempty"`
+	CostCenterID      string         `json:"cost_center_id,omitempty"` // optional cost-center dimension
+	OutletID          string         `json:"outlet_id,omitempty"`
+	SubmittedBy       string         `json:"submitted_by,omitempty"`
+	SourceService     string         `json:"source_service,omitempty"`
+	Metadata          map[string]any `json:"metadata,omitempty"` // payment_method, paid_on, payment_note, expense_for, tax_rate
 }
 
 // ExpenseResponse is the created expense returned by treasury (subset).
@@ -1076,7 +1087,12 @@ func (c *Client) ListExpenseCategories(ctx context.Context, tenantSlug string) (
 // the "Payment Account" dropdown on the POS Add-Expense form. Returns the raw treasury envelope
 // ({"accounts":[...],"total":n}) for passthrough.
 func (c *Client) ListExpenseAccounts(ctx context.Context, tenantSlug string) (json.RawMessage, error) {
-	url := fmt.Sprintf("%s/api/v1/s2s/%s/accounts", c.baseURL, tenantSlug)
+	// Real bank_accounts, not the chart of accounts: a picked id is sent back as
+	// paid_from_account_id, which treasury resolves as a financial-account lookup
+	// (ledger.ResolveCashCode/FindFinancialAccountLedgerCode) — a ChartOfAccount id there
+	// silently falls through to a fallback account instead of the one actually picked. Same
+	// endpoint CreateExpenseAccount below already creates into.
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/bank-accounts", c.baseURL, tenantSlug)
 	resp, err := doRequest[json.RawMessage](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
 	if err != nil {
 		return nil, err
