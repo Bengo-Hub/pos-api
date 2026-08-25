@@ -3,6 +3,7 @@ package payments
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,7 +36,21 @@ type SettleCreditRequest struct {
 	// only entered today) — nil defaults to now. Backdating support, not postdating: a future
 	// value is rejected by resolveOccurredAt.
 	OccurredAt *time.Time
+	// SurplusAction says what to do when Amount exceeds the order's outstanding credit balance:
+	// "" (default) → clamp down to outstanding, exactly as before this field existed (the
+	// cashier gives the excess back as physical change; nothing above the debt is collected or
+	// recorded). SurplusActionStoreCredit → collect the full Amount and forward it uncapped to
+	// treasury, which settles the debt to zero and grants the remainder as the customer's store
+	// credit — same real-customer-only precondition as the on-account sale itself (this endpoint
+	// only ever runs against an already-on-account order, which already required a real,
+	// non-walk-in customer at credit-sale time).
+	SurplusAction string
 }
+
+// SurplusActionStoreCredit mirrors treasury-api's arpa.SurplusActionStoreCredit — kept as a
+// plain string constant (no shared Go module between the two services for this one value) so
+// both the HTTP layer and the treasury S2S call use the identical literal.
+const SurplusActionStoreCredit = "store_credit"
 
 // SettleCreditResult reports what was applied and where the order now stands.
 type SettleCreditResult struct {
@@ -46,6 +61,10 @@ type SettleCreditResult struct {
 	// failed (network) — the customer's treasury balance still shows the debt until the
 	// payment is re-recorded from the treasury Customers page.
 	TreasurySynced bool `json:"treasury_synced"`
+	// SurplusToStoreCredit is > 0 only when SurplusAction was "store_credit" and the tendered
+	// amount genuinely exceeded the outstanding balance — echoes treasury's surplus_amount so
+	// the till can tell the cashier what was banked as store credit.
+	SurplusToStoreCredit float64 `json:"surplus_to_store_credit,omitempty"`
 }
 
 // resolveOccurredAt validates and defaults a user-supplied "when did this payment actually
@@ -116,7 +135,7 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 	if req.Amount <= 0 {
 		req.Amount = outstanding
 	}
-	if req.Amount > outstanding+0.01 {
+	if req.Amount > outstanding+0.01 && req.SurplusAction != SurplusActionStoreCredit {
 		s.log.Warn("credit settlement exceeds outstanding — clamping",
 			zap.String("order_id", order.ID.String()),
 			zap.Float64("requested", req.Amount), zap.Float64("outstanding", outstanding))
@@ -162,7 +181,7 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 		_ = tx.Rollback()
 		return nil, fmt.Errorf("payments: order %s has no outstanding credit balance", order.OrderNumber)
 	}
-	if req.Amount > freshOutstanding+0.01 {
+	if req.Amount > freshOutstanding+0.01 && req.SurplusAction != SurplusActionStoreCredit {
 		req.Amount = freshOutstanding
 	}
 	paymentData := map[string]any{"method": req.TenderMethod, "credit_settlement": true}
@@ -207,22 +226,27 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 	// Treasury AR receipt (Dr Cash / Cr AR + CustomerBalance decrement) — same key
 	// resolution the credit sale used, so the receipt lands on the row that was debited.
 	synced := false
+	var surplusToStoreCredit float64
 	if s.treasuryClient != nil {
 		key := s.creditSettlementKey(ctx, req.TenantID, order)
 		if key == "" {
 			s.log.Warn("credit settlement: no customer key on order — treasury AR not decremented",
 				zap.String("order", order.OrderNumber))
-		} else if _, terr := s.treasuryClient.RecordARPayment(ctx, req.TenantSlug, key, treasury.ARPaymentRequest{
+		} else if arResp, terr := s.treasuryClient.RecordARPayment(ctx, req.TenantSlug, key, treasury.ARPaymentRequest{
 			Amount:        req.Amount,
 			PaymentMethod: req.TenderMethod,
 			Reference:     order.OrderNumber,
 			PaidAt:        &occurredAt,
 			OutletID:      order.OutletID.String(),
+			SurplusAction: req.SurplusAction,
 		}); terr != nil {
 			s.log.Error("credit settlement: treasury AR receipt failed — settle from treasury Customers page",
 				zap.String("order", order.OrderNumber), zap.Error(terr))
 		} else {
 			synced = true
+			if arResp != nil {
+				surplusToStoreCredit, _ = strconv.ParseFloat(arResp.SurplusAmount, 64)
+			}
 		}
 	}
 
@@ -231,10 +255,11 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 		status = "paid"
 	}
 	return &SettleCreditResult{
-		AmountApplied:    req.Amount,
-		OutstandingAfter: outstandingAfter,
-		PaymentStatus:    status,
-		TreasurySynced:   synced,
+		AmountApplied:        req.Amount,
+		OutstandingAfter:     outstandingAfter,
+		PaymentStatus:        status,
+		SurplusToStoreCredit: surplusToStoreCredit,
+		TreasurySynced:       synced,
 	}, nil
 }
 

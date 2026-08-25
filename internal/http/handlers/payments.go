@@ -216,6 +216,10 @@ type settleCreditInput struct {
 	ExternalRef  string     `json:"externalRef,omitempty"`
 	Currency     string     `json:"currency,omitempty"`
 	OccurredAt   *time.Time `json:"occurredAt,omitempty"` // when the money actually changed hands; nil → now (backdating support)
+	// SurplusAction: "store_credit" lets a tendered amount above the outstanding balance be
+	// banked as the customer's store credit instead of being clamped down (the default —
+	// unchanged — behavior, which assumes the excess is physical change given back at the till).
+	SurplusAction string `json:"surplusAction,omitempty"`
 }
 
 // SettleCreditPayment handles POST /{tenantID}/pos/orders/{orderID}/payments/settle-credit —
@@ -243,15 +247,16 @@ func (h *PaymentHandler) SettleCreditPayment(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	res, err := h.paymentSvc.SettleCreditPayment(r.Context(), payments.SettleCreditRequest{
-		TenantID:     tid,
-		TenantSlug:   chi.URLParam(r, "tenantID"),
-		OrderID:      orderID,
-		TenderID:     input.TenderID,
-		TenderMethod: input.TenderMethod,
-		Amount:       input.Amount,
-		ExternalRef:  strings.TrimSpace(input.ExternalRef),
-		Currency:     input.Currency,
-		OccurredAt:   input.OccurredAt,
+		TenantID:      tid,
+		TenantSlug:    chi.URLParam(r, "tenantID"),
+		OrderID:       orderID,
+		TenderID:      input.TenderID,
+		TenderMethod:  input.TenderMethod,
+		Amount:        input.Amount,
+		ExternalRef:   strings.TrimSpace(input.ExternalRef),
+		Currency:      input.Currency,
+		OccurredAt:    input.OccurredAt,
+		SurplusAction: input.SurplusAction,
 	})
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)

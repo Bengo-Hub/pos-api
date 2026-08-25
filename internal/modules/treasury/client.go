@@ -515,13 +515,22 @@ type ARPaymentRequest struct {
 	// receipt is tied to a real POS order (credit_settlement.go); empty for a manual Treasury-UI
 	// "Receive Payment" with no till/order context, which genuinely has no outlet to attribute.
 	OutletID string `json:"outlet_id,omitempty"`
+	// SurplusAction, when "store_credit", tells treasury to grant any amount above the
+	// customer's outstanding debit as store credit instead of rejecting the payment — see
+	// payments.SurplusActionStoreCredit.
+	SurplusAction string `json:"surplus_action,omitempty"`
 }
 
-// ARPaymentResponse is the updated treasury customer-balance row.
+// ARPaymentResponse is the updated treasury customer-balance row, plus how this specific
+// payment was applied (SettledAmount/SurplusAmount — see arpa.RecordARPaymentResult).
 type ARPaymentResponse struct {
-	ID         string `json:"id"`
-	BalanceDue string `json:"balance_due"`
-	Currency   string `json:"currency"`
+	ID            string `json:"id"`
+	BalanceDue    string `json:"balance_due"`
+	Currency      string `json:"currency"`
+	SettledAmount string `json:"settled_amount,omitempty"`
+	// SurplusAmount is set only when the payment overshot the outstanding debit and was
+	// explicitly routed to store credit.
+	SurplusAmount string `json:"surplus_amount,omitempty"`
 }
 
 // RecordARPayment posts a customer AR repayment to treasury (decrements balance_due and posts
