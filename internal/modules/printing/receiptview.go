@@ -107,6 +107,9 @@ func effectiveOrderDate(o *ent.POSOrder) time.Time {
 	if o.BusinessDate != nil {
 		return *o.BusinessDate
 	}
+	if o.OfflineCreatedAt != nil {
+		return *o.OfflineCreatedAt
+	}
 	return o.CreatedAt
 }
 

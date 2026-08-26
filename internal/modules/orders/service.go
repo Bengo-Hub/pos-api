@@ -2290,13 +2290,21 @@ func (s *Service) SetOrderDiscount(ctx context.Context, tenantID, orderID uuid.U
 }
 
 // EffectiveOrderDate returns the calendar day an order counts toward in reports: the
-// admin-set business_date override when present, else created_at (server ingestion
-// time). Report/list queries that need to honor a moved sale should filter on this
-// precedence rather than raw created_at — see dateRangePredicate in the handlers
-// package for the equivalent SQL-level predicate.
+// admin-set business_date override when present, else the offline device-clock time
+// (offline_created_at) when the order was rung up offline and synced later, else created_at
+// (server ingestion time). Without the offline_created_at step, an order (including a parked
+// draft) rung up while offline and only synced once connectivity returns — possibly days
+// later, e.g. a draft parked offline today and completed/synced a week later — would report
+// under its sync day instead of the day it actually happened, since created_at is stamped at
+// server-write time, not real device time. Report/list queries that need to honor a moved sale
+// should filter on this precedence rather than raw created_at — see dateRangePredicate in the
+// handlers package for the equivalent SQL-level predicate.
 func EffectiveOrderDate(o *ent.POSOrder) time.Time {
 	if o.BusinessDate != nil {
 		return *o.BusinessDate
+	}
+	if o.OfflineCreatedAt != nil {
+		return *o.OfflineCreatedAt
 	}
 	return o.CreatedAt
 }
