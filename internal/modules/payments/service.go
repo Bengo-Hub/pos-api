@@ -26,6 +26,7 @@ import (
 	enttable "github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	"github.com/bengobox/pos-service/internal/ent/tender"
+	entuser "github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/notifications"
 	"github.com/bengobox/pos-service/internal/modules/orders"
@@ -1760,6 +1761,24 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		crmContactID = s.ResolveOrCreateCrmContactID(ctx, order.TenantID, customerPhone, customerName)
 	}
 
+	// The cashier actually attributed as having served the sale (falls back to the order's
+	// creator when no resumed-draft supersede reassigned it — see served_by_user_id's own doc
+	// comment on the POSOrder schema). Denormalized onto the event so inventory-api's
+	// stock-history ledger can show WHO made a sale without a cross-service call per row.
+	servedByUserID := order.UserID
+	if order.ServedByUserID != nil {
+		servedByUserID = *order.ServedByUserID
+	}
+	servedByName := ""
+	if u, uErr := s.client.User.Query().
+		Where(entuser.TenantID(order.TenantID), entuser.Or(entuser.ID(servedByUserID), entuser.AuthServiceUserID(servedByUserID))).
+		Only(ctx); uErr == nil {
+		servedByName = strings.TrimSpace(u.FullName)
+		if servedByName == "" {
+			servedByName = strings.TrimSpace(u.Email)
+		}
+	}
+
 	data := map[string]any{
 		"order_id":     order.ID.String(),
 		"order_number": order.OrderNumber,
@@ -1798,6 +1817,10 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		// CustomerBalance row directly, instead of only by raw phone string (see this func's
 		// resolution above). Empty when unresolved/anonymous — treasury falls back to phone-only.
 		"crm_contact_id": crmContactID,
+		// served_by_user_id/served_by_name — the attributed cashier, consumed by
+		// inventory-api's stock-history ledger (User column on sale/sell-return rows).
+		"served_by_user_id": servedByUserID.String(),
+		"served_by_name":    servedByName,
 	}
 
 	if err := s.publisher.PublishSaleFinalized(ctx, order.TenantID, data); err != nil {

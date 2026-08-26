@@ -78,15 +78,32 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 		// PDF/CSV export since they all share this filter builder.
 		filters = append(filters, posorder.StatusNEQ(orders.StatusDraft))
 	}
-	// staff_id / user_id scope the list to orders created by a specific staff member.
+	// staff_id / user_id scope the list to orders belonging to a specific staff member —
+	// matches EITHER the order's creator (user_id) OR the cashier actually attributed as
+	// having served the sale (served_by_user_id), since a resumed/modified draft can be
+	// finished by someone other than whoever originally rang it up (see the served_by_user_id
+	// staff-attribution fix — a filter on user_id alone would silently miss those rows).
 	staffFilter := q.Get("staff_id")
 	if staffFilter == "" {
 		staffFilter = q.Get("user_id")
 	}
 	if staffFilter != "" {
 		if staffUID, err := uuid.Parse(staffFilter); err == nil {
-			filters = append(filters, posorder.UserID(staffUID))
+			filters = append(filters, posorder.Or(
+				posorder.UserID(staffUID),
+				posorder.ServedByUserID(staffUID),
+			))
 		}
+	}
+	// sku / item_sku — filter to sales containing a specific catalog item, so a
+	// merchant/manager can track how one product has been selling (which orders, which
+	// customers, which cashiers).
+	skuFilter := strings.TrimSpace(q.Get("sku"))
+	if skuFilter == "" {
+		skuFilter = strings.TrimSpace(q.Get("item_sku"))
+	}
+	if skuFilter != "" {
+		filters = append(filters, posorder.HasLinesWith(posorderline.Sku(skuFilter)))
 	}
 	// Free-text invoice/receipt search: case-insensitive CONTAINS on order_number. Receipt
 	// numbers are just "RCT-"+order_number (see printing.ReceiptView), so a pasted receipt
