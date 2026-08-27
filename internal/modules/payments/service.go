@@ -1789,6 +1789,13 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		"total_amount": order.TotalAmount,
 		"currency":     order.Currency,
 		"items":        items,
+		// sale_date is the same effective date the receipt/All-Sales/reports show
+		// (orders.EffectiveOrderDate: business_date backdate when set, else CreatedAt) — NOT
+		// necessarily "now". A sale finalized well after it was rung up (e.g. a tab opened one
+		// day and paid the next) would otherwise stamp inventory-api's stock-history ledger with
+		// the NATS-processing wall-clock time, disagreeing with the receipt's printed date. See
+		// stock.ConsumptionRequest.SaleDate on the consuming side.
+		"sale_date": orders.EffectiveOrderDate(order).Format(time.RFC3339),
 		// Sum of per-line cost (cost_amount x quantity) for the whole sale; used by treasury
 		// to post Cost of Goods Sold (DR 5400 / CR 1500). 0 when no item carries a known cost.
 		"cost_total": costTotal,
