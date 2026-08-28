@@ -190,6 +190,17 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 		}
 		buf.WriteString(`<div class="divider"></div>`)
 	}
+	// Item-count summary (Total Quantity = summed units across all lines, TOTAL ITEMS = line
+	// count) — printed right above the money totals. Label casing/order matches the existing
+	// a4_pdf.go/a4_html.go retail-invoice layouts exactly, so every receipt surface agrees.
+	if len(rec.Lines) > 0 {
+		var totalQty float64
+		for _, l := range rec.Lines {
+			totalQty += l.Quantity
+		}
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Total Quantity</span><span>%g</span></div>`, totalQty))
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>TOTAL ITEMS</span><span>%d</span></div>`, len(rec.Lines)))
+	}
 	buf.WriteString(fmt.Sprintf(`<div class="line"><span>Subtotal</span><span>%s</span></div>`, amount(rec.Subtotal)))
 	tl := "Tax"
 	if rec.VatEnabled && rec.VatRate > 0 {

@@ -222,6 +222,18 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 		hr()
 	}
 
+	// Item-count summary (Total Quantity = summed units across all lines, TOTAL ITEMS = line
+	// count) — printed right above the money totals. Label casing/order matches the existing
+	// a4_pdf.go/a4_html.go retail-invoice layouts exactly, so every receipt surface agrees.
+	if len(rec.Lines) > 0 {
+		var totalQty float64
+		for _, l := range rec.Lines {
+			totalQty += l.Quantity
+		}
+		line("Total Quantity", fmt.Sprintf("%g", totalQty), "", 9)
+		line("TOTAL ITEMS", fmt.Sprintf("%d", len(rec.Lines)), "", 9)
+	}
+
 	// Totals
 	line("Subtotal", moneyLine(rec.Subtotal), "", 9)
 	if rec.DiscountAmount > 0 {

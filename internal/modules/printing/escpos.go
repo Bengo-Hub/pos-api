@@ -228,6 +228,18 @@ func BuildReceipt(d ReceiptData) []byte {
 	// Totals section (customer receipts only)
 	if d.Type == "customer" || d.Type == "void" {
 		separator()
+		// Item-count summary (Total Quantity = summed units across all lines, TOTAL ITEMS = line
+		// count) — printed right above the money totals. Label casing/order matches the existing
+		// a4_pdf.go/a4_html.go retail-invoice layouts exactly, so every receipt surface agrees.
+		// Purely derived from d.Items, no new data dependency.
+		if len(d.Items) > 0 {
+			var totalQty float64
+			for _, item := range d.Items {
+				totalQty += item.Quantity
+			}
+			writeln(formatLine("Total Quantity", fmt.Sprintf("%g", totalQty)))
+			writeln(formatLine("TOTAL ITEMS", fmt.Sprintf("%d", len(d.Items))))
+		}
 		taxLabel := "Tax"
 		if d.VatRate > 0 {
 			taxLabel = fmt.Sprintf("VAT (%g%%)", d.VatRate)
