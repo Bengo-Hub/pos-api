@@ -21,27 +21,35 @@ func TestDraftDeleteSkipReason(t *testing.T) {
 		orderUserID  uuid.UUID
 		callerID     uuid.UUID
 		canDeleteAny bool
+		canDeleteOwn bool
 		want         string
 	}{
-		{"own draft without manage is deletable", "draft", owner, owner, false, ""},
-		{"someone else's draft without manage is refused", "draft", owner, other, false, "not_owner"},
-		{"someone else's draft WITH manage is deletable", "draft", owner, other, true, ""},
-		{"own draft with manage is deletable", "draft", owner, owner, true, ""},
+		{"own draft with delete_own is deletable", "draft", owner, owner, false, true, ""},
+		{"someone else's draft with only delete_own is refused", "draft", owner, other, false, true, "not_owner"},
+		// Without EITHER grant (e.g. a tenant admin hid delete_own for cashiers via the
+		// outlet quick config, or a custom role never got it) the caller is refused outright,
+		// before ownership is even considered.
+		{"own draft WITHOUT delete_own or manage is forbidden", "draft", owner, owner, false, false, "forbidden"},
+		{"someone else's draft without any grant is forbidden", "draft", owner, other, false, false, "forbidden"},
+		{"someone else's draft WITH manage is deletable", "draft", owner, other, true, false, ""},
+		{"own draft with manage is deletable", "draft", owner, owner, true, false, ""},
+		// manage implies "any", regardless of the separate delete_own grant.
+		{"someone else's draft with manage AND delete_own is deletable", "draft", owner, other, true, true, ""},
 		// Only draft-status orders are hard-deletable — finalized/active sales carry
 		// ledger/eTIMS/kitchen state and must be voided or returned instead. The status
-		// gate applies BEFORE ownership: even a manager may not delete a non-draft.
-		{"open order is never deletable", "open", owner, owner, true, "not_draft"},
-		{"pending_payment order is never deletable", "pending_payment", owner, owner, true, "not_draft"},
-		{"completed sale is never deletable", "completed", owner, owner, true, "not_draft"},
-		{"voided order is never deletable", "voided", owner, owner, true, "not_draft"},
-		{"cancelled order is never deletable", "cancelled", other, other, false, "not_draft"},
+		// gate applies BEFORE ownership/grant checks: even a manager may not delete a non-draft.
+		{"open order is never deletable", "open", owner, owner, true, false, "not_draft"},
+		{"pending_payment order is never deletable", "pending_payment", owner, owner, true, false, "not_draft"},
+		{"completed sale is never deletable", "completed", owner, owner, true, false, "not_draft"},
+		{"voided order is never deletable", "voided", owner, owner, true, false, "not_draft"},
+		{"cancelled order is never deletable", "cancelled", other, other, false, false, "not_draft"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := draftDeleteSkipReason(tt.status, tt.orderUserID, tt.callerID, tt.canDeleteAny)
+			got := draftDeleteSkipReason(tt.status, tt.orderUserID, tt.callerID, tt.canDeleteAny, tt.canDeleteOwn)
 			if got != tt.want {
-				t.Fatalf("draftDeleteSkipReason(%q, owner=%v, caller=%v, manage=%v) = %q, want %q",
-					tt.status, tt.orderUserID, tt.callerID, tt.canDeleteAny, got, tt.want)
+				t.Fatalf("draftDeleteSkipReason(%q, owner=%v, caller=%v, any=%v, own=%v) = %q, want %q",
+					tt.status, tt.orderUserID, tt.callerID, tt.canDeleteAny, tt.canDeleteOwn, got, tt.want)
 			}
 		})
 	}

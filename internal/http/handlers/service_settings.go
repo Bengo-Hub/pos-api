@@ -197,7 +197,13 @@ type settingsResponse struct {
 	AutoLogoutAfterSale    bool            `json:"auto_logout_after_sale"`
 	CashierTerminalSurface string          `json:"cashier_terminal_surface"`
 	CashierPolicyOverrides map[string]bool `json:"cashier_policy_overrides"`
-	UpdatedAt              string          `json:"updated_at"`
+	// Quick config (2026-08-28): hides the Drafts page/Parked-Sales Delete/Resume buttons for
+	// non-manager-tier ("cashier") callers, on top of whatever the Roles & Permissions matrix
+	// already grants — see outletHidesDraftButtonForCashier. Plain booleans, no per-use-case
+	// default ladder (unlike the three CashierPolicyOverrides above).
+	HideDraftDeleteForCashier bool   `json:"hide_draft_delete_for_cashier"`
+	HideDraftResumeForCashier bool   `json:"hide_draft_resume_for_cashier"`
+	UpdatedAt                 string `json:"updated_at"`
 }
 
 func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsResponse {
@@ -282,7 +288,9 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 			"auto_logout_after_sale":   s.AutoLogoutAfterSale != nil,
 			"cashier_terminal_surface": s.CashierTerminalSurface != nil,
 		},
-		UpdatedAt: s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		HideDraftDeleteForCashier: metaBoolDefault(s.Metadata, metaKeyHideDraftDeleteForCashier, false),
+		HideDraftResumeForCashier: metaBoolDefault(s.Metadata, metaKeyHideDraftResumeForCashier, false),
+		UpdatedAt:                 s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	return r
 }
@@ -297,6 +305,29 @@ func metaBoolDefault(meta map[string]any, key string, def bool) bool {
 		return b
 	}
 	return def
+}
+
+// Metadata keys for the tenant-admin "hide a Drafts action button for cashiers" quick config
+// (OutletSetting.metadata — no schema migration; see CashierPolicyTab). Both default false
+// (unchanged behavior). "Cashier" here means "not manager-tier" (caller lacks
+// pos.orders.manage), matching how the sibling cashier-policy toggles already treat
+// manager/admin as exempt — not a literal role_code=="cashier" match, so it also covers custom
+// non-manager roles.
+const (
+	metaKeyHideDraftDeleteForCashier = "hide_draft_delete_for_cashier"
+	metaKeyHideDraftResumeForCashier = "hide_draft_resume_for_cashier"
+)
+
+// outletHidesDraftButtonForCashier reports whether outletID's settings hide a Drafts action
+// button (delete/resume) for non-manager-tier callers. Used both by the settings response
+// (client-side hide) and DeleteDraft/BulkDeleteDrafts (server-side enforcement — Delete is a
+// mutating action, so this must not be a UI-only check).
+func outletHidesDraftButtonForCashier(ctx context.Context, client *ent.Client, outletID uuid.UUID, metaKey string) bool {
+	s, err := client.OutletSetting.Query().Where(entoutletsetting.OutletID(outletID)).Only(ctx)
+	if err != nil {
+		return false
+	}
+	return metaBoolDefault(s.Metadata, metaKey, false)
 }
 
 // metaStringSlice reads a string list stored in the freeform metadata JSON. It handles both shapes:
@@ -566,6 +597,10 @@ type updateSettingsInput struct {
 	CashierSalesVisibility *string `json:"cashier_sales_visibility"`
 	AutoLogoutAfterSale    *string `json:"auto_logout_after_sale"`
 	CashierTerminalSurface *string `json:"cashier_terminal_surface"`
+	// Quick config: hide the Drafts Delete/Resume buttons for non-manager-tier callers. Plain
+	// booleans (unlike the tri-state fields above — no per-use-case default to reset to).
+	HideDraftDeleteForCashier *bool `json:"hide_draft_delete_for_cashier"`
+	HideDraftResumeForCashier *bool `json:"hide_draft_resume_for_cashier"`
 }
 
 // PutSettings handles PUT /{tenantID}/pos/settings and PUT /{tenantID}/pos/outlets/{outletID}/settings
@@ -748,7 +783,8 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	// second independent copy-then-SetMetadata block here would silently discard whichever field
 	// the OTHER block wrote first (ent's builder keeps only the last SetMetadata call, not a
 	// merge of both). Any FUTURE freeform-metadata setting must be added to THIS block.
-	if input.ShowLogoOnReceipt != nil || input.ShowTenantEmailOnReceipt != nil || input.RestrictCreditSaleRefundToOffset != nil || input.ShowTenantNameOnReceipt != nil {
+	if input.ShowLogoOnReceipt != nil || input.ShowTenantEmailOnReceipt != nil || input.RestrictCreditSaleRefundToOffset != nil || input.ShowTenantNameOnReceipt != nil ||
+		input.HideDraftDeleteForCashier != nil || input.HideDraftResumeForCashier != nil {
 		meta := map[string]any{}
 		for k, v := range setting.Metadata {
 			meta[k] = v
@@ -764,6 +800,12 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 		}
 		if input.ShowTenantNameOnReceipt != nil {
 			meta["receipt_show_tenant_name"] = *input.ShowTenantNameOnReceipt
+		}
+		if input.HideDraftDeleteForCashier != nil {
+			meta[metaKeyHideDraftDeleteForCashier] = *input.HideDraftDeleteForCashier
+		}
+		if input.HideDraftResumeForCashier != nil {
+			meta[metaKeyHideDraftResumeForCashier] = *input.HideDraftResumeForCashier
 		}
 		upd = upd.SetMetadata(meta)
 	}

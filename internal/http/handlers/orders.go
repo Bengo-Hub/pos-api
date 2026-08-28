@@ -1733,9 +1733,11 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 
 // DeleteDraft handles DELETE /{tenantID}/pos/orders/{orderID} — permanently removes a DRAFT
 // (saved-but-unpaid) sale. RBAC enforced server-side (never trust the client): a manager/admin
-// holding pos.orders.manage may delete ANY draft; any other order-write principal (cashier/
-// waiter) may delete only their OWN draft (order.user_id == caller). This mirrors the full-view
-// test ownOrdersScope uses for the "My Sales" boundary.
+// holding pos.orders.manage may delete ANY draft; any other caller needs the dedicated
+// pos.orders.delete_own permission AND may only delete their OWN draft (order.user_id ==
+// caller) — a tenant admin can revoke pos.orders.delete_own from a role independently of its
+// other order permissions, or hide it outlet-wide for non-manager-tier callers via the
+// OutletSetting "hide Delete for cashiers" quick config (see outletHidesDraftButtonForCashier).
 //
 // Only draft-status orders are deletable here. A finalized/settled sale carries ledger + KRA
 // eTIMS state and must be reversed via void/return instead, so those are rejected with 409.
@@ -1775,12 +1777,21 @@ func (h *POSOrderHandler) DeleteDraft(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Eligibility rule shared with the bulk endpoint (draftDeleteSkipReason):
-	// pos.orders.manage → delete any; otherwise the caller must own the draft. HasServicePermission
-	// bypasses for superusers/platform owners, exactly like the read-scoping full-view check.
+	// pos.orders.manage → delete any; otherwise the caller needs pos.orders.delete_own (unless
+	// the outlet's "hide Delete for cashiers" quick config revokes it for non-manager callers)
+	// AND must own the draft. HasServicePermission bypasses for superusers/platform owners,
+	// exactly like the read-scoping full-view check.
 	canDeleteAny := outletmw.HasServicePermission(r, h.rbac, "pos.orders.manage")
-	switch draftDeleteSkipReason(order.Status, order.UserID, callerID, canDeleteAny) {
+	canDeleteOwn := canDeleteAny || outletmw.HasServicePermission(r, h.rbac, "pos.orders.delete_own")
+	if canDeleteOwn && !canDeleteAny && outletHidesDraftButtonForCashier(r.Context(), h.client, order.OutletID, metaKeyHideDraftDeleteForCashier) {
+		canDeleteOwn = false
+	}
+	switch draftDeleteSkipReason(order.Status, order.UserID, callerID, canDeleteAny, canDeleteOwn) {
 	case "not_draft":
 		jsonError(w, "only draft orders can be deleted — void or return a finalized sale instead", http.StatusConflict)
+		return
+	case "forbidden":
+		jsonError(w, "you do not have permission to delete drafts", http.StatusForbidden)
 		return
 	case "not_owner":
 		jsonError(w, "you can only delete your own drafts", http.StatusForbidden)

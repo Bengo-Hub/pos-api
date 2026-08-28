@@ -26,9 +26,9 @@ import (
 const bulkOrderIDCap = 200
 
 // bulkSkippedItem is one order the bulk operation did NOT apply to, with a machine-readable
-// reason: invalid_id | not_found | not_draft | not_owner | already_voided | finalized |
-// internal_error. Skips are informational — a bulk call never fails because some ids were
-// already gone (idempotent replays are expected from flaky back-office connections).
+// reason: invalid_id | not_found | not_draft | forbidden | not_owner | already_voided |
+// finalized | internal_error. Skips are informational — a bulk call never fails because some
+// ids were already gone (idempotent replays are expected from flaky back-office connections).
 type bulkSkippedItem struct {
 	ID     string `json:"id"`
 	Reason string `json:"reason"`
@@ -40,13 +40,21 @@ type bulkSkippedItem struct {
 // hard-deleted as a draft by the caller. Mirrors DeleteDraft's guards EXACTLY:
 //   - only draft-status orders are deletable (a finalized sale carries ledger + KRA eTIMS
 //     state and must be voided/returned instead) → "not_draft";
-//   - pos.orders.manage (canDeleteAny) deletes ANY draft, any other order-write principal
-//     only their OWN (order.user_id == caller) → "not_owner".
-func draftDeleteSkipReason(status string, orderUserID, callerID uuid.UUID, canDeleteAny bool) string {
+//   - the caller must hold pos.orders.manage (deletes ANY draft) OR the dedicated
+//     pos.orders.delete_own (deletes only drafts they created) → "forbidden" when neither is
+//     held (e.g. a tenant admin hid the Drafts Delete button for cashiers), "not_owner" when
+//     delete_own is held but this particular draft belongs to someone else.
+func draftDeleteSkipReason(status string, orderUserID, callerID uuid.UUID, canDeleteAny, canDeleteOwn bool) string {
 	if status != "draft" {
 		return "not_draft"
 	}
-	if !canDeleteAny && orderUserID != callerID {
+	if canDeleteAny {
+		return ""
+	}
+	if !canDeleteOwn {
+		return "forbidden"
+	}
+	if orderUserID != callerID {
 		return "not_owner"
 	}
 	return ""
@@ -231,6 +239,11 @@ func (h *POSOrderHandler) BulkDeleteDrafts(w http.ResponseWriter, r *http.Reques
 
 	// Resolved ONCE for the whole batch — same RBAC boundary as the single DeleteDraft.
 	canDeleteAny := outletmw.HasServicePermission(r, h.rbac, "pos.orders.manage")
+	canDeleteOwnGrant := canDeleteAny || outletmw.HasServicePermission(r, h.rbac, "pos.orders.delete_own")
+	// Per-outlet "hide Delete for cashiers" config only matters for a non-manager-tier caller —
+	// a batch can span multiple outlets (the Drafts list may be filtered to "all outlets"), so
+	// this is resolved lazily per distinct outlet and cached to avoid N duplicate queries.
+	hideForOutlet := map[uuid.UUID]bool{}
 
 	deleted := 0
 	skipped := make([]bulkSkippedItem, 0)
@@ -253,7 +266,18 @@ func (h *POSOrderHandler) BulkDeleteDrafts(w http.ResponseWriter, r *http.Reques
 			skipped = append(skipped, bulkSkippedItem{ID: raw, Reason: "internal_error"})
 			continue
 		}
-		if reason := draftDeleteSkipReason(order.Status, order.UserID, callerID, canDeleteAny); reason != "" {
+		canDeleteOwn := canDeleteOwnGrant
+		if canDeleteOwn && !canDeleteAny {
+			hidden, ok := hideForOutlet[order.OutletID]
+			if !ok {
+				hidden = outletHidesDraftButtonForCashier(r.Context(), h.client, order.OutletID, metaKeyHideDraftDeleteForCashier)
+				hideForOutlet[order.OutletID] = hidden
+			}
+			if hidden {
+				canDeleteOwn = false
+			}
+		}
+		if reason := draftDeleteSkipReason(order.Status, order.UserID, callerID, canDeleteAny, canDeleteOwn); reason != "" {
 			skipped = append(skipped, bulkSkippedItem{ID: raw, Reason: reason})
 			continue
 		}

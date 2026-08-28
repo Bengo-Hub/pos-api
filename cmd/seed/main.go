@@ -804,6 +804,11 @@ func seedRBACPermissions(ctx context.Context, client *ent.Client) error {
 		// default (carved out of manager's "pos.orders.*" wildcard above); a tenant can grant it
 		// to manager/a custom role via the matrix.
 		{"pos.orders.edit_finalized", "POS edit a finalized sale (lines/price/qty) with resync", "orders", "edit_finalized"},
+		// Resume (reopen) a saved draft/parked sale into Add Sale. Not a module×action verb, so it
+		// needs its own extras row. Replaces the old ungated Drafts-page/Parked-Sales "Resume"
+		// button (no permission check existed at all) so a tenant admin can hide it per role via
+		// the matrix, same as void_self replaced a hardcoded role-name list.
+		{"pos.orders.resume_draft", "POS resume a saved draft/parked sale", "orders", "resume_draft"},
 	}
 	for _, ex := range extras {
 		exists, err := client.POSPermission.Query().
@@ -890,6 +895,11 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				// (REQ-007 — "My Sales"). Shared ACTIVE bills stay visible via the orders
 				// handler's open-order carve-out so till hand-offs keep working.
 				"pos.orders.add", "pos.orders.view_own", "pos.orders.change_own",
+				// Dedicated draft-only actions (2026-08-28): independent of add/change_own so a
+				// tenant admin can revoke JUST delete/resume on the Drafts page without breaking
+				// the cashier's ability to ring/edit sales. Granted by default to preserve the
+				// pre-existing (previously ungated) behavior.
+				"pos.orders.delete_own", "pos.orders.resume_draft",
 				// Void is granted so the cashier can INITIATE a void; they are not a manager
 				// override role, so the void still requires manager approval (scan card / PIN /
 				// one-time code) before it lands. Without this the void button is hidden for them.
@@ -920,6 +930,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				// Orders: own table orders + change any (needed to act on unassigned
 				// online pickup/delivery orders that have no waiter staff_id).
 				"pos.orders.add", "pos.orders.view_own", "pos.orders.change", "pos.orders.change_own",
+				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
+				"pos.orders.delete_own", "pos.orders.resume_draft",
 				// Void is granted so the waiter can INITIATE a void; not a manager override role,
 				// so it still requires manager approval (card / PIN / one-time code) to land.
 				"pos.orders.void",
@@ -945,6 +957,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				// change/settle to close them. view (not view_own) is what widens the sales
 				// list + Tables My-Bills to every waiter's orders (server + client).
 				"pos.orders.add", "pos.orders.view", "pos.orders.change", "pos.orders.change_own",
+				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
+				"pos.orders.delete_own", "pos.orders.resume_draft",
 				"pos.orders.void",
 				"pos.payments.add", "pos.payments.view", "pos.payments.view_own",
 				"pos.catalog.view",
@@ -982,6 +996,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			description: "Manage hotel check-in/out, bookings, conference meal cards, and room service orders",
 			permissions: []string{
 				"pos.orders.add", "pos.orders.view", "pos.orders.change_own",
+				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
+				"pos.orders.delete_own", "pos.orders.resume_draft",
 				"pos.catalog.view", "pos.payments.view",
 				"pos.tables.view",
 				"pos.sessions.add", "pos.sessions.view_own",
@@ -1014,6 +1030,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			description: "Service staff: manage own appointments, view queue, see own commissions",
 			permissions: []string{
 				"pos.orders.add", "pos.orders.view_own",
+				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
+				"pos.orders.delete_own", "pos.orders.resume_draft",
 				"pos.catalog.view",
 				"pos.sessions.add", "pos.sessions.view_own",
 				"pos.appointments.view", "pos.appointments.change_own",
@@ -1028,6 +1046,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			description: "Service staff: manage own appointments, view queue, see own commissions",
 			permissions: []string{
 				"pos.orders.add", "pos.orders.view_own",
+				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
+				"pos.orders.delete_own", "pos.orders.resume_draft",
 				"pos.catalog.view",
 				"pos.sessions.add", "pos.sessions.view_own",
 				"pos.appointments.view", "pos.appointments.change_own",
@@ -1042,6 +1062,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			description: "Service staff: manage own appointments, view queue, see own commissions",
 			permissions: []string{
 				"pos.orders.add", "pos.orders.view_own",
+				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
+				"pos.orders.delete_own", "pos.orders.resume_draft",
 				"pos.catalog.view",
 				"pos.sessions.add", "pos.sessions.view_own",
 				"pos.appointments.view", "pos.appointments.change_own",
@@ -1056,6 +1078,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			description: "Dispense prescriptions, manage pharmacy orders, and (OPD tenants) examine patients",
 			permissions: []string{
 				"pos.orders.add", "pos.orders.view", "pos.orders.change_own",
+				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
+				"pos.orders.delete_own", "pos.orders.resume_draft",
 				"pos.payments.add", "pos.payments.view",
 				"pos.catalog.view",
 				"pos.sessions.add", "pos.sessions.view_own",
@@ -1072,6 +1096,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			description: "Assist with prescription filling, labelling, and inventory under pharmacist supervision",
 			permissions: []string{
 				"pos.orders.add", "pos.orders.view_own", "pos.orders.change_own",
+				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
+				"pos.orders.delete_own", "pos.orders.resume_draft",
 				"pos.payments.add", "pos.payments.view_own",
 				"pos.catalog.view",
 				"pos.sessions.add", "pos.sessions.view_own",
@@ -1084,6 +1110,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			description: "OPD clinician: examines patients, orders labs, and prescribes medicine",
 			permissions: []string{
 				"pos.orders.add", "pos.orders.view",
+				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
+				"pos.orders.delete_own", "pos.orders.resume_draft",
 				"pos.payments.view",
 				"pos.catalog.view",
 				"pos.sessions.add", "pos.sessions.view_own",
@@ -1099,6 +1127,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			description: "OPD front desk: registers patients, opens visits, collects the registration/consultation fee",
 			permissions: []string{
 				"pos.orders.add", "pos.orders.view_own",
+				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
+				"pos.orders.delete_own", "pos.orders.resume_draft",
 				"pos.payments.add", "pos.payments.view_own",
 				"pos.catalog.view",
 				"pos.sessions.add", "pos.sessions.view_own",
@@ -1133,6 +1163,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 			permissions: []string{
 				// Counter service: take and ring up own orders, like a cashier.
 				"pos.orders.add", "pos.orders.view", "pos.orders.view_own", "pos.orders.change_own",
+				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
+				"pos.orders.delete_own", "pos.orders.resume_draft",
 				"pos.payments.add", "pos.payments.view", "pos.payments.view_own",
 				"pos.catalog.view",
 				"pos.cash_drawers.add", "pos.cash_drawers.view_own", "pos.cash_drawers.change_own",

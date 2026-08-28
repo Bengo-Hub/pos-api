@@ -433,15 +433,21 @@ func New(
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.void", "pos.orders.manage")).
 							Patch("/orders/{orderID}/void", orders.VoidOrder)
 						// Delete a DRAFT (saved-but-unpaid) sale. Route-gated to an order-write
-						// permission; DeleteDraft then enforces the RBAC boundary server-side —
-						// pos.orders.manage deletes ANY draft, any other write principal (cashier/
-						// waiter) only their OWN. Only draft-status orders are deletable (finalized
-						// sales must be voided/returned so the ledger + eTIMS stay consistent).
-						pos.With(orderWrite).Delete("/orders/{orderID}", orders.DeleteDraft)
+						// permission OR the dedicated pos.orders.delete_own (a custom role can hold
+						// delete_own without add/change_own); DeleteDraft then enforces the RBAC
+						// boundary server-side — pos.orders.manage deletes ANY draft, any other
+						// caller needs delete_own AND must own the draft (or a tenant admin may have
+						// hidden delete_own outlet-wide for non-manager callers via the OutletSetting
+						// quick config). Only draft-status orders are deletable (finalized sales must
+						// be voided/returned so the ledger + eTIMS stay consistent).
+						draftDeleteWrite := outletmw.RequireServicePermission(rbacSvc,
+							"pos.orders.add", "pos.orders.change", "pos.orders.change_own",
+							"pos.orders.manage", "pos.orders.delete_own")
+						pos.With(draftDeleteWrite).Delete("/orders/{orderID}", orders.DeleteDraft)
 						// Bulk draft delete — same middleware + per-order rules as the single
-						// DeleteDraft above (manage deletes any draft, others only their own);
-						// missing/ineligible ids are reported as skipped, never as errors.
-						pos.With(orderWrite).Post("/orders/bulk-delete", orders.BulkDeleteDrafts)
+						// DeleteDraft above (manage deletes any draft, others only their own with
+						// delete_own); missing/ineligible ids are reported as skipped, never errors.
+						pos.With(draftDeleteWrite).Post("/orders/bulk-delete", orders.BulkDeleteDrafts)
 						// Bulk void — a back-office manager action, so it is route-gated to
 						// pos.orders.manage (no terminal step-up token: the caller IS the
 						// manager). Per-order eligibility mirrors the single void exactly
