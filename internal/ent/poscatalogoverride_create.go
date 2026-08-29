@@ -204,20 +204,6 @@ func (_c *POSCatalogOverrideCreate) SetNillableDisplayOrder(v *int) *POSCatalogO
 	return _c
 }
 
-// SetRequiresPrescription sets the "requires_prescription" field.
-func (_c *POSCatalogOverrideCreate) SetRequiresPrescription(v bool) *POSCatalogOverrideCreate {
-	_c.mutation.SetRequiresPrescription(v)
-	return _c
-}
-
-// SetNillableRequiresPrescription sets the "requires_prescription" field if the given value is not nil.
-func (_c *POSCatalogOverrideCreate) SetNillableRequiresPrescription(v *bool) *POSCatalogOverrideCreate {
-	if v != nil {
-		_c.SetRequiresPrescription(*v)
-	}
-	return _c
-}
-
 // SetIsReturnable sets the "is_returnable" field.
 func (_c *POSCatalogOverrideCreate) SetIsReturnable(v bool) *POSCatalogOverrideCreate {
 	_c.mutation.SetIsReturnable(v)
@@ -413,10 +399,6 @@ func (_c *POSCatalogOverrideCreate) defaults() {
 		v := poscatalogoverride.DefaultDisplayOrder
 		_c.mutation.SetDisplayOrder(v)
 	}
-	if _, ok := _c.mutation.RequiresPrescription(); !ok {
-		v := poscatalogoverride.DefaultRequiresPrescription
-		_c.mutation.SetRequiresPrescription(v)
-	}
 	if _, ok := _c.mutation.IsReturnable(); !ok {
 		v := poscatalogoverride.DefaultIsReturnable
 		_c.mutation.SetIsReturnable(v)
@@ -480,9 +462,6 @@ func (_c *POSCatalogOverrideCreate) check() error {
 	}
 	if _, ok := _c.mutation.DisplayOrder(); !ok {
 		return &ValidationError{Name: "display_order", err: errors.New(`ent: missing required field "POSCatalogOverride.display_order"`)}
-	}
-	if _, ok := _c.mutation.RequiresPrescription(); !ok {
-		return &ValidationError{Name: "requires_prescription", err: errors.New(`ent: missing required field "POSCatalogOverride.requires_prescription"`)}
 	}
 	if _, ok := _c.mutation.IsReturnable(); !ok {
 		return &ValidationError{Name: "is_returnable", err: errors.New(`ent: missing required field "POSCatalogOverride.is_returnable"`)}
@@ -593,10 +572,6 @@ func (_c *POSCatalogOverrideCreate) createSpec() (*POSCatalogOverride, *sqlgraph
 	if value, ok := _c.mutation.DisplayOrder(); ok {
 		_spec.SetField(poscatalogoverride.FieldDisplayOrder, field.TypeInt, value)
 		_node.DisplayOrder = value
-	}
-	if value, ok := _c.mutation.RequiresPrescription(); ok {
-		_spec.SetField(poscatalogoverride.FieldRequiresPrescription, field.TypeBool, value)
-		_node.RequiresPrescription = value
 	}
 	if value, ok := _c.mutation.IsReturnable(); ok {
 		_spec.SetField(poscatalogoverride.FieldIsReturnable, field.TypeBool, value)
@@ -893,18 +868,6 @@ func (u *POSCatalogOverrideUpsert) UpdateDisplayOrder() *POSCatalogOverrideUpser
 // AddDisplayOrder adds v to the "display_order" field.
 func (u *POSCatalogOverrideUpsert) AddDisplayOrder(v int) *POSCatalogOverrideUpsert {
 	u.Add(poscatalogoverride.FieldDisplayOrder, v)
-	return u
-}
-
-// SetRequiresPrescription sets the "requires_prescription" field.
-func (u *POSCatalogOverrideUpsert) SetRequiresPrescription(v bool) *POSCatalogOverrideUpsert {
-	u.Set(poscatalogoverride.FieldRequiresPrescription, v)
-	return u
-}
-
-// UpdateRequiresPrescription sets the "requires_prescription" field to the value that was provided on create.
-func (u *POSCatalogOverrideUpsert) UpdateRequiresPrescription() *POSCatalogOverrideUpsert {
-	u.SetExcluded(poscatalogoverride.FieldRequiresPrescription)
 	return u
 }
 
@@ -1327,20 +1290,6 @@ func (u *POSCatalogOverrideUpsertOne) AddDisplayOrder(v int) *POSCatalogOverride
 func (u *POSCatalogOverrideUpsertOne) UpdateDisplayOrder() *POSCatalogOverrideUpsertOne {
 	return u.Update(func(s *POSCatalogOverrideUpsert) {
 		s.UpdateDisplayOrder()
-	})
-}
-
-// SetRequiresPrescription sets the "requires_prescription" field.
-func (u *POSCatalogOverrideUpsertOne) SetRequiresPrescription(v bool) *POSCatalogOverrideUpsertOne {
-	return u.Update(func(s *POSCatalogOverrideUpsert) {
-		s.SetRequiresPrescription(v)
-	})
-}
-
-// UpdateRequiresPrescription sets the "requires_prescription" field to the value that was provided on create.
-func (u *POSCatalogOverrideUpsertOne) UpdateRequiresPrescription() *POSCatalogOverrideUpsertOne {
-	return u.Update(func(s *POSCatalogOverrideUpsert) {
-		s.UpdateRequiresPrescription()
 	})
 }
 
@@ -1951,20 +1900,6 @@ func (u *POSCatalogOverrideUpsertBulk) AddDisplayOrder(v int) *POSCatalogOverrid
 func (u *POSCatalogOverrideUpsertBulk) UpdateDisplayOrder() *POSCatalogOverrideUpsertBulk {
 	return u.Update(func(s *POSCatalogOverrideUpsert) {
 		s.UpdateDisplayOrder()
-	})
-}
-
-// SetRequiresPrescription sets the "requires_prescription" field.
-func (u *POSCatalogOverrideUpsertBulk) SetRequiresPrescription(v bool) *POSCatalogOverrideUpsertBulk {
-	return u.Update(func(s *POSCatalogOverrideUpsert) {
-		s.SetRequiresPrescription(v)
-	})
-}
-
-// UpdateRequiresPrescription sets the "requires_prescription" field to the value that was provided on create.
-func (u *POSCatalogOverrideUpsertBulk) UpdateRequiresPrescription() *POSCatalogOverrideUpsertBulk {
-	return u.Update(func(s *POSCatalogOverrideUpsert) {
-		s.UpdateRequiresPrescription()
 	})
 }
 

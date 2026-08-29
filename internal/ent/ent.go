@@ -26,14 +26,10 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/clientrecord"
 	"github.com/bengobox/pos-service/internal/ent/commissionrecord"
 	"github.com/bengobox/pos-service/internal/ent/commissionrule"
-	"github.com/bengobox/pos-service/internal/ent/controlledsubstancelog"
 	"github.com/bengobox/pos-service/internal/ent/customerbalancecache"
 	"github.com/bengobox/pos-service/internal/ent/dailyclosing"
-	"github.com/bengobox/pos-service/internal/ent/diagnosiscatalog"
 	"github.com/bengobox/pos-service/internal/ent/documentsequence"
-	"github.com/bengobox/pos-service/internal/ent/druginteractioncheck"
 	"github.com/bengobox/pos-service/internal/ent/eventbooking"
-	"github.com/bengobox/pos-service/internal/ent/examinationrecord"
 	"github.com/bengobox/pos-service/internal/ent/facility"
 	"github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	"github.com/bengobox/pos-service/internal/ent/featureoverride"
@@ -47,9 +43,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/kdssyncfailure"
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
-	"github.com/bengobox/pos-service/internal/ent/laborder"
-	"github.com/bengobox/pos-service/internal/ent/laborderline"
-	"github.com/bengobox/pos-service/internal/ent/labtest"
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/leaverequest"
@@ -65,8 +58,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/outboxevent"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
-	"github.com/bengobox/pos-service/internal/ent/patient"
-	"github.com/bengobox/pos-service/internal/ent/patientvisit"
 	"github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
@@ -87,8 +78,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/possaleedit"
 	"github.com/bengobox/pos-service/internal/ent/possaleshred"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
-	"github.com/bengobox/pos-service/internal/ent/prescription"
-	"github.com/bengobox/pos-service/internal/ent/prescriptionline"
 	"github.com/bengobox/pos-service/internal/ent/pricebook"
 	"github.com/bengobox/pos-service/internal/ent/pricebookitem"
 	"github.com/bengobox/pos-service/internal/ent/printagent"
@@ -135,7 +124,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/bengobox/pos-service/internal/ent/tenantsyncevent"
 	"github.com/bengobox/pos-service/internal/ent/tender"
-	"github.com/bengobox/pos-service/internal/ent/triagerecord"
 	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/ent/userposrole"
 	"github.com/bengobox/pos-service/internal/ent/webhookdelivery"
@@ -215,14 +203,10 @@ func checkColumn(t, c string) error {
 			clientrecord.Table:             clientrecord.ValidColumn,
 			commissionrecord.Table:         commissionrecord.ValidColumn,
 			commissionrule.Table:           commissionrule.ValidColumn,
-			controlledsubstancelog.Table:   controlledsubstancelog.ValidColumn,
 			customerbalancecache.Table:     customerbalancecache.ValidColumn,
 			dailyclosing.Table:             dailyclosing.ValidColumn,
-			diagnosiscatalog.Table:         diagnosiscatalog.ValidColumn,
 			documentsequence.Table:         documentsequence.ValidColumn,
-			druginteractioncheck.Table:     druginteractioncheck.ValidColumn,
 			eventbooking.Table:             eventbooking.ValidColumn,
-			examinationrecord.Table:        examinationrecord.ValidColumn,
 			facility.Table:                 facility.ValidColumn,
 			facilitybooking.Table:          facilitybooking.ValidColumn,
 			featureoverride.Table:          featureoverride.ValidColumn,
@@ -236,9 +220,6 @@ func checkColumn(t, c string) error {
 			kdsstation.Table:               kdsstation.ValidColumn,
 			kdssyncfailure.Table:           kdssyncfailure.ValidColumn,
 			kdsticket.Table:                kdsticket.ValidColumn,
-			laborder.Table:                 laborder.ValidColumn,
-			laborderline.Table:             laborderline.ValidColumn,
-			labtest.Table:                  labtest.ValidColumn,
 			layawaypayment.Table:           layawaypayment.ValidColumn,
 			layawayplan.Table:              layawayplan.ValidColumn,
 			leaverequest.Table:             leaverequest.ValidColumn,
@@ -273,11 +254,7 @@ func checkColumn(t, c string) error {
 			possaleedit.Table:              possaleedit.ValidColumn,
 			possaleshred.Table:             possaleshred.ValidColumn,
 			posuserroleassignment.Table:    posuserroleassignment.ValidColumn,
-			patient.Table:                  patient.ValidColumn,
-			patientvisit.Table:             patientvisit.ValidColumn,
 			posnotification.Table:          posnotification.ValidColumn,
-			prescription.Table:             prescription.ValidColumn,
-			prescriptionline.Table:         prescriptionline.ValidColumn,
 			pricebook.Table:                pricebook.ValidColumn,
 			pricebookitem.Table:            pricebookitem.ValidColumn,
 			printagent.Table:               printagent.ValidColumn,
@@ -324,7 +301,6 @@ func checkColumn(t, c string) error {
 			tenant.Table:                   tenant.ValidColumn,
 			tenantsyncevent.Table:          tenantsyncevent.ValidColumn,
 			tender.Table:                   tender.ValidColumn,
-			triagerecord.Table:             triagerecord.ValidColumn,
 			user.Table:                     user.ValidColumn,
 			userposrole.Table:              userposrole.ValidColumn,
 			webhookdelivery.Table:          webhookdelivery.ValidColumn,

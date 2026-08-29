@@ -212,7 +212,7 @@ func isWithinMealPeriod(rule *ent.PromotionRule, localNow time.Time) bool {
 // when a customer/cashier enters it via ApplyPromoCode). Pulled out as its own function, not an
 // inline literal, so a regression test can assert both kinds are present without needing a DB —
 // see TestAutoApplyPromoKinds. Do not narrow this back to happy_hour-only: that was the root cause
-// of "auto"-kind discounts (the shape retail/pharmacy/quick_service/services tenants use, since
+// of "auto"-kind discounts (the shape retail/quick_service/services tenants use, since
 // "happy hour" is a hospitality-only concept) never firing at checkout no matter the use case.
 func autoApplyPromoKinds() []promotion.PromoKind {
 	return []promotion.PromoKind{promotion.PromoKindHappyHour, promotion.PromoKindAuto}
@@ -221,7 +221,7 @@ func autoApplyPromoKinds() []promotion.PromoKind {
 // ActiveHappyHours returns auto-apply promotions that are live at `now` for the given outlet
 // (nil outlet promos apply to all outlets) — BOTH promo_kind=happy_hour (time-windowed, the
 // hospitality "happy hour"/meal-deal concept) and promo_kind=auto (no time window; storewide
-// or scoped auto-apply deals, the shape a retail/pharmacy/quick_service/services tenant reaches
+// or scoped auto-apply deals, the shape a retail/quick_service/services tenant reaches
 // for since "happy hour" has no meaning for them). Name/route kept for compatibility — this is
 // the same evaluator, just no longer hard-restricted to one vertical's promo kind (that
 // restriction was the root cause of "only hospitality discounts work": an auto-apply promo of

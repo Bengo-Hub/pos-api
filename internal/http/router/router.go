@@ -85,8 +85,6 @@ func New(
 	menu *handlers.MenuHandler,
 	layaway *handlers.LayawayHandler,
 	scale *handlers.ScaleHandler,
-	pharmacy *handlers.PharmacyHandler,
-	clinical *handlers.ClinicalHandler,
 	appointments *handlers.AppointmentHandler,
 	commissions *handlers.CommissionHandler,
 	staffSchedule *handlers.StaffScheduleHandler,
@@ -927,96 +925,6 @@ func New(
 						pos.Get("/scale/readings", scale.List)
 					}
 
-					// Pharmacy Ã¢â‚¬â€ pharmacy use_case only
-					if pharmacy != nil {
-						pos.Group(func(ph chi.Router) {
-							ph.Use(outletmw.RequireUseCase("pharmacy"))
-							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.add")).
-								Post("/pharmacy/prescriptions", pharmacy.CreatePrescription)
-							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.view")).
-								Get("/pharmacy/prescriptions", pharmacy.ListPrescriptions)
-							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.view")).
-								Get("/pharmacy/prescriptions/{prescriptionID}", pharmacy.GetPrescription)
-							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.change")).
-								Post("/pharmacy/prescriptions/{prescriptionID}/dispense", pharmacy.Dispense)
-							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.change")).
-								Post("/pharmacy/prescriptions/{prescriptionID}/checkout", pharmacy.CheckoutPrescription)
-							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.approve")).
-								Post("/pharmacy/prescriptions/{prescriptionID}/approve", pharmacy.ApprovePrescription)
-							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.approve")).
-								Post("/pharmacy/prescriptions/{prescriptionID}/lock", pharmacy.LockPrescription)
-							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.change")).
-								Post("/pharmacy/prescriptions/{prescriptionID}/reject", pharmacy.RejectPrescription)
-							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.change")).
-								Post("/pharmacy/prescriptions/{prescriptionID}/cancel", pharmacy.CancelPrescription)
-							ph.Post("/pharmacy/prescriptions/{prescriptionID}/link-crm-contact", pharmacy.LinkCRMContact)
-							ph.Get("/pharmacy/crm-contacts", pharmacy.SearchCRMContacts)
-							ph.Post("/pharmacy/interaction-checks", pharmacy.CreateInteractionCheck)
-							ph.Post("/pharmacy/age-verify", pharmacy.AgeVerify)
-							ph.Get("/pharmacy/patients", pharmacy.ListPatients)
-							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.view")).
-								Get("/pharmacy/controlled-substances", pharmacy.ListControlledLogs)
-							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.change")).
-								Post("/pharmacy/controlled-substances", pharmacy.CreateControlledLog)
-							ph.With(outletmw.RequireServicePermission(rbacSvc, "pos.pharmacy.view")).
-								Get("/pharmacy/controlled-substances/{logID}", pharmacy.GetControlledLog)
-							if clinical != nil {
-								ph.Get("/pharmacy/prescribers", clinical.ListPrescribers)
-								// Cashier-facing bills queue ("billing" workflow mode): approved but
-								// unpaid scripts from ANY prescriber. Read-only, so plain view rights.
-								ph.Get("/pharmacy/bills", clinical.ListBills)
-							}
-						})
-					}
-
-					// OPD clinical workflow (Records -> Triage -> Examination -> Lab) — pharmacy
-					// use_case only, and each stage additionally gated per-outlet by its own
-					// enable_*_module toggle (checked inside the handlers, since it's an outlet-level
-					// not tenant-level setting — a chain can run the full workflow at one branch and
-					// none of it at another).
-					if clinical != nil {
-						pos.Group(func(cl chi.Router) {
-							cl.Use(outletmw.RequireUseCase("pharmacy"))
-							recordsChange := outletmw.RequireServicePermission(rbacSvc, "pos.records.add", "pos.records.change", "pos.records.manage")
-							cl.With(recordsChange).Post("/clinical/patients", clinical.CreatePatient)
-							cl.Get("/clinical/patients", clinical.ListPatients)
-							cl.Get("/clinical/patients/{patientID}", clinical.GetPatient)
-							cl.With(recordsChange).Post("/clinical/visits", clinical.CreateVisit)
-							cl.Get("/clinical/visits", clinical.ListVisits)
-							cl.Get("/clinical/visits/{visitID}", clinical.GetVisit)
-							cl.With(outletmw.RequireServicePermission(rbacSvc, "pos.triage.add", "pos.triage.change", "pos.triage.manage")).
-								Post("/clinical/visits/{visitID}/triage", clinical.CreateTriage)
-							examChange := outletmw.RequireServicePermission(rbacSvc, "pos.examination.add", "pos.examination.change", "pos.examination.manage")
-							cl.With(examChange).Post("/clinical/visits/{visitID}/examination", clinical.CreateExamination)
-							cl.With(examChange).Post("/clinical/visits/{visitID}/prescribe", clinical.PrescribeFromExamination)
-							cl.Get("/clinical/lab-orders", clinical.ListLabOrders)
-							labChange := outletmw.RequireServicePermission(rbacSvc, "pos.lab.add", "pos.lab.change", "pos.lab.manage")
-							cl.With(labChange).Post("/clinical/lab-orders/{labOrderID}/results", clinical.SubmitLabResults)
-							// Flips an awaiting_payment lab order live once its bill is settled.
-							cl.With(labChange).Post("/clinical/lab-orders/{labOrderID}/activate", clinical.ActivateLabOrderIfPaid)
-
-							// Lab-test catalogue: readable by anyone who can examine/lab (the
-							// Examination picker needs it); mutations are a config-level action.
-							labCatalogManage := outletmw.RequireServicePermission(rbacSvc, "pos.config.change", "pos.config.manage", "pos.lab.manage")
-							cl.Get("/clinical/lab-tests", clinical.ListLabTests)
-							cl.With(labCatalogManage).Post("/clinical/lab-tests", clinical.CreateLabTest)
-							cl.With(labCatalogManage).Put("/clinical/lab-tests/{labTestID}", clinical.UpdateLabTest)
-							cl.With(labCatalogManage).Delete("/clinical/lab-tests/{labTestID}", clinical.DeleteLabTest)
-
-							// Diagnosis catalogue: any examiner may add one (the list grows as
-							// clinicians type diagnoses that aren't curated yet).
-							cl.Get("/clinical/diagnoses", clinical.ListDiagnoses)
-							cl.With(examChange).Post("/clinical/diagnoses", clinical.CreateDiagnosis)
-
-							// Pharmacy dispensing-workflow config (direct vs posted-to-bills, lab
-							// pre-payment). Own endpoint rather than the generic settings patch —
-							// service_settings.go is already well past the file-length limit.
-							cl.Get("/clinical/workflow-config", clinical.GetPharmacyWorkflow)
-							cl.With(outletmw.RequireServicePermission(rbacSvc, "pos.config.change", "pos.config.manage")).
-								Patch("/clinical/workflow-config", clinical.UpdatePharmacyWorkflow)
-						})
-					}
-
 					// Appointments & staff schedules Ã¢â‚¬â€ services use_case
 					if appointments != nil {
 						pos.Group(func(svc chi.Router) {
@@ -1152,10 +1060,8 @@ func New(
 					// (bundles include it from Starter; POS-device plans do not).
 					if loyalty != nil {
 						pos.Group(func(ly chi.Router) {
-							// Loyalty is a retail/services concept, but pharmacy also needs the same
-							// accounts directory for its patient search (CustomerSearch). Gate by use case
-							// (matches the pos-ui module map) in addition to the plan feature.
-							ly.Use(outletmw.RequireUseCase("retail", "services", "pharmacy"))
+							// Gate by use case (matches the pos-ui module map) in addition to the plan feature.
+							ly.Use(outletmw.RequireUseCase("retail", "services"))
 							ly.Use(subscriptions.RequireFeature(subscriptions.FeatureLoyalty))
 							ly.Get("/loyalty/programs", loyalty.ListPrograms)
 							ly.Post("/loyalty/programs", loyalty.CreateProgram)
@@ -1248,8 +1154,6 @@ func New(
 							rp.Get("/reports/void-summary-document", reportPDF.VoidSummaryDoc)
 							// All-Sales page export — same filters + per-cashier scoping as GET /orders.
 							rp.Get("/reports/all-sales-document", reportPDF.AllSalesDocument)
-							// Pharmacy-only: dual-person controlled-substance dispensing register export.
-							rp.Get("/reports/controlled-substances", reportPDF.ControlledSubstanceExport)
 						})
 					}
 

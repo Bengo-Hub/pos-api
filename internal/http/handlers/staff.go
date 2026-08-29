@@ -58,7 +58,7 @@ var managementProtectedRoles = map[string]bool{
 var posRoleRank = map[string]int{
 	"superuser": 100, "owner": 95, "super_admin": 95, "pos_admin": 92,
 	"admin": 90, "store_manager": 72, "manager": 60, "accountant": 40,
-	"receptionist": 30, "pharmacist": 30, "pharmacy_technician": 25,
+	"receptionist": 30,
 	"cashier": 20, "barista": 20, "waiter": 18, "bar": 16, "kitchen": 16,
 	"stylist": 16, "therapist": 16, "technician": 16, "viewer": 5,
 }

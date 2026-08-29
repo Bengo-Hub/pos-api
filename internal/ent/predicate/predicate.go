@@ -48,29 +48,17 @@ type CommissionRecord func(*sql.Selector)
 // CommissionRule is the predicate function for commissionrule builders.
 type CommissionRule func(*sql.Selector)
 
-// ControlledSubstanceLog is the predicate function for controlledsubstancelog builders.
-type ControlledSubstanceLog func(*sql.Selector)
-
 // CustomerBalanceCache is the predicate function for customerbalancecache builders.
 type CustomerBalanceCache func(*sql.Selector)
 
 // DailyClosing is the predicate function for dailyclosing builders.
 type DailyClosing func(*sql.Selector)
 
-// DiagnosisCatalog is the predicate function for diagnosiscatalog builders.
-type DiagnosisCatalog func(*sql.Selector)
-
 // DocumentSequence is the predicate function for documentsequence builders.
 type DocumentSequence func(*sql.Selector)
 
-// DrugInteractionCheck is the predicate function for druginteractioncheck builders.
-type DrugInteractionCheck func(*sql.Selector)
-
 // EventBooking is the predicate function for eventbooking builders.
 type EventBooking func(*sql.Selector)
-
-// ExaminationRecord is the predicate function for examinationrecord builders.
-type ExaminationRecord func(*sql.Selector)
 
 // Facility is the predicate function for facility builders.
 type Facility func(*sql.Selector)
@@ -110,15 +98,6 @@ type KDSSyncFailure func(*sql.Selector)
 
 // KDSTicket is the predicate function for kdsticket builders.
 type KDSTicket func(*sql.Selector)
-
-// LabOrder is the predicate function for laborder builders.
-type LabOrder func(*sql.Selector)
-
-// LabOrderLine is the predicate function for laborderline builders.
-type LabOrderLine func(*sql.Selector)
-
-// LabTest is the predicate function for labtest builders.
-type LabTest func(*sql.Selector)
 
 // LayawayPayment is the predicate function for layawaypayment builders.
 type LayawayPayment func(*sql.Selector)
@@ -222,20 +201,8 @@ type POSSaleShred func(*sql.Selector)
 // POSUserRoleAssignment is the predicate function for posuserroleassignment builders.
 type POSUserRoleAssignment func(*sql.Selector)
 
-// Patient is the predicate function for patient builders.
-type Patient func(*sql.Selector)
-
-// PatientVisit is the predicate function for patientvisit builders.
-type PatientVisit func(*sql.Selector)
-
 // PosNotification is the predicate function for posnotification builders.
 type PosNotification func(*sql.Selector)
-
-// Prescription is the predicate function for prescription builders.
-type Prescription func(*sql.Selector)
-
-// PrescriptionLine is the predicate function for prescriptionline builders.
-type PrescriptionLine func(*sql.Selector)
 
 // PriceBook is the predicate function for pricebook builders.
 type PriceBook func(*sql.Selector)
@@ -374,9 +341,6 @@ type TenantSyncEvent func(*sql.Selector)
 
 // Tender is the predicate function for tender builders.
 type Tender func(*sql.Selector)
-
-// TriageRecord is the predicate function for triagerecord builders.
-type TriageRecord func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

@@ -17,7 +17,6 @@ This document describes every business vertical the POS supports, the workflows 
 | Hotel / Lodge | Full-service hotel, boutique lodge | `hospitality` | ✅ Sprint 3 |
 | Supermarket | Grocery, mini-mart, convenience | `retail` | Sprint 7 |
 | Hardware / Electronics | Hardware store, electronics shop | `retail` | Sprint 7 |
-| Pharmacy | Community pharmacy, hospital dispensary | `pharmacy` | Sprint 8 |
 | Barbershop / Salon | Hair salon, nail bar, beauty studio | `services` | Sprint 9 |
 | Clinic / Spa | Physiotherapy, massage, dental | `services` | Sprint 9 |
 | Car Wash | Express wash, detailing centre | `services` | Sprint 9 |
@@ -130,24 +129,12 @@ These are non-negotiable for any Kenyan deployment. Missing any of these makes t
 
 ---
 
-## Pharmacy Use Cases
-
-**Workflow — Prescription Dispensing:**
-1. Patient presents prescription; pharmacist logs it
-2. Items added to cart; system validates prescription validity
-3. Controlled substances: second pharmacist witness required; dispensing register auto-created
-4. Lot/batch selected by FIFO; expiry date and lot number captured per line
-5. NHIF co-pay applied if applicable
-6. Payment; receipt includes prescription number
-
-**Workflow — OTC Age-Restricted Sale:**
-1. Cashier scans item; system flags age restriction
-2. Cashier checks customer ID; logs verification method
-3. Sale proceeds with verification record on order line
-
-**Key Features:** prescription registration/validation/filling, controlled substance register, age verification logging, lot/batch tracking with expiry at line level, partial pack dispensing, non-returnable enforcement, NHIF processing, patient profiles
-
-**Sprints:** [8 API](sprints/sprint-8-pharmacy-module.md)
+> **Pharmacy/clinical workflow moved to hospital-service (2026-08-29).** pos-api carried a
+> `pharmacy` use case (prescription dispensing, OPD Records/Triage/Examination/Lab) through
+> Sprint 8; this has been decisively migrated to `hospital-service` (Codevertex Afya), which is
+> now the platform's sole home for pharmacy/clinical logic at any facility size, including a
+> standalone chemist. See `hospital-service/hospital-api/docs/migration-pos-pharmacy.md`. pos-api
+> carries no pharmacy/clinical code, schema, or routes going forward.
 
 ---
 
@@ -230,7 +217,7 @@ These are non-negotiable for any Kenyan deployment. Missing any of these makes t
 | [5](sprints/sprint-5-erp-gaps.md) | ERP Gaps — Daily Close, Returns, Receipt | ✅ Substantially complete | All verticals |
 | [6](sprints/sprint-6-inventory-treasury.md) | Inventory & Treasury Wiring (NATS subscribers) | 🟡 Partial — S2S clients exist; NATS subscribers missing | All verticals |
 | [7](sprints/sprint-7-retail-module.md) | Retail Module (layaway, scale, barcode, serial) | ✅ Core delivered | Supermarket, hardware |
-| [8](sprints/sprint-8-pharmacy-module.md) | Pharmacy Module (prescriptions, drug checks) | ✅ Core delivered | Pharmacy |
+| 8 | ~~Pharmacy Module~~ — decisively removed 2026-08-29, migrated to hospital-service | N/A | N/A |
 | [9](sprints/sprint-9-service-module.md) | Service Business Module (appointments, schedules, commissions) | ✅ Core delivered | Salon, clinic, car wash |
 | [10](sprints/sprint-10-loyalty-promotions.md) | Loyalty Programs, Accounts, Earn/Redeem | ✅ Core delivered | All verticals |
 | [11](sprints/sprint-11-reporting-analytics.md) | Reporting — Sales/Refund/Daily KPIs | ✅ Core KPIs delivered | All verticals |

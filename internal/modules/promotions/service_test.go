@@ -14,7 +14,7 @@ import (
 // autoApplyPromoKinds must include BOTH happy_hour (hospitality time-window deals) and auto
 // (the generic "applies without a code" kind every other use case reaches for) — regression test
 // for the "only hospitality discounts work" bug, where the query only ever loaded promo_kind=
-// happy_hour and a retail/pharmacy/quick_service/services tenant's "Automatic" discount silently
+// happy_hour and a retail/quick_service/services tenant's "Automatic" discount silently
 // never fired at checkout. Must NOT include "code" (that only applies via ApplyPromoCode).
 func TestAutoApplyPromoKinds(t *testing.T) {
 	kinds := autoApplyPromoKinds()

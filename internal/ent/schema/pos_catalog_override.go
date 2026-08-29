@@ -71,8 +71,6 @@ func (POSCatalogOverride) Fields() []ent.Field {
 			Default(0),
 
 		// Compliance flags (sourced from inventory; POS can override per-outlet)
-		field.Bool("requires_prescription").
-			Default(false),
 		field.Bool("is_returnable").
 			Default(true),
 		field.Bool("requires_age_verification").

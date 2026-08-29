@@ -18,7 +18,6 @@ import "strings"
 const (
 	UseCaseHospitality = "hospitality"
 	UseCaseQuickService = "quick_service"
-	UseCasePharmacy    = "pharmacy"
 	UseCaseServices    = "services"
 	UseCaseRetail      = "retail"
 )
@@ -60,9 +59,6 @@ func NormalizeUseCase(useCase string) string {
 		if strings.Contains(uc, q) {
 			return UseCaseQuickService
 		}
-	}
-	if strings.Contains(uc, "pharmacy") {
-		return UseCasePharmacy
 	}
 	if strings.Contains(uc, "service") || strings.Contains(uc, "salon") ||
 		strings.Contains(uc, "clinic") || strings.Contains(uc, "spa") {

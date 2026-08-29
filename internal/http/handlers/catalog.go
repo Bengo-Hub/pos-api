@@ -179,31 +179,11 @@ func serviceAPIKey() string {
 // categoryAllowedForUseCase checks whether an item's category is appropriate for the outlet use case.
 // Uses case-insensitive substring matching so that minor category name variations don't break filtering.
 // Items with no category are always allowed.
-// isPharmacyCategory matches any category name a tenant might plausibly have chosen for their
-// drug/health catalog (the seeded default is "Pharmacy", but tenants rename categories freely) —
-// shared by categoryAllowedForUseCase (use-case gating) and the /catalog/items ?category= filter
-// (pharmacyCategoryAliases below), so a pharmacy-flavored search never depends on matching one
-// exact, hardcoded string.
-func isPharmacyCategory(categoryName string) bool {
-	cat := strings.ToLower(strings.TrimSpace(categoryName))
-	return strings.Contains(cat, "pharmacy") || strings.Contains(cat, "chemist") || strings.Contains(cat, "drug") || strings.Contains(cat, "medicine") || strings.Contains(cat, "pharmaceutical") || strings.Contains(cat, "medication")
-}
-
-// pharmacyCategoryAliases are ?category= values a caller might reasonably send when searching for
-// drugs — matched via isPharmacyCategory (substring/alias) instead of the strict exact-match every
-// other category filter value uses, since the actual seeded/tenant category name ("Pharmacy") never
-// equals generic terms like "pharmaceutical" or "medication" a client might search with.
-var pharmacyCategoryAliases = map[string]bool{
-	"pharmacy": true, "pharmaceutical": true, "pharmaceuticals": true,
-	"medication": true, "medications": true, "drug": true, "drugs": true, "chemist": true, "medicine": true,
-}
-
 func categoryAllowedForUseCase(categoryName, useCase string) bool {
 	cat := strings.ToLower(strings.TrimSpace(categoryName))
 	if cat == "" || useCase == "" {
 		return true
 	}
-	isPharmacyCat := isPharmacyCategory(categoryName)
 	isFoodCat := strings.Contains(cat, "breakfast") ||
 		strings.Contains(cat, "beverage") ||
 		strings.Contains(cat, "pastry") ||
@@ -253,18 +233,15 @@ func categoryAllowedForUseCase(categoryName, useCase string) bool {
 
 	switch strings.ToLower(useCase) {
 	case "retail":
-		// Retail outlets sell general merchandise — exclude pharmacy, food/restaurant, services, components
-		return !isPharmacyCat && !isFoodCat && !isServicesCat && !isComponentCat
-	case "pharmacy":
-		// Pharmacy outlets sell only pharmacy/health items
-		return isPharmacyCat
+		// Retail outlets sell general merchandise — exclude food/restaurant, services, components
+		return !isFoodCat && !isServicesCat && !isComponentCat
 	case "hospitality", "quick_service":
-		// Restaurant/QSR outlets sell FINISHED food/drink — exclude pharmacy, retail, retail
+		// Restaurant/QSR outlets sell FINISHED food/drink — exclude retail, retail
 		// merchandise (detergents/cleaning/household/etc.), services and components.
-		return !isPharmacyCat && !isRetailCat && !isRetailMerchandiseCat && !isServicesCat && !isComponentCat
+		return !isRetailCat && !isRetailMerchandiseCat && !isServicesCat && !isComponentCat
 	case "services":
-		// Beauty/wellness outlets sell services — exclude pharmacy, food, retail merchandise, components
-		return !isPharmacyCat && !isFoodCat && !isRetailCat && !isRetailMerchandiseCat && !isComponentCat
+		// Beauty/wellness outlets sell services — exclude food, retail merchandise, components
+		return !isFoodCat && !isRetailCat && !isRetailMerchandiseCat && !isComponentCat
 	default:
 		return true
 	}
@@ -284,8 +261,6 @@ func useCaseItemTypes(useCase string) string {
 		return "GOODS,RECIPE,VOUCHER"
 	case "hospitality", "quick_service":
 		return "GOODS,RECIPE,VOUCHER"
-	case "pharmacy":
-		return "GOODS,VOUCHER"
 	case "services":
 		return "SERVICE,GOODS,VOUCHER"
 	default:
@@ -916,7 +891,6 @@ type catalogItemDTO struct {
 	TaxRate                 *float64
 	NetPrice                *float64
 	TaxAmount               *float64
-	RequiresPrescription    bool
 	IsReturnable            bool
 	RequiresAgeVerification bool
 	IsControlledSubstance   bool
@@ -1183,7 +1157,6 @@ type overrideEntry struct {
 	isAvailable             bool
 	isFeatured              bool
 	displayOrder            int
-	requiresPrescription    bool
 	isReturnable            bool
 	requiresAgeVerification bool
 	isControlledSubstance   bool
@@ -1244,7 +1217,6 @@ func mergeCatalogOverrides(overrides []*ent.POSCatalogOverride) map[string]overr
 			isAvailable:             o.IsAvailable,
 			isFeatured:              o.IsFeatured,
 			displayOrder:            o.DisplayOrder,
-			requiresPrescription:    o.RequiresPrescription,
 			isReturnable:            o.IsReturnable,
 			requiresAgeVerification: o.RequiresAgeVerification,
 			isControlledSubstance:   o.IsControlledSubstance,
@@ -1318,14 +1290,8 @@ func (h *CatalogHandler) assembleMenuItems(
 			continue
 		}
 		// Apply filters
-		if filters.Category != "" {
-			if pharmacyCategoryAliases[strings.ToLower(strings.TrimSpace(filters.Category))] {
-				if !isPharmacyCategory(item.CategoryName) {
-					continue
-				}
-			} else if !strings.EqualFold(item.CategoryName, filters.Category) {
-				continue
-			}
+		if filters.Category != "" && !strings.EqualFold(item.CategoryName, filters.Category) {
+			continue
 		}
 		// Match name, SKU or barcode (barcode/SKU are exact identifiers a scanner enters) — the
 		// filter value is already lower-cased by the caller. Matching name only meant a barcode
@@ -1370,7 +1336,6 @@ func (h *CatalogHandler) assembleMenuItems(
 		isComplimentary := false
 		isFeatured := false
 		displayOrder := 0
-		requiresPrescription := false
 		isReturnable := true
 		requiresAgeVerification := item.RequiresAgeVerification
 		isControlledSubstance := item.IsControlledSubstance
@@ -1412,7 +1377,6 @@ func (h *CatalogHandler) assembleMenuItems(
 			isAvailable = o.isAvailable
 			isFeatured = o.isFeatured
 			displayOrder = o.displayOrder
-			requiresPrescription = o.requiresPrescription
 			isReturnable = o.isReturnable
 			if o.requiresAgeVerification {
 				requiresAgeVerification = true
@@ -1527,7 +1491,6 @@ func (h *CatalogHandler) assembleMenuItems(
 			TaxRate:                 item.TaxRate,
 			NetPrice:                item.NetPrice,
 			TaxAmount:               item.TaxAmount,
-			RequiresPrescription:    requiresPrescription,
 			IsReturnable:            isReturnable,
 			RequiresAgeVerification: requiresAgeVerification,
 			IsControlledSubstance:   isControlledSubstance,
@@ -1683,7 +1646,6 @@ func catalogItemToMapBase(item catalogItemDTO, outletID *uuid.UUID) map[string]a
 		"tax_rate":                  item.TaxRate,
 		"net_price":                 item.NetPrice,
 		"tax_amount":                item.TaxAmount,
-		"requires_prescription":     item.RequiresPrescription,
 		"is_returnable":             item.IsReturnable,
 		"requires_age_verification": item.RequiresAgeVerification,
 		"is_controlled_substance":   item.IsControlledSubstance,

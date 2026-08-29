@@ -269,20 +269,6 @@ func (_u *POSCatalogOverrideUpdate) AddDisplayOrder(v int) *POSCatalogOverrideUp
 	return _u
 }
 
-// SetRequiresPrescription sets the "requires_prescription" field.
-func (_u *POSCatalogOverrideUpdate) SetRequiresPrescription(v bool) *POSCatalogOverrideUpdate {
-	_u.mutation.SetRequiresPrescription(v)
-	return _u
-}
-
-// SetNillableRequiresPrescription sets the "requires_prescription" field if the given value is not nil.
-func (_u *POSCatalogOverrideUpdate) SetNillableRequiresPrescription(v *bool) *POSCatalogOverrideUpdate {
-	if v != nil {
-		_u.SetRequiresPrescription(*v)
-	}
-	return _u
-}
-
 // SetIsReturnable sets the "is_returnable" field.
 func (_u *POSCatalogOverrideUpdate) SetIsReturnable(v bool) *POSCatalogOverrideUpdate {
 	_u.mutation.SetIsReturnable(v)
@@ -536,9 +522,6 @@ func (_u *POSCatalogOverrideUpdate) sqlSave(ctx context.Context) (_node int, err
 	}
 	if value, ok := _u.mutation.AddedDisplayOrder(); ok {
 		_spec.AddField(poscatalogoverride.FieldDisplayOrder, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.RequiresPrescription(); ok {
-		_spec.SetField(poscatalogoverride.FieldRequiresPrescription, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.IsReturnable(); ok {
 		_spec.SetField(poscatalogoverride.FieldIsReturnable, field.TypeBool, value)
@@ -839,20 +822,6 @@ func (_u *POSCatalogOverrideUpdateOne) AddDisplayOrder(v int) *POSCatalogOverrid
 	return _u
 }
 
-// SetRequiresPrescription sets the "requires_prescription" field.
-func (_u *POSCatalogOverrideUpdateOne) SetRequiresPrescription(v bool) *POSCatalogOverrideUpdateOne {
-	_u.mutation.SetRequiresPrescription(v)
-	return _u
-}
-
-// SetNillableRequiresPrescription sets the "requires_prescription" field if the given value is not nil.
-func (_u *POSCatalogOverrideUpdateOne) SetNillableRequiresPrescription(v *bool) *POSCatalogOverrideUpdateOne {
-	if v != nil {
-		_u.SetRequiresPrescription(*v)
-	}
-	return _u
-}
-
 // SetIsReturnable sets the "is_returnable" field.
 func (_u *POSCatalogOverrideUpdateOne) SetIsReturnable(v bool) *POSCatalogOverrideUpdateOne {
 	_u.mutation.SetIsReturnable(v)
@@ -1136,9 +1105,6 @@ func (_u *POSCatalogOverrideUpdateOne) sqlSave(ctx context.Context) (_node *POSC
 	}
 	if value, ok := _u.mutation.AddedDisplayOrder(); ok {
 		_spec.AddField(poscatalogoverride.FieldDisplayOrder, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.RequiresPrescription(); ok {
-		_spec.SetField(poscatalogoverride.FieldRequiresPrescription, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.IsReturnable(); ok {
 		_spec.SetField(poscatalogoverride.FieldIsReturnable, field.TypeBool, value)

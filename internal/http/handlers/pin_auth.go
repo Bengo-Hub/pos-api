@@ -52,7 +52,6 @@ var useCaseRoles = map[string][]string{
 	"hospitality":   {"manager", "cashier", "waiter", "barista", "kitchen", "bar", "receptionist"},
 	"quick_service": {"manager", "cashier", "barista", "kitchen"},
 	"retail":        {"manager", "cashier"},
-	"pharmacy":      {"manager", "cashier", "receptionist", "pharmacist"},
 	"services":      {"manager", "cashier", "receptionist"},
 }
 
@@ -126,7 +125,7 @@ const lockoutDuration = 15 * time.Minute
 // ListStaff returns minimal staff info for the PIN keypad selector screen.
 // Does NOT include pin_hash — only name, user_id, has_pin.
 // When ?outlet_id= is provided, the result is filtered to roles appropriate for
-// that outlet's use case (e.g. pharmacy shows manager/cashier/receptionist/pharmacist only).
+// that outlet's use case (e.g. retail shows manager/cashier only).
 func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {

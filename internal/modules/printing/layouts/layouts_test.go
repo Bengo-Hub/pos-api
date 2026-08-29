@@ -158,7 +158,7 @@ func TestResolve(t *testing.T) {
 		t.Error("Valid() acceptance set wrong")
 	}
 	// thermal_grid is opt-in ONLY — auto must never resolve to it regardless of use case.
-	for _, uc := range []string{"retail", "hospitality", "pharmacy", ""} {
+	for _, uc := range []string{"retail", "hospitality", ""} {
 		if got := Resolve("auto", uc); got == ThermalGrid {
 			t.Errorf("Resolve(auto,%q) must never pick thermal_grid (opt-in only), got %q", uc, got)
 		}

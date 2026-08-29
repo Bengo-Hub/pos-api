@@ -42,8 +42,6 @@ const (
 	FieldIsFeatured = "is_featured"
 	// FieldDisplayOrder holds the string denoting the display_order field in the database.
 	FieldDisplayOrder = "display_order"
-	// FieldRequiresPrescription holds the string denoting the requires_prescription field in the database.
-	FieldRequiresPrescription = "requires_prescription"
 	// FieldIsReturnable holds the string denoting the is_returnable field in the database.
 	FieldIsReturnable = "is_returnable"
 	// FieldRequiresAgeVerification holds the string denoting the requires_age_verification field in the database.
@@ -83,7 +81,6 @@ var Columns = []string{
 	FieldIsAvailable,
 	FieldIsFeatured,
 	FieldDisplayOrder,
-	FieldRequiresPrescription,
 	FieldIsReturnable,
 	FieldRequiresAgeVerification,
 	FieldIsControlledSubstance,
@@ -122,8 +119,6 @@ var (
 	DefaultIsFeatured bool
 	// DefaultDisplayOrder holds the default value on creation for the "display_order" field.
 	DefaultDisplayOrder int
-	// DefaultRequiresPrescription holds the default value on creation for the "requires_prescription" field.
-	DefaultRequiresPrescription bool
 	// DefaultIsReturnable holds the default value on creation for the "is_returnable" field.
 	DefaultIsReturnable bool
 	// DefaultRequiresAgeVerification holds the default value on creation for the "requires_age_verification" field.
@@ -218,11 +213,6 @@ func ByIsFeatured(opts ...sql.OrderTermOption) OrderOption {
 // ByDisplayOrder orders the results by the display_order field.
 func ByDisplayOrder(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDisplayOrder, opts...).ToFunc()
-}
-
-// ByRequiresPrescription orders the results by the requires_prescription field.
-func ByRequiresPrescription(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldRequiresPrescription, opts...).ToFunc()
 }
 
 // ByIsReturnable orders the results by the is_returnable field.

@@ -14,7 +14,6 @@ func TestNormalizeUseCase(t *testing.T) {
 		"restaurant":  UseCaseHospitality,
 		"quick_service": UseCaseQuickService,
 		"quick service": UseCaseQuickService,
-		"pharmacy":    UseCasePharmacy,
 		"salon":       UseCaseServices,
 		"spa":         UseCaseServices,
 		"clinic":      UseCaseServices,
@@ -35,7 +34,7 @@ func TestResolveCashierSalesVisibility(t *testing.T) {
 	if got := ResolveCashierSalesVisibility("hospitality", nil); got != VisibilityOwn {
 		t.Errorf("hospitality default = %q, want own", got)
 	}
-	for _, uc := range []string{"retail", "quick_service", "pharmacy", "services"} {
+	for _, uc := range []string{"retail", "quick_service", "services"} {
 		if got := ResolveCashierSalesVisibility(uc, nil); got != VisibilityOutlet {
 			t.Errorf("%s default = %q, want outlet", uc, got)
 		}
@@ -57,7 +56,7 @@ func TestResolveAutoLogoutAfterSale(t *testing.T) {
 			t.Errorf("%s default auto-logout = false, want true", uc)
 		}
 	}
-	for _, uc := range []string{"retail", "pharmacy", "services"} {
+	for _, uc := range []string{"retail", "services"} {
 		if ResolveAutoLogoutAfterSale(uc, nil) {
 			t.Errorf("%s default auto-logout = true, want false", uc)
 		}
@@ -73,7 +72,7 @@ func TestResolveAutoLogoutAfterSale(t *testing.T) {
 
 func TestResolveCashierTerminalSurface(t *testing.T) {
 	// All use cases default to full_till.
-	for _, uc := range []string{"hospitality", "retail", "quick_service", "pharmacy", "services"} {
+	for _, uc := range []string{"hospitality", "retail", "quick_service", "services"} {
 		if got := ResolveCashierTerminalSurface(uc, nil); got != SurfaceFullTill {
 			t.Errorf("%s default surface = %q, want full_till", uc, got)
 		}

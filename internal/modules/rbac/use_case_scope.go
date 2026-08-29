@@ -30,8 +30,6 @@ var moduleUseCases = map[string][]string{
 	// Shared between retail and services (both have a loyalty/commission model).
 	"loyalty":     {"retail", "services"},
 	"commissions": {"retail", "services"},
-	// Pharmacy-exclusive.
-	"pharmacy": {"pharmacy"},
 }
 
 // UseCasesForModule returns the use cases a permission module is scoped to, or nil for a
@@ -72,8 +70,6 @@ var systemRoleUseCases = map[string][]string{
 	"stylist":             {"services"},
 	"therapist":           {"services"},
 	"technician":          {"services"},
-	"pharmacist":          {"pharmacy"},
-	"pharmacy_technician": {"pharmacy"},
 }
 
 // RoleUseCases resolves the use case(s) a role applies to. System roles use the static map

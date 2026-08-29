@@ -125,11 +125,6 @@ func DisplayOrder(v int) predicate.POSCatalogOverride {
 	return predicate.POSCatalogOverride(sql.FieldEQ(FieldDisplayOrder, v))
 }
 
-// RequiresPrescription applies equality check predicate on the "requires_prescription" field. It's identical to RequiresPrescriptionEQ.
-func RequiresPrescription(v bool) predicate.POSCatalogOverride {
-	return predicate.POSCatalogOverride(sql.FieldEQ(FieldRequiresPrescription, v))
-}
-
 // IsReturnable applies equality check predicate on the "is_returnable" field. It's identical to IsReturnableEQ.
 func IsReturnable(v bool) predicate.POSCatalogOverride {
 	return predicate.POSCatalogOverride(sql.FieldEQ(FieldIsReturnable, v))
@@ -783,16 +778,6 @@ func DisplayOrderLT(v int) predicate.POSCatalogOverride {
 // DisplayOrderLTE applies the LTE predicate on the "display_order" field.
 func DisplayOrderLTE(v int) predicate.POSCatalogOverride {
 	return predicate.POSCatalogOverride(sql.FieldLTE(FieldDisplayOrder, v))
-}
-
-// RequiresPrescriptionEQ applies the EQ predicate on the "requires_prescription" field.
-func RequiresPrescriptionEQ(v bool) predicate.POSCatalogOverride {
-	return predicate.POSCatalogOverride(sql.FieldEQ(FieldRequiresPrescription, v))
-}
-
-// RequiresPrescriptionNEQ applies the NEQ predicate on the "requires_prescription" field.
-func RequiresPrescriptionNEQ(v bool) predicate.POSCatalogOverride {
-	return predicate.POSCatalogOverride(sql.FieldNEQ(FieldRequiresPrescription, v))
 }
 
 // IsReturnableEQ applies the EQ predicate on the "is_returnable" field.

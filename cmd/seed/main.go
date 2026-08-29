@@ -18,7 +18,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/outletsetting"
-	"github.com/bengobox/pos-service/internal/ent/patientvisit"
 	"github.com/bengobox/pos-service/internal/ent/pospermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
@@ -97,11 +96,6 @@ func main() {
 	if err := seedRBACRoles(ctx, client); err != nil {
 		log.Fatalf("seed RBAC roles: %v", err)
 	}
-	// Curated diagnosis list is SHARED reference data (tenant_id = uuid.Nil), so it seeds once
-	// platform-wide rather than per tenant — same rule as roles/permissions above.
-	if err := seedGlobalDiagnoses(ctx, client); err != nil {
-		log.Printf("⚠️  seed global diagnoses: %v (non-fatal)", err)
-	}
 	// Push pos's system role catalogue to auth-api's shared Role registry (idempotent upsert by
 	// role_code, scope "pos") so auth-ui can assign these roles to members and global→service role
 	// resolution stays consistent. Best-effort: logged, never fatal (pos resolves by role_code
@@ -172,119 +166,6 @@ func runSeed(ctx context.Context, client *ent.Client, tenantID uuid.UUID, tc ten
 		log.Printf("  ⚠️  seed loyalty program: %v (non-fatal)", err)
 	}
 
-	// OPD demo data: license numbers on the pharmacist/doctor demo staff (auth-api provisions the
-	// StaffMember rows themselves via the auth.user.created projection — this only backfills the
-	// license_number field the OPD prescriber picker needs, idempotent/non-destructive).
-	if err := seedPharmacyDemoStaffLicenses(ctx, client, tenantID); err != nil {
-		log.Printf("  ⚠️  seed pharmacy staff licenses: %v (non-fatal)", err)
-	}
-
-	// Starter lab-test price list so the Examination test picker isn't empty on day one.
-	if err := seedLabTests(ctx, client, tenantID); err != nil {
-		log.Printf("  ⚠️  seed lab tests: %v (non-fatal)", err)
-	}
-
-	// Sample OPD patients + in-flight visits so Records/Triage/Examination/Lab have something to
-	// show immediately, without requiring a live walkthrough first. codevertex-demo only.
-	if tc.slug == "codevertex-demo" {
-		if err := seedPharmacyDemoPatients(ctx, client, tenantID); err != nil {
-			log.Printf("  ⚠️  seed pharmacy demo patients: %v (non-fatal)", err)
-		}
-	}
-
-	return nil
-}
-
-// seedPharmacyDemoPatients creates a handful of sample OPD patients and visits at different
-// pipeline stages (registered / triaged) on the demo-pharmacy outlet, so Records/Triage/
-// Examination have live queues to show without a manual walkthrough first. Idempotent via
-// deterministic UUIDs — re-running the seed never duplicates rows.
-func seedPharmacyDemoPatients(ctx context.Context, client *ent.Client, tenantID uuid.UUID) error {
-	outletID := outletUUID("codevertex-demo", "demo-pharmacy")
-
-	type patientDef struct {
-		slug, name, gender, phone, idNumber string
-		dob                                 string
-		visitStatus                         patientvisit.Status
-		chiefComplaint                      string
-	}
-	patients := []patientDef{
-		{"jane-mwangi", "Jane Mwangi", "female", "0712345001", "30012345", "1990-04-12", patientvisit.StatusRegistered, "Persistent headache"},
-		{"peter-otieno", "Peter Otieno", "male", "0712345002", "30012346", "1985-09-03", patientvisit.StatusTriaged, "Fever and cough"},
-		{"amina-hassan", "Amina Hassan", "female", "0712345003", "30012347", "2001-01-20", patientvisit.StatusRegistered, "Follow-up review"},
-	}
-
-	for i, p := range patients {
-		patientID := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:patient:%s:%s", tenantID, p.slug)))
-		existing, err := client.Patient.Get(ctx, patientID)
-		if ent.IsNotFound(err) {
-			create := client.Patient.Create().
-				SetID(patientID).
-				SetTenantID(tenantID).
-				SetOutletID(outletID).
-				SetPatientNumber(fmt.Sprintf("PT-DEMO-%04d", i+1)).
-				SetFullName(p.name).
-				SetGender(p.gender).
-				SetPhone(p.phone).
-				SetIDNumber(p.idNumber)
-			if d, derr := time.Parse("2006-01-02", p.dob); derr == nil {
-				create = create.SetDob(d)
-			}
-			existing, err = create.Save(ctx)
-			if err != nil {
-				log.Printf("  ⚠️  create demo patient %s: %v", p.name, err)
-				continue
-			}
-			log.Printf("  ✓ demo patient created: %s (%s)", p.name, existing.PatientNumber)
-		} else if err != nil {
-			log.Printf("  ⚠️  lookup demo patient %s: %v", p.name, err)
-			continue
-		}
-
-		visitID := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("bengobox:pos:visit:%s:%s", tenantID, p.slug)))
-		if _, err := client.PatientVisit.Get(ctx, visitID); ent.IsNotFound(err) {
-			_, err := client.PatientVisit.Create().
-				SetID(visitID).
-				SetTenantID(tenantID).
-				SetOutletID(outletID).
-				SetPatientID(existing.ID).
-				SetVisitNumber(fmt.Sprintf("VN-DEMO-%04d", i+1)).
-				SetStatus(p.visitStatus).
-				SetChiefComplaint(p.chiefComplaint).
-				Save(ctx)
-			if err != nil {
-				log.Printf("  ⚠️  create demo visit for %s: %v", p.name, err)
-				continue
-			}
-			log.Printf("  ✓ demo visit created for %s (status=%s)", p.name, p.visitStatus)
-		}
-	}
-	return nil
-}
-
-// seedPharmacyDemoStaffLicenses assigns a deterministic demo license number to any active
-// pharmacist/doctor staff member that doesn't have one yet, so the OPD prescriber picker (and
-// New Prescription's auto-fill) has real data to show out of the box. Never overwrites an
-// existing license_number — a real license entered via Staff settings always wins.
-func seedPharmacyDemoStaffLicenses(ctx context.Context, client *ent.Client, tenantID uuid.UUID) error {
-	staffList, err := client.StaffMember.Query().
-		Where(staffmember.TenantID(tenantID), staffmember.RoleIn("pharmacist", "doctor"), staffmember.LicenseNumberIsNil()).
-		All(ctx)
-	if err != nil {
-		return err
-	}
-	for i, s := range staffList {
-		prefix := "PPB"
-		if s.Role == "doctor" {
-			prefix = "KMPDC"
-		}
-		license := fmt.Sprintf("%s-DEMO-%04d", prefix, 1000+i)
-		if _, err := s.Update().SetLicenseNumber(license).Save(ctx); err != nil {
-			log.Printf("  ⚠️  set license for staff %s: %v", s.ID, err)
-			continue
-		}
-		log.Printf("  ✓ license %s assigned to %s (%s)", license, s.Name, s.Role)
-	}
 	return nil
 }
 
@@ -300,10 +181,6 @@ type outletDef struct {
 	enableAppts bool
 	enableHotel bool
 	defaultView string
-	// enableOPD turns on the full OPD clinical workflow (Records -> Triage -> Examination -> Lab)
-	// for this outlet — off by default (a plain pharmacy counter never sees these), on for the
-	// demo pharmacy so the whole flow is reviewable out of the box.
-	enableOPD bool
 }
 
 // outletsByTenantSlug defines the POS outlets per tenant.
@@ -346,19 +223,6 @@ var outletsByTenantSlug = map[string][]outletDef{
 			enableKDS:   true,
 			enableAppts: false,
 			defaultView: "catalog",
-		},
-		{
-			slug:        "demo-pharmacy",
-			code:        "PHARMA",
-			name:        "Demo Health Pharmacy",
-			useCase:     "pharmacy",
-			isHQ:        false,
-			pinMessage:  "Welcome to Demo Health Pharmacy — verify prescriptions at counter",
-			displayMode: "list",
-			enableKDS:   false,
-			enableAppts: false,
-			defaultView: "catalog",
-			enableOPD:   true,
 		},
 		{
 			slug:        "demo-services",
@@ -463,15 +327,11 @@ func seedOutletSetting(ctx context.Context, client *ent.Client, outletID uuid.UU
 		update := existing.Update().
 			SetEnableKds(d.enableKDS).
 			SetEnableAppointments(d.enableAppts).
-			SetHotelModuleEnabled(d.enableHotel).
-			SetEnableRecordsModule(d.enableOPD).
-			SetEnableTriageModule(d.enableOPD).
-			SetEnableExaminationModule(d.enableOPD).
-			SetEnableLabModule(d.enableOPD)
+			SetHotelModuleEnabled(d.enableHotel)
 		if _, err2 := update.Save(ctx); err2 != nil {
 			return fmt.Errorf("update outlet setting: %w", err2)
 		}
-		log.Printf("  ✓ OutletSetting updated for outlet %s (hotel=%v, opd=%v)", outletID, d.enableHotel, d.enableOPD)
+		log.Printf("  ✓ OutletSetting updated for outlet %s (hotel=%v)", outletID, d.enableHotel)
 		return nil
 	}
 
@@ -483,11 +343,7 @@ func seedOutletSetting(ctx context.Context, client *ent.Client, outletID uuid.UU
 		SetDefaultView(d.defaultView).
 		SetEnableKds(d.enableKDS).
 		SetEnableAppointments(d.enableAppts).
-		SetHotelModuleEnabled(d.enableHotel).
-		SetEnableRecordsModule(d.enableOPD).
-		SetEnableTriageModule(d.enableOPD).
-		SetEnableExaminationModule(d.enableOPD).
-		SetEnableLabModule(d.enableOPD)
+		SetHotelModuleEnabled(d.enableHotel)
 	if d.pinMessage != "" {
 		create = create.SetPinLoginMessage(d.pinMessage)
 	}
@@ -495,7 +351,7 @@ func seedOutletSetting(ctx context.Context, client *ent.Client, outletID uuid.UU
 	if err != nil {
 		return fmt.Errorf("create outlet setting: %w", err)
 	}
-	log.Printf("  ✓ OutletSetting created for outlet %s (hotel=%v, opd=%v)", outletID, d.enableHotel, d.enableOPD)
+	log.Printf("  ✓ OutletSetting created for outlet %s (hotel=%v)", outletID, d.enableHotel)
 	return nil
 }
 
@@ -729,15 +585,13 @@ func seedRBACPermissions(ctx context.Context, client *ent.Client) error {
 		"orders", "payments", "catalog", "outlets", "devices",
 		"sessions", "cash_drawers", "tables", "gift_cards",
 		"price_books", "modifiers", "channels", "config", "users",
-		"reports", "hotel", "appointments", "pharmacy",
+		"reports", "hotel", "appointments",
 		// Sprint 4–12 modules
 		"kds", "retail", "layaway", "serial", "loyalty", "webhooks",
 		"integrations", "fiscal", "queue", "staff",
 		"commissions", "packages", "clients",
 		// Hospitality features: conference/events + delegate meal cards, promotions/happy-hour
 		"conference", "promotions",
-		// OPD clinical workflow (pharmacy use case): Records -> Triage -> Examination -> Lab
-		"records", "triage", "examination", "lab",
 	}
 	actions := []string{
 		"add", "view", "view_own", "change", "change_own",
@@ -788,12 +642,6 @@ func seedRBACPermissions(ctx context.Context, client *ent.Client) error {
 		// this OR pos.orders.manage). It was checked by the UI but never seeded, so a tenant
 		// admin could not grant discounting to a custom role at all.
 		{"pos.discounts.add", "POS apply discount", "discounts", "add"},
-		// Pharmacy prescription-approval gate (pharmacist-only clinical sign-off, Phase 1 of
-		// the DAWA safety workflow). Picked up automatically by the pharmacist role's existing
-		// "pos.pharmacy.*" wildcard; pharmacy_technician's explicit view/change grants do not
-		// include it, so technicians can never approve.
-		{"pos.pharmacy.approve", "POS pharmacy approve prescription", "pharmacy", "approve"},
-		{"pos.pharmacy.interaction_override", "POS pharmacy override drug interaction flag", "pharmacy", "interaction_override"},
 		// Self-approve a void without a manager step-up (scan card/PIN/one-time code). Replaces
 		// the old hardcoded VOID_SELF_ROLES role-name list (pos-ui rbac-constants.ts) so a
 		// tenant admin can grant/revoke self-approval per role via the permission matrix instead
@@ -877,7 +725,7 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				"pos.modifiers.*", "pos.channels.*",
 				"pos.config.*",
 				"pos.users.*",
-				"pos.reports.*", "pos.hotel.*", "pos.appointments.*", "pos.pharmacy.*",
+				"pos.reports.*", "pos.hotel.*", "pos.appointments.*",
 				"pos.kds.*", "pos.retail.*", "pos.layaway.*", "pos.serial.*",
 				"pos.loyalty.*", "pos.webhooks.*", "pos.integrations.*", "pos.fiscal.*",
 				"pos.queue.*", "pos.staff.*", "pos.commissions.*",
@@ -1070,90 +918,6 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				"pos.queue.view", "pos.queue.change",
 				"pos.commissions.view_own",
 				"pos.clients.view",
-			},
-		},
-		{
-			code:        "pharmacist",
-			name:        "Pharmacist",
-			description: "Dispense prescriptions, manage pharmacy orders, and (OPD tenants) examine patients",
-			permissions: []string{
-				"pos.orders.add", "pos.orders.view", "pos.orders.change_own",
-				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
-				"pos.orders.delete_own", "pos.orders.resume_draft",
-				"pos.payments.add", "pos.payments.view",
-				"pos.catalog.view",
-				"pos.sessions.add", "pos.sessions.view_own",
-				"pos.pharmacy.*",
-				// OPD (only relevant when the tenant has enable_examination_module on): a
-				// pharmacist can also be the examining clinician, per the pharmacy workflow.
-				"pos.examination.*",
-				"pos.records.view", "pos.triage.view", "pos.lab.view", "pos.lab.add",
-			},
-		},
-		{
-			code:        "pharmacy_technician",
-			name:        "Pharmacy Technician",
-			description: "Assist with prescription filling, labelling, and inventory under pharmacist supervision",
-			permissions: []string{
-				"pos.orders.add", "pos.orders.view_own", "pos.orders.change_own",
-				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
-				"pos.orders.delete_own", "pos.orders.resume_draft",
-				"pos.payments.add", "pos.payments.view_own",
-				"pos.catalog.view",
-				"pos.sessions.add", "pos.sessions.view_own",
-				"pos.pharmacy.view", "pos.pharmacy.change",
-			},
-		},
-		{
-			code:        "doctor",
-			name:        "Doctor",
-			description: "OPD clinician: examines patients, orders labs, and prescribes medicine",
-			permissions: []string{
-				"pos.orders.add", "pos.orders.view",
-				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
-				"pos.orders.delete_own", "pos.orders.resume_draft",
-				"pos.payments.view",
-				"pos.catalog.view",
-				"pos.sessions.add", "pos.sessions.view_own",
-				"pos.examination.*",
-				"pos.pharmacy.approve", "pos.pharmacy.interaction_override", "pos.pharmacy.view", "pos.pharmacy.add",
-				"pos.records.view", "pos.triage.view",
-				"pos.lab.view", "pos.lab.add",
-			},
-		},
-		{
-			code:        "records_clerk",
-			name:        "Records Clerk",
-			description: "OPD front desk: registers patients, opens visits, collects the registration/consultation fee",
-			permissions: []string{
-				"pos.orders.add", "pos.orders.view_own",
-				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
-				"pos.orders.delete_own", "pos.orders.resume_draft",
-				"pos.payments.add", "pos.payments.view_own",
-				"pos.catalog.view",
-				"pos.sessions.add", "pos.sessions.view_own",
-				"pos.records.*",
-				"pos.clients.view",
-			},
-		},
-		{
-			code:        "triage_nurse",
-			name:        "Triage Nurse",
-			description: "OPD triage: records patient vitals before examination",
-			permissions: []string{
-				"pos.sessions.add", "pos.sessions.view_own",
-				"pos.triage.*",
-				"pos.records.view",
-			},
-		},
-		{
-			code:        "lab_technician",
-			name:        "Lab Technician",
-			description: "OPD lab: runs requested tests and records results",
-			permissions: []string{
-				"pos.sessions.add", "pos.sessions.view_own",
-				"pos.lab.*",
-				"pos.records.view", "pos.triage.view", "pos.examination.view",
 			},
 		},
 		{

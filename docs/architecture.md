@@ -6,7 +6,14 @@
 
 ## Design Philosophy
 
-The POS service is the **transactional backbone** of Codevertex — a multi-tenant, multi-vertical point-of-sale platform built for the Kenyan market. It follows a **Core + Vertical Modules** architecture: a shared transactional core (orders, payments, RBAC, devices, KDS) with pluggable vertical-specific modules (hotel, retail, pharmacy, service).
+The POS service is the **transactional backbone** of Codevertex — a multi-tenant, multi-vertical point-of-sale platform built for the Kenyan market. It follows a **Core + Vertical Modules** architecture: a shared transactional core (orders, payments, RBAC, devices, KDS) with pluggable vertical-specific modules (hotel, retail, service).
+
+> **Pharmacy/clinical workflow moved to hospital-service (2026-08-29).** pos-api's `pharmacy` use
+> case (prescriptions, OPD Records/Triage/Examination/Lab, controlled-substance register) was
+> decisively migrated to `hospital-service` (Codevertex Afya) — see
+> `hospital-service/hospital-api/docs/migration-pos-pharmacy.md`. pos-api owns no pharmacy/clinical
+> schema, handlers, or routes going forward; valid `use_case` values are exactly `hospitality`,
+> `quick_service`, `retail`, `services`.
 
 The service adapts UI and business workflows based on the `use_case` configured per Outlet, which can override the Tenant default.
 
@@ -17,7 +24,6 @@ The service adapts UI and business workflows based on the `use_case` configured 
 | `hospitality` | Restaurant, bar, café, food court | Orders, tables, KDS, bar tabs, hotel module |
 | `quick_service` | Food kiosk, fast food counter | Orders, KDS, queue management |
 | `retail` | Supermarket, mini-mart, hardware, electronics | Orders, barcode scanning, layaway, scale |
-| `pharmacy` | Community pharmacy, hospital dispensary | Orders, prescriptions, lot/batch, NHIF |
 | `services` | Salon, spa, clinic, car wash | Orders, appointments, packages, commission |
 
 ---
@@ -46,7 +52,6 @@ The service adapts UI and business workflows based on the `use_case` configured 
 | `receipt` | Receipt data endpoint | ✅ Handler done; PDF format pending |
 | `layaway` | LayawayPlan + LayawayPayment, create/list/get/payment/cancel | ✅ Complete |
 | `scale` | WeighingScaleReading, create + list readings | ✅ Complete |
-| `pharmacy` | Prescriptions, prescription lines, dispense, drug interaction checks | ✅ Core done; controlled substances, age verification pending |
 | `appointments` | List/create/get/update/availability; gated by services use_case | ✅ Core done; action endpoints (check-in/start/complete/cancel) pending |
 | `staff_schedule` | 7-day schedule upsert per staff member | ✅ Complete |
 | `commissions` | CommissionRecord list/get | ✅ Basic done; rules and payout pending |
@@ -87,7 +92,7 @@ The service adapts UI and business workflows based on the `use_case` configured 
 
 ## Outlet Use-Case Gating
 
-Routes are gated at both the middleware and sidebar level based on `outlet.use_case`. This is separate from RBAC — use-case gating prevents hospitality-specific features from being accessible on a retail or pharmacy outlet.
+Routes are gated at both the middleware and sidebar level based on `outlet.use_case`. This is separate from RBAC — use-case gating prevents hospitality-specific features from being accessible on a retail or services outlet.
 
 ### Middleware (`internal/http/middleware/use_case.go`)
 
@@ -120,7 +125,6 @@ Settings are cached in-memory with a 5-minute TTL to avoid DB hits on every requ
 | codevertex-demo | Demo Grand Hotel & Restaurant | HOSP | hospitality | ✅ |
 | codevertex-demo | Demo Tech Store | RETAIL | retail | ❌ |
 | codevertex-demo | Demo Express Kiosk | QSR | quick_service | ❌ |
-| codevertex-demo | Demo Health Pharmacy | PHARMA | pharmacy | ❌ |
 | codevertex-demo | Demo Beauty & Wellness | SVC | services | ❌ |
 | codevertex-demo | Demo Logistics Hub | LOGIS | logistics | ❌ |
 
@@ -262,7 +266,7 @@ Per-tenant, per-doc-type document numbers are minted through the `DocumentSequen
 | 5 | ERP Gaps (DailyClosing, Returns, Receipt) | ✅ Substantially complete |
 | 6 | Inventory & Treasury Wiring | 🟡 S2S clients referenced; NATS subscribers missing |
 | 7 | Retail Module (Layaway, Barcode, Scale, Serial) | ✅ Core delivered |
-| 8 | Pharmacy Module (Prescriptions, Drug Checks) | ✅ Core delivered |
+| 8 | ~~Pharmacy Module~~ — decisively removed 2026-08-29, migrated to hospital-service | N/A |
 | 9 | Service Business Module (Appointments, Schedules, Commissions) | ✅ Core delivered |
 | 10 | Loyalty Programs, Accounts, Earn/Redeem | ✅ Core delivered |
 | 11 | Reporting — Sales/Refund/Daily KPIs | ✅ Core KPIs delivered |

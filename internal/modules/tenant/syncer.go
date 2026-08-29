@@ -28,7 +28,6 @@ var posAcceptedUseCases = map[string]bool{
 	"hospitality":   true,
 	"retail":        true,
 	"quick_service": true,
-	"pharmacy":      true,
 	"services":      true,
 }
 

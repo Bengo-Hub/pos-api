@@ -231,7 +231,6 @@ type createOrderInput struct {
 	Currency         string                 `json:"currency"`
 	Lines            []createOrderLineInput `json:"lines"`
 	Metadata         map[string]interface{} `json:"metadata"`
-	PrescriptionID   *string                `json:"prescription_id,omitempty"`
 	AgeVerified      bool                   `json:"age_verified,omitempty"`   // cashier confirmed customer age for age-restricted items
 	OrderSubtype     string                 `json:"order_subtype"`            // dine_in | takeaway | room_service | delivery | bar_tab | retail
 	TableID          string                 `json:"table_id"`                 // hospitality dine-in table UUID
@@ -977,32 +976,6 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	var userID uuid.UUID
 	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims.Subject != "" {
 		userID, _ = uuid.Parse(claims.Subject)
-	}
-
-	// Prescription-only items: block unless a prescription_id is provided.
-	if input.PrescriptionID == nil || *input.PrescriptionID == "" {
-		skus := make([]string, 0, len(input.Lines))
-		for _, l := range input.Lines {
-			if l.SKU != "" {
-				skus = append(skus, l.SKU)
-			}
-		}
-		if len(skus) > 0 {
-			rxOverrides, _ := h.client.POSCatalogOverride.Query().
-				Where(
-					entoverride.TenantID(tid),
-					entoverride.InventorySkuIn(skus...),
-					entoverride.RequiresPrescriptionEQ(true),
-				).All(r.Context())
-			if len(rxOverrides) > 0 {
-				blocked := make([]string, 0, len(rxOverrides))
-				for _, o := range rxOverrides {
-					blocked = append(blocked, o.InventorySku)
-				}
-				jsonError(w, "prescription required for: "+strings.Join(blocked, ", "), http.StatusUnprocessableEntity)
-				return
-			}
-		}
 	}
 
 	// Age-restricted items: block unless the cashier has confirmed the customer's

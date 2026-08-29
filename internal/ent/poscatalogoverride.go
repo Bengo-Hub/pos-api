@@ -47,8 +47,6 @@ type POSCatalogOverride struct {
 	IsFeatured bool `json:"is_featured,omitempty"`
 	// DisplayOrder holds the value of the "display_order" field.
 	DisplayOrder int `json:"display_order,omitempty"`
-	// RequiresPrescription holds the value of the "requires_prescription" field.
-	RequiresPrescription bool `json:"requires_prescription,omitempty"`
 	// IsReturnable holds the value of the "is_returnable" field.
 	IsReturnable bool `json:"is_returnable,omitempty"`
 	// RequiresAgeVerification holds the value of the "requires_age_verification" field.
@@ -79,7 +77,7 @@ func (*POSCatalogOverride) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case poscatalogoverride.FieldMetadata:
 			values[i] = new([]byte)
-		case poscatalogoverride.FieldIsBundle, poscatalogoverride.FieldPriceIncludesTax, poscatalogoverride.FieldIsAvailable, poscatalogoverride.FieldIsFeatured, poscatalogoverride.FieldRequiresPrescription, poscatalogoverride.FieldIsReturnable, poscatalogoverride.FieldRequiresAgeVerification, poscatalogoverride.FieldIsControlledSubstance:
+		case poscatalogoverride.FieldIsBundle, poscatalogoverride.FieldPriceIncludesTax, poscatalogoverride.FieldIsAvailable, poscatalogoverride.FieldIsFeatured, poscatalogoverride.FieldIsReturnable, poscatalogoverride.FieldRequiresAgeVerification, poscatalogoverride.FieldIsControlledSubstance:
 			values[i] = new(sql.NullBool)
 		case poscatalogoverride.FieldSellingPrice:
 			values[i] = new(sql.NullFloat64)
@@ -198,12 +196,6 @@ func (_m *POSCatalogOverride) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field display_order", values[i])
 			} else if value.Valid {
 				_m.DisplayOrder = int(value.Int64)
-			}
-		case poscatalogoverride.FieldRequiresPrescription:
-			if value, ok := values[i].(*sql.NullBool); !ok {
-				return fmt.Errorf("unexpected type %T for field requires_prescription", values[i])
-			} else if value.Valid {
-				_m.RequiresPrescription = value.Bool
 			}
 		case poscatalogoverride.FieldIsReturnable:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -347,9 +339,6 @@ func (_m *POSCatalogOverride) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("display_order=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DisplayOrder))
-	builder.WriteString(", ")
-	builder.WriteString("requires_prescription=")
-	builder.WriteString(fmt.Sprintf("%v", _m.RequiresPrescription))
 	builder.WriteString(", ")
 	builder.WriteString("is_returnable=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsReturnable))
