@@ -162,6 +162,7 @@ func (s *Service) CreateReturn(ctx context.Context, tenantID uuid.UUID, req Crea
 		SetRefundAmount(refundAmount).
 		SetRequestedBy(req.RequestedBy).
 		SetMetadata(md).
+		SetNillableCreatedAt(req.ReturnDate).
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("create return: %w", err)

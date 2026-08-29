@@ -1,6 +1,8 @@
 package returns
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
@@ -35,6 +37,10 @@ type CreateReturnRequest struct {
 	RefundChannel string // cash | mpesa | bank | cheque | store_credit | offset_invoice
 	Lines         []LineInput
 	RequestedBy   uuid.UUID
+	// ReturnDate optionally backdates the return's recorded date (e.g. paperwork processed a
+	// day after the customer actually brought the item back). Nil defaults to now, same as
+	// before this field existed.
+	ReturnDate *time.Time
 	// BypassGuards skips the return-window-age check and the per-item is_returnable check —
 	// for the admin Edit-Sale caller only (an authorized correction of a data-entry error is
 	// not a customer physically returning goods). Never true for the customer-facing HTTP path.

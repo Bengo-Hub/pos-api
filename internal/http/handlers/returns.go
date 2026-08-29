@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/Bengo-Hub/pagination"
@@ -87,7 +88,10 @@ type createReturnInput struct {
 	Reason        string            `json:"reason"`
 	ReasonCode    string            `json:"reason_code,omitempty"`
 	RefundChannel string            `json:"refund_channel,omitempty"`
-	Lines         []returnLineInput `json:"lines"`
+	// ReturnDate optionally backdates the return; accepts "YYYY-MM-DD" or RFC3339 (see
+	// parseFlexibleDate in hotel.go). Omitted = now, same as before this field existed.
+	ReturnDate string            `json:"return_date,omitempty"`
+	Lines      []returnLineInput `json:"lines"`
 }
 
 type approveReturnInput struct {
@@ -204,10 +208,16 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	requestedBy := requestUserID(r)
+	var returnDate *time.Time
+	if input.ReturnDate != "" {
+		if t, derr := parseFlexibleDate(input.ReturnDate); derr == nil {
+			returnDate = &t
+		}
+	}
 	ret, err := h.svc.CreateReturn(r.Context(), tid, returns.CreateReturnRequest{
 		OrderID: orderID, OutletID: parseOptionalUUID(input.OutletID, r), ReturnType: input.ReturnType,
 		Reason: input.Reason, ReasonCode: input.ReasonCode, RefundChannel: input.RefundChannel,
-		Lines: toLineInputs(input.Lines), RequestedBy: requestedBy,
+		Lines: toLineInputs(input.Lines), RequestedBy: requestedBy, ReturnDate: returnDate,
 	})
 	if err != nil {
 		status := classifyReturnError(err)
