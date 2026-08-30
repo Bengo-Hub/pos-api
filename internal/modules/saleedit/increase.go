@@ -428,9 +428,20 @@ func lineTaxAmount(total float64, priceIncludesTax bool, taxRate *float64) *floa
 }
 
 // createAddendumOrder is the fiscalized-increase path — UNCHANGED behavior from before this
-// rework: a linked sub-order with its own docket/receipt, created through the ordinary
-// create→finalize pipeline (fresh inventory consumption, GL, and a fresh KRA invoice since
-// the tenant IS eTIMS-integrated), tagged metadata.related_order_id for lineage.
+// rework: a linked sub-order with its own docket/receipt, tagged metadata.related_order_id for
+// lineage.
+//
+// KNOWN GAP (not fixed in this pass — see the 2026-08-30 remediation plan, Batch 3): despite the
+// name, this does NOT run a create→finalize pipeline. orders.CreateOrder leaves a `retail`
+// subtype order in `draft` status (no payment, no pos.sale.finalized) — so until a human
+// separately opens and pays this addendum, it has posted NO inventory consumption, NO GL, and NO
+// AR/KRA invoice at all, contradicting what this comment used to claim. pos-ui opens a payment
+// modal immediately after a successful edit that returns a linked_addendum_order_id, but if that
+// modal is dismissed the addendum silently sits unpaid and unconsumed. Fixing this for real means
+// wiring a payments.Service dependency into saleedit (an import this package doesn't currently
+// take) to auto-finalize+settle using the same resolveIncreaseSettlement resolution the
+// non-fiscalized branch already uses — deliberately deferred rather than rushed, since it touches
+// the core checkout/finalization pipeline for every fiscalized tenant, not just Edit-Sale.
 func (s *Service) createAddendumOrder(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, diff lineDiff, req EditSaleRequest) (uuid.UUID, error) {
 	if s.orderSvc == nil {
 		return uuid.Nil, fmt.Errorf("addendum order creation is not available (order service unwired)")
