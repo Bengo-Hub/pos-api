@@ -531,6 +531,11 @@ type ARPaymentResponse struct {
 	// SurplusAmount is set only when the payment overshot the outstanding debit and was
 	// explicitly routed to store credit.
 	SurplusAmount string `json:"surplus_amount,omitempty"`
+	// ReceiptID addresses this specific receipt in treasury for a later VoidARReceipt call —
+	// stashed onto the local POSPayment's own payment_data so a mis-settled credit sale can be
+	// corrected via the SAME void tool used for every other manual payment, instead of the old
+	// CreateRefund(channel:"cash") call that left AR wrongly reduced.
+	ReceiptID string `json:"receipt_id,omitempty"`
 }
 
 // RecordARPayment posts a customer AR repayment to treasury (decrements balance_due and posts
@@ -540,6 +545,22 @@ type ARPaymentResponse struct {
 func (c *Client) RecordARPayment(ctx context.Context, tenantSlug, contactIDOrIdentifier string, req ARPaymentRequest) (*ARPaymentResponse, error) {
 	u := fmt.Sprintf("%s/api/v1/s2s/%s/ar/customers/%s/payment", c.baseURL, tenantSlug, url.PathEscape(contactIDOrIdentifier))
 	return doRequest[ARPaymentResponse](ctx, c.httpClient, http.MethodPost, u, c.apiKey, req)
+}
+
+// ARReceiptResponse is treasury's ar_receipt state after a void.
+type ARReceiptResponse struct {
+	ID     string `json:"id"`
+	Status string `json:"status"` // succeeded | voided
+}
+
+// VoidARReceipt reverses a customer AR receipt in treasury (reinstates the debt + reversing
+// journal) — the counterpart to RecordARPayment for correcting a credit-settlement recorded
+// against the wrong order/amount. contactIDOrIdentifier is unused by the handler (the receipt id
+// alone resolves its customer) but kept for URL symmetry with every other /ar/customers/{key}
+// route; pass whatever key the original settlement used.
+func (c *Client) VoidARReceipt(ctx context.Context, tenantSlug, contactIDOrIdentifier, receiptID, reason string) (*ARReceiptResponse, error) {
+	u := fmt.Sprintf("%s/api/v1/s2s/%s/ar/customers/%s/receipts/%s", c.baseURL, tenantSlug, url.PathEscape(contactIDOrIdentifier), url.PathEscape(receiptID))
+	return doRequest[ARReceiptResponse](ctx, c.httpClient, http.MethodDelete, u, c.apiKey, map[string]string{"reason": reason})
 }
 
 // WriteOffDebtRequest is the body for POST /api/v1/s2s/{tenant}/ar/customers/{key}/write-off.

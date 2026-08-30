@@ -191,13 +191,14 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 		paymentData["backdated"] = true
 		paymentData["recorded_at"] = time.Now().Format(time.RFC3339)
 	}
-	if _, err := tx.POSPayment.Create().
+	settlementPayment, err := tx.POSPayment.Create().
 		SetOrderID(order.ID).SetTenderID(req.TenderID).SetAmount(req.Amount).
 		SetCurrency(currency).SetStatus(StatusCompleted).
 		SetOccurredAt(occurredAt).
 		SetPaymentData(paymentData).
 		SetNillableExternalReference(nilIfEmpty(req.ExternalRef)).
-		Save(ctx); err != nil {
+		Save(ctx)
+	if err != nil {
 		_ = tx.Rollback()
 		return nil, fmt.Errorf("payments: record credit settlement: %w", err)
 	}
@@ -246,6 +247,18 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 			synced = true
 			if arResp != nil {
 				surplusToStoreCredit, _ = strconv.ParseFloat(arResp.SurplusAmount, 64)
+				// Stash the treasury receipt id + key onto the local row so a mis-settled credit
+				// sale can be corrected via VoidPayment later (which needs both to call treasury's
+				// VoidARReceipt), instead of the old cash-refund path that left AR wrongly reduced.
+				if arResp.ReceiptID != "" {
+					pd := paymentData
+					pd["treasury_receipt_id"] = arResp.ReceiptID
+					pd["treasury_customer_key"] = key
+					if _, uerr := s.client.POSPayment.UpdateOneID(settlementPayment.ID).SetPaymentData(pd).Save(ctx); uerr != nil {
+						s.log.Warn("credit settlement: failed to stash treasury receipt id (void will fall back to refund)",
+							zap.String("order", order.OrderNumber), zap.Error(uerr))
+					}
+				}
 			}
 		}
 	}

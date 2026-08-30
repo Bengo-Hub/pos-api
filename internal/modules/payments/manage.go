@@ -61,6 +61,15 @@ func paymentIsManageable(p *ent.POSPayment, tenderType string) bool {
 		if via, _ := p.PaymentData["settled_via"].(string); via == "treasury_gateway" {
 			return false
 		}
+		// A credit-settlement row is voidable regardless of its tender type (mpesa/bank/paystack
+		// included, none of which are in manualTenderTypes) — VoidPayment routes these through
+		// the dedicated treasury VoidARReceipt reversal, never the generic cash-refund path, so
+		// the tender-type restriction that exists to keep gateway rows out of that path doesn't
+		// apply here. Confirmed live gap: a wrongly-settled mpesa/bank/paystack credit-sale
+		// payment had NO correction path at all before this — Voidable was always false for it.
+		if cs, _ := p.PaymentData["credit_settlement"].(bool); cs {
+			return true
+		}
 	}
 	return manualTenderTypes[tenderType]
 }
@@ -217,11 +226,28 @@ func (s *Service) VoidPayment(ctx context.Context, tenantID uuid.UUID, tenantSlu
 		"reason":     reason,
 	})
 
-	// Reverse the money in treasury's books. Manual/cash POS payments were settled there as
-	// immediate intents, so a local-only void would leave a Dr-Cash entry with no cash.
-	// Idempotent on the payment id; failures are logged, never fatal (reconciler catches up).
+	// Reverse the money in treasury's books. Idempotent on the payment id; failures are logged,
+	// never fatal (reconciler catches up).
 	if s.treasuryClient != nil && tenantSlug != "" {
-		if _, rerr := s.treasuryClient.CreateRefund(ctx, tenantSlug, paymentID.String(), treasury.RefundRequest{
+		if receiptID, _ := p.PaymentData["treasury_receipt_id"].(string); receiptID != "" {
+			// A credit-settlement row: this payment cleared AR debt, not a cash sale — reversing
+			// it via CreateRefund(channel:"cash") would book a phantom cash refund AND leave the
+			// customer's AR balance wrongly reduced (the refund's "cash" channel never touches
+			// AR at all — see arpa.ProcessRefund's channel switch). VoidARReceipt is the correct
+			// reversal: it reinstates the debt via the same primitive a mis-recorded manual
+			// Receive-Payment void uses, and posts its own reversing journal.
+			key, _ := p.PaymentData["treasury_customer_key"].(string)
+			if _, rerr := s.treasuryClient.VoidARReceipt(ctx, tenantSlug, key, receiptID, "POS payment voided: "+reason); rerr != nil {
+				s.log.Warn("void payment: treasury AR receipt reversal failed — books may need reconciliation",
+					zap.String("payment_id", paymentID.String()), zap.String("treasury_receipt_id", receiptID), zap.Error(rerr))
+			}
+		} else if cs, _ := p.PaymentData["credit_settlement"].(bool); cs {
+			// A credit-settlement row from before this fix shipped (or whose treasury sync never
+			// completed) has no addressable receipt to reverse — refusing to guess is safer than
+			// booking a cash refund against AR debt that was never cash in the first place.
+			s.log.Warn("void payment: credit-settlement row has no treasury receipt id — AR was not reversed, reconcile manually",
+				zap.String("payment_id", paymentID.String()))
+		} else if _, rerr := s.treasuryClient.CreateRefund(ctx, tenantSlug, paymentID.String(), treasury.RefundRequest{
 			SourceService:    "pos",
 			ReferenceID:      paymentID.String(),
 			ReferenceType:    "pos_payment_void",
