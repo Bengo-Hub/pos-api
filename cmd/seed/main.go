@@ -657,6 +657,12 @@ func seedRBACPermissions(ctx context.Context, client *ent.Client) error {
 		// button (no permission check existed at all) so a tenant admin can hide it per role via
 		// the matrix, same as void_self replaced a hardcoded role-name list.
 		{"pos.orders.resume_draft", "POS resume a saved draft/parked sale", "orders", "resume_draft"},
+		// Self-approve an out-of-stock/oversell override without a manager step-up (scan
+		// card/PIN/one-time code) — mirrors pos.orders.void_self. Picked up automatically by
+		// manager's "pos.catalog.*" wildcard and admin's "*"; cashiers/waiters etc. only hold
+		// pos.catalog.view so they still get the full ApprovalDialog. A tenant admin can
+		// grant/revoke it per custom role via the permission matrix.
+		{"pos.catalog.oos_override_self", "POS self-approve out-of-stock override without manager step-up", "catalog", "oos_override_self"},
 	}
 	for _, ex := range extras {
 		exists, err := client.POSPermission.Query().

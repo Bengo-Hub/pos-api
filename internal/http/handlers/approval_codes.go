@@ -72,6 +72,16 @@ func (h *POSOrderHandler) GenerateActionApprovalCode(w http.ResponseWriter, r *h
 		jsonError(w, "unsupported approval action", http.StatusBadRequest)
 		return
 	}
+	// A code MUST be pinned to the outlet it authorizes — a manager managing multiple branches
+	// mints one per branch. Previously an empty/unparsable outlet_id silently produced a
+	// NULL-outlet code that redeemActionApprovalCode treated as valid at ANY outlet tenant-wide,
+	// which is how the live/PIN and code approval paths diverged (PIN correctly outlet-scoped,
+	// code accidentally not).
+	outletID, oerr := uuid.Parse(input.OutletID)
+	if oerr != nil || outletID == uuid.Nil {
+		jsonError(w, "outlet_id is required to generate an approval code", http.StatusBadRequest)
+		return
+	}
 
 	code, err := randomNumericCode(6)
 	if err != nil {
@@ -98,10 +108,8 @@ func (h *POSOrderHandler) GenerateActionApprovalCode(w http.ResponseWriter, r *h
 		SetCodeHash(string(hash)).
 		SetApproverUserID(approverID).
 		SetApproverName(claims.Email).
+		SetOutletID(outletID).
 		SetExpiresAt(time.Now().Add(ttl))
-	if oid, perr := uuid.Parse(input.OutletID); perr == nil && oid != uuid.Nil {
-		create = create.SetOutletID(oid)
-	}
 	if input.Reason != "" {
 		create = create.SetReason(input.Reason)
 	}
@@ -169,11 +177,17 @@ func (h *POSOrderHandler) VerifyActionApprovalCode(w http.ResponseWriter, r *htt
 }
 
 // redeemActionApprovalCode validates a one-time NON-order-scoped code (order_id = uuid.Nil) for a
-// tenant+action, optionally scoped to an outlet, marks it single-use, and returns the approver.
-// Same bcrypt/single-use semantics as redeemOrderApprovalCode — this is the reused verification,
-// just keyed on the order-less sentinel instead of a specific order.
+// tenant+action+outlet, marks it single-use, and returns the approver. Same bcrypt/single-use
+// semantics as redeemOrderApprovalCode — this is the reused verification, just keyed on the
+// order-less sentinel instead of a specific order.
+//
+// The outlet match is EXACT and mandatory: a code only redeems at the outlet it was generated
+// for (GenerateActionApprovalCode requires outlet_id, so every code on/after that fix carries
+// one). A caller with no outlet context (outletID == uuid.Nil) can never redeem anything — there
+// is deliberately no "tenant-wide" fallback here, since a manager physically at one branch
+// authorizing a specific override must not have that same code usable at a different branch.
 func redeemActionApprovalCode(ctx context.Context, client *ent.Client, log *zap.Logger, tid, outletID uuid.UUID, action, code string) (approver uuid.UUID, ok bool) {
-	if code == "" || action == "" {
+	if code == "" || action == "" || outletID == uuid.Nil {
 		return uuid.Nil, false
 	}
 	q := client.OrderVoidCode.Query().
@@ -181,17 +195,10 @@ func redeemActionApprovalCode(ctx context.Context, client *ent.Client, log *zap.
 			entordervoidcode.TenantID(tid),
 			entordervoidcode.OrderID(uuid.Nil),
 			entordervoidcode.Action(action),
+			entordervoidcode.OutletID(outletID),
 			entordervoidcode.UsedAtIsNil(),
 			entordervoidcode.ExpiresAtGT(time.Now()),
 		)
-	// When the code was minted for a specific outlet, only redeem it at that outlet; codes minted
-	// without an outlet are tenant-wide.
-	if outletID != uuid.Nil {
-		q = q.Where(entordervoidcode.Or(
-			entordervoidcode.OutletID(outletID),
-			entordervoidcode.OutletIDIsNil(),
-		))
-	}
 	candidates, err := q.All(ctx)
 	if err != nil {
 		log.Warn("action-approval-code: lookup failed", zap.String("action", action), zap.Error(err))

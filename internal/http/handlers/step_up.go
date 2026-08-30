@@ -121,12 +121,21 @@ func (h *PINAuthHandler) StepUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Outlet-scoped staff can only approve at their own outlet(s), but admin/manager-tier staff
+	// (adminLevelStaffRoles, staff.go) can step up at ANY outlet in the tenant — mirroring
+	// IdentifyByPIN's login rule below. Without this OR, an admin/manager whose only StaffOutlet
+	// row is HQ (a common setup: they're never explicitly assigned to every branch) is invisible
+	// to this scan at any non-HQ outlet, so their PIN — which logs them in everywhere — is
+	// rejected as "invalid credentials" on every step-up approval except at HQ.
 	candidates, scanErr := h.client.StaffMember.Query().
 		Where(
 			entstaff.TenantID(tid),
 			entstaff.IsActive(true),
 			entstaff.PinHashNotNil(),
-			entstaff.HasOutletsWith(entstaffoutlet.OutletID(outletID)),
+			entstaff.Or(
+				entstaff.HasOutletsWith(entstaffoutlet.OutletID(outletID)),
+				entstaff.RoleIn(adminLevelStaffRoles...),
+			),
 		).
 		All(r.Context())
 	if scanErr != nil {
@@ -307,12 +316,17 @@ func (h *PINAuthHandler) StepUpByCard(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid or expired card", http.StatusForbidden)
 		return
 	}
+	// Same outlet-scoped-OR-admin-level-role rule as StepUp above — an admin/manager's card must
+	// work at any outlet in the tenant, not just the outlet(s) their StaffOutlet rows list.
 	member, err := h.client.StaffMember.Query().
 		Where(
 			entstaff.TenantID(tid),
 			entstaff.UserID(staffUserID),
 			entstaff.IsActive(true),
-			entstaff.HasOutletsWith(entstaffoutlet.OutletID(outletID)),
+			entstaff.Or(
+				entstaff.HasOutletsWith(entstaffoutlet.OutletID(outletID)),
+				entstaff.RoleIn(adminLevelStaffRoles...),
+			),
 		).
 		Only(r.Context())
 	if err != nil {
