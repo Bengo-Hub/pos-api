@@ -34,6 +34,23 @@ type EditSaleRequest struct {
 	CrmContactID       *uuid.UUID
 	CustomerIdentifier string
 	CustomerName       string
+	// IncreaseSettlement decides how a net INCREASE's incremental value is settled:
+	//   "" (default)  — mirrors the order's OWN current on-account status: a cash sale's
+	//                    top-up is collected as cash, a genuine credit sale's top-up is added
+	//                    to what the customer already owes. Never a hardcoded default (see
+	//                    applyInPlaceIncrease's own history — a cash sale's top-up used to
+	//                    silently become AR debt against the customer's account regardless of
+	//                    how the original sale was actually paid).
+	//   "credit"      — explicitly bill the increment to the customer's account regardless of
+	//                    the original tender (requires an identifiable customer).
+	//   any other value (a tender type, e.g. "cash"/"mpesa_manual"/"card_manual") — collect the
+	//    increment immediately against that tender instead of extending credit. This is the
+	//    "collect the extra amount immediately" alternative the edit-sale error has always
+	//    offered but never implemented.
+	IncreaseSettlement string
+	// ExternalReference is the collected tender's reference (M-Pesa code, cheque no.) when
+	// IncreaseSettlement names a manual tender type — optional.
+	ExternalReference string
 }
 
 // EditSaleResult is what Edit returns to the caller.

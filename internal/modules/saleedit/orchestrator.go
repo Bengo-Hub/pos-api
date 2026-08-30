@@ -160,7 +160,7 @@ func (s *Service) Edit(ctx context.Context, tenantID uuid.UUID, req EditSaleRequ
 				result.LinkedAddendumOrderID = &addendumOrderID
 			}
 		} else {
-			if ierr := s.applyInPlaceIncrease(ctx, tenantID, order, editID, diff, req); ierr != nil {
+			if ierr := s.applyInPlaceIncrease(ctx, tenantID, order, editID, diff, req, pol.onAccount); ierr != nil {
 				stepErr = fmt.Errorf("increase (in-place): %w", ierr)
 			}
 		}

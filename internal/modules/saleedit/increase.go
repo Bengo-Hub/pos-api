@@ -9,6 +9,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/pospayment"
+	enttender "github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
@@ -19,12 +21,16 @@ import (
 // SAME order — no new order, no new receipt. Mints a fresh reference id (editID, already
 // created by the caller as the POSSaleEdit row's own id) for the inventory/GL/AR calls, so
 // they never collide with the original sale's own idempotency-guarded postings (which are
-// keyed on the ORDER id, permanently). The incremental value always posts as a receivable
-// (Dr AR / Cr Revenue) regardless of the original sale's tender — until the till actually
-// collects it (via the existing Record-Payment/settle-credit flow, unchanged), it IS a
-// receivable; posting a "cash received" entry here would be false (no cash has changed
-// hands yet). This mirrors exactly what a fresh unpaid/on-account sale would post.
-func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, editID uuid.UUID, diff lineDiff, req EditSaleRequest) error {
+// keyed on the ORDER id, permanently).
+//
+// How the incremental value settles is resolved by resolveIncreaseSettlement — NEVER a
+// hardcoded "always credit" default (the historical bug: a cash sale's top-up silently became
+// AR debt against the customer's account regardless of how the original sale was actually
+// paid — confirmed live, boi-enterprises order 001514, MR KIM KIMTEC MALABA, a 100%-cash sale
+// whose Edit-Sale increase posted a real treasury credit_sale line). onAccount is the ORIGINAL
+// order's on-account status BEFORE this edit (resolved once by the orchestrator via
+// orders.SettledOnAccount, passed in rather than re-queried here).
+func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, editID uuid.UUID, diff lineDiff, req EditSaleRequest, onAccount bool) error {
 	// Dry-run the amount check before any write: if there's nothing of value to add, bail out
 	// exactly like the real check below, before even resolving the customer.
 	var dryRunAmount float64
@@ -38,15 +44,6 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 		return nil
 	}
 
-	// The incremental amount posts as AR (see the treasury call below) — refuse to create an
-	// uncollectable, un-reconcilable debt against the shared "Walk-in Customer" ghost identity
-	// (marketflow's own seeded per-tenant contact, phone "+000000000000" — NOT a legitimate AR
-	// key; see orders.RequireIdentifiableCustomer's doc). Found live 2026-08-05: two true
-	// walk-in orders (no name, no phone) got marked on_account via this path with a GL entry
-	// treasury's PostSaleEditGL could never attribute to any customer balance — the debt was
-	// posted but permanently un-collectable/un-reconcilable via Record Payment or the treasury
-	// Customers page. Checked BEFORE any line/stock/GL mutation so a rejected increase never
-	// partially applies.
 	crmContactID, customerName, customerIdentifier := orders.ResolveOrderCustomer(ctx, s.client, tenantID, order.ID)
 	if req.CustomerName != "" {
 		customerName = req.CustomerName
@@ -57,7 +54,21 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 	if req.CrmContactID != nil {
 		crmContactID = req.CrmContactID.String()
 	}
-	if crmContactID == "" {
+
+	settlement, err := s.resolveIncreaseSettlement(ctx, tenantID, req, onAccount)
+	if err != nil {
+		return err
+	}
+
+	if settlement.scheme == "credit" && crmContactID == "" {
+		// Only a CREDIT settlement posts AR — refuse to create an uncollectable,
+		// un-reconcilable debt against the shared "Walk-in Customer" ghost identity
+		// (marketflow's own seeded per-tenant contact, phone "+000000000000" — NOT a legitimate
+		// AR key; see orders.RequireIdentifiableCustomer's doc). Found live 2026-08-05: two true
+		// walk-in orders (no name, no phone) got marked on_account via this path with a GL entry
+		// treasury's PostSaleEditGL could never attribute to any customer balance. Checked
+		// BEFORE any line/stock/GL mutation so a rejected increase never partially applies. A
+		// "collect now" settlement never reaches this branch — it needs no customer at all.
 		isStaffCredit := false
 		var staffID uuid.UUID
 		if sid, _ := order.Metadata["staff_member_id"].(string); sid != "" {
@@ -72,6 +83,22 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 
 	var incrementalAmount, incrementalTax, incrementalCost float64
 	consumptionItems := make([]inventory.ConsumptionItem, 0, len(diff.added)+len(diff.increased))
+
+	// Per-unit cost by SKU (catalog cache, no network call) — COGS was previously never posted
+	// for an in-place increase at all (incrementalCost declared, never assigned) even though
+	// inventory WAS consumed, silently understating cost of goods sold on every such edit.
+	costSKUs := make([]string, 0, len(diff.added)+len(diff.increased))
+	for _, a := range diff.added {
+		if a.SKU != "" {
+			costSKUs = append(costSKUs, a.SKU)
+		}
+	}
+	for _, inc := range diff.increased {
+		if inc.Line.Sku != "" {
+			costSKUs = append(costSKUs, inc.Line.Sku)
+		}
+	}
+	costBySKU := orders.CatalogCostBySKU(ctx, s.client, tenantID, costSKUs)
 
 	// Resolve brand-new lines' tax the SAME way CreateOrder/AddOrderLines do (catalog tax code →
 	// till-provided rate → the outlet's flat fallback VAT) instead of the narrower, client-rate-
@@ -152,6 +179,7 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 		}
 		if a.SKU != "" {
 			consumptionItems = append(consumptionItems, inventory.ConsumptionItem{SKU: a.SKU, Quantity: a.Quantity})
+			incrementalCost += round2(costBySKU[a.SKU] * a.Quantity)
 		}
 	}
 
@@ -175,6 +203,7 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 		incrementalAmount += deltaTotal
 		if inc.Line.Sku != "" {
 			consumptionItems = append(consumptionItems, inventory.ConsumptionItem{SKU: inc.Line.Sku, Quantity: inc.ByQty})
+			incrementalCost += round2(costBySKU[inc.Line.Sku] * inc.ByQty)
 		}
 	}
 
@@ -186,31 +215,60 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 		return fmt.Errorf("recompute totals: %w", err)
 	}
 
-	// The incremental amount posts as a receivable, not collected cash (see the treasury call
-	// below) — stamp on_account so orders.DerivePaymentStatus/ComputeSettlement, the sole source
-	// of truth for "how much is still owed," stop reading this order as fully paid now that its
-	// total exceeds what was actually collected at checkout. Found live during E2E verification
-	// 2026-08-05: a cash sale bumped from 500->1500 via this path kept showing payment_status
-	// "paid" with amount_due 1400, because "status==completed" was previously read as an
-	// unconditional proxy for "fully paid," an invariant this increase path breaks by design.
-	if !orders.IsOnAccount(order.Metadata) {
-		md := make(map[string]any, len(order.Metadata)+1)
-		for k, v := range order.Metadata {
-			md[k] = v
+	glScheme := "credit"
+	glCredit := incrementalAmount
+	if settlement.scheme == "collectNow" {
+		// Collected immediately — record it as a REAL payment (mirrors payments.
+		// SettleCreditPayment's own creation shape) so paid_total/amount_due correctly show
+		// this portion as settled, and post GL as a plain payment (Dr Cash-equivalent / Cr
+		// Revenue) — NOT a receivable, and NOT stamped on_account. This is the "collect the
+		// extra amount immediately" alternative the edit-sale error has always offered but
+		// never actually implemented.
+		if _, err := s.client.POSPayment.Create().
+			SetOrderID(order.ID).
+			SetTenderID(settlement.tenderID).
+			SetAmount(incrementalAmount).
+			SetCurrency(order.Currency).
+			SetStatus("completed").
+			SetOccurredAt(time.Now()).
+			SetPaymentData(map[string]any{"method": settlement.method, "sale_edit_increase": true}).
+			SetNillableExternalReference(nilIfEmpty(req.ExternalReference)).
+			Save(ctx); err != nil {
+			return fmt.Errorf("record collected amount: %w", err)
 		}
-		md["on_account"] = true
-		if _, err := order.Update().SetMetadata(md).Save(ctx); err != nil {
-			return fmt.Errorf("stamp on_account metadata: %w", err)
+		if err := s.recomputePaidTotal(ctx, order.ID); err != nil {
+			return fmt.Errorf("recompute paid total: %w", err)
+		}
+		glScheme = settlement.method
+		glCredit = 0
+	} else {
+		// Genuine credit — the incremental amount posts as a receivable, not collected cash.
+		// Stamp on_account so orders.DerivePaymentStatus/ComputeSettlement, the sole source of
+		// truth for "how much is still owed," stop reading this order as fully paid now that its
+		// total exceeds what was actually collected at checkout. Found live during E2E
+		// verification 2026-08-05: a cash sale bumped from 500->1500 via this path kept showing
+		// payment_status "paid" with amount_due 1400, because "status==completed" was previously
+		// read as an unconditional proxy for "fully paid," an invariant a genuine-credit increase
+		// breaks by design.
+		if !orders.IsOnAccount(order.Metadata) {
+			md := make(map[string]any, len(order.Metadata)+1)
+			for k, v := range order.Metadata {
+				md[k] = v
+			}
+			md["on_account"] = true
+			if _, err := order.Update().SetMetadata(md).Save(ctx); err != nil {
+				return fmt.Errorf("stamp on_account metadata: %w", err)
+			}
 		}
 	}
 
 	// Both calls below are already best-effort by their own error handling (logged-and-continue,
-	// documented as "non-fatal; can be reconciled") — the order's own totals/on_account metadata
-	// are already committed above, so the Edit-Sale save response the cashier sees doesn't depend
-	// on either succeeding. Dispatched OFF the request path (same detached-context/panic-recovery
-	// idiom as payments.dispatchPostFinalize) so a slow/unreachable inventory-api or treasury-api
-	// never delays the save — mirrors the 2026-08-07 latency fix already applied to the equally
-	// best-effort ApplyCustomerCreditToDebt call on the main payment-confirm path.
+	// documented as "non-fatal; can be reconciled") — the order's own totals/on_account/payment
+	// state are already committed above, so the Edit-Sale save response the cashier sees doesn't
+	// depend on either succeeding. Dispatched OFF the request path (same detached-context/panic-
+	// recovery idiom as payments.dispatchPostFinalize) so a slow/unreachable inventory-api or
+	// treasury-api never delays the save — mirrors the 2026-08-07 latency fix already applied to
+	// the equally best-effort ApplyCustomerCreditToDebt call on the main payment-confirm path.
 	if s.inventoryClient != nil && len(consumptionItems) > 0 {
 		s.dispatchEditIncreaseConsumption(tenantID, order.ID, editID, consumptionItems)
 	}
@@ -218,17 +276,83 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 	if s.treasuryClient != nil {
 		// crmContactID/customerName/customerIdentifier already resolved (with the same request
 		// overrides applied) by the identifiable-customer guard above — reuse instead of
-		// re-querying.
+		// re-querying. Empty for a "collect now" settlement is fine — PostSaleEditGL only needs
+		// a customer key for the credit portion, which is 0 here.
 		s.dispatchEditIncreaseGL(order.ID, editID, treasury.SaleEditGLRequest{
 			ReferenceID: editID.String(), OrderID: order.ID.String(), OrderNumber: order.OrderNumber,
-			OutletID: order.OutletID.String(), SellingScheme: "credit",
-			Amount: incrementalAmount, TaxAmount: incrementalTax, CreditAmount: incrementalAmount, CostAmount: incrementalCost,
+			OutletID: order.OutletID.String(), SellingScheme: glScheme,
+			Amount: incrementalAmount, TaxAmount: incrementalTax, CreditAmount: glCredit, CostAmount: incrementalCost,
 			Currency: order.Currency, CrmContactID: crmContactID, CustomerIdentifier: customerIdentifier, CustomerName: customerName,
 			UserID: req.RequestedBy.String(), Description: "Edit Sale increase — " + order.OrderNumber,
 		}, req.TenantSlug)
 	}
 
 	return nil
+}
+
+// increaseSettlement is resolveIncreaseSettlement's resolved decision.
+type increaseSettlement struct {
+	scheme   string // "credit" | "collectNow"
+	method   string // tender type, only set when scheme == "collectNow"
+	tenderID uuid.UUID
+}
+
+// resolveIncreaseSettlement decides how an Edit-Sale increase's incremental value settles — see
+// EditSaleRequest.IncreaseSettlement's doc comment for the full rule. Never returns an error for
+// the silent-default (no explicit request field, order wasn't already on-account) case even if
+// no active "cash" tender is configured for the tenant — falls back to "credit" so the edit
+// still succeeds exactly as it always has, rather than failing on a config gap this fix didn't
+// create.
+func (s *Service) resolveIncreaseSettlement(ctx context.Context, tenantID uuid.UUID, req EditSaleRequest, onAccount bool) (increaseSettlement, error) {
+	if req.IncreaseSettlement == "credit" {
+		return increaseSettlement{scheme: "credit"}, nil
+	}
+	method := req.IncreaseSettlement
+	explicit := method != ""
+	if method == "" {
+		if onAccount {
+			return increaseSettlement{scheme: "credit"}, nil
+		}
+		method = "cash" // silent default when the original sale wasn't on-account
+	}
+	t, err := s.client.Tender.Query().
+		Where(enttender.TenantID(tenantID), enttender.TypeEQ(method), enttender.IsActive(true)).
+		First(ctx)
+	if err != nil {
+		if explicit {
+			return increaseSettlement{}, fmt.Errorf("no active %q tender configured for this tenant", method)
+		}
+		return increaseSettlement{scheme: "credit"}, nil // graceful fallback for the silent default
+	}
+	return increaseSettlement{scheme: "collectNow", method: method, tenderID: t.ID}, nil
+}
+
+// recomputePaidTotal is payments.Service.RecomputePaidTotal's logic, inlined here rather than
+// wiring a cross-package dependency for one small query+update (saleedit has no other reason to
+// depend on the payments package, and payments doesn't depend on saleedit either — keep it that
+// way). Sums completed, non-on_account payments and persists the total onto the order.
+func (s *Service) recomputePaidTotal(ctx context.Context, orderID uuid.UUID) error {
+	rows, err := s.client.POSPayment.Query().
+		Where(pospayment.OrderID(orderID), pospayment.Status("completed")).
+		All(ctx)
+	if err != nil {
+		return fmt.Errorf("sum completed payments: %w", err)
+	}
+	var collected float64
+	for _, p := range rows {
+		if method, _ := p.PaymentData["method"].(string); method != "on_account" {
+			collected += p.Amount
+		}
+	}
+	return s.client.POSOrder.UpdateOneID(orderID).SetPaidTotal(collected).Exec(ctx)
+}
+
+// nilIfEmpty is the ent SetNillableX-friendly form of an optional string field.
+func nilIfEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 // dispatchEditIncreaseConsumption records the incremental inventory consumption for an Edit-Sale

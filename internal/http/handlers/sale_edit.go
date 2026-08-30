@@ -41,6 +41,10 @@ type editSaleInput struct {
 	CrmContactID       *uuid.UUID          `json:"crm_contact_id,omitempty"`
 	CustomerIdentifier string              `json:"customer_identifier,omitempty"`
 	CustomerName       string              `json:"customer_name,omitempty"`
+	// IncreaseSettlement/ExternalReference — see saleedit.EditSaleRequest's doc comment. Omit to
+	// let the backend mirror the order's own current on-account status (the safe default).
+	IncreaseSettlement string `json:"increase_settlement,omitempty"`
+	ExternalReference  string `json:"external_reference,omitempty"`
 }
 
 // Edit handles POST /{tenantID}/pos/orders/{orderID}/edit — the single centralized entry
@@ -84,6 +88,7 @@ func (h *SaleEditHandler) Edit(w http.ResponseWriter, r *http.Request) {
 		OrderID: orderID, Reason: input.Reason, RequestedBy: requestedBy,
 		TenantSlug: chi.URLParam(r, "tenantID"), Lines: lines,
 		CrmContactID: input.CrmContactID, CustomerIdentifier: input.CustomerIdentifier, CustomerName: input.CustomerName,
+		IncreaseSettlement: input.IncreaseSettlement, ExternalReference: input.ExternalReference,
 	})
 	if err != nil {
 		status := http.StatusUnprocessableEntity

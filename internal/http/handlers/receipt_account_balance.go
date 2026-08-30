@@ -43,7 +43,11 @@ func (h *ReceiptHandler) ensureCustomerAccountBalance(ctx context.Context, tenan
 
 	terms, err := h.treasury.GetCreditTerms(ctx, tenantSlug, key)
 	if err != nil {
-		h.log.Debug("receipt: customer account-balance lookup failed", zap.Error(err))
+		// Was Debug — a failure here silently drops the "Balance Due"/"Amount Owing" line from
+		// the printed receipt with zero trace, indistinguishable from a genuinely-settled
+		// customer. Warn so a real outage/misconfig is diagnosable instead of invisible.
+		h.log.Warn("receipt: customer account-balance lookup failed",
+			zap.String("tenant", tenantSlug), zap.String("order_number", order.OrderNumber), zap.Error(err))
 		return
 	}
 	if terms == nil {
