@@ -233,6 +233,30 @@ func (s *Service) netPayments(ctx context.Context, client *ent.Client, rev *ent.
 		return fmt.Errorf("load payments: %w", err)
 	}
 
+	// A reduction on a PARTIALLY-PAID credit sale must shrink outstanding AR before touching a
+	// real cash/mpesa/card row — never the reverse. Sorting newest-payment-first (as this query
+	// already does) with no AR/cash distinction let a LATER real payment (e.g. a credit
+	// settlement collected after the sale, always newer than the sale-time on_account marker)
+	// get cut before the on_account row — cashNettedForReversal then saw a real row that
+	// shrank, misclassified the whole reduction as "cash refunded", and stepTreasuryGL posted a
+	// phantom cash refund for money never physically returned while the customer's actual AR
+	// debt in treasury stayed untouched. Confirmed live: a partially-paid on-account BOI
+	// Enterprises order whose reduction should have shrunk balance_due instead posted a cash
+	// refund and left the debt exactly where it was. Re-ordering (on_account rows first, real
+	// payment rows only for any remainder) fixes this at the source — cashNettedForReversal and
+	// stepTreasuryGL need no changes; they already do the right thing once fed the right split.
+	onAccountRows := make([]*ent.POSPayment, 0, len(pays))
+	realRows := make([]*ent.POSPayment, 0, len(pays))
+	for _, p := range pays {
+		method, _ := p.PaymentData["method"].(string)
+		if strings.EqualFold(method, payments.TenderOnAccount) {
+			onAccountRows = append(onAccountRows, p)
+		} else {
+			realRows = append(realRows, p)
+		}
+	}
+	pays = append(onAccountRows, realRows...)
+
 	remaining := rev.Amount
 	var newPaidTotal float64
 	for _, p := range pays {

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -371,5 +372,94 @@ func TestStepTreasuryGL_FullyARBacked(t *testing.T) {
 	defer rec.mu.Unlock()
 	if len(rec.calls) != 1 || rec.calls[0].RefundChannel != "offset_invoice" || rec.calls[0].Amount != 500 {
 		t.Fatalf("expected 1 offset_invoice call for 500, got %+v", rec.calls)
+	}
+}
+
+// TestNetPayments_PartiallyPaidCreditSale_NetsARBeforeRealCash is the regression test for the
+// "primary bug" still live after the 2026-08-06 fix above: a credit sale that has since had a
+// REAL payment collected against it (a settle-credit/credit-settlement row, always newer than
+// the sale-time on_account marker) had its reduction cut from the newest row first — the real
+// cash row — because netPayments sorted purely by occurred_at with no AR/cash distinction. A
+// reduction on a partially-paid on-account sale must shrink the STILL-OWED (on_account) portion
+// first, leaving the real cash collected untouched, so the customer's actual AR debt moves and
+// no phantom cash refund gets posted for money never physically returned.
+func TestNetPayments_PartiallyPaidCreditSale_NetsARBeforeRealCash(t *testing.T) {
+	svc, client := newTestReversalsService(t, nil)
+	tenantID := uuid.New()
+	ctx := context.Background()
+
+	// 10,000 on-account sale; 4,000 collected later via a real credit-settlement payment
+	// (occurred_at newer than the on_account marker — the exact live shape).
+	order, err := client.POSOrder.Create().
+		SetTenantID(tenantID).SetOutletID(uuid.New()).SetDeviceID(uuid.New()).SetUserID(uuid.New()).
+		SetOrderNumber("ORD-" + uuid.NewString()[:8]).SetStatus("completed").
+		SetSubtotal(10000).SetTaxTotal(0).SetTotalAmount(10000).SetPaidTotal(4000).
+		SetMetadata(map[string]any{"on_account": true}).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("seed order: %v", err)
+	}
+	saleTime := time.Now().Add(-24 * time.Hour)
+	if _, err := client.POSPayment.Create().
+		SetOrderID(order.ID).SetTenderID(uuid.New()).SetAmount(10000).SetStatus("completed").
+		SetOccurredAt(saleTime).
+		SetPaymentData(map[string]any{"method": "on_account"}).
+		Save(ctx); err != nil {
+		t.Fatalf("seed on-account marker: %v", err)
+	}
+	if _, err := client.POSPayment.Create().
+		SetOrderID(order.ID).SetTenderID(uuid.New()).SetAmount(4000).SetStatus("completed").
+		SetOccurredAt(time.Now()). // collected AFTER the sale — newer than the marker above
+		SetPaymentData(map[string]any{"method": "cash", "credit_settlement": true}).
+		Save(ctx); err != nil {
+		t.Fatalf("seed real cash settlement: %v", err)
+	}
+
+	// Admin reduces a line worth 1,400 (less than the 6,000 still outstanding).
+	rev, err := client.POSReversal.Create().
+		SetTenantID(tenantID).SetOrderID(order.ID).SetOrderNumber(order.OrderNumber).
+		SetReversalNumber("REV-MIXED-1").SetScope("partial").SetStatus("pending").SetReason("edit sale reduce").
+		SetRefundChannel("offset_invoice").SetLines([]entschema.ReversalLineJSON{}).
+		SetAmount(1400).SetTaxAmount(0).SetCostAmount(0).
+		SetSteps([]entschema.ReversalStepJSON{}).SetRequestedBy(uuid.New()).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("seed reversal: %v", err)
+	}
+
+	if err := svc.netPayments(ctx, client, rev, order, order.Metadata); err != nil {
+		t.Fatalf("netPayments() error = %v", err)
+	}
+
+	// The real cash row must be UNTOUCHED — the customer really did pay 4,000 and that must
+	// stay collected/reported exactly as-is.
+	cashRow, err := client.POSPayment.Query().
+		Where(entpospayment.OrderID(order.ID), entpospayment.Amount(4000)).Only(ctx)
+	if err != nil {
+		t.Fatalf("reload cash row: %v", err)
+	}
+	if _, touched := cashRow.PaymentData["reversal"]; touched {
+		t.Errorf("the real 4,000 cash payment was netted — it must be untouched; the reduction should come off the still-owed AR portion instead")
+	}
+	updated, err := client.POSOrder.Get(ctx, order.ID)
+	if err != nil {
+		t.Fatalf("reload order: %v", err)
+	}
+	if updated.PaidTotal != 4000 {
+		t.Errorf("PaidTotal = %.2f, want unchanged 4000 (the real cash collected must not shrink from a reduction that should hit AR)", updated.PaidTotal)
+	}
+
+	// stepTreasuryGL must now see ZERO cash netted for this reversal (the on_account row, not
+	// the cash row, was the one that shrank) and post the whole 1,400 via offset_invoice.
+	rec, tc := newRecordingTreasuryServer(t)
+	svc.treasuryClient = tc
+	_, _, skip, err := svc.stepTreasuryGL(ctx, rev, "tenant-slug")
+	if err != nil || skip {
+		t.Fatalf("stepTreasuryGL() error=%v skip=%v", err, skip)
+	}
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	if len(rec.calls) != 1 || rec.calls[0].RefundChannel != "offset_invoice" || rec.calls[0].Amount != 1400 {
+		t.Fatalf("expected 1 offset_invoice call for 1400 (never cash — the real cash collected was untouched), got %+v", rec.calls)
 	}
 }
