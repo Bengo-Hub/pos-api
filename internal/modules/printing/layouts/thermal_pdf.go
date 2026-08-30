@@ -239,7 +239,7 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 	if rec.DiscountAmount > 0 {
 		line("Discount", "-"+moneyLine(rec.DiscountAmount), "", 9)
 	}
-	if rec.VatEnabled || rec.TaxAmount > 0 {
+	if rec.VatEnabled && rec.TaxAmount > 0 {
 		line(taxLabel(rec), moneyLine(rec.TaxAmount), "", 9)
 	}
 	for _, cr := range chargeRows(rec) {

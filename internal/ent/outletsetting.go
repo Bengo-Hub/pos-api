@@ -64,7 +64,7 @@ type OutletSetting struct {
 	AllowPriceAboveBase bool `json:"allow_price_above_base,omitempty"`
 	// Selling below the catalog/base price (markdown or price-lowering discount) requires a manager/admin price.override step-up (default on; off = free markdowns)
 	RequireApprovalBelowBase bool `json:"require_approval_below_base,omitempty"`
-	// Whether to apply VAT on orders
+	// Whether to apply VAT on orders — off by default; a tenant must explicitly opt in
 	VatEnabled bool `json:"vat_enabled,omitempty"`
 	// VAT percentage rate, e.g. 16.0 for 16%
 	VatRate float64 `json:"vat_rate,omitempty"`

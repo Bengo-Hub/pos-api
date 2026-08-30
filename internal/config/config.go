@@ -93,7 +93,7 @@ type AppConfig struct {
 	Region          string  `envconfig:"APP_REGION" default:"africa-east-1"`
 	Version         string  `envconfig:"APP_VERSION" default:"0.1.0"`
 	DefaultCurrency string  `envconfig:"DEFAULT_CURRENCY" default:"KES"`
-	TaxRatePercent  float64 `envconfig:"TAX_RATE_PERCENT" default:"16.0"`
+	TaxRatePercent  float64 `envconfig:"TAX_RATE_PERCENT" default:"0"`
 	OrderPrefix     string  `envconfig:"ORDER_PREFIX" default:"POS"`
 }
 

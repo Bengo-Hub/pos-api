@@ -202,11 +202,9 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 		buf.WriteString(fmt.Sprintf(`<div class="line"><span>TOTAL ITEMS</span><span>%d</span></div>`, len(rec.Lines)))
 	}
 	buf.WriteString(fmt.Sprintf(`<div class="line"><span>Subtotal</span><span>%s</span></div>`, amount(rec.Subtotal)))
-	tl := "Tax"
-	if rec.VatEnabled && rec.VatRate > 0 {
-		tl = taxLabel(rec)
+	if rec.VatEnabled && rec.TaxAmount > 0 {
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s</span><span>%s</span></div>`, taxLabel(rec), amount(rec.TaxAmount)))
 	}
-	buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s</span><span>%s</span></div>`, tl, amount(rec.TaxAmount)))
 	if rec.DiscountAmount > 0 {
 		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Discount</span><span>-%s</span></div>`, amount(rec.DiscountAmount)))
 	}

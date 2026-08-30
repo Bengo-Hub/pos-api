@@ -146,7 +146,7 @@ td.r,th.r{text-align:right}
 	if rec.DiscountAmount > 0 {
 		trow("Discount(-):", "-"+money(rec.Currency, rec.DiscountAmount), false)
 	}
-	if rec.VatEnabled || rec.TaxAmount > 0 {
+	if rec.VatEnabled && rec.TaxAmount > 0 {
 		tl := "Tax(+):"
 		if rec.VatRate > 0 {
 			tl = fmt.Sprintf("VAT %g%%(+):", rec.VatRate)

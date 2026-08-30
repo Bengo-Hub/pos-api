@@ -60,8 +60,8 @@ func (OutletSetting) Fields() []ent.Field {
 		// leakage that needs a manager. Both knobs are tenant-configurable per outlet.
 		field.Bool("allow_price_above_base").Default(true).Optional().Comment("Cashiers may RAISE a line's unit price above the catalog/base price without approval (default on; off = raising also needs a price.override step-up)"),
 		field.Bool("require_approval_below_base").Default(true).Optional().Comment("Selling below the catalog/base price (markdown or price-lowering discount) requires a manager/admin price.override step-up (default on; off = free markdowns)"),
-		field.Bool("vat_enabled").Default(true).Optional().Comment("Whether to apply VAT on orders"),
-		field.Float("vat_rate").Default(16.0).Optional().Comment("VAT percentage rate, e.g. 16.0 for 16%"),
+		field.Bool("vat_enabled").Default(false).Optional().Comment("Whether to apply VAT on orders — off by default; a tenant must explicitly opt in"),
+		field.Float("vat_rate").Default(0).Optional().Comment("VAT percentage rate, e.g. 16.0 for 16%"),
 		field.String("printer_type").Default("thermal").Optional().Comment("thermal | network | bluetooth | none"),
 		field.String("printer_ip").Optional().Nillable().Comment("Network printer IP address (only for printer_type=network)"),
 		field.String("paper_width").Default("80mm").Optional().Comment("Receipt paper width: 58mm | 80mm"),

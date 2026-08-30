@@ -121,6 +121,40 @@ func TestFiscalBarcodeValueFallback(t *testing.T) {
 	}
 }
 
+// A tenant with VAT display turned off must never show a tax/VAT line on any layout, even
+// when a line-level treasury tax code still charged real tax_amount (VatEnabled is the
+// tenant's explicit choice not to disclose tax on the receipt — it must win over TaxAmount
+// being positive). Previously 3 of 4 layouts used `VatEnabled || TaxAmount > 0`, so a
+// disabled tenant with any nonzero tax still leaked a tax line.
+func TestVatDisabledNeverShowsTaxLine(t *testing.T) {
+	rec := fixtureReceipt("retail")
+	rec.TaxAmount = 40
+	rec.VatRate = 16
+	rec.VatEnabled = false
+	for _, l := range All() {
+		rec.Layout = l.ID
+		html := string(RenderHTML(rec, ""))
+		if strings.Contains(html, "VAT") || strings.Contains(html, ">Tax<") {
+			t.Errorf("layout %s must not render a tax/VAT line when VatEnabled=false, got: %s", l.ID, html)
+		}
+	}
+}
+
+// A VAT-enabled tenant with a positive tax amount must show the VAT line with its rate.
+func TestVatEnabledShowsTaxLine(t *testing.T) {
+	rec := fixtureReceipt("retail")
+	rec.TaxAmount = 40
+	rec.VatRate = 16
+	rec.VatEnabled = true
+	for _, l := range All() {
+		rec.Layout = l.ID
+		html := string(RenderHTML(rec, ""))
+		if !strings.Contains(html, "VAT") {
+			t.Errorf("layout %s must render the VAT line when VatEnabled=true and tax_amount>0", l.ID)
+		}
+	}
+}
+
 // The print pipeline fix: every HTML layout must use a zero @page margin (this is what
 // suppresses the browser's own about:blank/date/URL header chrome) with inner padding.
 func TestHTMLLayoutsUseZeroPageMargin(t *testing.T) {
