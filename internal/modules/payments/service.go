@@ -1772,6 +1772,18 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 
 	if err := s.publisher.PublishSaleFinalized(ctx, order.TenantID, data); err != nil {
 		s.log.Warn("failed to publish pos.sale.finalized", zap.String("order_id", order.ID.String()), zap.Error(err))
+	} else {
+		// Durable "already enqueued a publish" stamp, checked by SaleFinalizedReconciler
+		// instead of re-deriving the answer from the outbox table — a successfully published
+		// outbox row is DELETED within seconds of delivery (shared-events' prune-on-publish),
+		// so querying the outbox table can never distinguish "already published and cleaned
+		// up" from "never attempted", and used to make the reconciler republish every
+		// completed order on every 5-minute tick for a full 24h (confirmed live: millions of
+		// duplicate pos.sale.finalized deliveries). This stamp records only that an outbox
+		// write was queued, not that NATS delivery ultimately succeeded — a genuine delivery
+		// failure still leaves a FAILED outbox row (those persist, unlike PUBLISHED ones),
+		// which the reconciler checks independently of this stamp.
+		s.stampSaleFinalizedPublished(ctx, order)
 	}
 
 	// Stock backflush for the sale is handled EXCLUSIVELY by inventory-api's
@@ -1780,6 +1792,30 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 	// deduct independently, so once the S2S client's request started succeeding (after the
 	// order_id JSON-tag fix) every sold item was consumed twice (two consumptions per order).
 	// backflushInventory is retained only for reference / non-sale direct backflush callers.
+}
+
+// stampSaleFinalizedPublished records, durably on the order itself, that a pos.sale.finalized
+// publish was successfully enqueued — see SaleFinalizedReconciler for why this can't be
+// re-derived from the outbox table. Reloads the order fresh first so this merges onto
+// whatever metadata another concurrent writer already set, instead of clobbering it (mirrors
+// runStoreCreditOffset's same reload-then-merge idiom). Best-effort: never blocks or fails
+// the sale — a lost stamp only costs a redundant republish later, not correctness.
+func (s *Service) stampSaleFinalizedPublished(ctx context.Context, order *ent.POSOrder) {
+	fresh, err := s.client.POSOrder.Get(ctx, order.ID)
+	if err != nil {
+		s.log.Warn("sale.finalized: failed to reload order for publish stamp",
+			zap.String("order_id", order.ID.String()), zap.Error(err))
+		return
+	}
+	meta := fresh.Metadata
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	meta[saleFinalizedPublishedAtKey] = time.Now().UTC().Format(time.RFC3339)
+	if err := s.client.POSOrder.UpdateOneID(order.ID).SetMetadata(meta).Exec(ctx); err != nil {
+		s.log.Warn("sale.finalized: failed to stamp publish marker",
+			zap.String("order_id", order.ID.String()), zap.Error(err))
+	}
 }
 
 // resolveLineCosts returns SKU -> per-unit cost and SKU -> stock-unit (uom) maps for the

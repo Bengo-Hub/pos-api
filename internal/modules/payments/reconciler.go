@@ -12,11 +12,23 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/orders"
 )
 
-// SaleFinalizedReconciler periodically finds completed orders with no successfully-published
-// pos.sale.finalized outbox row and republishes them — closing the crash window between the
-// completion UPDATE and the outbox insert (widened to ~30s once fan-out went async, see
-// pos-sale-close-async-fanout.md) and picking up rows the outbox publisher already exhausted
-// its retries on (shared-events marks a row FAILED after MaxOutboxAttempts and never retries it).
+// saleFinalizedPublishedAtKey is the POSOrder.Metadata key stamped by
+// stampSaleFinalizedPublished the moment a pos.sale.finalized outbox write is successfully
+// enqueued. It is the reconciler's "already handled" signal — NOT a lookup against the
+// outbox_events table, because a successfully published row is DELETED within seconds
+// (shared-events' prune-on-publish, see the outbox-retry-retention-model), which used to make
+// every completed order look "never published" again and again, every 5-minute tick, for up
+// to 24h. A row that persists in outbox_events (status FAILED) is still checked separately
+// below — that class of row is NOT pruned, so it remains a reliable "this genuinely failed,
+// retry it" signal even for an order this stamp already marked as enqueued.
+const saleFinalizedPublishedAtKey = "sale_finalized_published_at"
+
+// SaleFinalizedReconciler periodically finds completed orders that never got a
+// pos.sale.finalized publish stamped, or whose stamped attempt is known to have failed at the
+// gateway, and republishes them — closing the crash window between the completion UPDATE and
+// the outbox insert (widened to ~30s once fan-out went async, see pos-sale-close-async-fanout.md)
+// and picking up rows the outbox publisher already exhausted its retries on (shared-events
+// marks a row FAILED after MaxOutboxAttempts and never retries it).
 type SaleFinalizedReconciler struct {
 	svc *Service
 	log *zap.Logger
@@ -73,41 +85,43 @@ func (r *SaleFinalizedReconciler) runOnce(ctx context.Context) error {
 		return nil
 	}
 
-	events, err := r.svc.client.OutboxEvent.Query().
+	// FAILED outbox rows are the one status that survives shared-events' prune-on-publish
+	// (only a terminal FAILED row is kept, for troubleshooting, until the nightly 7-day
+	// retention sweep) — so this query reliably finds genuine, still-unresolved failures.
+	// It does NOT need to (and cannot) tell us about a row that already succeeded; that's
+	// what the per-order metadata stamp below is for.
+	failedEvents, err := r.svc.client.OutboxEvent.Query().
 		Where(
 			outboxevent.EventType("sale.finalized"),
 			outboxevent.CreatedAtGTE(windowStart),
+			outboxevent.Status("FAILED"),
 		).
 		All(ctx)
 	if err != nil {
 		return err
 	}
-
-	// order_id -> latest known outbox status. PUBLISHED wins if both a FAILED and a
-	// PUBLISHED row exist for the same order (a prior reconciler run already fixed it).
-	statusByOrder := make(map[string]string, len(events))
-	for _, e := range events {
+	failedOrderIDs := make(map[string]bool, len(failedEvents))
+	for _, e := range failedEvents {
 		var p outboxPayload
 		if err := json.Unmarshal(e.Payload, &p); err != nil || p.OrderID == "" {
 			continue
 		}
-		if existing, ok := statusByOrder[p.OrderID]; ok && existing == "PUBLISHED" {
-			continue
-		}
-		statusByOrder[p.OrderID] = e.Status
+		failedOrderIDs[p.OrderID] = true
 	}
 
 	for _, order := range completedOrders {
-		status, found := statusByOrder[order.ID.String()]
-		if found && status != "FAILED" {
-			continue // PENDING (outbox publisher will get to it) or PUBLISHED (already fine)
-		}
-		reason := "missing"
-		if found {
+		orderIDStr := order.ID.String()
+		reason := ""
+		switch {
+		case failedOrderIDs[orderIDStr]:
 			reason = "failed_exhausted"
+		case order.Metadata[saleFinalizedPublishedAtKey] == nil:
+			reason = "missing" // never even attempted (the request-time crash window)
+		default:
+			continue // already enqueued a publish and it isn't known to have failed — done
 		}
-		r.log.Info("republishing sale.finalized for completed order with no live outbox row",
-			zap.String("order_id", order.ID.String()),
+		r.log.Info("republishing sale.finalized for completed order",
+			zap.String("order_id", orderIDStr),
 			zap.String("reason", reason),
 		)
 		r.svc.publishSaleFinalized(ctx, order)
