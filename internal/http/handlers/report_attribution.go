@@ -44,6 +44,37 @@ type AttributedLine struct {
 	// net VAT out of Revenue before computing profit (see those functions' doc comments for why
 	// Revenue itself, which every non-profit report already relies on, is left VAT-inclusive).
 	Tax float64
+	// UnitCostAtSale is the per-unit cost captured at the moment this line was actually sold
+	// (payments.Service.publishSaleFinalized snapshots it into
+	// pos_order_lines.metadata["unit_cost_at_sale"], reusing the SAME POSCatalogOverride cache
+	// lookup already used to post COGS to treasury for this exact sale — no new cost pipeline).
+	// nil for lines sold before this field existed, or whose cost was unknown at sale time;
+	// LineProfit/SumLineProfits fall back to the live cache for those, unchanged.
+	//
+	// Without this, changing an item's cost_price after the fact (correcting a bulk-import pricing
+	// error, or converting a unit basis like ml->bottle) silently rewrites EVERY past period's
+	// profit report, since resolveUnitCostsBySKU always reads today's cost against historical
+	// revenue. Confirmed live against small-steps-cosmetics 2026-09-01: 3 SKUs migrated from
+	// ml-tracked (cost 9) to bottle-tracked (cost 450) fabricated a ~7,980 KES phantom loss on
+	// pre-migration ml sales once the live cache caught up to the new cost.
+	UnitCostAtSale *float64
+}
+
+// lineUnitCostSnapshot reads the point-in-time cost persisted at sale time (see UnitCostAtSale
+// above). Numbers decode as float64 after a JSON round-trip, but an int is accepted too in case a
+// caller ever writes one directly.
+func lineUnitCostSnapshot(l *ent.POSOrderLine) *float64 {
+	if l.Metadata == nil {
+		return nil
+	}
+	switch v := l.Metadata["unit_cost_at_sale"].(type) {
+	case float64:
+		return &v
+	case int:
+		f := float64(v)
+		return &f
+	}
+	return nil
 }
 
 // AttributeOrderLines prorates one order's net total_amount across its active lines. Orders with
@@ -75,14 +106,15 @@ func AttributeOrderLines(o *ent.POSOrder) []AttributedLine {
 			tax = fraction * o.TaxTotal
 		}
 		out[i] = AttributedLine{
-			OrderID:      o.ID,
-			SKU:          l.Sku,
-			Name:         l.Name,
-			Category:     l.Category,
-			KdsStationID: l.KdsStationID,
-			Quantity:     activeQty[i],
-			Revenue:      revenue,
-			Tax:          tax,
+			OrderID:        o.ID,
+			SKU:            l.Sku,
+			Name:           l.Name,
+			Category:       l.Category,
+			KdsStationID:   l.KdsStationID,
+			Quantity:       activeQty[i],
+			Revenue:        revenue,
+			Tax:            tax,
+			UnitCostAtSale: lineUnitCostSnapshot(l),
 		}
 	}
 	return out
@@ -104,7 +136,15 @@ func AttributeOrderLines(o *ent.POSOrder) []AttributedLine {
 // bug in itself; see TestGetSummary_GrossProfitZeroCost_WhenNoCatalogCacheRow). Callers that want
 // COVERAGE visibility (whether that 0 means "genuinely free" or "cost data missing") should also
 // check costBySKU's own ", ok" map lookup — see SumLineProfits.
+//
+// al.UnitCostAtSale, when present, OVERRIDES the passed-in unitCost — a line's own point-in-time
+// cost snapshot always wins over a fresh live-cache lookup, since the latter reflects whatever the
+// item's cost happens to be TODAY, not what it was when this line was actually sold (see
+// UnitCostAtSale's doc comment for the concrete phantom-loss bug this fixes).
 func LineProfit(al AttributedLine, unitCost float64) (netRevenue, cost, profit float64) {
+	if al.UnitCostAtSale != nil {
+		unitCost = *al.UnitCostAtSale
+	}
 	netRevenue = al.Revenue - al.Tax
 	cost = unitCost * al.Quantity
 	return netRevenue, cost, netRevenue - cost
@@ -132,6 +172,9 @@ func SumLineProfits(lines []AttributedLine, costBySKU map[string]float64) Profit
 	missing := map[string]struct{}{}
 	for _, al := range lines {
 		unitCost, ok := costBySKU[al.SKU]
+		if al.UnitCostAtSale != nil {
+			unitCost, ok = *al.UnitCostAtSale, true
+		}
 		if !ok || unitCost == 0 {
 			missing[al.SKU] = struct{}{}
 		}

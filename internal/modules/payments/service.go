@@ -1610,6 +1610,25 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		costAmount := costBySKU[l.Sku] // per-unit cost; 0 when not available
 		lineCost := costAmount * effQty
 		costTotal += lineCost
+		// Snapshot the per-unit cost onto the line itself, at the exact moment it's resolved for
+		// this sale's COGS event — the SAME value treasury is about to book, not a fresh lookup.
+		// Every profit report (see report_attribution.go's UnitCostAtSale) reads this back instead
+		// of re-deriving cost live from today's catalog cache, so a later cost_price correction
+		// (a pricing fix, or a unit-basis change like ml->bottle) can never retroactively rewrite
+		// what this sale's margin was on the day it happened. Best-effort: never fail the sale over
+		// a metadata write, and skip when cost is genuinely unknown (0) so a future backfill/sync
+		// fix can still fill it in from the live cache rather than freezing a bad "0".
+		if costAmount > 0 {
+			md := make(map[string]any, len(l.Metadata)+1)
+			for k, v := range l.Metadata {
+				md[k] = v
+			}
+			md["unit_cost_at_sale"] = costAmount
+			if _, uerr := l.Update().SetMetadata(md).Save(ctx); uerr != nil {
+				s.log.Warn("sale.finalized: failed to snapshot line unit cost (reports will fall back to live cache)",
+					zap.String("order_id", order.ID.String()), zap.String("sku", l.Sku), zap.Error(uerr))
+			}
+		}
 		item := map[string]any{
 			"sku":         l.Sku,
 			"name":        l.Name,
@@ -1754,7 +1773,7 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		"complimentary_amount": complimentaryAmount,
 		"complimentary_reason": complimentaryReason,
 		"tenders":              tenderBreakdown,
-		"customer_phone": customerPhone,
+		"customer_phone":       customerPhone,
 		// customer_name is a display-only snapshot — treasury uses it (alongside customer_phone)
 		// to log the sale on the customer's AR ledger for statement/purchase-history visibility
 		// (arpa.RecordSettledSale), so a registered customer's cash/mpesa/card sales show up

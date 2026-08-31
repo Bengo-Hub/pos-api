@@ -48,6 +48,64 @@ func seedCompletedSaleWithCustomer(t *testing.T, client *ent.Client, tid, outlet
 	}
 }
 
+// TestMostProfitableItems_MixedSnapshotAndLiveCost_PerLineAccumulation guards the bucket-level
+// refactor needed alongside report_attribution.go's UnitCostAtSale: the SAME SKU sold twice under
+// two different cost regimes (once at the old cost, snapshotted on that line; once after the cost
+// changed, no snapshot, resolved from the live cache) must have EACH line contribute its own
+// correctly-resolved cost. The pre-fix code derived a single bucket-level unit cost (the live
+// cache value) and multiplied it by the SKU's total units — which would have applied the NEW cost
+// to the OLD-cost sale too, fabricating a large loss instead of the two lines' real combined
+// profit.
+func TestMostProfitableItems_MixedSnapshotAndLiveCost_PerLineAccumulation(t *testing.T) {
+	h, client := newReportsTestHandler(t)
+	tid := uuid.New()
+	outletID := uuid.New()
+
+	oldCost := 9.0
+	// Line 1: 12 units @ 30 under the old cost regime (9/unit), snapshotted at sale time.
+	seedCompletedSaleWithLineCostSnapshot(t, client, tid, outletID, "SKU-MIX", "Perfume Oil", 12, 30, &oldCost)
+	// Line 2: 1 unit @ 1500 sold AFTER the cost/price changed — no snapshot, falls back to the
+	// live cache (450/unit, the new cost).
+	seedCompletedSaleWithLineCostSnapshot(t, client, tid, outletID, "SKU-MIX", "Perfume Oil", 1, 1500, nil)
+	if _, err := client.POSCatalogOverride.Create().
+		SetTenantID(tid).SetInventorySku("SKU-MIX").
+		SetMetadata(map[string]any{"cost_price": 450.0}).Save(context.Background()); err != nil {
+		t.Fatalf("seed cost cache: %v", err)
+	}
+
+	req := reportsRequest(t, tid, &outletID, "from=2020-01-01&to=2030-01-01")
+	rec := httptest.NewRecorder()
+	h.MostProfitableItems(rec, req)
+
+	if rec.Code != 200 {
+		t.Fatalf("MostProfitableItems: status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Items []struct {
+			SKU       string  `json:"sku"`
+			Revenue   float64 `json:"revenue"`
+			Profit    float64 `json:"profit"`
+			UnitCost  float64 `json:"unit_cost"`
+			MarginPct float64 `json:"margin_pct"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if len(body.Items) != 1 {
+		t.Fatalf("items = %d, want 1 (one SKU bucket), body = %s", len(body.Items), rec.Body.String())
+	}
+	item := body.Items[0]
+	// Correct (per-line): (360-108) + (1500-450) = 252 + 1050 = 1302.
+	// The pre-fix bug would have applied the live cost (450) to ALL 13 units: 1860 - 5850 = -3990.
+	if item.Profit != 1302 {
+		t.Errorf("profit = %v, want 1302 (line 1: 12x(30-9)=252, line 2: 1500-450=1050)", item.Profit)
+	}
+	if item.Revenue != 1860 {
+		t.Errorf("revenue = %v, want 1860", item.Revenue)
+	}
+}
+
 // TestMostProfitableItems_GroupByOutlet_AggregatesOrderLevel guards the ORDER-level grouping path
 // (outlet/staff/day/customer) added alongside the pre-existing per-SKU manufacturer/category/brand
 // rollup — a genuinely different code path (aggregates off `orders` directly, not the per-sku

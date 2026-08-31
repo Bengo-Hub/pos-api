@@ -1194,10 +1194,17 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 	}
 
 	type itemAgg struct {
-		sku, name                                   string
-		units, revenue, unitCost, profit, marginPct float64
-		tax                                         float64
+		sku, name                                              string
+		units, revenue, unitCost, profit, marginPct, cost, tax float64
 	}
+	// Batched (not N+1), resolved from the local POSCatalogOverride cache — see
+	// resolveUnitCostsBySKU for the GOODS-cost_price vs RECIPE-cost_per_portion split. Mirrors
+	// ReportsHandler.MostProfitableItems exactly. Resolved BEFORE building buckets: each line's
+	// cost is accumulated as it's attributed (preferring that line's own point-in-time
+	// UnitCostAtSale snapshot over this live map — see report_attribution.go), not derived after
+	// the fact from a single bucket-level unitCost*units, which is wrong the moment a SKU's cost
+	// changed partway through the window.
+	costBySKU := resolveUnitCostsBySKU(ctx, h.db, tid, collectOrderSKUs(orders))
 	buckets := make(map[string]*itemAgg)
 	currency := "KES"
 	for _, o := range orders {
@@ -1220,18 +1227,18 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 			b.units += al.Quantity
 			b.revenue += al.Revenue
 			b.tax += al.Tax
+			// netRevenue excludes VAT — same centralized basis as GetSummary/SalesSummary (see
+			// LineProfit) — so this ranking's Profit/Margin never disagrees with the dashboard.
+			_, cost, profit := LineProfit(al, costBySKU[al.SKU])
+			b.cost += cost
+			b.profit += profit
 		}
 	}
-	// Batched (not N+1), resolved from the local POSCatalogOverride cache — see
-	// resolveUnitCostsBySKU for the GOODS-cost_price vs RECIPE-cost_per_portion split. Mirrors
-	// ReportsHandler.MostProfitableItems exactly.
-	costBySKU := resolveUnitCostsBySKU(ctx, h.db, tid, collectOrderSKUs(orders))
-	for sku, b := range buckets {
-		b.unitCost = costBySKU[sku]
-		// netRevenue excludes VAT — same centralized basis as GetSummary/SalesSummary (see
-		// LineProfit) — so this ranking's Profit/Margin never disagrees with the dashboard.
+	for _, b := range buckets {
+		if b.units != 0 {
+			b.unitCost = b.cost / b.units
+		}
 		netRevenue := b.revenue - b.tax
-		b.profit = netRevenue - b.unitCost*b.units
 		if netRevenue != 0 {
 			b.marginPct = b.profit / netRevenue * 100
 		}
@@ -1241,7 +1248,7 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 	for _, b := range buckets {
 		list = append(list, b)
 		totRevenue += b.revenue
-		totCost += b.unitCost * b.units
+		totCost += b.cost
 		totProfit += b.profit
 		totNetRevenue += b.revenue - b.tax
 	}
@@ -1265,7 +1272,7 @@ func (h *ReportPDFHandler) MostProfitablePDF(w http.ResponseWriter, r *http.Requ
 			docs.Text(name),
 			docs.Text(fmtQty(b.units)),
 			docs.Text(fmtAmount(b.revenue)),
-			docs.Text(fmtAmount(b.unitCost * b.units)),
+			docs.Text(fmtAmount(b.cost)),
 			docs.Text(fmtAmount(b.profit)),
 			docs.Text(fmtQty(b.marginPct) + "%"),
 		})
@@ -1342,6 +1349,11 @@ func (h *ReportPDFHandler) ProfitabilityGroupedDocument(w http.ResponseWriter, r
 
 	// Same per-sku attribution MostProfitableItems/MostProfitablePDF use — needed here too since
 	// the manufacturer/category/brand dimensions roll UP from per-sku numbers, not per-order ones.
+	// Cost is resolved BEFORE building buckets so each line can be accumulated with its own
+	// resolved cost (preferring that line's point-in-time UnitCostAtSale snapshot — see
+	// report_attribution.go), not derived after the fact from a single bucket-level unit cost.
+	skus := collectOrderSKUs(orders)
+	costBySKU := resolveUnitCostsBySKU(ctx, h.db, tid, skus)
 	buckets := make(map[string]*itemAgg)
 	currency := "KES"
 	for _, o := range orders {
@@ -1358,17 +1370,15 @@ func (h *ReportPDFHandler) ProfitabilityGroupedDocument(w http.ResponseWriter, r
 			b.UnitsSold += al.Quantity
 			b.Revenue += al.Revenue
 			b.tax += al.Tax
+			_, cost, profit := LineProfit(al, costBySKU[al.SKU])
+			b.cost += cost
+			b.Profit += profit
 		}
 	}
-	skus := make([]string, 0, len(buckets))
-	for sku := range buckets {
-		skus = append(skus, sku)
-	}
-	costBySKU := resolveUnitCostsBySKU(ctx, h.db, tid, skus)
-	for sku, b := range buckets {
-		b.UnitCost = costBySKU[sku]
-		netRevenue := b.Revenue - b.tax
-		b.Profit = netRevenue - b.UnitCost*b.UnitsSold
+	for _, b := range buckets {
+		if b.UnitsSold != 0 {
+			b.UnitCost = b.cost / b.UnitsSold
+		}
 	}
 
 	groups, recognized := computeProfitabilityGroups(ctx, h.db, h.log, tid, groupBy, buckets, skus, orders, costBySKU, limit)

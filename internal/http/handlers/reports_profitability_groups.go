@@ -26,6 +26,13 @@ type itemAgg struct {
 	// tax is this SKU's attributed share of order VAT (unexported — not part of the response,
 	// used only to net revenue before computing Profit/MarginPct).
 	tax float64
+	// cost accumulates each line's OWN resolved cost (LineProfit — preferring that line's
+	// point-in-time UnitCostAtSale snapshot over the live per-SKU cache) as it's summed, rather
+	// than being derived after the fact from a single bucket-level UnitCost * UnitsSold. That
+	// post-hoc multiply is wrong the moment a SKU's cost changed partway through the reporting
+	// window (see report_attribution.go's UnitCostAtSale doc) — every line must contribute its own
+	// cost. UnitCost above is then just cost/UnitsSold, a display-only weighted average.
+	cost float64
 }
 
 // groupAggT is one row of a MostProfitableItems ?group_by= rollup.
@@ -131,9 +138,8 @@ func computeProfitabilityGroups(ctx context.Context, db *ent.Client, log *zap.Lo
 			for _, al := range AttributeOrderLines(o) {
 				g.UnitsSold += al.Quantity
 				g.Revenue += al.Revenue
-				cost := costBySKU[al.SKU]
-				netLineRevenue := al.Revenue - al.Tax
-				g.Profit += netLineRevenue - cost*al.Quantity
+				netLineRevenue, _, profit := LineProfit(al, costBySKU[al.SKU])
+				g.Profit += profit
 				g.netRevenue += netLineRevenue
 			}
 			// customer display name: prefer the name captured at sale time (POSOrder.CustomerName)

@@ -72,6 +72,14 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Resolve real per-sku costs from the local POSCatalogOverride cache in one batch (not N+1, and
+	// not a live inventory-api call — see resolveUnitCostsBySKU) BEFORE building buckets: each
+	// line's cost is now accumulated as it's attributed (see below), preferring that line's own
+	// point-in-time UnitCostAtSale snapshot over this live map, so a SKU whose cost changed
+	// partway through the window is no longer priced with a single, wrong, post-hoc unit cost.
+	skus := collectOrderSKUs(orders)
+	costBySKU := resolveUnitCostsBySKU(r.Context(), h.db, tid, skus)
+
 	buckets := make(map[string]*itemAgg)
 	currency := "KES"
 	for _, o := range orders {
@@ -96,28 +104,24 @@ func (h *ReportsHandler) MostProfitableItems(w http.ResponseWriter, r *http.Requ
 			b.UnitsSold += al.Quantity
 			b.Revenue += al.Revenue
 			b.tax += al.Tax
+			// netRevenue excludes VAT — the same centralized basis LineProfit/SumLineProfits use for
+			// GetSummary/SalesSummary/SalesByHour, so this ranking's Profit/MarginPct never
+			// disagrees with the dashboard. Revenue itself (displayed per row) stays VAT-inclusive.
+			_, cost, profit := LineProfit(al, costBySKU[al.SKU])
+			b.cost += cost
+			b.Profit += profit
 		}
 	}
 
-	// Resolve real per-sku costs from the local POSCatalogOverride cache in one batch (not N+1, and
-	// not a live inventory-api call — see resolveUnitCostsBySKU).
-	skus := make([]string, 0, len(buckets))
-	for sku := range buckets {
-		skus = append(skus, sku)
-	}
-	costBySKU := resolveUnitCostsBySKU(r.Context(), h.db, tid, skus)
 	var skusMissingCost int
-	for sku, b := range buckets {
-		cost, ok := costBySKU[sku]
-		if !ok || cost == 0 {
+	for _, b := range buckets {
+		if b.UnitsSold != 0 {
+			b.UnitCost = b.cost / b.UnitsSold
+		}
+		if b.UnitsSold > 0 && b.cost == 0 {
 			skusMissingCost++
 		}
-		b.UnitCost = cost
-		// netRevenue excludes VAT — the same centralized basis LineProfit/SumLineProfits use for
-		// GetSummary/SalesSummary/SalesByHour, so this ranking's Profit/MarginPct never disagrees
-		// with the dashboard. Revenue itself (displayed per row) stays VAT-inclusive.
 		netRevenue := b.Revenue - b.tax
-		b.Profit = netRevenue - b.UnitCost*b.UnitsSold
 		if netRevenue != 0 {
 			b.MarginPct = b.Profit / netRevenue * 100
 		}
