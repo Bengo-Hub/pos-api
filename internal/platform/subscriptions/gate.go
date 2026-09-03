@@ -26,6 +26,12 @@ func exempt(r *http.Request) bool {
 	return claims.IsGatingExempt()
 }
 
+// isReadMethod reports whether r is a read (GET/HEAD/OPTIONS) — always allowed during grace,
+// even for an otherwise-gated tenant, so a tenant in grace can still see their data.
+func isReadMethod(r *http.Request) bool {
+	return r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions
+}
+
 func SubscriptionGate() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +58,16 @@ func SubscriptionGate() func(http.Handler) http.Handler {
 						if time.Now().Before(deadline) {
 							daysLeft := int(time.Until(deadline).Hours()/24) + 1
 							w.Header().Set("X-Sub-Grace-Days-Left", fmt.Sprintf("%d", daysLeft))
-							next.ServeHTTP(w, r)
+							// Grace keeps the tenant readable but blocks mutations — matching what
+							// the pos-ui grace banner has always told tenants ("Write operations
+							// (create, edit, delete) are currently restricted"), which used to be
+							// unenforced everywhere (frontend and backend both let every write
+							// through during grace, silently contradicting the banner).
+							if isReadMethod(r) {
+								next.ServeHTTP(w, r)
+								return
+							}
+							writeGraceWriteBlocked(w, daysLeft)
 							return
 						}
 					}
@@ -128,5 +143,20 @@ func writeSubscriptionError(w http.ResponseWriter, gracePeriodEnded bool) {
 		"error":              "subscription_expired",
 		"grace_period_ended": gracePeriodEnded,
 		"upgrade_url":        upgradeURL,
+	})
+}
+
+// writeGraceWriteBlocked is the structured 402 the pos-ui error handler shows as a blocking
+// "renew to continue" modal for a mutating request made while the tenant is in its post-expiry
+// grace window. Reads are never blocked (see isReadMethod).
+func writeGraceWriteBlocked(w http.ResponseWriter, daysLeft int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusPaymentRequired)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"code":            "subscription_grace_write_blocked",
+		"error":           "subscription_grace_write_blocked",
+		"message":         fmt.Sprintf("Your subscription expired. You have %d day(s) left to renew — creating, editing, and deleting is disabled until you renew.", daysLeft),
+		"grace_days_left": daysLeft,
+		"upgrade_url":     upgradeURL,
 	})
 }
