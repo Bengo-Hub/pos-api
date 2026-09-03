@@ -665,17 +665,20 @@ func (c *Client) GetInvoiceByReference(ctx context.Context, tenantSlug, refType,
 
 // ShredLedgerResponse reports what treasury physically deleted.
 type ShredLedgerResponse struct {
-	OrderID        string   `json:"order_id"`
-	EntriesDeleted int      `json:"entries_deleted"`
-	ReferenceTypes []string `json:"reference_types"`
+	OrderID               string   `json:"order_id"`
+	EntriesDeleted        int      `json:"entries_deleted"`
+	ReferenceTypes        []string `json:"reference_types"`
+	PaymentIntentsDeleted int      `json:"payment_intents_deleted"`
 }
 
-// ShredLedger HARD-DELETES every journal entry (and lines) treasury posted for this order —
-// used ONLY by saledelete's non-fiscalised branch, after pos-api itself has already confirmed
-// (via GetInvoiceByReference) that this sale carries no tax invoice. Treasury re-verifies the
-// same thing server-side and refuses (409) if it disagrees — never trust the caller alone for a
-// physically irreversible operation. Unlike CreateRefund/CreateCreditNote, this leaves no contra
-// entry; it is the genuine ledger deletion the "shred" tool provides.
+// ShredLedger HARD-DELETES every journal entry (and lines) treasury posted for this order, PLUS
+// every payment_intent/payment_transaction/payment_split (a separate table family — matched via
+// metadata.entity_id, not reference_id) — used ONLY by saledelete's non-fiscalised branch, after
+// pos-api itself has already confirmed (via GetInvoiceByReference) that this sale carries no tax
+// invoice. Treasury re-verifies the same thing server-side and refuses (409) if it disagrees —
+// never trust the caller alone for a physically irreversible operation. Unlike
+// CreateRefund/CreateCreditNote, this leaves no contra entry; it is the genuine deletion the
+// "shred" tool provides.
 func (c *Client) ShredLedger(ctx context.Context, tenantSlug, orderID string) (*ShredLedgerResponse, error) {
 	url := fmt.Sprintf("%s/api/v1/s2s/%s/pos/orders/%s/shred-ledger", c.baseURL, tenantSlug, orderID)
 	return doRequest[ShredLedgerResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, nil)

@@ -139,8 +139,11 @@ func (s *Service) deleteNonFiscalized(ctx context.Context, tenantID uuid.UUID, o
 			shred = s.persistShredSteps(ctx, shred, steps, "")
 			return s.failResult(shred, order.ID), fmt.Errorf("shred treasury ledger: %w", terr)
 		}
-		steps[1] = nowStep(StepTreasuryLedger, "treasury", StatusCompleted,
-			fmt.Sprintf("%d journal entr(y/ies) deleted", resp.EntriesDeleted), "")
+		detail := fmt.Sprintf("%d journal entr(y/ies) deleted", resp.EntriesDeleted)
+		if resp.PaymentIntentsDeleted > 0 {
+			detail += fmt.Sprintf(", %d payment intent(s) deleted", resp.PaymentIntentsDeleted)
+		}
+		steps[1] = nowStep(StepTreasuryLedger, "treasury", StatusCompleted, detail, "")
 	} else {
 		steps[1] = nowStep(StepTreasuryLedger, "treasury", StatusSkipped, "treasury client not configured", "")
 	}
