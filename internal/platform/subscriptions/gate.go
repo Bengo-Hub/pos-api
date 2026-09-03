@@ -32,6 +32,43 @@ func isReadMethod(r *http.Request) bool {
 	return r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions
 }
 
+// graceOutcome is the result of comparing "now" against the tenant's period_end directly,
+// independent of the sub_status claim.
+type graceOutcome int
+
+const (
+	// graceNone: not past period_end (or no period_end known) — fully normal.
+	graceNone graceOutcome = iota
+	// graceActive: past period_end but within the grace deadline — reads pass, writes blocked.
+	graceActive
+	// graceEnded: past the grace deadline entirely — fully blocked.
+	graceEnded
+)
+
+// graceStateOf compares "now" to claims.SubscriptionExpires (sub_expires) directly, NEVER via
+// claims.SubscriptionStatus. subscriptions-api's expiry job (internal/jobs/renewal.go) keeps
+// tenant_subscription.status == ACTIVE for the entire 7-day post-expiry grace window by design
+// (only metadata.grace_until is set) and flips it to EXPIRED only once grace is fully exhausted.
+// So a switch on SubscriptionStatus alone can never observe "in grace" — that state IS "ACTIVE"
+// as far as the claim is concerned. This was the actual bug behind a paid-looking order going
+// through during a tenant's grace window: the write-block was written into a `case "EXPIRED":`
+// branch that grace never reaches.
+func graceStateOf(claims *authclient.Claims) (outcome graceOutcome, daysLeft int) {
+	if claims.SubscriptionExpires == nil {
+		return graceNone, 0
+	}
+	expAt := claims.ExpiresAt()
+	now := time.Now()
+	if expAt == nil || !now.After(*expAt) {
+		return graceNone, 0
+	}
+	deadline := expAt.Add(gracePeriodDays * 24 * time.Hour)
+	if now.Before(deadline) {
+		return graceActive, int(time.Until(deadline).Hours()/24) + 1
+	}
+	return graceEnded, 0
+}
+
 func SubscriptionGate() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -48,29 +85,45 @@ func SubscriptionGate() func(http.Handler) http.Handler {
 
 			switch claims.SubscriptionStatus {
 			case "ACTIVE", "TRIAL", "":
-				next.ServeHTTP(w, r)
-				return
-			case "EXPIRED":
-				if claims.SubscriptionExpires != nil {
-					expAt := claims.ExpiresAt()
-					if expAt != nil {
-						deadline := expAt.Add(gracePeriodDays * 24 * time.Hour)
-						if time.Now().Before(deadline) {
-							daysLeft := int(time.Until(deadline).Hours()/24) + 1
-							w.Header().Set("X-Sub-Grace-Days-Left", fmt.Sprintf("%d", daysLeft))
-							// Grace keeps the tenant readable but blocks mutations — matching what
-							// the pos-ui grace banner has always told tenants ("Write operations
-							// (create, edit, delete) are currently restricted"), which used to be
-							// unenforced everywhere (frontend and backend both let every write
-							// through during grace, silently contradicting the banner).
-							if isReadMethod(r) {
-								next.ServeHTTP(w, r)
-								return
-							}
-							writeGraceWriteBlocked(w, daysLeft)
-							return
-						}
+				// TRIAL/"" have their own separate expiry handling and never carry the post-
+				// payment grace semantics, so only re-check ACTIVE against period_end directly.
+				if claims.SubscriptionStatus != "ACTIVE" {
+					next.ServeHTTP(w, r)
+					return
+				}
+				switch outcome, daysLeft := graceStateOf(claims); outcome {
+				case graceActive:
+					w.Header().Set("X-Sub-Grace-Days-Left", fmt.Sprintf("%d", daysLeft))
+					// Grace keeps the tenant readable but blocks mutations — matching what the
+					// pos-ui grace banner has always told tenants ("Write operations (create,
+					// edit, delete) are currently restricted"), which used to be unenforced
+					// everywhere (frontend and backend both let every write through during
+					// grace, silently contradicting the banner).
+					if isReadMethod(r) {
+						next.ServeHTTP(w, r)
+						return
 					}
+					writeGraceWriteBlocked(w, daysLeft)
+					return
+				case graceEnded:
+					// The claim still says ACTIVE (stale token, or the expiry job hasn't run its
+					// hourly pass yet) but we're independently certain grace is over — don't
+					// trust a stale claim to keep a lapsed tenant writing indefinitely.
+					writeSubscriptionError(w, true)
+					return
+				default:
+					next.ServeHTTP(w, r)
+					return
+				}
+			case "EXPIRED":
+				if outcome, daysLeft := graceStateOf(claims); outcome == graceActive {
+					w.Header().Set("X-Sub-Grace-Days-Left", fmt.Sprintf("%d", daysLeft))
+					if isReadMethod(r) {
+						next.ServeHTTP(w, r)
+						return
+					}
+					writeGraceWriteBlocked(w, daysLeft)
+					return
 				}
 				writeSubscriptionError(w, true)
 				return
