@@ -575,6 +575,23 @@ func (s *Service) OutletFallbackTaxRate(ctx context.Context, outletID uuid.UUID)
 	return s.taxRate
 }
 
+// ResolveOutletWarehouseID returns the outlet's configured default warehouse id
+// (OutletSetting.DefaultWarehouseID), or "" when unset/unconfigured. This is the SAME
+// resolution payments.Service's sale-finalize path (publishSaleFinalized) already uses to route
+// the original sale's inventory backflush to the outlet's own warehouse instead of inventory-api's
+// tenant-default fallback (which silently shortfalls on a multi-outlet tenant whose item has no
+// balance in the tenant-default warehouse). Exported so saleedit.applyInPlaceIncrease's in-place
+// consumption call can attribute an Edit-Sale increase to the correct outlet too.
+func (s *Service) ResolveOutletWarehouseID(ctx context.Context, outletID uuid.UUID) string {
+	set, err := s.client.OutletSetting.Query().
+		Where(entoutletsetting.OutletID(outletID)).
+		Only(ctx)
+	if err != nil || set == nil || set.DefaultWarehouseID == nil {
+		return ""
+	}
+	return set.DefaultWarehouseID.String()
+}
+
 // outletCurrency returns the outlet's configured ISO 4217 currency (OutletSetting.currency —
 // the same Settings > General field the till reads via usePOSSettings), else the service-level
 // env default. Same query shape as outletFallbackTaxRate — the single place order-creation and

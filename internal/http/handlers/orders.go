@@ -497,6 +497,12 @@ type orderListItem struct {
 	// already knows will be refused, instead of only learning after a confusing 422 whose
 	// confirmation dialog just promised unconditional deletion.
 	HasCorrectionHistory bool `json:"has_correction_history"`
+	// HasFullReversal mirrors orders.HasFullReversal (a FULL-scope reversal already exists) —
+	// the narrower, terminal condition saleedit's Edit orchestrator actually refuses on. Unlike
+	// HasCorrectionHistory (any correction at all, used by Delete Sale), a PARTIAL correction
+	// does NOT set this — Edit Sale explicitly still allows repeat partial corrections. Lets
+	// pos-ui disable Edit Sale only for a row that would genuinely be refused.
+	HasFullReversal bool `json:"has_full_reversal"`
 }
 
 // returnAgg is the per-order sell-return rollup. completedTotal is the subset of total that has
@@ -614,6 +620,7 @@ func (h *POSOrderHandler) enrichSingleOrder(ctx context.Context, tenantID uuid.U
 	}
 	st := orders.ComputeSettlement(order, completedReturns)
 	correctionHistory := orders.CorrectionHistoryRollup(ctx, h.client, tenantID, []uuid.UUID{order.ID})
+	fullReversal := orders.FullReversalRollup(ctx, h.client, tenantID, []uuid.UUID{order.ID})
 	costBySKU := resolveUnitCostsBySKU(ctx, h.client, tenantID, collectOrderSKUs([]*ent.POSOrder{order}))
 	profit, marginPct := computeOrderProfit(order, costBySKU)
 	item := orderListItem{
@@ -626,6 +633,7 @@ func (h *POSOrderHandler) enrichSingleOrder(ctx context.Context, tenantID uuid.U
 		CashierName:          staffNames[order.UserID],
 		ServedByName:         servedByName(order, staffNames),
 		HasCorrectionHistory: correctionHistory[order.ID],
+		HasFullReversal:      fullReversal[order.ID],
 		Profit:               profit,
 		MarginPct:            marginPct,
 	}
@@ -702,6 +710,7 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 	}
 	returnsByOrder := h.returnsRollup(ctx, tenantID, orderIDs)
 	correctionHistory := orders.CorrectionHistoryRollup(ctx, h.client, tenantID, orderIDs)
+	fullReversal := orders.FullReversalRollup(ctx, h.client, tenantID, orderIDs)
 
 	items := make([]orderListItem, 0, len(list))
 	for _, o := range list {
@@ -747,6 +756,7 @@ func (h *POSOrderHandler) enrichOrderList(ctx context.Context, tenantID uuid.UUI
 			CashierName:          staffNames[o.UserID], // "" when unknown — the UI falls back gracefully
 			ServedByName:         servedByName(o, staffNames),
 			HasCorrectionHistory: correctionHistory[o.ID],
+			HasFullReversal:      fullReversal[o.ID],
 			Profit:               profit,
 			MarginPct:            marginPct,
 		}

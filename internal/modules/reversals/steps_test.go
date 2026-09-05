@@ -463,3 +463,104 @@ func TestNetPayments_PartiallyPaidCreditSale_NetsARBeforeRealCash(t *testing.T) 
 		t.Fatalf("expected 1 offset_invoice call for 1400 (never cash — the real cash collected was untouched), got %+v", rec.calls)
 	}
 }
+
+// TestResolveLines_ExclusiveTaxLine_AmountIncludesTaxOnTop is the regression test for a real bug:
+// an EXCLUSIVE-tax line (price_includes_tax=false — tax is additive on top of total_price, see
+// POSOrderLine's own schema doc) had its reversal Amount computed as total_price*ratio ALONE,
+// omitting the tax portion entirely. Amount must equal the exact GROSS drop this reduction causes
+// in order.TotalAmount (subtotal + tax_total, per orders.RecomputeTotalsWithClient), because
+// netPayments cuts payment rows by rev.Amount and stepTreasuryGL posts it straight to treasury —
+// understating it by the tax on the reduced quantity silently shorted every exclusive-tax
+// tenant's partial reversal by its own VAT.
+func TestResolveLines_ExclusiveTaxLine_AmountIncludesTaxOnTop(t *testing.T) {
+	svc, client := newTestReversalsService(t, nil)
+	tenantID := uuid.New()
+	ctx := context.Background()
+
+	order, err := client.POSOrder.Create().
+		SetTenantID(tenantID).SetOutletID(uuid.New()).SetDeviceID(uuid.New()).SetUserID(uuid.New()).
+		SetOrderNumber("ORD-" + uuid.NewString()[:8]).SetStatus("completed").
+		SetSubtotal(1000).SetTaxTotal(160).SetTotalAmount(1160).SetPaidTotal(1160).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("seed order: %v", err)
+	}
+	// 10 units @ 100 net each; 16% VAT ADDED ON TOP (price_includes_tax=false) — total_price is
+	// the net 1000, tax_amount is the additive 160, matching how orders.CreateOrder persists an
+	// exclusive-tax line (service.go: SetTotalPrice(lineTotal); tax_amount computed separately).
+	line, err := client.POSOrderLine.Create().
+		SetOrderID(order.ID).SetCatalogItemID(uuid.New()).SetSku("SKU-EXCL").SetName("Widget").
+		SetQuantity(10).SetUnitPrice(100).SetTotalPrice(1000).
+		SetTaxAmount(160).SetTaxRate(16).SetPriceIncludesTax(false).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("seed line: %v", err)
+	}
+
+	req := CreateRequest{Scope: "partial", Lines: []LineSelection{{LineID: line.ID, Quantity: 4}}}
+	revLines, amount, tax, err := svc.resolveLines(order, []*ent.POSOrderLine{line}, req)
+	if err != nil {
+		t.Fatalf("resolveLines: %v", err)
+	}
+	if len(revLines) != 1 {
+		t.Fatalf("expected 1 reversal line, got %d", len(revLines))
+	}
+	// ratio 4/10 = 0.4 -> net 400, tax 64 -> gross MUST be 464 (400 + 64), never bare 400.
+	if revLines[0].Amount != 464 {
+		t.Errorf("Amount = %.2f, want 464 (400 net + 64 tax added on top, an exclusive-tax line)", revLines[0].Amount)
+	}
+	if revLines[0].TaxAmount != 64 {
+		t.Errorf("TaxAmount = %.2f, want 64", revLines[0].TaxAmount)
+	}
+	if amount != 464 || tax != 64 {
+		t.Errorf("resolveLines totals = amount=%.2f tax=%.2f, want amount=464 tax=64", amount, tax)
+	}
+}
+
+// TestResolveLines_InclusiveTaxLine_AmountUnchanged is the companion sanity check: an
+// INCLUSIVE-tax line's total_price already carries its tax embedded (gross), so Amount must stay
+// exactly total_price*ratio — this fix must NOT double-count tax for the (more common) inclusive
+// case, only add it back for the exclusive one.
+func TestResolveLines_InclusiveTaxLine_AmountUnchanged(t *testing.T) {
+	svc, client := newTestReversalsService(t, nil)
+	tenantID := uuid.New()
+	ctx := context.Background()
+
+	order, err := client.POSOrder.Create().
+		SetTenantID(tenantID).SetOutletID(uuid.New()).SetDeviceID(uuid.New()).SetUserID(uuid.New()).
+		SetOrderNumber("ORD-" + uuid.NewString()[:8]).SetStatus("completed").
+		SetSubtotal(1160).SetTaxTotal(0).SetTotalAmount(1160).SetPaidTotal(1160).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("seed order: %v", err)
+	}
+	// 10 units @ 116 gross each; 16% VAT EMBEDDED (price_includes_tax=true) — total_price (1160)
+	// already carries the tax, tax_amount (160) is just the back-calculated embedded portion.
+	line, err := client.POSOrderLine.Create().
+		SetOrderID(order.ID).SetCatalogItemID(uuid.New()).SetSku("SKU-INCL").SetName("Widget").
+		SetQuantity(10).SetUnitPrice(116).SetTotalPrice(1160).
+		SetTaxAmount(160).SetTaxRate(16).SetPriceIncludesTax(true).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("seed line: %v", err)
+	}
+
+	req := CreateRequest{Scope: "partial", Lines: []LineSelection{{LineID: line.ID, Quantity: 4}}}
+	revLines, amount, tax, err := svc.resolveLines(order, []*ent.POSOrderLine{line}, req)
+	if err != nil {
+		t.Fatalf("resolveLines: %v", err)
+	}
+	if len(revLines) != 1 {
+		t.Fatalf("expected 1 reversal line, got %d", len(revLines))
+	}
+	// ratio 4/10 = 0.4 -> gross 464 (total_price already gross, no addition) — NOT 464+64=528.
+	if revLines[0].Amount != 464 {
+		t.Errorf("Amount = %.2f, want 464 (total_price already gross for an inclusive-tax line)", revLines[0].Amount)
+	}
+	if revLines[0].TaxAmount != 64 {
+		t.Errorf("TaxAmount = %.2f, want 64 (embedded portion, reported but not added again)", revLines[0].TaxAmount)
+	}
+	if amount != 464 || tax != 64 {
+		t.Errorf("resolveLines totals = amount=%.2f tax=%.2f, want amount=464 tax=64", amount, tax)
+	}
+}

@@ -10,7 +10,8 @@ import (
 )
 
 // CatalogCacheEntry is the subset of the inventory-synced POSCatalogOverride cache
-// (metadata["cost_price"/"manufacturer"/"category_name"/"brand_name"]) that reports/COGS lookups need.
+// (metadata["cost_price"/"manufacturer"/"category_name"/"brand_name"/"uom"]) that reports/COGS
+// lookups need.
 type CatalogCacheEntry struct {
 	CostPrice    float64
 	Manufacturer string
@@ -18,6 +19,10 @@ type CatalogCacheEntry struct {
 	// Brand is Item.BrandID -> ItemBrand.Name on the inventory-api side — distinct from the
 	// free-text Manufacturer field. Backs MostProfitableItems' ?group_by=brand rollup.
 	Brand string
+	// UOM is the item's inventory-synced stock unit code (metadata["uom"]) — the SAME value
+	// payments.resolveLineCosts reads for the pos.sale.finalized event payload's uom_code, so an
+	// Edit-Sale increase's inventory-consumption call can carry it too instead of leaving it blank.
+	UOM string
 }
 
 // CatalogCacheBySKU resolves the inventory-synced POSCatalogOverride cache — cost_price,
@@ -68,6 +73,9 @@ func CatalogCacheBySKU(ctx context.Context, client *ent.Client, tenantID uuid.UU
 			}
 			if v, ok := ov.Metadata["brand_name"].(string); ok {
 				e.Brand = v
+			}
+			if v, ok := ov.Metadata["uom"].(string); ok {
+				e.UOM = v
 			}
 		}
 		out[ov.InventorySku] = e

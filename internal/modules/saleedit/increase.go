@@ -77,6 +77,9 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 			}
 		}
 		if _, err := orders.RequireIdentifiableCustomer(customerName, customerIdentifier, isStaffCredit, staffID); err != nil {
+			if settlement.noTenderFallback {
+				return fmt.Errorf("cannot add value to this sale: no active %q tender is configured for this tenant, so this top-up would have to be billed on credit — %w. Configure an active %q tender in Payment Methods, or attach a customer to bill it on credit", settlement.method, err, settlement.method)
+			}
 			return fmt.Errorf("cannot add value to this sale: %w", err)
 		}
 	}
@@ -98,7 +101,10 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 			costSKUs = append(costSKUs, inc.Line.Sku)
 		}
 	}
-	costBySKU := orders.CatalogCostBySKU(ctx, s.client, tenantID, costSKUs)
+	// CatalogCacheBySKU (not the cost-only CatalogCostBySKU) so the SAME cached row also gives us
+	// each item's stock UOM — the consumption call below can then carry it like the original
+	// sale-finalize path's pos.sale.finalized event does, instead of always leaving it blank.
+	catalogBySKU := orders.CatalogCacheBySKU(ctx, s.client, tenantID, costSKUs)
 
 	// Resolve brand-new lines' tax the SAME way CreateOrder/AddOrderLines do (catalog tax code →
 	// till-provided rate → the outlet's flat fallback VAT) instead of the narrower, client-rate-
@@ -178,8 +184,10 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 			incrementalTax += lt.amount
 		}
 		if a.SKU != "" {
-			consumptionItems = append(consumptionItems, inventory.ConsumptionItem{SKU: a.SKU, Quantity: a.Quantity})
-			incrementalCost += round2(costBySKU[a.SKU] * a.Quantity)
+			consumptionItems = append(consumptionItems, inventory.ConsumptionItem{
+				SKU: a.SKU, Quantity: a.Quantity, UOM: catalogBySKU[a.SKU].UOM,
+			})
+			incrementalCost += round2(catalogBySKU[a.SKU].CostPrice * a.Quantity)
 		}
 	}
 
@@ -202,8 +210,10 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 		}
 		incrementalAmount += deltaTotal
 		if inc.Line.Sku != "" {
-			consumptionItems = append(consumptionItems, inventory.ConsumptionItem{SKU: inc.Line.Sku, Quantity: inc.ByQty})
-			incrementalCost += round2(costBySKU[inc.Line.Sku] * inc.ByQty)
+			consumptionItems = append(consumptionItems, inventory.ConsumptionItem{
+				SKU: inc.Line.Sku, Quantity: inc.ByQty, UOM: catalogBySKU[inc.Line.Sku].UOM,
+			})
+			incrementalCost += round2(catalogBySKU[inc.Line.Sku].CostPrice * inc.ByQty)
 		}
 	}
 
@@ -270,7 +280,16 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 	// treasury-api never delays the save — mirrors the 2026-08-07 latency fix already applied to
 	// the equally best-effort ApplyCustomerCreditToDebt call on the main payment-confirm path.
 	if s.inventoryClient != nil && len(consumptionItems) > 0 {
-		s.dispatchEditIncreaseConsumption(tenantID, order.ID, editID, consumptionItems)
+		// Attribute this increment's consumption to the order's OWN operating outlet/warehouse —
+		// the same resolution payments.Service's sale-finalize path uses for the original sale's
+		// backflush (OutletSetting.DefaultWarehouseID) — instead of leaving both blank and letting
+		// inventory-api silently fall back to the tenant-default warehouse, which shortfalls on a
+		// multi-outlet tenant whose item has no balance there.
+		warehouseID := ""
+		if s.orderSvc != nil {
+			warehouseID = s.orderSvc.ResolveOutletWarehouseID(ctx, order.OutletID)
+		}
+		s.dispatchEditIncreaseConsumption(tenantID, order.ID, editID, order.OutletID.String(), warehouseID, consumptionItems)
 	}
 
 	if s.treasuryClient != nil {
@@ -295,6 +314,12 @@ type increaseSettlement struct {
 	scheme   string // "credit" | "collectNow"
 	method   string // tender type, only set when scheme == "collectNow"
 	tenderID uuid.UUID
+	// noTenderFallback is true when scheme=="credit" was chosen only because no active
+	// tender matching the silent "cash" default could be found for this tenant — NOT because
+	// credit was explicitly requested or the original sale was already on-account. Lets the
+	// caller surface the real, actionable cause (missing tender config) instead of a
+	// misleading "attach a customer" message when a walk-in sale then also lacks one.
+	noTenderFallback bool
 }
 
 // resolveIncreaseSettlement decides how an Edit-Sale increase's incremental value settles — see
@@ -302,7 +327,9 @@ type increaseSettlement struct {
 // the silent-default (no explicit request field, order wasn't already on-account) case even if
 // no active "cash" tender is configured for the tenant — falls back to "credit" so the edit
 // still succeeds exactly as it always has, rather than failing on a config gap this fix didn't
-// create.
+// create. The fallback is flagged via noTenderFallback so a subsequent "no identifiable
+// customer" failure (walk-in sale, no phone) can explain the real cause instead of just telling
+// the cashier to attach a customer.
 func (s *Service) resolveIncreaseSettlement(ctx context.Context, tenantID uuid.UUID, req EditSaleRequest, onAccount bool) (increaseSettlement, error) {
 	if req.IncreaseSettlement == "credit" {
 		return increaseSettlement{scheme: "credit"}, nil
@@ -322,7 +349,8 @@ func (s *Service) resolveIncreaseSettlement(ctx context.Context, tenantID uuid.U
 		if explicit {
 			return increaseSettlement{}, fmt.Errorf("no active %q tender configured for this tenant", method)
 		}
-		return increaseSettlement{scheme: "credit"}, nil // graceful fallback for the silent default
+		// graceful fallback for the silent default — flagged so the caller can explain why.
+		return increaseSettlement{scheme: "credit", method: method, noTenderFallback: true}, nil
 	}
 	return increaseSettlement{scheme: "collectNow", method: method, tenderID: t.ID}, nil
 }
@@ -357,7 +385,11 @@ func nilIfEmpty(s string) *string {
 
 // dispatchEditIncreaseConsumption records the incremental inventory consumption for an Edit-Sale
 // increase off the request path — see the comment at its call site in applyInPlaceIncrease.
-func (s *Service) dispatchEditIncreaseConsumption(tenantID, orderID, editID uuid.UUID, items []inventory.ConsumptionItem) {
+// outletID/warehouseID attribute the deduction to the order's own operating outlet (warehouseID
+// may be "" when the outlet has no configured default warehouse — inventory-api then falls back
+// to outletID's own resolution, and ultimately the tenant-default, exactly as before this field
+// existed).
+func (s *Service) dispatchEditIncreaseConsumption(tenantID, orderID, editID uuid.UUID, outletID, warehouseID string, items []inventory.ConsumptionItem) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -368,7 +400,7 @@ func (s *Service) dispatchEditIncreaseConsumption(tenantID, orderID, editID uuid
 		dctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if _, err := s.inventoryClient.RecordConsumption(dctx, tenantID.String(), inventory.ConsumptionRequest{
-			OrderID: orderID.String(), Items: items,
+			OrderID: orderID.String(), Items: items, OutletID: outletID, WarehouseID: warehouseID,
 			Reason: "sale_edit_increase", IdempotencyKey: "pos-edit-increase-" + editID.String(),
 		}); err != nil {
 			s.log.Warn("edit increase: inventory consumption failed (non-fatal; can be reconciled)",

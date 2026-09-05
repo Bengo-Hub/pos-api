@@ -111,6 +111,26 @@ func CorrectionHistoryRollup(ctx context.Context, client *ent.Client, tenantID u
 	return out
 }
 
+// FullReversalRollup batch-computes HasFullReversal for a set of orders — same one-query
+// pattern as CorrectionHistoryRollup, but scoped to the narrower "terminal" condition Edit Sale
+// actually enforces (see HasFullReversal's doc comment). Lets pos-ui disable the Edit Sale
+// action only for a row it already knows will be refused, without over-blocking a sale that
+// merely has a PARTIAL correction on record — Edit Sale explicitly still allows those.
+func FullReversalRollup(ctx context.Context, client *ent.Client, tenantID uuid.UUID, orderIDs []uuid.UUID) map[uuid.UUID]bool {
+	out := make(map[uuid.UUID]bool, len(orderIDs))
+	if len(orderIDs) == 0 {
+		return out
+	}
+	if revs, err := client.POSReversal.Query().
+		Where(entposreversal.TenantID(tenantID), entposreversal.OrderIDIn(orderIDs...), entposreversal.ScopeEQ(entposreversal.ScopeFull)).
+		All(ctx); err == nil {
+		for _, r := range revs {
+			out[r.OrderID] = true
+		}
+	}
+	return out
+}
+
 // RequireIdentifiableCustomer resolves the AR key (a phone number, or "staff:<id>" for a staff
 // credit sale) for a customer/name pair about to be booked on credit, refusing the shared
 // "Walk-in Customer" ghost identity (blank phone, or a name matching that placeholder) — booking
@@ -159,6 +179,19 @@ func ResolveOrderCustomer(ctx context.Context, client *ent.Client, tenantID, ord
 			Where(entla.TenantID(tenantID), entla.CustomerPhone(phone)).
 			First(ctx); accErr == nil && acc != nil && acc.CrmContactID != nil {
 			crmContactID = acc.CrmContactID.String()
+		}
+	} else if sid, _ := order.Metadata["staff_member_id"].(string); sid != "" {
+		// A staff-credit sale (an employee buying on their own staff account) has no real
+		// customer phone by design — payments.staffCreditFromOrderParty's own convention
+		// (payments/service.go's RecordCreditSale call, credit_settlement.go's
+		// creditSettlementKey) keys its treasury AR debtor "staff:<staff_member_id>" instead of a
+		// phone. Every caller of THIS function that posts an AR credit-back on a reduction
+		// (reversals.stepTreasuryGL, returns, saledelete) used to see phone="" for such an order
+		// and silently skip the whole AR side of a reduction — the staff member's real owed
+		// balance never moved even though their sale's own line was voided/reduced. Duplicated
+		// (not imported) because orders can't import payments without an import cycle.
+		if id, perr := uuid.Parse(sid); perr == nil {
+			phone = "staff:" + id.String()
 		}
 	}
 	return crmContactID, name, phone

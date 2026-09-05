@@ -39,6 +39,11 @@ func NewClient(serviceURL, internalServiceKey string, timeout time.Duration) *Cl
 type ConsumptionItem struct {
 	SKU      string  `json:"sku"`
 	Quantity float64 `json:"quantity"`
+	// UOM optionally carries the unit `Quantity` is expressed in (the sale line's own
+	// uom_code) — mirrors inventory-api's stock.ConsumptionItem.UOM. When it differs from the
+	// item's stock unit, inventory-api converts before deducting (e.g. a 30ml pour of a bottle
+	// stocked in pieces). Empty = already in stock units (legacy behavior, unchanged).
+	UOM string `json:"uom,omitempty"`
 }
 
 // ConsumptionRequest is the body for POST /v1/{tenant}/inventory/consumption.
@@ -49,6 +54,17 @@ type ConsumptionItem struct {
 type ConsumptionRequest struct {
 	OrderID string            `json:"order_id"`
 	Items   []ConsumptionItem `json:"items"`
+	// OutletID/WarehouseID mirror inventory-api's stock.ConsumptionRequest fields of the same
+	// name: WarehouseID (when set) always wins; OutletID scopes the deduction to the SELLING
+	// outlet's own warehouse when no explicit WarehouseID is supplied. Both empty falls back to
+	// inventory-api's tenant-default warehouse (legacy behavior, unchanged) — which silently
+	// shortfalls on a multi-outlet tenant whose item has no balance in the tenant-default
+	// warehouse ("sold several but stock still shows full"). pos-api's pos.sale.finalized event
+	// already carries both for the original sale's consumption; this client DTO simply hadn't
+	// exposed them for the direct S2S call (used by e.g. Edit-Sale's in-place increase, which has
+	// no equivalent event of its own to carry this).
+	OutletID    string `json:"outlet_id,omitempty"`
+	WarehouseID string `json:"warehouse_id,omitempty"`
 	// Reason and IdempotencyKey are optional but recommended — inventory-api's own
 	// ConsumptionRequest already supports both server-side; this client DTO simply hadn't
 	// exposed them. IdempotencyKey matters most for a repeatable call against the SAME order

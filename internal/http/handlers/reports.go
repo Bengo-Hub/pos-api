@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -52,6 +53,27 @@ func (h *ReportsHandler) SetInventoryClient(inv brandResolver) {
 
 func NewReportsHandler(log *zap.Logger, db *ent.Client) *ReportsHandler {
 	return &ReportsHandler{log: log, db: db}
+}
+
+// growthPctCap bounds the magnitude of a displayed period-over-period growth percentage. A
+// near-zero (but nonzero) previous-period baseline — a brand-new tenant, a month with only a
+// handful of migrated/backfilled records — produces a mathematically "correct" but meaningless
+// figure (four-to-six-digit percentages observed live on boi-enterprises' Monthly view: 44366%,
+// 147633%, 810501%). Past this bound the number no longer tells the owner anything about real
+// growth, so it's suppressed (nil) rather than shown — the frontend's KPICard already omits the
+// trend badge entirely when the value is nil, matching how it already omits it when there's no
+// trend at all (e.g. "Items Sold").
+const growthPctCap = 1000.0
+
+// growthPct returns the percentage change from prev to cur, or nil when the result exceeds
+// growthPctCap — see its doc comment. Caller must ensure prev > 0 (division by zero is the
+// caller's existing guard, kept separate so this stays a pure "is this worth showing" helper).
+func growthPct(cur, prev float64) *float64 {
+	pct := (cur - prev) / prev * 100
+	if math.Abs(pct) > growthPctCap {
+		return nil
+	}
+	return &pct
 }
 
 // GetSummary handles GET /{tenantID}/pos/reports/summary
@@ -170,13 +192,12 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 		avgTicket = curRev / float64(curOrders)
 	}
 
-	revenueGrowth := 0.0
-	ordersGrowth := 0.0
+	var revenueGrowth, ordersGrowth *float64
 	if prevRev > 0 {
-		revenueGrowth = (curRev - prevRev) / prevRev * 100
+		revenueGrowth = growthPct(curRev, prevRev)
 	}
 	if prevOrders > 0 {
-		ordersGrowth = float64(curOrders-prevOrders) / float64(prevOrders) * 100
+		ordersGrowth = growthPct(float64(curOrders), float64(prevOrders))
 	}
 
 	// Total UNITS sold in the window (outlet-scoped, same completed-order predicate) — a
@@ -222,9 +243,9 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	// SKU's cost never made it into the local cache (SKUsMissingCost surfaces that instead).
 	curTotals := SumLineProfits(curLines, costBySKU)
 	prevTotals := SumLineProfits(prevLines, costBySKU)
-	grossProfitGrowth := 0.0
+	var grossProfitGrowth *float64
 	if prevTotals.Profit > 0 {
-		grossProfitGrowth = (curTotals.Profit - prevTotals.Profit) / prevTotals.Profit * 100
+		grossProfitGrowth = growthPct(curTotals.Profit, prevTotals.Profit)
 	}
 
 	jsonOK(w, map[string]any{

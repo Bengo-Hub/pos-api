@@ -232,13 +232,28 @@ func (s *Service) resolveLines(order *ent.POSOrder, lines []*ent.POSOrderLine, r
 		if l.TaxAmount != nil {
 			taxAmt = *l.TaxAmount * ratio
 		}
+		// Amount must be the GROSS money value of the reduced quantity — the exact drop this
+		// causes in order.TotalAmount, since stepPOSTotals' netPayments cuts payment rows by
+		// rev.Amount and stepTreasuryGL posts it straight to treasury as the refund/write-off
+		// total. For an INCLUSIVE-tax line (price_includes_tax=true) l.TotalPrice already carries
+		// its tax embedded, so it IS the gross figure already. For an EXCLUSIVE-tax line
+		// (price_includes_tax=false — see POSOrderLine.tax_amount's own schema doc: "additive on
+		// top of unit_price"), l.TotalPrice is the NET rung-up price and tax_amount is added on
+		// top (mirrors orders.RecomputeTotalsWithClient's own subtotal+tax_total split) — omitting
+		// that addition here understated a reduction's Amount by the exact VAT portion, so an
+		// exclusive-tax tenant's partial reversal netted payments/treasury short by the tax on the
+		// reduced quantity every time.
+		grossAmt := l.TotalPrice * ratio
+		if !l.PriceIncludesTax {
+			grossAmt += taxAmt
+		}
 		return entschema.ReversalLineJSON{
 			LineID:     l.ID,
 			SKU:        l.Sku,
 			Name:       l.Name,
 			Quantity:   qty,
 			OfQuantity: l.Quantity,
-			Amount:     round2(l.TotalPrice * ratio),
+			Amount:     round2(grossAmt),
 			TaxAmount:  round2(taxAmt),
 		}
 	}
