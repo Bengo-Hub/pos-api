@@ -143,6 +143,53 @@ func TestEdit_NonFiscalized_IncreaseOnGenuineCreditSale_StaysCredit(t *testing.T
 	}
 }
 
+// TestEdit_NonFiscalized_IncreaseOnWalkInSale_BackfillsCustomerOntoOrder is the regression test
+// for the live BOI Enterprises bug (orders 002255/002358, MR BOI GATUNGU): a walk-in sale (no
+// customer_phone) whose Edit-Sale increase attaches a customer via the request correctly posts
+// the debt to treasury under that customer, but the order's own CustomerPhone/CustomerName
+// columns stayed nil forever — so a LATER credit_settlement.go SettleCreditPayment call (which
+// resolves its treasury key from order.CustomerPhone alone) could never find who to credit,
+// silently skipping the AR receipt even though the till correctly collected the cash. The order
+// must come out of a credit increase with the attached identity durably stored on it.
+func TestEdit_NonFiscalized_IncreaseOnWalkInSale_BackfillsCustomerOntoOrder(t *testing.T) {
+	svc, client := newOrchestratorTestService(t)
+	tid := uuid.New()
+	outletID := uuid.New()
+	// Deliberately no active cash tender — this tenant (matching boi-enterprises live) has zero
+	// rows in its own Tender table, so the increase's default falls back to credit regardless.
+	order := seedOrchestratorOrder(t, client, tid, outletID, 5, 100) // total 500, no customer
+	line := onlyLine(t, client, order.ID)
+
+	result, err := svc.Edit(context.Background(), tid, EditSaleRequest{
+		OrderID: order.ID, Reason: "add item, bill to attached customer", RequestedBy: uuid.New(),
+		CustomerName: "Mr Boi Gatungu", CustomerIdentifier: "+254700900041",
+		Lines: []EditLine{
+			{LineID: &line.ID, SKU: "SKU-1", Name: "Sample Item", Quantity: 5, UnitPrice: 100},
+			{CatalogItemID: uuid.New(), SKU: "SKU-2", Name: "New Item", Quantity: 1, UnitPrice: 50},
+		},
+	})
+	if err != nil {
+		t.Fatalf("expected the increase to succeed once a customer is attached: %v", err)
+	}
+	if result.Kind != "increase" {
+		t.Fatalf("expected kind=increase, got %q", result.Kind)
+	}
+
+	reloaded, err := client.POSOrder.Get(context.Background(), order.ID)
+	if err != nil {
+		t.Fatalf("reload order: %v", err)
+	}
+	if on, _ := reloaded.Metadata["on_account"].(bool); !on {
+		t.Fatalf("metadata.on_account = %v, want true", on)
+	}
+	if reloaded.CustomerPhone == nil || *reloaded.CustomerPhone != "+254700900041" {
+		t.Errorf("order.CustomerPhone = %v, want backfilled to +254700900041 so a later settle-credit call can resolve the treasury key", reloaded.CustomerPhone)
+	}
+	if reloaded.CustomerName == nil || *reloaded.CustomerName != "Mr Boi Gatungu" {
+		t.Errorf("order.CustomerName = %v, want backfilled to \"Mr Boi Gatungu\"", reloaded.CustomerName)
+	}
+}
+
 // TestEdit_NonFiscalized_IncreaseSettlement_ExplicitCreditOverride confirms an admin can
 // deliberately bill a cash-originated sale's increase to a customer's account by setting
 // IncreaseSettlement="credit" explicitly, even with a cash tender available.

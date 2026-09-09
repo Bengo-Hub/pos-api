@@ -3,6 +3,7 @@ package saleedit
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -260,13 +261,38 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 		// payment_status "paid" with amount_due 1400, because "status==completed" was previously
 		// read as an unconditional proxy for "fully paid," an invariant a genuine-credit increase
 		// breaks by design.
-		if !orders.IsOnAccount(order.Metadata) {
+		//
+		// Also persist the customer identity this debt is actually attributed to (crmContactID/
+		// customerName/customerIdentifier, resolved above and already forwarded to treasury's
+		// PostSaleEditGL/RecordCreditSale) onto the order's own CustomerPhone/CustomerName columns
+		// whenever they're still blank. A walk-in order that only gains a customer HERE (attached
+		// via the edit request so this top-up could be billed at all — RequireIdentifiableCustomer
+		// above already required one) otherwise has no durable record of who owes it: the debt
+		// posts correctly to treasury in the moment, but order.CustomerPhone stays nil forever, so
+		// any LATER settlement (credit_settlement.go's creditSettlementKey, which reads ONLY
+		// order.CustomerPhone — it has no access to this request's resolved identity) can never
+		// resolve a treasury customer key and silently skips the AR receipt when the customer pays
+		// this off, even though the till correctly collects and records the cash locally. Confirmed
+		// live 2026-09-09: boi-enterprises orders 002255/002358 (MR BOI GATUNGU, 650+760 collected
+		// at the till, credit_settled_at stamped, zero ar_receipt ever reached treasury — his
+		// balance_due stayed inflated by exactly that amount). Skip a synthetic "staff:<id>" value
+		// (ResolveOrderCustomer's staff-credit convention, reusing the phone return slot) — that is
+		// not a real phone number and downstream phone-matching code assumes this column holds one.
+		needsBackfill := order.CustomerPhone == nil && customerIdentifier != "" && !strings.HasPrefix(customerIdentifier, "staff:")
+		if !orders.IsOnAccount(order.Metadata) || needsBackfill {
 			md := make(map[string]any, len(order.Metadata)+1)
 			for k, v := range order.Metadata {
 				md[k] = v
 			}
 			md["on_account"] = true
-			if _, err := order.Update().SetMetadata(md).Save(ctx); err != nil {
+			upd := order.Update().SetMetadata(md)
+			if needsBackfill {
+				upd = upd.SetCustomerPhone(customerIdentifier)
+				if customerName != "" {
+					upd = upd.SetCustomerName(customerName)
+				}
+			}
+			if _, err := upd.Save(ctx); err != nil {
 				return fmt.Errorf("stamp on_account metadata: %w", err)
 			}
 		}
