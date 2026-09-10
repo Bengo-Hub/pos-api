@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/customerbalancecache"
 	"github.com/bengobox/pos-service/internal/modules/notifications"
+	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
 
 // balanceUpdatedEvent is the wire shape of treasury.customer.balance_updated /
@@ -135,11 +136,20 @@ func (s *TreasurySubscriber) subscribeCustomerBalanceUpdated(js nats.JetStreamCo
 		if s.paymentSvc == nil {
 			return
 		}
-		target, _ := strconv.ParseFloat(outstandingDebit, 64)
 		reference, _ := evt.Payload["reference"].(string)
 		crmStr := ""
 		if crmContactID != nil {
 			crmStr = crmContactID.String()
+		}
+
+		// Re-fetch treasury's CURRENT live outstanding_debit instead of trusting the figure baked
+		// into THIS event's payload — see resolveReconcileTarget's doc comment for why (a compound
+		// edit can fire two of these events in quick succession, and the first one's figure is a
+		// transient, soon-superseded snapshot).
+		target, ok := resolveReconcileTarget(ctx, s.paymentSvc.treasuryClient, tenantID, crmStr, identifier, outstandingDebit)
+		if !ok {
+			s.log.Warn("treasury.customer.balance_updated: live balance re-fetch failed, skipping reconcile pass")
+			return
 		}
 		if _, rerr := s.paymentSvc.ReconcileCustomerOrders(ctx, ReconcileParams{
 			TenantID:           tenantID,
@@ -152,6 +162,46 @@ func (s *TreasurySubscriber) subscribeCustomerBalanceUpdated(js nats.JetStreamCo
 		}
 	}, nats.Durable("pos-treasury-customer-balance-updated"), nats.ManualAck())
 	return nil
+}
+
+// resolveReconcileTarget determines the reduce-only reconcile target for a
+// treasury.customer.balance_updated event. Prefers a LIVE re-fetch of treasury's current
+// outstanding_debit over trusting the figure baked into the event's own payload.
+//
+// A single compound edit (e.g. a "mixed" Edit-Sale increase+reduction in one call) can fire TWO
+// independent balance_updated events in quick succession — the reduction posts synchronously, the
+// increase's own treasury GL call is dispatched off the request path (see
+// saleedit.applyInPlaceIncrease's doc comment) and can land a few hundred ms later. Trusting the
+// FIRST event's (lower, transient) outstanding figure permanently fabricates a phantom
+// "ar_reconciled" POSPayment for the gap once the second, correct figure lands — reduce-only means
+// that phantom payment can never be un-done by a later event. Confirmed live 2026-09-10:
+// boi-enterprises order 002527 (MR PETER FUNYULA) — a mixed edit's reversal leg posted an
+// intermediate 22,700 balance 315ms before its own increase leg posted the correct 35,410, and the
+// reconciler fabricated a 12,710 "payment" the customer never made, permanently understating what
+// POS showed as owed.
+//
+// Falls back to the event's own payload figure only when no treasury client is wired (matches this
+// subscriber's pre-existing fail-open posture). Returns ok=false on a live-fetch error — the caller
+// should skip that reconcile pass entirely rather than fall back to the stale event value; a future
+// balance_updated (or a real settle-credit payment) will trigger reconciliation again, and skipping
+// one pass is strictly safer than risking the same fabrication.
+func resolveReconcileTarget(ctx context.Context, tc *treasury.Client, tenantID uuid.UUID, crmContactID, identifier, eventOutstandingDebit string) (target float64, ok bool) {
+	fallback, _ := strconv.ParseFloat(eventOutstandingDebit, 64)
+	if tc == nil {
+		return fallback, true
+	}
+	key := crmContactID
+	if key == "" {
+		key = identifier
+	}
+	terms, err := tc.GetCreditTerms(ctx, tenantID.String(), key)
+	if err != nil {
+		return 0, false
+	}
+	if live, perr := strconv.ParseFloat(terms.OutstandingDebit, 64); perr == nil {
+		return live, true
+	}
+	return fallback, true
 }
 
 func currencyOrDefault(c string) string {
