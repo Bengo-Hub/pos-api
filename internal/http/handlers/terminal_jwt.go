@@ -50,6 +50,11 @@ type terminalClaims struct {
 	SubscriptionExempt  bool   `json:"sub_exempt,omitempty"`
 	AllowOverage        bool   `json:"sub_allow_overage,omitempty"`
 	SubscriptionExpires *int64 `json:"sub_expires,omitempty"`
+	// ActiveServiceTags mirrors the SSO JWT claim of the same name — feeds shared-auth-client's
+	// RequireServiceAccess module gate. Missing here was the exact 2026-09-11 gap: SSO logins
+	// carried it, PIN/terminal logins silently didn't, so a fresh SSO re-login "fixed" the
+	// module-gate block while PIN re-logins kept failing.
+	ActiveServiceTags []string `json:"active_service_tags,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -76,7 +81,8 @@ type terminalEntitlements struct {
 	// ExpiresAtUnix is the subscription's current_period_end as a Unix timestamp, nil for a
 	// perpetual (one-time) license — mirrors auth-api's EnrichTokenWithSubscription, which
 	// omits sub_expires entirely for IsPerpetual subs so the gate treats them as never-expiring.
-	ExpiresAtUnix *int64
+	ExpiresAtUnix     *int64
+	ActiveServiceTags []string
 }
 
 // issueTerminalJWT returns the signed token AND the resolved permission set it baked in, so the
@@ -129,6 +135,7 @@ func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutlet
 		SubscriptionExempt:   ent2.Exempt,
 		AllowOverage:         ent2.AllowOverage,
 		SubscriptionExpires:  ent2.ExpiresAtUnix,
+		ActiveServiceTags:    ent2.ActiveServiceTags,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   member.UserID.String(),
 			Issuer:    "pos-terminal",
@@ -190,6 +197,7 @@ func terminalToAuthClaims(tc *terminalClaims) *authclient.Claims {
 		SubscriptionExempt:   tc.SubscriptionExempt,
 		AllowOverage:         tc.AllowOverage,
 		SubscriptionExpires:  tc.SubscriptionExpires,
+		ActiveServiceTags:    tc.ActiveServiceTags,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject: tc.Subject,
 			Issuer:  tc.Issuer,

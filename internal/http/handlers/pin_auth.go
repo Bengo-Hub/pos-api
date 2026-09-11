@@ -98,6 +98,7 @@ func (h *PINAuthHandler) resolveTerminalEntitlements(ctx context.Context, tenant
 			te.TierOrder = e.TierOrder
 			te.Exempt = e.Exempt
 			te.AllowOverage = e.AllowOverage
+			te.ActiveServiceTags = e.ActiveServiceTags
 			// One-time perpetual licences never expire: omit sub_expires so the gate treats
 			// them as permanently active, matching auth-api's EnrichTokenWithSubscription.
 			if !e.IsPerpetual && e.CurrentPeriodEnd != "" {

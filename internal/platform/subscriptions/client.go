@@ -129,6 +129,11 @@ type Entitlements struct {
 	CurrentPeriodEnd string `json:"current_period_end"`
 	IsPerpetual      bool   `json:"is_perpetual"`
 	Exempt           bool   `json:"exempt"`
+	// ActiveServiceTags feeds shared-auth-client's RequireServiceAccess module gate — without
+	// decoding it here, EVERY PIN/terminal session fleet-wide carries zero service tags
+	// regardless of the tenant's real plan, since an SSO-only fix upstream never reaches this
+	// separate token-minting path (2026-09-11 incident: SSO logins worked, PIN logins didn't).
+	ActiveServiceTags []string `json:"active_service_tags"`
 }
 
 // GetEntitlements fetches the tenant's full subscription snapshot (features, limits,
