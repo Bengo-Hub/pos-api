@@ -6,11 +6,14 @@ import (
 	"strings"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 )
@@ -66,10 +69,18 @@ func NewARDriftAuditScheduler(log *zap.Logger, svc *Service) *ARDriftAuditSchedu
 	return &ARDriftAuditScheduler{log: log.Named("pos.ar_drift_audit"), svc: svc}
 }
 
-// arDriftInterval is how often a full fleet-wide pass runs. Frequent enough that a real drift
-// surfaces within hours, not months; infrequent enough not to hammer treasury with per-customer
-// GetCreditTerms calls across every tenant.
-const arDriftInterval = 6 * time.Hour
+// arDriftInterval is how often a full fleet-wide pass runs. This audit is a LAST-RESORT safety
+// net, not the primary defense — the primary defense is retrying failed syncs at the point of
+// failure (see credit_settlement_reconciler.go, which retries within minutes). A full scan is
+// comparatively expensive (see run()'s doc comment on why it's still bounded/scalable), so it
+// runs once a day rather than several times — a real drift still surfaces within a day, not
+// months, without competing for DB/treasury capacity on a tight cycle.
+const arDriftInterval = 24 * time.Hour
+
+// arDriftBatchSize bounds how many order rows are loaded into memory at once (see run()'s doc
+// comment) — independent of how large pos_orders grows overall. A var (not const) so tests can
+// shrink it to exercise the multi-batch/keyset-pagination path without seeding hundreds of rows.
+var arDriftBatchSize = 500
 
 // Start launches the background ticker. Call in a goroutine from main (mirrors
 // scheduler.LayawayReminderScheduler.Start exactly).
@@ -105,58 +116,95 @@ type custGroup struct {
 	due  float64
 }
 
-// run performs one fleet-wide pass: load every non-terminal on-account order across every tenant
-// ONCE, group by (tenant, customer), sum each group's owed amount via the SAME formula every
-// other read path uses (orders.ComputeSettlement + completedReturnsTotal — never reimplemented),
-// then compare each group's total against treasury.
+// run performs one fleet-wide pass, group by (tenant, customer), sum each group's owed amount via
+// the SAME formula every other read path uses (orders.ComputeSettlement + completedReturnsTotal —
+// never reimplemented), then compare each group's total against treasury.
+//
+// Scale note: this MUST stay safe to run against a pos_orders table with years of history and
+// many tenants, not just today's data volume. Two things make that true instead of this becoming
+// a ticking time bomb that quietly gets slower every month until it times out or starves the DB:
+//  1. The candidate query is filtered AT THE DATABASE, not in Go: on_account=true via a JSON-path
+//     predicate (sqljson.ValueEQ — pushes the filter into SQL instead of loading every order of
+//     every kind and discarding most of them in application code) AND total_amount > paid_total
+//     (a raw comparison predicate — an already-fully-settled order can never contribute a positive
+//     due amount, so there's no reason to ever load it here again). In practice this means the
+//     scan only ever touches the CURRENTLY-open credit orders, a working set that stays small
+//     relative to total order history for any real business, regardless of how many millions of
+//     historical (settled, cash, voided) orders accumulate around it.
+//  2. Even that filtered set is paginated (arDriftBatchSize rows per query, keyset pagination by
+//     id) rather than loaded with a single unbounded .All() — memory use per pass is bounded by
+//     the batch size, not by how many open credit orders exist fleet-wide. The per-customer
+//     `groups` accumulator persists across batches (a customer's open orders can span more than
+//     one page), but its size is bounded by the number of DISTINCT customers with currently-open
+//     balances, which is a much smaller number than the order count itself.
 func (s *ARDriftAuditScheduler) run(ctx context.Context) {
 	if s.svc == nil || s.svc.treasuryClient == nil {
 		return
 	}
-	candidates, err := s.svc.client.POSOrder.Query().
-		Where(posorder.StatusNotIn(orders.StatusVoided, orders.StatusCancelled, orders.StatusRefunded, orders.StatusDraft)).
-		All(ctx)
-	if err != nil {
-		s.log.Error("ar drift audit: load candidate orders failed", zap.Error(err))
-		return
-	}
-
 	groups := map[custGroupKey]*custGroup{}
-	for _, o := range candidates {
-		if !orders.IsOnAccount(o.Metadata) {
-			continue
+	var lastID uuid.UUID
+	for {
+		preds := []predicate.POSOrder{
+			posorder.StatusNotIn(orders.StatusVoided, orders.StatusCancelled, orders.StatusRefunded, orders.StatusDraft),
+			predicate.POSOrder(func(sel *sql.Selector) {
+				sel.Where(sqljson.ValueEQ(posorder.FieldMetadata, true, sqljson.Path("on_account")))
+			}),
+			predicate.POSOrder(func(sel *sql.Selector) {
+				sel.Where(sql.ColumnsGT(sel.C(posorder.FieldTotalAmount), sel.C(posorder.FieldPaidTotal)))
+			}),
 		}
-		phone := ""
-		if o.CustomerPhone != nil {
-			phone = strings.TrimSpace(*o.CustomerPhone)
+		if lastID != uuid.Nil {
+			preds = append(preds, posorder.IDGT(lastID))
 		}
-		if phone == "" {
-			if staffID, _, isStaff := staffCreditFromOrderParty(o); isStaff {
-				phone = "staff:" + staffID.String()
-			} else {
-				continue // no customer key at all — nothing to reconcile against (matches
-				// RecordSettledSale's own no-op rule for a true walk-in with no identity).
+		batch, err := s.svc.client.POSOrder.Query().
+			Where(preds...).
+			Order(ent.Asc(posorder.FieldID)).
+			Limit(arDriftBatchSize).
+			All(ctx)
+		if err != nil {
+			s.log.Error("ar drift audit: load candidate orders batch failed", zap.Error(err))
+			return
+		}
+		if len(batch) == 0 {
+			break
+		}
+		for _, o := range batch {
+			lastID = o.ID
+			phone := ""
+			if o.CustomerPhone != nil {
+				phone = strings.TrimSpace(*o.CustomerPhone)
 			}
-		}
-		cr, rerr := s.svc.completedReturnsTotal(ctx, o.ID)
-		if rerr != nil {
-			s.log.Warn("ar drift audit: completed-returns lookup failed", zap.String("order", o.OrderNumber), zap.Error(rerr))
-		}
-		due := orders.ComputeSettlement(o, cr).AmountDue
-		if due <= 0.01 {
-			continue
-		}
-		key := custGroupKey{tenantID: o.TenantID, phone: phone}
-		g, ok := groups[key]
-		if !ok {
-			name := ""
-			if o.CustomerName != nil {
-				name = *o.CustomerName
+			if phone == "" {
+				if staffID, _, isStaff := staffCreditFromOrderParty(o); isStaff {
+					phone = "staff:" + staffID.String()
+				} else {
+					continue // no customer key at all — nothing to reconcile against (matches
+					// RecordSettledSale's own no-op rule for a true walk-in with no identity).
+				}
 			}
-			g = &custGroup{name: name}
-			groups[key] = g
+			cr, rerr := s.svc.completedReturnsTotal(ctx, o.ID)
+			if rerr != nil {
+				s.log.Warn("ar drift audit: completed-returns lookup failed", zap.String("order", o.OrderNumber), zap.Error(rerr))
+			}
+			due := orders.ComputeSettlement(o, cr).AmountDue
+			if due <= 0.01 {
+				continue
+			}
+			key := custGroupKey{tenantID: o.TenantID, phone: phone}
+			g, ok := groups[key]
+			if !ok {
+				name := ""
+				if o.CustomerName != nil {
+					name = *o.CustomerName
+				}
+				g = &custGroup{name: name}
+				groups[key] = g
+			}
+			g.due += due
 		}
-		g.due += due
+		if len(batch) < arDriftBatchSize {
+			break
+		}
 	}
 
 	var flagged, healed int

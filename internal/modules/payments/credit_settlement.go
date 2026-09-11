@@ -224,44 +224,12 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 		}
 	}
 
-	// Treasury AR receipt (Dr Cash / Cr AR + CustomerBalance decrement) — same key
-	// resolution the credit sale used, so the receipt lands on the row that was debited.
-	synced := false
-	var surplusToStoreCredit float64
-	if s.treasuryClient != nil {
-		key := s.creditSettlementKey(ctx, req.TenantID, order)
-		if key == "" {
-			s.log.Warn("credit settlement: no customer key on order — treasury AR not decremented",
-				zap.String("order", order.OrderNumber))
-		} else if arResp, terr := s.treasuryClient.RecordARPayment(ctx, req.TenantSlug, key, treasury.ARPaymentRequest{
-			Amount:        req.Amount,
-			PaymentMethod: req.TenderMethod,
-			Reference:     order.OrderNumber,
-			PaidAt:        &occurredAt,
-			OutletID:      order.OutletID.String(),
-			SurplusAction: req.SurplusAction,
-		}); terr != nil {
-			s.log.Error("credit settlement: treasury AR receipt failed — settle from treasury Customers page",
-				zap.String("order", order.OrderNumber), zap.Error(terr))
-		} else {
-			synced = true
-			if arResp != nil {
-				surplusToStoreCredit, _ = strconv.ParseFloat(arResp.SurplusAmount, 64)
-				// Stash the treasury receipt id + key onto the local row so a mis-settled credit
-				// sale can be corrected via VoidPayment later (which needs both to call treasury's
-				// VoidARReceipt), instead of the old cash-refund path that left AR wrongly reduced.
-				if arResp.ReceiptID != "" {
-					pd := paymentData
-					pd["treasury_receipt_id"] = arResp.ReceiptID
-					pd["treasury_customer_key"] = key
-					if _, uerr := s.client.POSPayment.UpdateOneID(settlementPayment.ID).SetPaymentData(pd).Save(ctx); uerr != nil {
-						s.log.Warn("credit settlement: failed to stash treasury receipt id (void will fall back to refund)",
-							zap.String("order", order.OrderNumber), zap.Error(uerr))
-					}
-				}
-			}
-		}
-	}
+	// Treasury AR receipt (Dr Cash / Cr AR + CustomerBalance decrement) — extracted so the
+	// background CreditSettlementSyncReconciler (credit_settlement_reconciler.go) can retry the
+	// EXACT same call for a row where this attempt fails, instead of leaving a real collected
+	// payment permanently unreflected in treasury with only a log line and an easy-to-miss toast
+	// (see that reconciler's doc comment for the live incident this closes).
+	synced, surplusToStoreCredit := s.syncCreditSettlementReceipt(ctx, req.TenantID, req.TenantSlug, order, settlementPayment.ID, paymentData, req.TenderMethod, req.Amount, occurredAt, req.SurplusAction)
 
 	status := "partial"
 	if outstandingAfter <= 0.01 {
@@ -309,4 +277,62 @@ func (s *Service) creditSettlementKey(ctx context.Context, tenantID uuid.UUID, o
 		return crmID
 	}
 	return phone
+}
+
+// syncCreditSettlementReceipt posts a collected credit-settlement payment to treasury (Dr Cash /
+// Cr AR + CustomerBalance decrement) and stashes the receipt id/key onto the payment row on
+// success. Extracted from SettleCreditPayment so CreditSettlementSyncReconciler
+// (credit_settlement_reconciler.go) can retry the IDENTICAL call for a row whose first attempt
+// failed — same key resolution, same request shape, same stash-on-success behavior — instead of
+// drifting from what the original settlement did. Never returns an error: a sync failure here is
+// always best-effort by design (the till already has the money; treasury sync is a follow-up),
+// logged and left for the reconciler to retry.
+//
+// surplusAction is only meaningful when amount exceeds the customer's currently-outstanding
+// balance (an intentional overpayment-to-store-credit) — a RETRY (paymentID already existed, this
+// function re-invoked later by the reconciler) has no way to recover the original caller's choice
+// since it isn't persisted on the row, so a retried overpayment that exceeds the (by-then-current)
+// outstanding balance without that flag will fail cleanly (RecordARPayment rejects it) rather than
+// silently doing the wrong thing — the reconciler just leaves it for the next pass. This is an
+// accepted, narrow limitation: the common case (amount <= outstanding) is unaffected.
+func (s *Service) syncCreditSettlementReceipt(ctx context.Context, tenantID uuid.UUID, tenantSlug string, order *ent.POSOrder, paymentID uuid.UUID, paymentData map[string]any, method string, amount float64, occurredAt time.Time, surplusAction string) (synced bool, surplusToStoreCredit float64) {
+	if s.treasuryClient == nil {
+		return false, 0
+	}
+	key := s.creditSettlementKey(ctx, tenantID, order)
+	if key == "" {
+		s.log.Warn("credit settlement: no customer key on order — treasury AR not decremented",
+			zap.String("order", order.OrderNumber))
+		return false, 0
+	}
+	arResp, terr := s.treasuryClient.RecordARPayment(ctx, tenantSlug, key, treasury.ARPaymentRequest{
+		Amount:        amount,
+		PaymentMethod: method,
+		Reference:     order.OrderNumber,
+		PaidAt:        &occurredAt,
+		OutletID:      order.OutletID.String(),
+		SurplusAction: surplusAction,
+	})
+	if terr != nil {
+		s.log.Error("credit settlement: treasury AR receipt failed — will retry automatically",
+			zap.String("order", order.OrderNumber), zap.Error(terr))
+		return false, 0
+	}
+	if arResp == nil {
+		return true, 0
+	}
+	surplusToStoreCredit, _ = strconv.ParseFloat(arResp.SurplusAmount, 64)
+	// Stash the treasury receipt id + key onto the local row so a mis-settled credit sale can be
+	// corrected via VoidPayment later (which needs both to call treasury's VoidARReceipt), and so
+	// CreditSettlementSyncReconciler knows this row is done and stops retrying it.
+	if arResp.ReceiptID != "" {
+		pd := paymentData
+		pd["treasury_receipt_id"] = arResp.ReceiptID
+		pd["treasury_customer_key"] = key
+		if _, uerr := s.client.POSPayment.UpdateOneID(paymentID).SetPaymentData(pd).Save(ctx); uerr != nil {
+			s.log.Warn("credit settlement: failed to stash treasury receipt id (void will fall back to refund)",
+				zap.String("order", order.OrderNumber), zap.Error(uerr))
+		}
+	}
+	return true, surplusToStoreCredit
 }

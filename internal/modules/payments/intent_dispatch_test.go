@@ -235,4 +235,3 @@ func TestTreasuryIntentReconciler_SkipsNonCashMethods(t *testing.T) {
 		t.Fatalf("expected reconciler to skip on_account payment, treasury was called %d times", calls)
 	}
 }
-

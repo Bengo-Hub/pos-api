@@ -64,23 +64,24 @@ import (
 )
 
 type App struct {
-	cfg                      *config.Config
-	log                      *zap.Logger
-	httpServer               *http.Server
-	db                       *pgxpool.Pool
-	entClient                *ent.Client
-	cache                    *redis.Client
-	events                   *nats.Conn
-	outboxPublisher          *eventslib.Publisher
-	webhookWorker            *webhookmodule.DeliveryWorker
-	shiftAutoEndWorker       *shiftsmodule.AutoEndWorker
-	saleFinalizedReconciler  *paymentmodule.SaleFinalizedReconciler
-	treasuryIntentReconciler *paymentmodule.TreasuryIntentReconciler
-	kdsHub                   *kdsmodule.Hub
-	printHub                 *printing.Hub
-	notifHub                 *notifmodule.Hub
-	layawayReminderScheduler *scheduler.LayawayReminderScheduler
-	arDriftAuditScheduler    *paymentmodule.ARDriftAuditScheduler
+	cfg                            *config.Config
+	log                            *zap.Logger
+	httpServer                     *http.Server
+	db                             *pgxpool.Pool
+	entClient                      *ent.Client
+	cache                          *redis.Client
+	events                         *nats.Conn
+	outboxPublisher                *eventslib.Publisher
+	webhookWorker                  *webhookmodule.DeliveryWorker
+	shiftAutoEndWorker             *shiftsmodule.AutoEndWorker
+	saleFinalizedReconciler        *paymentmodule.SaleFinalizedReconciler
+	treasuryIntentReconciler       *paymentmodule.TreasuryIntentReconciler
+	kdsHub                         *kdsmodule.Hub
+	printHub                       *printing.Hub
+	notifHub                       *notifmodule.Hub
+	layawayReminderScheduler       *scheduler.LayawayReminderScheduler
+	arDriftAuditScheduler          *paymentmodule.ARDriftAuditScheduler
+	creditSettlementSyncReconciler *paymentmodule.CreditSettlementSyncReconciler
 }
 
 // newReadOnlyEntClient opens a separate Ent client against cfg.ReadOnlyURL (a read replica, via
@@ -694,9 +695,14 @@ func New(ctx context.Context) (*App, error) {
 	shiftAutoEndWorker := shiftsmodule.NewAutoEndWorker(entClient, log)
 	saleFinalizedReconciler := paymentmodule.NewSaleFinalizedReconciler(paymentSvc, log)
 	treasuryIntentReconciler := paymentmodule.NewTreasuryIntentReconciler(paymentSvc, log)
+	// Primary defense for "a real payment never reflected in treasury" — retries a
+	// credit-settlement's treasury sync within minutes of a failure. See
+	// payments/credit_settlement_reconciler.go's doc comment.
+	creditSettlementSyncReconciler := paymentmodule.NewCreditSettlementSyncReconciler(paymentSvc, log)
 	// Fleet-wide POS-vs-treasury AR drift safety net — see payments/ar_drift_audit.go's doc
 	// comment for why this exists (every fix in this bug family closes one mechanism; nothing
-	// was watching for the next one).
+	// was watching for the next one). Last-resort/periodic, NOT the primary defense — the
+	// reconciler above is.
 	arDriftAudit := paymentmodule.NewARDriftAuditScheduler(log, paymentSvc)
 	var layawayReminder *scheduler.LayawayReminderScheduler
 	if eventPub := orderSvc.GetPublisher(); eventPub != nil {
@@ -776,23 +782,24 @@ func New(ctx context.Context) (*App, error) {
 	}
 
 	return &App{
-		cfg:                      cfg,
-		log:                      log,
-		httpServer:               httpServer,
-		db:                       dbPool,
-		entClient:                entClient,
-		cache:                    redisClient,
-		events:                   natsConn,
-		outboxPublisher:          outboxPub,
-		webhookWorker:            webhookWorker,
-		shiftAutoEndWorker:       shiftAutoEndWorker,
-		saleFinalizedReconciler:  saleFinalizedReconciler,
-		treasuryIntentReconciler: treasuryIntentReconciler,
-		kdsHub:                   kdsHub,
-		printHub:                 printHub,
-		notifHub:                 notifHub,
-		layawayReminderScheduler: layawayReminder,
-		arDriftAuditScheduler:    arDriftAudit,
+		cfg:                            cfg,
+		log:                            log,
+		httpServer:                     httpServer,
+		db:                             dbPool,
+		entClient:                      entClient,
+		cache:                          redisClient,
+		events:                         natsConn,
+		outboxPublisher:                outboxPub,
+		webhookWorker:                  webhookWorker,
+		shiftAutoEndWorker:             shiftAutoEndWorker,
+		saleFinalizedReconciler:        saleFinalizedReconciler,
+		treasuryIntentReconciler:       treasuryIntentReconciler,
+		kdsHub:                         kdsHub,
+		printHub:                       printHub,
+		notifHub:                       notifHub,
+		layawayReminderScheduler:       layawayReminder,
+		arDriftAuditScheduler:          arDriftAudit,
+		creditSettlementSyncReconciler: creditSettlementSyncReconciler,
 	}, nil
 }
 
@@ -828,6 +835,12 @@ func (a *App) Run(ctx context.Context) error {
 	// (see pos-sale-close-async-fanout.md follow-up) for any payment left without one every 2 min
 	if a.treasuryIntentReconciler != nil {
 		go a.treasuryIntentReconciler.Start(ctx)
+	}
+
+	// Start credit-settlement sync reconciler — retries a failed treasury AR receipt for a
+	// collected credit-settlement payment every 2 min (see payments/credit_settlement_reconciler.go)
+	if a.creditSettlementSyncReconciler != nil {
+		go a.creditSettlementSyncReconciler.Start(ctx)
 	}
 
 	// Start KDS/print/notification hub Redis pub/sub relays — no-op if Redis is not configured

@@ -41,13 +41,13 @@ func round2(f float64) float64 { return math.Round(f*100) / 100 }
 
 // ReconcileReport summarizes one reconciliation pass (used by the dry-run data-heal endpoint too).
 type ReconcileReport struct {
-	CustomerKey    string             `json:"customer_key"`
-	TargetOutstanding float64         `json:"target_outstanding"`
-	POSOpenBefore  float64            `json:"pos_open_before"`
-	POSOpenAfter   float64            `json:"pos_open_after"`
-	AmountSettled  float64            `json:"amount_settled"`
-	OrdersTouched  []ReconciledOrder  `json:"orders_touched"`
-	DryRun         bool               `json:"dry_run"`
+	CustomerKey       string            `json:"customer_key"`
+	TargetOutstanding float64           `json:"target_outstanding"`
+	POSOpenBefore     float64           `json:"pos_open_before"`
+	POSOpenAfter      float64           `json:"pos_open_after"`
+	AmountSettled     float64           `json:"amount_settled"`
+	OrdersTouched     []ReconciledOrder `json:"orders_touched"`
+	DryRun            bool              `json:"dry_run"`
 }
 
 // ReconciledOrder is one order a reconciliation pass settled (or would settle, in dry-run).
@@ -229,10 +229,10 @@ func (s *Service) applyReconcileSettlement(ctx context.Context, order *ent.POSOr
 		SetCurrency(currency).
 		SetStatus(StatusCompleted).
 		SetPaymentData(map[string]any{
-			"method":              method,
-			"ar_reconciled":       true,
-			"treasury_reference":  reference,
-			"reconcile_source":    "treasury_balance_updated",
+			"method":             method,
+			"ar_reconciled":      true,
+			"treasury_reference": reference,
+			"reconcile_source":   "treasury_balance_updated",
 		}).
 		SetNillableExternalReference(nilIfEmpty(reference)).
 		Save(ctx); err != nil {

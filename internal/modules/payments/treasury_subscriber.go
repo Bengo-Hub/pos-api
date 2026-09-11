@@ -252,4 +252,3 @@ func (s *TreasurySubscriber) subscribeEtimsTransmitted(js nats.JetStreamContext)
 	}, nats.Durable("pos-etims-invoice"), nats.ManualAck())
 	return nil
 }
-

@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/syncfailure"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
@@ -104,6 +105,50 @@ func TestARDriftAudit_UnsafeDirection_RecordsFlagWithoutMutating(t *testing.T) {
 	payload := flag.Payload
 	if payload["pos_open"] != 1000.0 || payload["treasury_balance"] != 1500.0 {
 		t.Errorf("flag payload = %+v, want pos_open=1000 treasury_balance=1500", payload)
+	}
+}
+
+// TestARDriftAudit_PaginatesAcrossMultipleBatches is the regression test for exactly the class of
+// bug the user flagged 2026-09-11: an unbounded/off-by-one pagination loop is a ticking time bomb
+// that only shows symptoms once real data volume exceeds one batch — by which point it's a
+// production incident, not a code review comment. Seeds more open on-account orders than
+// arDriftBatchSize (shrunk here so the test doesn't need hundreds of rows) split across several
+// distinct customers, and confirms EVERY customer's orders are found and summed — not just
+// whichever fit in the first page — and that the loop actually terminates.
+func TestARDriftAudit_PaginatesAcrossMultipleBatches(t *testing.T) {
+	old := arDriftBatchSize
+	arDriftBatchSize = 2
+	t.Cleanup(func() { arDriftBatchSize = old })
+
+	svc, client := newTestPaymentsService(t)
+	tenantID := uuid.New()
+	// 5 customers, 1 order each (200 apiece) — batch size 2 forces 3 pages (2+2+1).
+	phones := []string{"+254700000401", "+254700000402", "+254700000403", "+254700000404", "+254700000405"}
+	for _, phone := range phones {
+		seedOnAccountOrderWithCustomer(t, client, tenantID, phone, "Customer "+phone, 200, 0)
+	}
+	svc.SetTreasuryClient(treasuryStub(t, "0")) // every customer fully settled per treasury -> safe-direction heal
+
+	sched := NewARDriftAuditScheduler(zap.NewNop(), svc)
+	done := make(chan struct{})
+	go func() {
+		sched.run(context.Background())
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("run() did not terminate — likely an infinite pagination loop")
+	}
+
+	for _, phone := range phones {
+		order, err := client.POSOrder.Query().Where(posorder.CustomerPhone(phone)).Only(context.Background())
+		if err != nil {
+			t.Fatalf("reload order for %s: %v", phone, err)
+		}
+		if order.PaidTotal != 200 {
+			t.Errorf("customer %s: PaidTotal = %v, want 200 (every customer across every page must be processed, not just the first batch)", phone, order.PaidTotal)
+		}
 	}
 }
 

@@ -11,8 +11,8 @@ import (
 	outletsettingpredicate "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
-	"github.com/bengobox/pos-service/internal/ent/tender"
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
+	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/modules/providerfooter"
 
