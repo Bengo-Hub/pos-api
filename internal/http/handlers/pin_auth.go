@@ -107,6 +107,13 @@ func (h *PINAuthHandler) resolveTerminalEntitlements(ctx context.Context, tenant
 					te.ExpiresAtUnix = &unix
 				}
 			}
+			te.SupportFeeStatus = e.SupportFeeStatus
+			if e.SupportFeeDueAt != "" {
+				if t, perr := time.Parse(time.RFC3339, e.SupportFeeDueAt); perr == nil {
+					unix := t.Unix()
+					te.SupportFeeDueAtUnix = &unix
+				}
+			}
 			if e.IsDemoBypass {
 				te.IsDemo = true
 			}

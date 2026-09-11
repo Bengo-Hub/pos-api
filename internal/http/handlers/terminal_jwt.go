@@ -55,6 +55,13 @@ type terminalClaims struct {
 	// carried it, PIN/terminal logins silently didn't, so a fresh SSO re-login "fixed" the
 	// module-gate block while PIN re-logins kept failing.
 	ActiveServiceTags []string `json:"active_service_tags,omitempty"`
+	// SupportFeeStatus/SupportFeeDueAt mirror the SSO JWT claims of the same name — feed
+	// shared-auth-client's RequireSupportFeeCurrentForMutations. Same rationale as
+	// ActiveServiceTags: without minting these here too, a PIN session for a perpetual/
+	// one-time-license tenant would be silently exempt from the support-fee gate regardless of
+	// the tenant's real status.
+	SupportFeeStatus string `json:"support_fee_status,omitempty"`
+	SupportFeeDueAt  *int64 `json:"support_fee_due_at,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -83,6 +90,11 @@ type terminalEntitlements struct {
 	// omits sub_expires entirely for IsPerpetual subs so the gate treats them as never-expiring.
 	ExpiresAtUnix     *int64
 	ActiveServiceTags []string
+	// SupportFeeStatus/SupportFeeDueAtUnix mirror ExpiresAtUnix's shape — resolved by the Login
+	// handler from the subscriptions client's Entitlements.SupportFeeStatus/SupportFeeDueAt
+	// (RFC3339 string parsed to Unix), nil when the tenant has no support-fee obligation.
+	SupportFeeStatus    string
+	SupportFeeDueAtUnix *int64
 }
 
 // issueTerminalJWT returns the signed token AND the resolved permission set it baked in, so the
@@ -136,6 +148,8 @@ func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutlet
 		AllowOverage:         ent2.AllowOverage,
 		SubscriptionExpires:  ent2.ExpiresAtUnix,
 		ActiveServiceTags:    ent2.ActiveServiceTags,
+		SupportFeeStatus:     ent2.SupportFeeStatus,
+		SupportFeeDueAt:      ent2.SupportFeeDueAtUnix,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   member.UserID.String(),
 			Issuer:    "pos-terminal",
@@ -198,6 +212,8 @@ func terminalToAuthClaims(tc *terminalClaims) *authclient.Claims {
 		AllowOverage:         tc.AllowOverage,
 		SubscriptionExpires:  tc.SubscriptionExpires,
 		ActiveServiceTags:    tc.ActiveServiceTags,
+		SupportFeeStatus:     tc.SupportFeeStatus,
+		SupportFeeDueAt:      tc.SupportFeeDueAt,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject: tc.Subject,
 			Issuer:  tc.Issuer,

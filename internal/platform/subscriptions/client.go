@@ -134,6 +134,14 @@ type Entitlements struct {
 	// regardless of the tenant's real plan, since an SSO-only fix upstream never reaches this
 	// separate token-minting path (2026-09-11 incident: SSO logins worked, PIN logins didn't).
 	ActiveServiceTags []string `json:"active_service_tags"`
+	// SupportFeeStatus/SupportFeeDueAt feed shared-auth-client's
+	// RequireSupportFeeCurrentForMutations — same rationale as ActiveServiceTags above: a PIN
+	// session for a perpetual/one-time-license tenant must carry the same support-fee claim an
+	// SSO session would, or this independent minting path silently exempts every PIN user from
+	// the gate regardless of the tenant's real support-fee status. RFC3339 string (mirrors
+	// CurrentPeriodEnd's own shape/parsing above) — empty = no support-fee obligation.
+	SupportFeeStatus string `json:"support_fee_status,omitempty"`
+	SupportFeeDueAt  string `json:"support_fee_due_at,omitempty"`
 }
 
 // GetEntitlements fetches the tenant's full subscription snapshot (features, limits,
