@@ -304,14 +304,15 @@ func New(
 			}
 			if authMiddleware != nil {
 				prot.Use(subscriptions.SubscriptionGate())
-				// Module gate: block the WHOLE pos module (reads and writes alike) for a tenant
-				// whose plan never included POS at all (e.g. a standalone Inventory/Treasury-only
-				// tenant). Distinct from SubscriptionGate above (subscription STATUS active/
-				// expired/grace) and from per-feature locks elsewhere — without this, any SSO
-				// user of any tenant could still reach pos-api's basic, ungated routes regardless
-				// of whether POS is even part of their plan. /pos/auth/me is included (pos-ui
-				// already falls back gracefully to role inference if this call fails).
-				prot.Use(authclient.RequireServiceAccess("pos"))
+				// EMERGENCY REVERT 2026-09-11: RequireServiceAccess("pos") blocked EVERY tenant
+				// fleet-wide within ~40 minutes of deploy. Root cause: subscriptions-api's
+				// active_service_tags claim is omitempty on an empty/nil slice, so it's
+				// byte-for-byte indistinguishable from "never computed" on any JWT minted before
+				// this claim existed — every already-logged-in session (which is effectively
+				// every active user) had zero tags and got hard-blocked, reads included. Do NOT
+				// re-enable via authclient.RequireServiceAccess until Claims carries an explicit
+				// presence flag (pointer/bool) distinguishing "claim absent" from "genuinely zero
+				// tags", with a safe fail-open default for the former.
 			}
 
 			if idSvc != nil {
