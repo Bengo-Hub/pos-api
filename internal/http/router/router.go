@@ -705,6 +705,10 @@ func New(
 						pos.Group(func(rc chi.Router) {
 							rc.Use(requirePlatformOwner)
 							rc.Post("/ar/reconcile", payments.ReconcileAR)
+							// Read side of the scheduled fleet-wide drift audit (payments/
+							// ar_drift_audit.go) — customers flagged as understated in POS relative
+							// to treasury, which the scheduler deliberately never auto-corrects.
+							rc.Get("/ar/drift-flags", payments.ListARDriftFlags)
 						})
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.payments.manage")).
 							Post("/orders/{orderID}/payments", payments.RecordPayment)

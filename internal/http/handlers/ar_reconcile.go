@@ -83,3 +83,24 @@ func (h *PaymentHandler) ReconcileAR(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonOK(w, report)
 }
+
+// ListARDriftFlags handles GET /{tenantID}/pos/ar/drift-flags (platform-owner only) — lists every
+// open (unresolved) POS-vs-treasury AR drift flag recorded by the scheduled
+// payments.ARDriftAuditScheduler (ar_drift_audit.go). Each flag names a customer whose
+// POS-computed open on-account total disagrees with treasury's live balance in the direction that
+// can never be safely auto-corrected (POS understating what's actually owed) — see that
+// scheduler's own doc comment for the full rationale and why this exists at all.
+func (h *PaymentHandler) ListARDriftFlags(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	flags, err := h.paymentSvc.ListARDriftFlags(r.Context(), tid)
+	if err != nil {
+		h.log.Error("list ar drift flags failed", zap.Error(err))
+		jsonError(w, "failed to load drift flags", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, flags)
+}

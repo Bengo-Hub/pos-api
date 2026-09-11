@@ -80,6 +80,7 @@ type App struct {
 	printHub                 *printing.Hub
 	notifHub                 *notifmodule.Hub
 	layawayReminderScheduler *scheduler.LayawayReminderScheduler
+	arDriftAuditScheduler    *paymentmodule.ARDriftAuditScheduler
 }
 
 // newReadOnlyEntClient opens a separate Ent client against cfg.ReadOnlyURL (a read replica, via
@@ -693,6 +694,10 @@ func New(ctx context.Context) (*App, error) {
 	shiftAutoEndWorker := shiftsmodule.NewAutoEndWorker(entClient, log)
 	saleFinalizedReconciler := paymentmodule.NewSaleFinalizedReconciler(paymentSvc, log)
 	treasuryIntentReconciler := paymentmodule.NewTreasuryIntentReconciler(paymentSvc, log)
+	// Fleet-wide POS-vs-treasury AR drift safety net — see payments/ar_drift_audit.go's doc
+	// comment for why this exists (every fix in this bug family closes one mechanism; nothing
+	// was watching for the next one).
+	arDriftAudit := paymentmodule.NewARDriftAuditScheduler(log, paymentSvc)
 	var layawayReminder *scheduler.LayawayReminderScheduler
 	if eventPub := orderSvc.GetPublisher(); eventPub != nil {
 		layawayReminder = scheduler.NewLayawayReminderScheduler(log, entClient, eventPub)
@@ -787,6 +792,7 @@ func New(ctx context.Context) (*App, error) {
 		printHub:                 printHub,
 		notifHub:                 notifHub,
 		layawayReminderScheduler: layawayReminder,
+		arDriftAuditScheduler:    arDriftAudit,
 	}, nil
 }
 
@@ -832,6 +838,11 @@ func (a *App) Run(ctx context.Context) error {
 	// Start layaway payment-due reminder scheduler — fires once at startup then every 24h
 	if a.layawayReminderScheduler != nil {
 		go a.layawayReminderScheduler.Start(ctx)
+	}
+
+	// Start fleet-wide POS-vs-treasury AR drift audit — see payments/ar_drift_audit.go
+	if a.arDriftAuditScheduler != nil {
+		go a.arDriftAuditScheduler.Start(ctx)
 	}
 
 	a.log.Info("pos service starting", zap.String("addr", a.httpServer.Addr))
