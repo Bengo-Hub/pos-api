@@ -318,6 +318,14 @@ func New(
 				// sessions were force-revoked so every request now carries a freshly-minted
 				// token with the claim populated — see auth-api revocation runbook.
 				prot.Use(authclient.RequireServiceAccess("pos"))
+				// Mutations-only annual support-fee gate for a perpetual/one-time-license tenant
+				// (e.g. boi-enterprises on POWERSUITE_DUKA_GOLD_ONE_TIME) whose support fee has
+				// gone unpaid past its 7-day grace window — independent axis from
+				// SubscriptionGate above (a one-time license never expires, so that gate alone
+				// never catches this). Kept orthogonal, not folded into SubscriptionGate's
+				// switch, same reasoning as RequireServiceAccess above. No-ops for every tenant
+				// without a support-fee obligation at all (absent claim).
+				prot.Use(authclient.RequireSupportFeeCurrentForMutations(7))
 			}
 
 			if idSvc != nil {
