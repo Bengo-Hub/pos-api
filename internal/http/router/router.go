@@ -304,6 +304,14 @@ func New(
 			}
 			if authMiddleware != nil {
 				prot.Use(subscriptions.SubscriptionGate())
+				// Module gate: block the WHOLE pos module (reads and writes alike) for a tenant
+				// whose plan never included POS at all (e.g. a standalone Inventory/Treasury-only
+				// tenant). Distinct from SubscriptionGate above (subscription STATUS active/
+				// expired/grace) and from per-feature locks elsewhere — without this, any SSO
+				// user of any tenant could still reach pos-api's basic, ungated routes regardless
+				// of whether POS is even part of their plan. /pos/auth/me is included (pos-ui
+				// already falls back gracefully to role inference if this call fails).
+				prot.Use(authclient.RequireServiceAccess("pos"))
 			}
 
 			if idSvc != nil {
