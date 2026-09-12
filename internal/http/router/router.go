@@ -834,6 +834,12 @@ func New(
 						pos.With(staffPinManage).Post("/auth/pin/set", pinAuth.SetPIN)
 						pos.With(staffPinManage).Post("/staff/{userID}/card-token", pinAuth.IssueStaffCardToken)
 						pos.Get("/auth/me", pinAuth.AuthMe)
+						// Embedded verify-email dialog (shared-ui-lib VerifyEmailBanner) — proxies to
+						// auth-api S2S so it works for terminal/PIN sessions too. Deliberately named
+						// /auth/verify-email/*, NOT /auth/me/email/*: apiClient's 401 handler skips
+						// its refresh-and-retry for any URL containing "/auth/me".
+						pos.Post("/auth/verify-email/send-code", pinAuth.SendMyEmailCode)
+						pos.Post("/auth/verify-email/verify-code", pinAuth.VerifyMyEmailCode)
 					}
 
 					// Staff admin CRUD (requires STAFF_MANAGE permission Ã¢â‚¬â€ enforced client-side;

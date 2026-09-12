@@ -382,7 +382,7 @@ func New(ctx context.Context) (*App, error) {
 		log.Warn("TERMINAL_JWT_SECRET is not set; falling back to INTERNAL_SERVICE_KEY for terminal JWT signing — set TERMINAL_JWT_SECRET in production")
 		terminalJWTSecret = []byte(cfg.Treasury.InternalServiceKey)
 	}
-	pinAuthHandler := handlers.NewPINAuthHandler(log, entClient, terminalJWTSecret, subsClient)
+	pinAuthHandler := handlers.NewPINAuthHandler(log, entClient, terminalJWTSecret, subsClient, cfg.Auth.ServiceURL, cfg.Auth.APIKey)
 	pinAuthHandler.SetAuditService(auditSvc)
 	// Order handler verifies manager step-up approval tokens with the same secret.
 	orderHandler.SetTerminalSecret(terminalJWTSecret)

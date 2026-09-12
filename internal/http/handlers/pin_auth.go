@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Bengo-Hub/pagination"
@@ -68,10 +71,20 @@ type PINAuthHandler struct {
 	// entitlements as an SSO session (features/limits/status + demo/owner bypass flags).
 	subsClient *subscriptions.Client
 	auditSvc   *audit.Service
+	// authURL + internalKey (cfg.Auth.ServiceURL / cfg.Auth.APIKey) let /auth/me forward
+	// auth-api's computed email-verification block, and let the embedded verify-email dialog's
+	// send/verify-code proxy on to auth-api S2S — see fetchEmailVerification and proxyEmailCode.
+	authURL     string
+	internalKey string
+	http        *http.Client
 }
 
-func NewPINAuthHandler(log *zap.Logger, client *ent.Client, jwtSecret []byte, subsClient *subscriptions.Client) *PINAuthHandler {
-	return &PINAuthHandler{log: log, client: client, jwtSecret: jwtSecret, subsClient: subsClient}
+func NewPINAuthHandler(log *zap.Logger, client *ent.Client, jwtSecret []byte, subsClient *subscriptions.Client, authURL, internalKey string) *PINAuthHandler {
+	return &PINAuthHandler{
+		log: log, client: client, jwtSecret: jwtSecret, subsClient: subsClient,
+		authURL: authURL, internalKey: internalKey,
+		http: &http.Client{Timeout: 5 * time.Second},
+	}
 }
 
 // SetAuditService wires the centralized audit trail (manager step-up events).
@@ -465,7 +478,119 @@ func (h *PINAuthHandler) AuthMe(w http.ResponseWriter, r *http.Request) {
 		// e.g. an HQ/admin who works across all outlets; UI then falls back to default/HQ).
 		"home_outlet_id": homeOutletID,
 		"outlets":        assignedOutlets,
+		// EmailVerification is auth-api's computed graduated verify state, forwarded verbatim
+		// so pos-ui can show the same banner the accounts portal shows — for BOTH SSO and
+		// terminal/PIN sessions alike (ServicePermissionsRefresher polls this for both).
+		"email_verification": h.fetchEmailVerification(r.Context(), uid),
 	})
+}
+
+// fetchEmailVerification returns auth-api's computed email-verification block for the user
+// (opaque JSON, forwarded verbatim to the UI). Best-effort: returns nil on any error so
+// /auth/me never fails because of it.
+func (h *PINAuthHandler) fetchEmailVerification(ctx context.Context, userID uuid.UUID) json.RawMessage {
+	if h.authURL == "" || h.internalKey == "" {
+		return nil
+	}
+	url := strings.TrimRight(h.authURL, "/") + "/api/v1/s2s/users/" + userID.String() + "/email-verification"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("X-API-Key", h.internalKey)
+	resp, err := h.http.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	var raw json.RawMessage
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil
+	}
+	return raw
+}
+
+// SendMyEmailCode proxies the embedded verify-email dialog's "send code" action to auth-api.
+// POST /{tenant}/pos/auth/verify-email/send-code  body: {email}
+func (h *PINAuthHandler) SendMyEmailCode(w http.ResponseWriter, r *http.Request) {
+	h.proxyEmailCode(w, r, "send-code")
+}
+
+// VerifyMyEmailCode proxies the embedded verify-email dialog's "verify code" action to auth-api.
+// POST /{tenant}/pos/auth/verify-email/verify-code  body: {email, code}
+func (h *PINAuthHandler) VerifyMyEmailCode(w http.ResponseWriter, r *http.Request) {
+	h.proxyEmailCode(w, r, "verify-code")
+}
+
+// proxyEmailCode forwards the shared VerifyEmailBanner's send/verify-code call to auth-api's S2S
+// endpoint (INTERNAL_SERVICE_KEY), resolving the real auth-api user id from the CALLER'S OWN
+// claims — the same id regardless of whether they authenticated via SSO or a local terminal/PIN
+// JWT. That distinction is the reason this proxy exists: the embedded dialog used to POST
+// straight to auth-api with the user's session token as a Bearer credential, which works for an
+// SSO session (a real auth-api-signed JWT) but can NEVER work for a terminal/PIN session (signed
+// with pos-api's own HMAC secret, issuer "pos-terminal") — auth-api has no key to verify a token
+// it didn't sign, so every PIN-logged-in user got a hard "missing or invalid auth" with no code
+// ever sent. Routing through pos-api's own RequireAnyAuth (which already accepts both token
+// kinds) and forwarding S2S fixes both session kinds uniformly. The response status and body are
+// relayed back unchanged so the UI sees the exact error/success shape auth-api itself returned.
+//
+// Deliberately named /auth/verify-email/*, NOT /auth/me/email/*: apiClient's 401 handler skips
+// its refresh-and-retry for any URL containing "/auth/me", so keeping that substring out of this
+// path is what lets an expired-but-refreshable token recover silently instead of forcing a logout.
+func (h *PINAuthHandler) proxyEmailCode(w http.ResponseWriter, r *http.Request, action string) {
+	if h.authURL == "" || h.internalKey == "" {
+		jsonError(w, "email verification not configured", http.StatusServiceUnavailable)
+		return
+	}
+	claims, ok := authclient.ClaimsFromContext(r.Context())
+	if !ok {
+		jsonError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	userID, err := uuid.Parse(claims.Subject)
+	if err != nil {
+		jsonError(w, "invalid user_id in token", http.StatusBadRequest)
+		return
+	}
+
+	var body map[string]any
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	if body == nil {
+		body = map[string]any{}
+	}
+	// Send with the user's real tenant id so notifications-api can resolve tenant branding
+	// (a nil tenant makes the tenant resolver fail and strips branding).
+	if action == "send-code" {
+		if tid, terr := parseTenantUUID(r); terr == nil {
+			body["tenant_id"] = tid.String()
+		}
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	url := strings.TrimRight(h.authURL, "/") + "/api/v1/s2s/users/" + userID.String() + "/email/" + action
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		jsonError(w, "could not build request", http.StatusInternalServerError)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", h.internalKey)
+	resp, err := h.http.Do(req)
+	if err != nil {
+		jsonError(w, "could not reach auth service", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	_, _ = io.Copy(w, resp.Body)
 }
 
 // Global→POS role mapping lives in rbac.MapGlobalRolesToServiceRole so /auth/me and the
