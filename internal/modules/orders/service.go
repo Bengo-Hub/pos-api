@@ -2466,6 +2466,21 @@ var updateSaleInfoBlockedStatuses = map[string]bool{
 // has no dedicated *_by/*_at/*_reason columns on the order itself — the caller writes a complete
 // audit.Entry from this result's Before/After instead, which is sufficient since no OTHER code
 // path needs to read "who last corrected the served-by/customer fields" back off the order.
+//
+// CustomerPhone is NOT actually a non-financial field on an on-account order: recordCreditSale
+// already posted a treasury AR debt keyed on the ORIGINAL phone/CRM contact by the time this tool
+// can run. Silently repointing the local order's phone here orphans that already-posted invoice —
+// treasury keeps billing the old customer forever, the new (correct) customer is never charged,
+// and the mismatch is invisible from either customer's own account (each nets out fine on its own,
+// so it only surfaces as a fleet-wide aggregate discrepancy). Confirmed live 2026-09-14
+// (boi-enterprises order 002426): billed to MR MUNA WEBUYE at creation, corrected to MR MESHARK
+// WEBUYE 46 minutes later via this exact endpoint (reason "k") — the 11,390 KES credit-sale invoice
+// stayed on Muna's account, never moved. Same failure shape a prior session hit once before and
+// couldn't root-cause (MR SAMMON MALABA / MR SOLOMON NG'ETHE, 2026-09-11) — this is that bug,
+// finally pinned down. So: reject a phone change outright once the order is on_account (a real AR
+// debt exists under the current phone) — moving that debt to the new customer needs a deliberate
+// treasury-side transfer (write off the old customer, re-post to the new one), not a silent field
+// edit through an admin tool whose whole design assumes customer identity has no GL consequence.
 func (s *Service) UpdateSaleInfo(ctx context.Context, tenantID, orderID uuid.UUID, input UpdateSaleInfoInput) (*UpdateSaleInfoResult, error) {
 	if strings.TrimSpace(input.Reason) == "" {
 		return nil, fmt.Errorf("orders: reason is required")
@@ -2475,6 +2490,15 @@ func (s *Service) UpdateSaleInfo(ctx context.Context, tenantID, orderID uuid.UUI
 		Only(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("orders: order not found: %w", err)
+	}
+	if input.CustomerPhone != nil && IsOnAccount(order.Metadata) {
+		currentPhone := ""
+		if order.CustomerPhone != nil {
+			currentPhone = strings.TrimSpace(*order.CustomerPhone)
+		}
+		if strings.TrimSpace(*input.CustomerPhone) != currentPhone {
+			return nil, fmt.Errorf("orders: cannot reassign the customer on an on-account sale — a treasury AR debt is already posted to %s; contact support to transfer the debt before correcting the customer", currentPhone)
+		}
 	}
 	if updateSaleInfoBlockedStatuses[string(order.Status)] {
 		return nil, fmt.Errorf("orders: cannot edit sale info on a %s order", order.Status)
