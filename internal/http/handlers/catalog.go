@@ -1280,17 +1280,37 @@ func (h *CatalogHandler) assembleMenuItems(
 		return nil, err
 	}
 
+	// TEMP DIAGNOSTIC 2026-09-14 — chasing gram-auto-spares Spark Plugs (PLG-*) vanishing
+	// between inventory-api (confirmed correct, returns all 204 incl. PLG-*) and this handler's
+	// output (194, PLG-* missing). Scoped to this one tenant. Remove once root-caused.
+	diagTenant := tid.String() == "370fef2e-06b6-4923-b64a-be2207cd56b8"
+	var diagSrcPLG, diagDropNotForSale, diagDropCategory, diagDropSearch, diagDropType int
+	if diagTenant {
+		for _, it := range src.Items {
+			if strings.HasPrefix(it.SKU, "PLG-") {
+				diagSrcPLG++
+			}
+		}
+	}
+
 	out := make([]catalogItemDTO, 0, len(src.Items))
 	for _, item := range src.Items {
+		isPLG := diagTenant && strings.HasPrefix(item.SKU, "PLG-")
 		// NOT-FOR-SALE (inventory Item.not_for_sale): inventory-only stock (ingredients,
 		// internal supplies) must never surface on ANY POS sales surface — dropped before any
 		// filter/override so no local override can resurrect it. Distinct from non_billable,
 		// which stays on the menu as a free (KES 0) item.
 		if item.NotForSale {
+			if isPLG {
+				diagDropNotForSale++
+			}
 			continue
 		}
 		// Apply filters
 		if filters.Category != "" && !strings.EqualFold(item.CategoryName, filters.Category) {
+			if isPLG {
+				diagDropCategory++
+			}
 			continue
 		}
 		// Match name, SKU or barcode (barcode/SKU are exact identifiers a scanner enters) — the
@@ -1300,6 +1320,9 @@ func (h *CatalogHandler) assembleMenuItems(
 			!strings.Contains(strings.ToLower(item.Name), filters.Search) &&
 			!strings.Contains(strings.ToLower(item.SKU), filters.Search) &&
 			!strings.Contains(strings.ToLower(item.Barcode), filters.Search) {
+			if isPLG {
+				diagDropSearch++
+			}
 			continue
 		}
 		if filters.ItemType != "" {
@@ -1311,6 +1334,9 @@ func (h *CatalogHandler) assembleMenuItems(
 				}
 			}
 			if !matched {
+				if isPLG {
+					diagDropType++
+				}
 				continue
 			}
 		}
@@ -1319,6 +1345,12 @@ func (h *CatalogHandler) assembleMenuItems(
 		// (primary + hybrid extras). A hospitality cafe with "services" enabled keeps its
 		// food menu AND its co-working/conference SERVICE packages.
 		if len(useCases) > 0 && !categoryAllowedForUseCaseSet(item.CategoryName, useCases) {
+			if isPLG {
+				h.log.Info("DIAG gram-auto-spares category gate dropped PLG item",
+					zap.String("sku", item.SKU),
+					zap.String("categoryName", item.CategoryName),
+					zap.Strings("useCases", useCases))
+			}
 			continue
 		}
 
@@ -1516,6 +1548,27 @@ func (h *CatalogHandler) assembleMenuItems(
 			Unit:             o.uom,
 			KDSStationID:     kdsStationIDString,
 		})
+	}
+	if diagTenant {
+		outPLG := 0
+		for _, o := range out {
+			if strings.HasPrefix(o.SKU, "PLG-") {
+				outPLG++
+			}
+		}
+		h.log.Info("DIAG gram-auto-spares assembleMenuItems summary",
+			zap.Int("srcItemsTotal", len(src.Items)),
+			zap.Int("srcPLGCount", diagSrcPLG),
+			zap.Int("outTotal", len(out)),
+			zap.Int("outPLGCount", outPLG),
+			zap.Int("dropNotForSale", diagDropNotForSale),
+			zap.Int("dropCategory", diagDropCategory),
+			zap.Int("dropSearch", diagDropSearch),
+			zap.Int("dropType", diagDropType),
+			zap.Strings("useCases", useCases),
+			zap.String("filterCategory", filters.Category),
+			zap.String("filterSearch", filters.Search),
+			zap.String("filterItemType", filters.ItemType))
 	}
 	return out, nil
 }
