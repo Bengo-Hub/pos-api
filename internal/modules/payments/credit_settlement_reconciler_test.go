@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
 
@@ -144,5 +145,106 @@ func TestCreditSettlementReconciler_SkipsPaymentsStillInFlight(t *testing.T) {
 
 	if got := atomic.LoadInt32(calls); got != 0 {
 		t.Errorf("expected the in-flight-window payment to be skipped, got %d treasury calls", got)
+	}
+}
+
+// seedReconcilerOrder is the shared tenant/outlet/order scaffold every reconciler test needs.
+func seedReconcilerOrder(t *testing.T, client *ent.Client, phone, name string) *ent.POSOrder {
+	t.Helper()
+	tenantID := uuid.New()
+	if _, err := client.Tenant.Create().
+		SetID(tenantID).SetName("Test Tenant").SetSlug("test-tenant-" + tenantID.String()[:8]).
+		Save(context.Background()); err != nil {
+		t.Fatalf("seed tenant: %v", err)
+	}
+	outlet, err := client.Outlet.Create().
+		SetTenantID(tenantID).SetName("Main").SetCode("MAIN").SetTenantSlug("test-tenant").
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed outlet: %v", err)
+	}
+	order, err := client.POSOrder.Create().
+		SetTenantID(tenantID).SetOutletID(outlet.ID).SetDeviceID(uuid.New()).SetUserID(uuid.New()).
+		SetOrderNumber("ORD-" + uuid.NewString()[:8]).SetStatus("completed").
+		SetSubtotal(5000).SetTaxTotal(0).SetTotalAmount(5000).SetPaidTotal(5000).
+		SetCustomerPhone(phone).SetCustomerName(name).
+		SetMetadata(map[string]any{"on_account": true}).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed order: %v", err)
+	}
+	return order
+}
+
+// TestCreditSettlementReconciler_RetriesBackdatedPaymentDespiteOldOccurredAt is the regression
+// test for the live bug found 2026-09-14 (boi-enterprises order 000803, MR ALBERT INLAW MALABA):
+// a 10,610 payment was recorded TODAY but backdated to occurred_at 12 days earlier (money
+// physically received on that date — a first-class, heavily-used feature, see
+// credit_settlement.go's OccurredAt/backdated handling). The reconciler's original window filtered
+// candidates by occurred_at >= now-7days, so ANY payment backdated more than a week — regardless
+// of how recently it was actually written — silently fell outside the query and was NEVER
+// retried, even once. Must now find and retry it based on when the row was actually WRITTEN
+// (payment_data.recorded_at), not its business date.
+func TestCreditSettlementReconciler_RetriesBackdatedPaymentDespiteOldOccurredAt(t *testing.T) {
+	svc, client := newTestPaymentsService(t)
+	order := seedReconcilerOrder(t, client, "+254700000601", "Backdated Settle")
+
+	payment, err := client.POSPayment.Create().
+		SetOrderID(order.ID).SetTenderID(uuid.Nil).SetAmount(5000).SetCurrency("KES").
+		SetStatus(StatusCompleted).
+		SetOccurredAt(time.Now().Add(-12 * 24 * time.Hour)). // backdated business date, 12 days ago
+		SetPaymentData(map[string]any{
+			"method": "bank", "credit_settlement": true, "backdated": true,
+			"recorded_at": time.Now().Add(-3 * time.Minute).Format(time.RFC3339), // actually written 3 min ago
+		}).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed backdated settlement payment: %v", err)
+	}
+
+	tc, calls := arPaymentStub(t, 0)
+	svc.SetTreasuryClient(tc)
+	rec := NewCreditSettlementSyncReconciler(svc, zap.NewNop())
+	rec.runOnce(context.Background())
+
+	if got := atomic.LoadInt32(calls); got != 1 {
+		t.Fatalf("expected the backdated-but-recently-written payment to be retried despite its old occurred_at, got %d treasury calls", got)
+	}
+	reloaded, err := client.POSPayment.Get(context.Background(), payment.ID)
+	if err != nil {
+		t.Fatalf("reload payment: %v", err)
+	}
+	if reloaded.PaymentData["treasury_receipt_id"] == nil {
+		t.Error("expected treasury_receipt_id to be stashed after the retry")
+	}
+}
+
+// TestCreditSettlementReconciler_SkipsRecentlyWrittenBackdatedPayment confirms the in-flight
+// guard uses the same recorded_at logic — a backdated payment written 30 SECONDS ago (well inside
+// the 2-minute floor) must be skipped even though its occurred_at looks old, so the reconciler
+// never races the request-time sync attempt regardless of how far back the business date is.
+func TestCreditSettlementReconciler_SkipsRecentlyWrittenBackdatedPayment(t *testing.T) {
+	svc, client := newTestPaymentsService(t)
+	order := seedReconcilerOrder(t, client, "+254700000602", "Just-Now Backdated Settle")
+
+	if _, err := client.POSPayment.Create().
+		SetOrderID(order.ID).SetTenderID(uuid.Nil).SetAmount(5000).SetCurrency("KES").
+		SetStatus(StatusCompleted).
+		SetOccurredAt(time.Now().Add(-12 * 24 * time.Hour)).
+		SetPaymentData(map[string]any{
+			"method": "bank", "credit_settlement": true, "backdated": true,
+			"recorded_at": time.Now().Add(-30 * time.Second).Format(time.RFC3339),
+		}).
+		Save(context.Background()); err != nil {
+		t.Fatalf("seed just-written backdated payment: %v", err)
+	}
+
+	tc, calls := arPaymentStub(t, 0)
+	svc.SetTreasuryClient(tc)
+	rec := NewCreditSettlementSyncReconciler(svc, zap.NewNop())
+	rec.runOnce(context.Background())
+
+	if got := atomic.LoadInt32(calls); got != 0 {
+		t.Errorf("expected the just-written backdated payment to be skipped as in-flight, got %d treasury calls", got)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqljson"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 )
@@ -65,22 +66,26 @@ func (r *CreditSettlementSyncReconciler) runOnce(ctx context.Context) {
 		return
 	}
 	now := time.Now()
-	// Floor of 2 minutes skips settlements still inside the normal request-time sync attempt so
-	// the reconciler never races a legitimate in-flight call. Ceiling of 7 days bounds the scan —
-	// anything still unsynced after a week needs the ARDriftAuditScheduler safety net (or a human)
-	// rather than an ever-growing per-run candidate list.
-	windowStart := now.Add(-7 * 24 * time.Hour)
-	windowEnd := now.Add(-2 * time.Minute)
 
 	// Both JSON-path filters pushed into SQL (never load-then-filter-in-Go here): credit_settlement
-	// payments are already a small slice of all POSPayment rows, but there's no reason to load
-	// the rest just to discard them, and a fleet-wide table only grows over time — see
-	// ar_drift_audit.go's run() doc comment for the same principle applied to a bigger scan.
+	// payments missing a treasury_receipt_id are already a small, SELF-BOUNDING slice of all
+	// POSPayment rows — every row that succeeds gets its receipt id stashed and drops out of this
+	// set for good, so it never grows the way an unfiltered fleet-wide scan would (see
+	// ar_drift_audit.go's run() doc comment for the same principle applied to a bigger scan).
+	//
+	// Deliberately NOT filtered by occurred_at in SQL — see the in-Go in-flight check below for
+	// why: occurred_at is the payment's BUSINESS date, not when the row was actually written, and
+	// backdating (recording a payment today for money received days/weeks ago) is a first-class,
+	// heavily-used feature throughout this codebase (payments/service.go, credit_settlement.go,
+	// etc.). A payment recorded THIS MINUTE with occurred_at backdated a week+ earlier used to be
+	// silently invisible to this reconciler forever (it never fell inside any occurred_at window
+	// that also satisfied "at least 2 minutes old") — confirmed live 2026-09-14, boi-enterprises
+	// order 000803 (MR ALBERT INLAW MALABA): a 10,610 payment recorded today, backdated to
+	// occurred_at=2026-09-02, sat unsynced with zero retries because 2026-09-02 was already
+	// outside the reconciler's then-existing 7-day occurred_at lookback the very first time it ran.
 	candidates, err := r.svc.client.POSPayment.Query().
 		Where(
 			pospayment.Status(StatusCompleted),
-			pospayment.OccurredAtGTE(windowStart),
-			pospayment.OccurredAtLT(windowEnd),
 			predicate.POSPayment(func(sel *sql.Selector) {
 				sel.Where(sqljson.ValueEQ(pospayment.FieldPaymentData, true, sqljson.Path("credit_settlement")))
 			}),
@@ -99,6 +104,13 @@ func (r *CreditSettlementSyncReconciler) runOnce(ctx context.Context) {
 
 	var retried, healed int
 	for _, payment := range candidates {
+		// In-flight guard: skip a row whose real WRITE time (not its possibly-backdated
+		// occurred_at) is under 2 minutes old, so this never races the normal request-time sync
+		// attempt. recordedAt() falls back to occurred_at for a non-backdated payment, where the
+		// two are the same thing anyway.
+		if now.Sub(recordedAt(payment)) < 2*time.Minute {
+			continue
+		}
 		order, oerr := r.svc.client.POSOrder.Get(ctx, payment.OrderID)
 		if oerr != nil {
 			r.log.Warn("credit settlement reconciler: order not found for pending settlement",
@@ -125,4 +137,18 @@ func (r *CreditSettlementSyncReconciler) runOnce(ctx context.Context) {
 		r.log.Info("credit settlement reconciler pass complete",
 			zap.Int("retried", retried), zap.Int("healed", healed))
 	}
+}
+
+// recordedAt returns the moment a payment row was actually WRITTEN — payment_data["recorded_at"]
+// (stamped by credit_settlement.go whenever the caller backdates OccurredAt, i.e.
+// payment_data["backdated"]==true) when present, else OccurredAt itself (a non-backdated payment
+// has no separate recorded_at because the two are identical). POSPayment has no dedicated
+// created_at column to read this from directly.
+func recordedAt(p *ent.POSPayment) time.Time {
+	if s, ok := p.PaymentData["recorded_at"].(string); ok && s != "" {
+		if t, err := time.Parse(time.RFC3339, s); err == nil {
+			return t
+		}
+	}
+	return p.OccurredAt
 }
