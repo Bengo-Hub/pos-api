@@ -229,7 +229,7 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 	// EXACT same call for a row where this attempt fails, instead of leaving a real collected
 	// payment permanently unreflected in treasury with only a log line and an easy-to-miss toast
 	// (see that reconciler's doc comment for the live incident this closes).
-	synced, surplusToStoreCredit := s.syncCreditSettlementReceipt(ctx, req.TenantID, req.TenantSlug, order, settlementPayment.ID, paymentData, req.TenderMethod, req.Amount, occurredAt, req.SurplusAction)
+	synced, surplusToStoreCredit, _ := s.syncCreditSettlementReceipt(ctx, req.TenantID, req.TenantSlug, order, settlementPayment.ID, paymentData, req.TenderMethod, req.Amount, occurredAt, req.SurplusAction)
 
 	status := "partial"
 	if outstandingAfter <= 0.01 {
@@ -295,15 +295,15 @@ func (s *Service) creditSettlementKey(ctx context.Context, tenantID uuid.UUID, o
 // outstanding balance without that flag will fail cleanly (RecordARPayment rejects it) rather than
 // silently doing the wrong thing — the reconciler just leaves it for the next pass. This is an
 // accepted, narrow limitation: the common case (amount <= outstanding) is unaffected.
-func (s *Service) syncCreditSettlementReceipt(ctx context.Context, tenantID uuid.UUID, tenantSlug string, order *ent.POSOrder, paymentID uuid.UUID, paymentData map[string]any, method string, amount float64, occurredAt time.Time, surplusAction string) (synced bool, surplusToStoreCredit float64) {
+func (s *Service) syncCreditSettlementReceipt(ctx context.Context, tenantID uuid.UUID, tenantSlug string, order *ent.POSOrder, paymentID uuid.UUID, paymentData map[string]any, method string, amount float64, occurredAt time.Time, surplusAction string) (synced bool, surplusToStoreCredit float64, syncErr error) {
 	if s.treasuryClient == nil {
-		return false, 0
+		return false, 0, nil
 	}
 	key := s.creditSettlementKey(ctx, tenantID, order)
 	if key == "" {
 		s.log.Warn("credit settlement: no customer key on order — treasury AR not decremented",
 			zap.String("order", order.OrderNumber))
-		return false, 0
+		return false, 0, nil
 	}
 	arResp, terr := s.treasuryClient.RecordARPayment(ctx, tenantSlug, key, treasury.ARPaymentRequest{
 		Amount:        amount,
@@ -316,10 +316,10 @@ func (s *Service) syncCreditSettlementReceipt(ctx context.Context, tenantID uuid
 	if terr != nil {
 		s.log.Error("credit settlement: treasury AR receipt failed — will retry automatically",
 			zap.String("order", order.OrderNumber), zap.Error(terr))
-		return false, 0
+		return false, 0, terr
 	}
 	if arResp == nil {
-		return true, 0
+		return true, 0, nil
 	}
 	surplusToStoreCredit, _ = strconv.ParseFloat(arResp.SurplusAmount, 64)
 	// Stash the treasury receipt id + key onto the local row so a mis-settled credit sale can be
@@ -334,5 +334,5 @@ func (s *Service) syncCreditSettlementReceipt(ctx context.Context, tenantID uuid
 				zap.String("order", order.OrderNumber), zap.Error(uerr))
 		}
 	}
-	return true, surplusToStoreCredit
+	return true, surplusToStoreCredit, nil
 }

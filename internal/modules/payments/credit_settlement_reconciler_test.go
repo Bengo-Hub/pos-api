@@ -35,6 +35,20 @@ func arPaymentStub(t *testing.T, failFirstN int32) (*treasury.Client, *int32) {
 	return treasury.NewClient(srv.URL, "test-key", 2*time.Second), &calls
 }
 
+// arPaymentRejectStub always returns a 400 (a business-state rejection under treasury's own
+// validation, e.g. "exceeds outstanding debit" — never resolves no matter how many times retried).
+func arPaymentRejectStub(t *testing.T) (*treasury.Client, *int32) {
+	t.Helper()
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":"payment exceeds outstanding debit 0"}`))
+	}))
+	t.Cleanup(srv.Close)
+	return treasury.NewClient(srv.URL, "test-key", 2*time.Second), &calls
+}
+
 // TestCreditSettlementReconciler_RetriesFailedSyncUntilItSucceeds is the regression test for the
 // live 2026-09-11 boi-enterprises incident (MRS MERCY BUSIA): a real, collected credit-settlement
 // payment whose treasury sync failed transiently sat permanently unreflected with only a log line
@@ -246,5 +260,84 @@ func TestCreditSettlementReconciler_SkipsRecentlyWrittenBackdatedPayment(t *test
 
 	if got := atomic.LoadInt32(calls); got != 0 {
 		t.Errorf("expected the just-written backdated payment to be skipped as in-flight, got %d treasury calls", got)
+	}
+}
+
+// TestCreditSettlementReconciler_BacksOffAfter4xxRejection is the regression test for the live
+// incident found 2026-09-14 (boi-enterprises): a single reconciler pass retried 81 candidates that
+// treasury permanently rejects under its own current business-state validation ("exceeds
+// outstanding debit 0" — the commonest cause is treasury already correctly holding this exact
+// payment under a different, pre-automation reference string) and healed zero — every one of those
+// 81 was destined to be retried again on the very next 2-minute tick, forever, across every pos-api
+// replica independently. A second pass immediately after a 4xx must NOT call treasury again.
+func TestCreditSettlementReconciler_BacksOffAfter4xxRejection(t *testing.T) {
+	svc, client := newTestPaymentsService(t)
+	order := seedReconcilerOrder(t, client, "+254700000603", "Permanently Rejected Settle")
+
+	payment, err := client.POSPayment.Create().
+		SetOrderID(order.ID).SetTenderID(uuid.Nil).SetAmount(5000).SetCurrency("KES").
+		SetStatus(StatusCompleted).
+		SetOccurredAt(time.Now().Add(-10 * time.Minute)).
+		SetPaymentData(map[string]any{"method": "cash", "credit_settlement": true}).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed permanently-rejected settlement payment: %v", err)
+	}
+
+	tc, calls := arPaymentRejectStub(t)
+	svc.SetTreasuryClient(tc)
+
+	rec := NewCreditSettlementSyncReconciler(svc, zap.NewNop())
+	rec.runOnce(context.Background()) // 1st pass: rejected (400), stashes backoff marker
+	rec.runOnce(context.Background()) // 2nd pass, immediately after: must be backed off
+
+	if got := atomic.LoadInt32(calls); got != 1 {
+		t.Fatalf("expected exactly 1 treasury call (2nd pass backed off), got %d", got)
+	}
+	reloaded, err := client.POSPayment.Get(context.Background(), payment.ID)
+	if err != nil {
+		t.Fatalf("reload payment: %v", err)
+	}
+	if reloaded.PaymentData["last_sync_attempt_at"] == nil {
+		t.Error("expected last_sync_attempt_at to be stashed after the 4xx rejection")
+	}
+}
+
+// TestCreditSettlementReconciler_RetriesAfter4xxRejectionOnceBackoffElapses confirms the backoff
+// from TestCreditSettlementReconciler_BacksOffAfter4xxRejection is temporary, not permanent — once
+// creditSettlementRetryBackoff has elapsed (simulated by backdating the stashed marker), the
+// candidate is eligible again, e.g. because a later invoice raised the customer's outstanding debit
+// back above zero.
+func TestCreditSettlementReconciler_RetriesAfter4xxRejectionOnceBackoffElapses(t *testing.T) {
+	svc, client := newTestPaymentsService(t)
+	order := seedReconcilerOrder(t, client, "+254700000604", "Eventually Retried Settle")
+
+	payment, err := client.POSPayment.Create().
+		SetOrderID(order.ID).SetTenderID(uuid.Nil).SetAmount(5000).SetCurrency("KES").
+		SetStatus(StatusCompleted).
+		SetOccurredAt(time.Now().Add(-10 * time.Minute)).
+		SetPaymentData(map[string]any{
+			"method": "cash", "credit_settlement": true,
+			"last_sync_attempt_at": time.Now().Add(-creditSettlementRetryBackoff - time.Minute).Format(time.RFC3339),
+		}).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed previously-rejected settlement payment: %v", err)
+	}
+
+	tc, calls := arPaymentStub(t, 0) // succeeds immediately this time
+	svc.SetTreasuryClient(tc)
+	rec := NewCreditSettlementSyncReconciler(svc, zap.NewNop())
+	rec.runOnce(context.Background())
+
+	if got := atomic.LoadInt32(calls); got != 1 {
+		t.Fatalf("expected the candidate to be retried once the backoff elapsed, got %d treasury calls", got)
+	}
+	reloaded, err := client.POSPayment.Get(context.Background(), payment.ID)
+	if err != nil {
+		t.Fatalf("reload payment: %v", err)
+	}
+	if reloaded.PaymentData["treasury_receipt_id"] == nil {
+		t.Error("expected treasury_receipt_id to be stashed after the successful retry")
 	}
 }

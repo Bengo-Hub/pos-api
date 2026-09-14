@@ -2,6 +2,7 @@ package payments
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -11,7 +12,22 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
+
+// creditSettlementRetryBackoff bounds how often a candidate is retried after treasury REJECTS it
+// with a 4xx (a business-state rejection under treasury's own validation — "exceeds outstanding
+// debit", "no AR balance found" — not a delivery failure). The commonest cause: treasury already
+// correctly holds this exact payment under a different, pre-automation reference string (a local
+// marker gap, not a real one — see [[boi-treasury-pos-recurring-discrepancy-root-audit-2026-09-11]]),
+// so it can never succeed under the current business state no matter how many times retried.
+// Without this, such a candidate gets retried on EVERY 2-minute tick, on EVERY pos-api replica
+// independently (no cross-replica coordination), forever — growing as more history accumulates.
+// Confirmed live 2026-09-14: a single tick retried 81 already-doomed boi-enterprises candidates
+// fleet-wide and healed zero. Deliberately NOT applied to non-4xx failures (network error, treasury
+// down, timeout) — those retry on the very next tick as before, since that's the actual transient
+// case this reconciler exists for (see its own doc comment, MRS MERCY BUSIA incident).
+const creditSettlementRetryBackoff = 15 * time.Minute
 
 // CreditSettlementSyncReconciler periodically retries a credit-settlement's treasury AR receipt
 // when the original attempt (SettleCreditPayment, credit_settlement.go) failed — the PRIMARY
@@ -111,6 +127,9 @@ func (r *CreditSettlementSyncReconciler) runOnce(ctx context.Context) {
 		if now.Sub(recordedAt(payment)) < 2*time.Minute {
 			continue
 		}
+		if last, ok := lastSyncAttemptAt(payment); ok && now.Sub(last) < creditSettlementRetryBackoff {
+			continue
+		}
 		order, oerr := r.svc.client.POSOrder.Get(ctx, payment.OrderID)
 		if oerr != nil {
 			r.log.Warn("credit settlement reconciler: order not found for pending settlement",
@@ -125,12 +144,27 @@ func (r *CreditSettlementSyncReconciler) runOnce(ctx context.Context) {
 		}
 		method, _ := payment.PaymentData["method"].(string)
 		retried++
-		synced, _ := r.svc.syncCreditSettlementReceipt(ctx, order.TenantID, outlet.TenantSlug, order,
+		synced, _, syncErr := r.svc.syncCreditSettlementReceipt(ctx, order.TenantID, outlet.TenantSlug, order,
 			payment.ID, payment.PaymentData, method, payment.Amount, payment.OccurredAt, "")
 		if synced {
 			healed++
 			r.log.Info("credit settlement reconciler: retry succeeded",
 				zap.String("order", order.OrderNumber), zap.String("payment_id", payment.ID.String()))
+			continue
+		}
+		var httpErr *treasury.HTTPError
+		if errors.As(syncErr, &httpErr) && httpErr.StatusCode >= 400 && httpErr.StatusCode < 500 {
+			// A business-state rejection, not a delivery failure — back off instead of re-hammering
+			// treasury on the very next tick for something that can't succeed right now anyway.
+			pd := payment.PaymentData
+			if pd == nil {
+				pd = map[string]any{}
+			}
+			pd["last_sync_attempt_at"] = now.Format(time.RFC3339)
+			if _, uerr := r.svc.client.POSPayment.UpdateOneID(payment.ID).SetPaymentData(pd).Save(ctx); uerr != nil {
+				r.log.Warn("credit settlement reconciler: failed to stash retry backoff marker",
+					zap.String("payment_id", payment.ID.String()), zap.Error(uerr))
+			}
 		}
 	}
 	if retried > 0 {
@@ -151,4 +185,17 @@ func recordedAt(p *ent.POSPayment) time.Time {
 		}
 	}
 	return p.OccurredAt
+}
+
+// lastSyncAttemptAt returns payment_data["last_sync_attempt_at"] (stamped by runOnce() after a
+// 4xx rejection — see creditSettlementRetryBackoff) and whether it was present at all. Absent for
+// a candidate that has never yet failed with a 4xx, so a first-time or purely-transient-failure
+// candidate is never held back by this check.
+func lastSyncAttemptAt(p *ent.POSPayment) (time.Time, bool) {
+	if s, ok := p.PaymentData["last_sync_attempt_at"].(string); ok && s != "" {
+		if t, err := time.Parse(time.RFC3339, s); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
 }
