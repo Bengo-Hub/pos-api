@@ -519,6 +519,14 @@ type ARPaymentRequest struct {
 	// customer's outstanding debit as store credit instead of rejecting the payment — see
 	// payments.SurplusActionStoreCredit.
 	SurplusAction string `json:"surplus_action,omitempty"`
+	// CustomerIdentifier is an OPTIONAL fallback key sent ALONGSIDE the URL's contactIDOrIdentifier
+	// — set this to the customer's phone whenever contactIDOrIdentifier is a resolved CRM contact
+	// UUID, so treasury can find the customer's balance via EITHER key. Needed because a customer's
+	// first credit-sale invoice can post phone-only (no CRM contact resolved yet at that moment); if
+	// a CRM contact gets linked for that phone LATER, every subsequent settlement resolves a
+	// crm_contact_id the original balance row never had, and a URL-path-only lookup can never find
+	// it. Confirmed live 2026-09-14 (boi-enterprises, KELVIN PORT) — see creditSettlementKey.
+	CustomerIdentifier string `json:"customer_identifier,omitempty"`
 }
 
 // ARPaymentResponse is the updated treasury customer-balance row, plus how this specific

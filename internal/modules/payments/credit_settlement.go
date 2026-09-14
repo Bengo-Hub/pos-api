@@ -258,25 +258,36 @@ func (s *Service) SettleCreditPayment(ctx context.Context, req SettleCreditReque
 // customer's treasury balance showing them still owing money they already paid. Confirmed live:
 // boi-enterprises order 000278 (MR OKELO TORORO) — paid_total=215000, credit_settled_at stamped,
 // but zero ar_receipt ever reached treasury and balance_due stayed at 215000.
-func (s *Service) creditSettlementKey(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder) string {
+// creditSettlementKey resolves the customer key for the URL path (crm_contact_id preferred, as
+// the doc comment above explains) PLUS the raw phone as a fallback (identifierFallback) to send
+// alongside it. A resolved crm_contact_id can legitimately be one the customer's existing treasury
+// balance row DOESN'T have yet — the original invoice may have posted phone-only, before a CRM
+// contact ever got linked for this phone — so the fallback lets treasury's own OR-match find the
+// row via whichever key it actually carries, instead of failing outright when the two calls drift.
+// Confirmed live 2026-09-14 (boi-enterprises, KELVIN PORT): every settlement retry resolved a
+// crm_contact_id the phone-only balance row never had and failed with "no accounts-receivable
+// balance found" forever, despite the correct balance genuinely existing. identifierFallback is
+// only meaningful when key is itself a crm_contact_id (not the phone or the "staff:" key) — see
+// the call site, which only forwards it in that case.
+func (s *Service) creditSettlementKey(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder) (key, identifierFallback string) {
 	phone := ""
 	if order.CustomerPhone != nil {
 		phone = strings.TrimSpace(*order.CustomerPhone)
 	}
 	if phone == "" {
 		if staffID, _, isStaff := staffCreditFromOrderParty(order); isStaff {
-			return "staff:" + staffID.String()
+			return "staff:" + staffID.String(), ""
 		}
-		return ""
+		return "", ""
 	}
 	name := ""
 	if order.CustomerName != nil {
 		name = *order.CustomerName
 	}
 	if crmID := s.ResolveOrCreateCrmContactID(ctx, tenantID, phone, name); crmID != "" {
-		return crmID
+		return crmID, phone
 	}
-	return phone
+	return phone, ""
 }
 
 // syncCreditSettlementReceipt posts a collected credit-settlement payment to treasury (Dr Cash /
@@ -299,19 +310,20 @@ func (s *Service) syncCreditSettlementReceipt(ctx context.Context, tenantID uuid
 	if s.treasuryClient == nil {
 		return false, 0, nil
 	}
-	key := s.creditSettlementKey(ctx, tenantID, order)
+	key, identifierFallback := s.creditSettlementKey(ctx, tenantID, order)
 	if key == "" {
 		s.log.Warn("credit settlement: no customer key on order — treasury AR not decremented",
 			zap.String("order", order.OrderNumber))
 		return false, 0, nil
 	}
 	arResp, terr := s.treasuryClient.RecordARPayment(ctx, tenantSlug, key, treasury.ARPaymentRequest{
-		Amount:        amount,
-		PaymentMethod: method,
-		Reference:     order.OrderNumber,
-		PaidAt:        &occurredAt,
-		OutletID:      order.OutletID.String(),
-		SurplusAction: surplusAction,
+		Amount:             amount,
+		PaymentMethod:      method,
+		Reference:          order.OrderNumber,
+		PaidAt:             &occurredAt,
+		OutletID:           order.OutletID.String(),
+		SurplusAction:      surplusAction,
+		CustomerIdentifier: identifierFallback,
 	})
 	if terr != nil {
 		s.log.Error("credit settlement: treasury AR receipt failed — will retry automatically",

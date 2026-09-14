@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -47,6 +48,28 @@ func arPaymentRejectStub(t *testing.T) (*treasury.Client, *int32) {
 	}))
 	t.Cleanup(srv.Close)
 	return treasury.NewClient(srv.URL, "test-key", 2*time.Second), &calls
+}
+
+// arPaymentCapturingStub always succeeds and records the exact request body + URL path segment
+// sent for each call — used to assert what creditSettlementKey actually puts on the wire.
+func arPaymentCapturingStub(t *testing.T) (*treasury.Client, *[]treasury.ARPaymentRequest, *[]string) {
+	t.Helper()
+	var bodies []treasury.ARPaymentRequest
+	var urlKeys []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body treasury.ARPaymentRequest
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		bodies = append(bodies, body)
+		// Path shape: /api/v1/s2s/{tenant}/ar/customers/{key}/payment
+		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+		if len(parts) >= 2 {
+			urlKeys = append(urlKeys, parts[len(parts)-2])
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(treasury.ARPaymentResponse{ReceiptID: uuid.NewString()})
+	}))
+	t.Cleanup(srv.Close)
+	return treasury.NewClient(srv.URL, "test-key", 2*time.Second), &bodies, &urlKeys
 }
 
 // TestCreditSettlementReconciler_RetriesFailedSyncUntilItSucceeds is the regression test for the
@@ -339,5 +362,52 @@ func TestCreditSettlementReconciler_RetriesAfter4xxRejectionOnceBackoffElapses(t
 	}
 	if reloaded.PaymentData["treasury_receipt_id"] == nil {
 		t.Error("expected treasury_receipt_id to be stashed after the successful retry")
+	}
+}
+
+// TestCreditSettlementReconciler_SendsPhoneFallbackAlongsideResolvedCrmID is the regression test
+// for the live incident found 2026-09-14 (boi-enterprises, KELVIN PORT): creditSettlementKey
+// prefers a resolved CRM contact for the URL path, but that crm_contact_id can be one the
+// customer's EXISTING treasury balance row never had (the original invoice posted phone-only,
+// before any CRM contact got linked for this phone). Without also sending the phone as a fallback
+// identifier, treasury's lookup fails outright with "no accounts-receivable balance found" no
+// matter how many times it's retried, even though the correct balance genuinely exists. This test
+// confirms the outgoing request carries BOTH: the resolved crm_contact_id in the URL path AND the
+// order's phone in the body's customer_identifier field.
+func TestCreditSettlementReconciler_SendsPhoneFallbackAlongsideResolvedCrmID(t *testing.T) {
+	svc, client := newTestPaymentsService(t)
+	const phone = "0115897650"
+	order := seedReconcilerOrder(t, client, phone, "Kelvin Port")
+
+	crmContactID := uuid.New()
+	if _, err := client.LoyaltyAccount.Create().
+		SetTenantID(order.TenantID).SetCustomerPhone(phone).SetCustomerName("Kelvin Port").SetCrmContactID(crmContactID).
+		Save(context.Background()); err != nil {
+		t.Fatalf("seed loyalty account: %v", err)
+	}
+
+	if _, err := client.POSPayment.Create().
+		SetOrderID(order.ID).SetTenderID(uuid.Nil).SetAmount(3830).SetCurrency("KES").
+		SetStatus(StatusCompleted).
+		SetOccurredAt(time.Now().Add(-10 * time.Minute)).
+		SetPaymentData(map[string]any{"method": "cash", "credit_settlement": true}).
+		Save(context.Background()); err != nil {
+		t.Fatalf("seed settlement payment: %v", err)
+	}
+
+	tc, bodies, urlKeys := arPaymentCapturingStub(t)
+	svc.SetTreasuryClient(tc)
+	rec := NewCreditSettlementSyncReconciler(svc, zap.NewNop())
+	rec.runOnce(context.Background())
+
+	if len(*urlKeys) != 1 {
+		t.Fatalf("expected exactly 1 treasury call, got %d", len(*urlKeys))
+	}
+	if (*urlKeys)[0] != crmContactID.String() {
+		t.Errorf("URL key = %q, want the resolved crm_contact_id %s", (*urlKeys)[0], crmContactID)
+	}
+	if (*bodies)[0].CustomerIdentifier != phone {
+		t.Errorf("body.customer_identifier = %q, want the order's phone %q — without this fallback, "+
+			"a phone-only balance row (the KELVIN PORT shape) can never be found", (*bodies)[0].CustomerIdentifier, phone)
 	}
 }
