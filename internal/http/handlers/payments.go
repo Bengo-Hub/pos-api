@@ -65,8 +65,14 @@ type createIntentInput struct {
 	TenderID     uuid.UUID `json:"tenderId"`
 	TenderMethod string    `json:"tenderMethod"` // cash | card | mpesa | mpesa_manual (legacy alias "manual") | room_charge | ...
 	Amount       float64   `json:"amount"`
-	Currency     string    `json:"currency"`
-	ExternalRef  string    `json:"externalRef,omitempty"` // cashier-entered ref for manual/paybill payments
+	// AmountTendered is the raw cash the customer physically handed over (cash tender only) —
+	// e.g. paid with a 2,000 note against a 1,820 bill. Optional: omitted/zero for every other
+	// tender and for any older client build; only recorded (and only then shown on the printed
+	// receipt as "Tendered"/"Change") when it genuinely exceeds Amount. See payments.Service
+	// CreatePaymentIntent's cashPaymentData.
+	AmountTendered float64 `json:"amountTendered,omitempty"`
+	Currency       string  `json:"currency"`
+	ExternalRef    string  `json:"externalRef,omitempty"` // cashier-entered ref for manual/paybill payments
 	// Credit-sale (on_account) extras captured by the credit-sale details modal:
 	// explicit due date (RFC3339 or YYYY-MM-DD; wins over the customer's treasury credit
 	// period, which wins over the +30-day default) and free-text notes.
@@ -136,6 +142,7 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 		TenderID:         input.TenderID,
 		TenderMethod:     input.TenderMethod,
 		Amount:           input.Amount,
+		AmountTendered:   input.AmountTendered,
 		Currency:         input.Currency,
 		ExternalRef:      input.ExternalRef,
 		PublicBaseURL:    h.publicBaseURL,

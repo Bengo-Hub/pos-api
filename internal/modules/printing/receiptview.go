@@ -377,6 +377,27 @@ func IsCashMethod(method string) bool {
 	return m == "" || m == "cash" || m == "cash_on_delivery" || m == "cod"
 }
 
+// TenderedAndChange derives the true amount tendered and change due for a receipt from the
+// completed payment row(s) backing it. Payment.Amount is always capped to whatever the sale
+// actually needed (see payments.Service.CreatePaymentIntent's outstanding-balance clamp) — a
+// customer handing over more than that (e.g. paying a 1,820 bill with a 2,000 note) only leaves
+// a trace in that payment's PaymentData "amount_tendered"/"change_due" keys (cashPaymentData).
+// amountPaid is the caller's already-computed sum of the rows' Amount; this adds the tendered
+// surplus/change on top of it — a row with no such keys (an exact-cash sale, a non-cash tender,
+// or any payment recorded before this field existed) contributes nothing, so the result is
+// identical to the old (amountPaid, 0) behaviour unless a real overpayment happened.
+func TenderedAndChange(rows []*ent.POSPayment, amountPaid float64) (tendered, change float64) {
+	for _, p := range rows {
+		if p == nil || p.PaymentData == nil {
+			continue
+		}
+		if v, ok := p.PaymentData["change_due"].(float64); ok && v > 0 {
+			change += v
+		}
+	}
+	return amountPaid + change, change
+}
+
 // BuildReceiptView assembles the canonical receipt view for an order — the single builder shared
 // by the JSON receipt API, the server-rendered HTML/PDF, and the ESC/POS thermal-byte builder.
 // `outlet` and `setting` may be nil (best-effort: fields they'd populate stay zero-valued).

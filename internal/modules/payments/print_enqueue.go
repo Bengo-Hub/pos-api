@@ -60,6 +60,7 @@ func (s *Service) enqueueReceiptPrint(ctx context.Context, order *ent.POSOrder) 
 	seen := map[string]struct{}{}
 	var amountPaid float64
 	var paymentDate *time.Time
+	var amountTendered, changeDue float64
 	if pays, perr := s.client.POSPayment.Query().
 		Where(pospayment.OrderID(order.ID), pospayment.Status(StatusCompleted)).
 		All(ctx); perr == nil {
@@ -89,6 +90,9 @@ func (s *Service) enqueueReceiptPrint(ctx context.Context, order *ent.POSOrder) 
 				}
 			}
 		}
+		// Amount tendered/change due — recovered from PaymentData, same as the on-demand
+		// receipt endpoint (receipt.go); see printing.TenderedAndChange.
+		amountTendered, changeDue = printing.TenderedAndChange(pays, amountPaid)
 	}
 
 	outlet, _ := s.client.Outlet.Query().Where(entoutlet.ID(order.OutletID)).Only(ctx)
@@ -104,6 +108,8 @@ func (s *Service) enqueueReceiptPrint(ctx context.Context, order *ent.POSOrder) 
 			PaymentMethod:      strings.Join(methods, " + "),
 			ServedBy:           servedBy,
 			AmountPaid:         amountPaid,
+			AmountTendered:     amountTendered,
+			ChangeDue:          changeDue,
 			PaymentDate:        paymentDate,
 			ShowProviderFooter: &showProviderFooter,
 			TenantName:         tenantName,

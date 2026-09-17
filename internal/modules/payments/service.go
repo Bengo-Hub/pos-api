@@ -117,17 +117,25 @@ const TenderComplimentary = "complimentary"
 
 // RecordPaymentRequest holds input for recording a POS payment.
 type RecordPaymentRequest struct {
-	TenantID      uuid.UUID
-	TenantSlug    string
-	OrderID       uuid.UUID
-	TenderID      uuid.UUID
-	TenderMethod  string // cash | card | mpesa | manual | room_charge | etc.
-	Amount        float64
-	Currency      string
-	Reference     string // external reference (optional; set by treasury callback for digital)
-	ExternalRef   string // cashier-entered ref for manual/paybill payments (stored on local payment)
-	IntentID      string // treasury payment_intent_id (set for digital payments)
-	PublicBaseURL string // used to construct initiateUrl for digital payments
+	TenantID     uuid.UUID
+	TenantSlug   string
+	OrderID      uuid.UUID
+	TenderID     uuid.UUID
+	TenderMethod string // cash | card | mpesa | manual | room_charge | etc.
+	Amount       float64
+	// AmountTendered is the raw cash physically handed over by the customer, when it exceeds
+	// Amount (the amount actually applied to the sale — always capped to the outstanding
+	// balance, see the clamp below). Optional; only meaningful for a cash-family tender, and
+	// only stored (as PaymentData "amount_tendered"/"change_due") when it genuinely exceeds
+	// Amount, so a cashier's or client's stale/short value never fabricates a change line.
+	// Zero (the default for every non-cash tender and every pre-existing caller) changes
+	// nothing — Amount alone is recorded exactly as before this field existed.
+	AmountTendered float64
+	Currency       string
+	Reference      string // external reference (optional; set by treasury callback for digital)
+	ExternalRef    string // cashier-entered ref for manual/paybill payments (stored on local payment)
+	IntentID       string // treasury payment_intent_id (set for digital payments)
+	PublicBaseURL  string // used to construct initiateUrl for digital payments
 	// Credit-sale (on_account) extras from the credit-sale details modal: an explicit due
 	// date (wins over the customer's treasury credit period, which wins over +30 days) and
 	// free-text notes stamped into order metadata.
@@ -494,7 +502,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		SetAmount(req.Amount).
 		SetCurrency(currency).
 		SetStatus(StatusCompleted).
-		SetPaymentData(map[string]any{"method": req.TenderMethod}).
+		SetPaymentData(cashPaymentData(req.TenderMethod, req.Amount, req.AmountTendered)).
 		SetNillableExternalReference(nilIfEmpty(cashRef)).
 		Save(ctx)
 	if err != nil {
@@ -509,6 +517,23 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	// Off the request path: create the treasury intent now that the till already shows "paid".
 	s.dispatchTreasuryIntent(payment.ID, req.TenantSlug, req.OrderID, intentReq)
 	return &CreateIntentResult{IsCash: true}, nil
+}
+
+// cashPaymentData builds the PaymentData JSON for a completed cash-family payment. Amount is
+// what was actually applied to the sale (always capped to the outstanding balance — see the
+// clamps above CreatePaymentIntent's cash branch), so any genuine surplus the customer handed
+// over only survives in PaymentData's "amount_tendered"/"change_due" keys — the same pattern
+// already used for "payer_name"/"external_ref" (see receipt.go's payerNameFromPayment) rather
+// than a new schema column. Keys are omitted entirely (not zero-written) when tendered doesn't
+// exceed amount, so an exact-cash sale or a non-cash tender stores byte-for-byte what it always
+// did: {"method": "..."}.
+func cashPaymentData(method string, amount, tendered float64) map[string]any {
+	data := map[string]any{"method": method}
+	if tendered > amount+0.005 {
+		data["amount_tendered"] = tendered
+		data["change_due"] = tendered - amount
+	}
+	return data
 }
 
 // isMpesaManualCodeReused reports whether an M-Pesa confirmation code has already settled a

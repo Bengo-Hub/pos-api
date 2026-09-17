@@ -24,8 +24,8 @@ import (
 	entuser "github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/printing"
-	"github.com/bengobox/pos-service/internal/modules/providerfooter"
 	"github.com/bengobox/pos-service/internal/modules/printing/layouts"
+	"github.com/bengobox/pos-service/internal/modules/providerfooter"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
 
@@ -398,9 +398,11 @@ func (h *ReceiptHandler) buildReceiptForOrder(ctx context.Context, tid uuid.UUID
 	var amountPaid float64
 	var payerName string
 	var paymentDate *time.Time
+	var latestPayment *ent.POSPayment
 	paymentMethod := "cash"
 	if len(order.Edges.Payments) > 0 {
 		p := order.Edges.Payments[0]
+		latestPayment = p
 		amountPaid = p.Amount
 		payerName = payerNameFromPayment(p)
 		occurred := p.OccurredAt
@@ -433,10 +435,16 @@ func (h *ReceiptHandler) buildReceiptForOrder(ctx context.Context, tid uuid.UUID
 			}
 		}
 	}
-	changeDue := amountPaid - order.TotalAmount
-	if changeDue < 0 {
-		changeDue = 0
+	// Amount actually tendered + change due: recovered from the payment row's PaymentData
+	// (populated only when the customer handed over more than the sale needed — see
+	// payments.Service's cashPaymentData). Falls back to (amountPaid, 0) for a payment
+	// predating this field, or any tender that was never over-collected — see
+	// printing.TenderedAndChange.
+	var payRows []*ent.POSPayment
+	if latestPayment != nil {
+		payRows = []*ent.POSPayment{latestPayment}
 	}
+	amountTendered, changeDue := printing.TenderedAndChange(payRows, amountPaid)
 
 	// Outlet + POS settings drive header/footer/VAT/paper-width/payment-display/layout on
 	// every receipt surface — loaded once here and handed to the shared BuildReceiptView.
@@ -461,7 +469,7 @@ func (h *ReceiptHandler) buildReceiptForOrder(ctx context.Context, tid uuid.UUID
 		ReceiptNumber:  h.ensureReceiptNumber(order),
 		PaymentMethod:  paymentMethod,
 		AmountPaid:     amountPaid,
-		AmountTendered: amountPaid,
+		AmountTendered: amountTendered,
 		ChangeDue:      changeDue,
 		ServedBy:       h.resolveServedBy(ctx, tid, order.UserID, r.URL.Query().Get("served_by")),
 		PayerName:      payerName,
