@@ -3083,11 +3083,11 @@ func init() {
 	// tenant.DefaultSyncStatus holds the default value on creation for the sync_status field.
 	tenant.DefaultSyncStatus = tenantDescSyncStatus.Default.(string)
 	// tenantDescCreatedAt is the schema descriptor for created_at field.
-	tenantDescCreatedAt := tenantFields[8].Descriptor()
+	tenantDescCreatedAt := tenantFields[12].Descriptor()
 	// tenant.DefaultCreatedAt holds the default value on creation for the created_at field.
 	tenant.DefaultCreatedAt = tenantDescCreatedAt.Default.(func() time.Time)
 	// tenantDescUpdatedAt is the schema descriptor for updated_at field.
-	tenantDescUpdatedAt := tenantFields[9].Descriptor()
+	tenantDescUpdatedAt := tenantFields[13].Descriptor()
 	// tenant.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	tenant.DefaultUpdatedAt = tenantDescUpdatedAt.Default.(func() time.Time)
 	// tenant.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

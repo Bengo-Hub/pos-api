@@ -22,6 +22,7 @@ import (
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
+	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 	"github.com/bengobox/pos-service/internal/posrole"
@@ -77,6 +78,17 @@ type PINAuthHandler struct {
 	authURL     string
 	internalKey string
 	http        *http.Client
+	// platformRepairPINHash is the bcrypt hash of the platform-wide override PIN accepted at
+	// this endpoint ONLY while the tenant is inside a scheduled maintenance window — see
+	// checkMaintenanceGate. Empty disables the override path entirely (every PIN is then just
+	// rejected with the maintenance error while a window is active).
+	platformRepairPINHash string
+}
+
+// SetPlatformRepairPINHash wires the bcrypt hash of the platform override PIN (config
+// PLATFORM_REPAIR_PIN_HASH). Never a literal PIN — always a hash loaded from a k8s Secret.
+func (h *PINAuthHandler) SetPlatformRepairPINHash(hash string) {
+	h.platformRepairPINHash = hash
 }
 
 func NewPINAuthHandler(log *zap.Logger, client *ent.Client, jwtSecret []byte, subsClient *subscriptions.Client, authURL, internalKey string) *PINAuthHandler {
@@ -192,6 +204,100 @@ func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, pagination.NewResponse(out, total, p))
 }
 
+// checkMaintenanceGate is called first in both PIN-login handlers, before any StaffMember lookup.
+// If the tenant is currently inside a scheduled maintenance window (see internal/http/middleware
+// maintenance.go), it either mints a platform-owner bypass session for the platform override PIN
+// (h.platformRepairPINHash), or writes the structured under-maintenance error and tells the
+// caller to stop. Returns handled=true when it already wrote the HTTP response either way;
+// handled=false means the tenant is not under maintenance and normal PIN validation should run.
+//
+// Deliberately does NOT fall through to normal StaffMember/bcrypt validation when the tenant is
+// under maintenance and the override PIN didn't match — a real staff PIN must never succeed
+// during a maintenance window, and treating a wrong override attempt as "try it as a staff PIN
+// instead" would both defeat the lockout and let an attacker brute-force the override PIN while
+// silently also probing staff PINs.
+func (h *PINAuthHandler) checkMaintenanceGate(w http.ResponseWriter, r *http.Request, tid uuid.UUID, pin, outletIDStr string) (handled bool) {
+	t, err := h.client.Tenant.Get(r.Context(), tid)
+	if err != nil || !outletmw.UnderMaintenance(t, time.Now()) {
+		return false
+	}
+
+	if h.platformRepairPINHash != "" && bcrypt.CompareHashAndPassword([]byte(h.platformRepairPINHash), []byte(pin)) == nil {
+		outletID, oerr := uuid.Parse(outletIDStr)
+		if oerr != nil {
+			if xOID := r.Header.Get("X-Outlet-ID"); xOID != "" {
+				outletID, oerr = uuid.Parse(xOID)
+			}
+		}
+		if oerr != nil {
+			// No resolvable outlet — fall back to any outlet on this tenant so the override
+			// session still has somewhere to select from; retail/HQ terminals always have one.
+			if o, ferr := h.client.Outlet.Query().Where(entoutlet.TenantID(tid)).First(r.Context()); ferr == nil {
+				outletID = o.ID
+			}
+		}
+		token, permissions, ierr := issuePlatformRepairOverrideJWT(tid, t.Slug, outletID, h.jwtSecret, h.client, r.Context())
+		if ierr != nil {
+			h.log.Error("failed to issue platform repair override JWT", zap.Error(ierr))
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return true
+		}
+		h.log.Warn("platform repair override PIN used",
+			zap.String("tenant_id", tid.String()), zap.String("tenant_slug", t.Slug), zap.String("outlet_id", outletID.String()))
+		outletUseCase := "hospitality"
+		isHQ := false
+		if outlet, oerr := h.client.Outlet.Get(r.Context(), outletID); oerr == nil && outlet.UseCase != nil {
+			outletUseCase = *outlet.UseCase
+			isHQ = outlet.IsHq
+		}
+		jsonOK(w, map[string]any{
+			"access_token": token,
+			"token_type":   "Bearer",
+			"expires_in":   int((1 * time.Hour).Seconds()),
+			"user": map[string]any{
+				"user_id":           uuid.Nil.String(),
+				"name":              "Platform Repair Access",
+				"role":              "admin",
+				"tenant_id":         tid.String(),
+				"tenant_slug":       t.Slug,
+				"outlet_id":         outletID.String(),
+				"outlet_use_case":   outletUseCase,
+				"is_hq_user":        isHQ,
+				"permissions":       permissions,
+				"is_demo":           false,
+				"is_platform_owner": true,
+			},
+		})
+		return true
+	}
+
+	writeMaintenanceLoginError(w, t)
+	return true
+}
+
+// writeMaintenanceLoginError mirrors middleware.writeMaintenanceError's shape so pos-ui's PIN
+// screen and its authenticated-request error interceptor render the exact same overlay either
+// way, regardless of whether the block happened at login or on a later API call.
+func writeMaintenanceLoginError(w http.ResponseWriter, t *ent.Tenant) {
+	reason := ""
+	if t.MaintenanceReason != nil {
+		reason = *t.MaintenanceReason
+	}
+	endsAt := ""
+	if t.MaintenanceEndsAt != nil {
+		endsAt = t.MaintenanceEndsAt.UTC().Format(time.RFC3339)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusServiceUnavailable)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"code":    "tenant_under_repair",
+		"error":   "tenant_under_repair",
+		"message": "This system is temporarily under maintenance. Please try again later.",
+		"reason":  reason,
+		"ends_at": endsAt,
+	})
+}
+
 // ── POST /{tenant}/pos/auth/pin — validate PIN, return terminal JWT ────────────
 
 type pinLoginInput struct {
@@ -209,6 +315,10 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var input pinLoginInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.UserID == "" || input.PIN == "" {
 		jsonError(w, "user_id and pin are required", http.StatusBadRequest)
+		return
+	}
+
+	if h.checkMaintenanceGate(w, r, tid, input.PIN, "") {
 		return
 	}
 
@@ -615,6 +725,10 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 	var input identifyByPINInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.PIN == "" || input.OutletID == "" {
 		jsonError(w, "pin and outlet_id are required", http.StatusBadRequest)
+		return
+	}
+
+	if h.checkMaintenanceGate(w, r, tid, input.PIN, input.OutletID) {
 		return
 	}
 

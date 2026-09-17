@@ -52,6 +52,22 @@ func (Tenant) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("Last successful sync from auth-api"),
+		field.Time("maintenance_starts_at").
+			Optional().
+			Nillable().
+			Comment("Scheduled start of a maintenance window (product name: Repair Mode). While now is within [maintenance_starts_at, maintenance_ends_at], every non-platform-owner request to this tenant's POS is blocked with an under-maintenance response. Owned locally by pos-api, not synced from auth-api. Null means no window scheduled."),
+		field.Time("maintenance_ends_at").
+			Optional().
+			Nillable().
+			Comment("Scheduled end of the maintenance window. The lockout auto-resumes normal access once now passes this timestamp, with no manual step to turn it back off."),
+		field.String("maintenance_reason").
+			Optional().
+			Nillable().
+			Comment("Free-text reason shown on the under-maintenance banner for the current or most recent window"),
+		field.String("maintenance_activated_by").
+			Optional().
+			Nillable().
+			Comment("Platform owner email/identifier who scheduled the current or most recent maintenance window"),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

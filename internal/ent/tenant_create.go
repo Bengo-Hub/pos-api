@@ -108,6 +108,62 @@ func (_c *TenantCreate) SetNillableLastSyncAt(v *time.Time) *TenantCreate {
 	return _c
 }
 
+// SetMaintenanceStartsAt sets the "maintenance_starts_at" field.
+func (_c *TenantCreate) SetMaintenanceStartsAt(v time.Time) *TenantCreate {
+	_c.mutation.SetMaintenanceStartsAt(v)
+	return _c
+}
+
+// SetNillableMaintenanceStartsAt sets the "maintenance_starts_at" field if the given value is not nil.
+func (_c *TenantCreate) SetNillableMaintenanceStartsAt(v *time.Time) *TenantCreate {
+	if v != nil {
+		_c.SetMaintenanceStartsAt(*v)
+	}
+	return _c
+}
+
+// SetMaintenanceEndsAt sets the "maintenance_ends_at" field.
+func (_c *TenantCreate) SetMaintenanceEndsAt(v time.Time) *TenantCreate {
+	_c.mutation.SetMaintenanceEndsAt(v)
+	return _c
+}
+
+// SetNillableMaintenanceEndsAt sets the "maintenance_ends_at" field if the given value is not nil.
+func (_c *TenantCreate) SetNillableMaintenanceEndsAt(v *time.Time) *TenantCreate {
+	if v != nil {
+		_c.SetMaintenanceEndsAt(*v)
+	}
+	return _c
+}
+
+// SetMaintenanceReason sets the "maintenance_reason" field.
+func (_c *TenantCreate) SetMaintenanceReason(v string) *TenantCreate {
+	_c.mutation.SetMaintenanceReason(v)
+	return _c
+}
+
+// SetNillableMaintenanceReason sets the "maintenance_reason" field if the given value is not nil.
+func (_c *TenantCreate) SetNillableMaintenanceReason(v *string) *TenantCreate {
+	if v != nil {
+		_c.SetMaintenanceReason(*v)
+	}
+	return _c
+}
+
+// SetMaintenanceActivatedBy sets the "maintenance_activated_by" field.
+func (_c *TenantCreate) SetMaintenanceActivatedBy(v string) *TenantCreate {
+	_c.mutation.SetMaintenanceActivatedBy(v)
+	return _c
+}
+
+// SetNillableMaintenanceActivatedBy sets the "maintenance_activated_by" field if the given value is not nil.
+func (_c *TenantCreate) SetNillableMaintenanceActivatedBy(v *string) *TenantCreate {
+	if v != nil {
+		_c.SetMaintenanceActivatedBy(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *TenantCreate) SetCreatedAt(v time.Time) *TenantCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -338,6 +394,22 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 		_spec.SetField(tenant.FieldLastSyncAt, field.TypeTime, value)
 		_node.LastSyncAt = &value
 	}
+	if value, ok := _c.mutation.MaintenanceStartsAt(); ok {
+		_spec.SetField(tenant.FieldMaintenanceStartsAt, field.TypeTime, value)
+		_node.MaintenanceStartsAt = &value
+	}
+	if value, ok := _c.mutation.MaintenanceEndsAt(); ok {
+		_spec.SetField(tenant.FieldMaintenanceEndsAt, field.TypeTime, value)
+		_node.MaintenanceEndsAt = &value
+	}
+	if value, ok := _c.mutation.MaintenanceReason(); ok {
+		_spec.SetField(tenant.FieldMaintenanceReason, field.TypeString, value)
+		_node.MaintenanceReason = &value
+	}
+	if value, ok := _c.mutation.MaintenanceActivatedBy(); ok {
+		_spec.SetField(tenant.FieldMaintenanceActivatedBy, field.TypeString, value)
+		_node.MaintenanceActivatedBy = &value
+	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(tenant.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
@@ -526,6 +598,78 @@ func (u *TenantUpsert) ClearLastSyncAt() *TenantUpsert {
 	return u
 }
 
+// SetMaintenanceStartsAt sets the "maintenance_starts_at" field.
+func (u *TenantUpsert) SetMaintenanceStartsAt(v time.Time) *TenantUpsert {
+	u.Set(tenant.FieldMaintenanceStartsAt, v)
+	return u
+}
+
+// UpdateMaintenanceStartsAt sets the "maintenance_starts_at" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateMaintenanceStartsAt() *TenantUpsert {
+	u.SetExcluded(tenant.FieldMaintenanceStartsAt)
+	return u
+}
+
+// ClearMaintenanceStartsAt clears the value of the "maintenance_starts_at" field.
+func (u *TenantUpsert) ClearMaintenanceStartsAt() *TenantUpsert {
+	u.SetNull(tenant.FieldMaintenanceStartsAt)
+	return u
+}
+
+// SetMaintenanceEndsAt sets the "maintenance_ends_at" field.
+func (u *TenantUpsert) SetMaintenanceEndsAt(v time.Time) *TenantUpsert {
+	u.Set(tenant.FieldMaintenanceEndsAt, v)
+	return u
+}
+
+// UpdateMaintenanceEndsAt sets the "maintenance_ends_at" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateMaintenanceEndsAt() *TenantUpsert {
+	u.SetExcluded(tenant.FieldMaintenanceEndsAt)
+	return u
+}
+
+// ClearMaintenanceEndsAt clears the value of the "maintenance_ends_at" field.
+func (u *TenantUpsert) ClearMaintenanceEndsAt() *TenantUpsert {
+	u.SetNull(tenant.FieldMaintenanceEndsAt)
+	return u
+}
+
+// SetMaintenanceReason sets the "maintenance_reason" field.
+func (u *TenantUpsert) SetMaintenanceReason(v string) *TenantUpsert {
+	u.Set(tenant.FieldMaintenanceReason, v)
+	return u
+}
+
+// UpdateMaintenanceReason sets the "maintenance_reason" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateMaintenanceReason() *TenantUpsert {
+	u.SetExcluded(tenant.FieldMaintenanceReason)
+	return u
+}
+
+// ClearMaintenanceReason clears the value of the "maintenance_reason" field.
+func (u *TenantUpsert) ClearMaintenanceReason() *TenantUpsert {
+	u.SetNull(tenant.FieldMaintenanceReason)
+	return u
+}
+
+// SetMaintenanceActivatedBy sets the "maintenance_activated_by" field.
+func (u *TenantUpsert) SetMaintenanceActivatedBy(v string) *TenantUpsert {
+	u.Set(tenant.FieldMaintenanceActivatedBy, v)
+	return u
+}
+
+// UpdateMaintenanceActivatedBy sets the "maintenance_activated_by" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateMaintenanceActivatedBy() *TenantUpsert {
+	u.SetExcluded(tenant.FieldMaintenanceActivatedBy)
+	return u
+}
+
+// ClearMaintenanceActivatedBy clears the value of the "maintenance_activated_by" field.
+func (u *TenantUpsert) ClearMaintenanceActivatedBy() *TenantUpsert {
+	u.SetNull(tenant.FieldMaintenanceActivatedBy)
+	return u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (u *TenantUpsert) SetUpdatedAt(v time.Time) *TenantUpsert {
 	u.Set(tenant.FieldUpdatedAt, v)
@@ -698,6 +842,90 @@ func (u *TenantUpsertOne) UpdateLastSyncAt() *TenantUpsertOne {
 func (u *TenantUpsertOne) ClearLastSyncAt() *TenantUpsertOne {
 	return u.Update(func(s *TenantUpsert) {
 		s.ClearLastSyncAt()
+	})
+}
+
+// SetMaintenanceStartsAt sets the "maintenance_starts_at" field.
+func (u *TenantUpsertOne) SetMaintenanceStartsAt(v time.Time) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMaintenanceStartsAt(v)
+	})
+}
+
+// UpdateMaintenanceStartsAt sets the "maintenance_starts_at" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateMaintenanceStartsAt() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMaintenanceStartsAt()
+	})
+}
+
+// ClearMaintenanceStartsAt clears the value of the "maintenance_starts_at" field.
+func (u *TenantUpsertOne) ClearMaintenanceStartsAt() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMaintenanceStartsAt()
+	})
+}
+
+// SetMaintenanceEndsAt sets the "maintenance_ends_at" field.
+func (u *TenantUpsertOne) SetMaintenanceEndsAt(v time.Time) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMaintenanceEndsAt(v)
+	})
+}
+
+// UpdateMaintenanceEndsAt sets the "maintenance_ends_at" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateMaintenanceEndsAt() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMaintenanceEndsAt()
+	})
+}
+
+// ClearMaintenanceEndsAt clears the value of the "maintenance_ends_at" field.
+func (u *TenantUpsertOne) ClearMaintenanceEndsAt() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMaintenanceEndsAt()
+	})
+}
+
+// SetMaintenanceReason sets the "maintenance_reason" field.
+func (u *TenantUpsertOne) SetMaintenanceReason(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMaintenanceReason(v)
+	})
+}
+
+// UpdateMaintenanceReason sets the "maintenance_reason" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateMaintenanceReason() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMaintenanceReason()
+	})
+}
+
+// ClearMaintenanceReason clears the value of the "maintenance_reason" field.
+func (u *TenantUpsertOne) ClearMaintenanceReason() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMaintenanceReason()
+	})
+}
+
+// SetMaintenanceActivatedBy sets the "maintenance_activated_by" field.
+func (u *TenantUpsertOne) SetMaintenanceActivatedBy(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMaintenanceActivatedBy(v)
+	})
+}
+
+// UpdateMaintenanceActivatedBy sets the "maintenance_activated_by" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateMaintenanceActivatedBy() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMaintenanceActivatedBy()
+	})
+}
+
+// ClearMaintenanceActivatedBy clears the value of the "maintenance_activated_by" field.
+func (u *TenantUpsertOne) ClearMaintenanceActivatedBy() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMaintenanceActivatedBy()
 	})
 }
 
@@ -1042,6 +1270,90 @@ func (u *TenantUpsertBulk) UpdateLastSyncAt() *TenantUpsertBulk {
 func (u *TenantUpsertBulk) ClearLastSyncAt() *TenantUpsertBulk {
 	return u.Update(func(s *TenantUpsert) {
 		s.ClearLastSyncAt()
+	})
+}
+
+// SetMaintenanceStartsAt sets the "maintenance_starts_at" field.
+func (u *TenantUpsertBulk) SetMaintenanceStartsAt(v time.Time) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMaintenanceStartsAt(v)
+	})
+}
+
+// UpdateMaintenanceStartsAt sets the "maintenance_starts_at" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateMaintenanceStartsAt() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMaintenanceStartsAt()
+	})
+}
+
+// ClearMaintenanceStartsAt clears the value of the "maintenance_starts_at" field.
+func (u *TenantUpsertBulk) ClearMaintenanceStartsAt() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMaintenanceStartsAt()
+	})
+}
+
+// SetMaintenanceEndsAt sets the "maintenance_ends_at" field.
+func (u *TenantUpsertBulk) SetMaintenanceEndsAt(v time.Time) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMaintenanceEndsAt(v)
+	})
+}
+
+// UpdateMaintenanceEndsAt sets the "maintenance_ends_at" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateMaintenanceEndsAt() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMaintenanceEndsAt()
+	})
+}
+
+// ClearMaintenanceEndsAt clears the value of the "maintenance_ends_at" field.
+func (u *TenantUpsertBulk) ClearMaintenanceEndsAt() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMaintenanceEndsAt()
+	})
+}
+
+// SetMaintenanceReason sets the "maintenance_reason" field.
+func (u *TenantUpsertBulk) SetMaintenanceReason(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMaintenanceReason(v)
+	})
+}
+
+// UpdateMaintenanceReason sets the "maintenance_reason" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateMaintenanceReason() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMaintenanceReason()
+	})
+}
+
+// ClearMaintenanceReason clears the value of the "maintenance_reason" field.
+func (u *TenantUpsertBulk) ClearMaintenanceReason() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMaintenanceReason()
+	})
+}
+
+// SetMaintenanceActivatedBy sets the "maintenance_activated_by" field.
+func (u *TenantUpsertBulk) SetMaintenanceActivatedBy(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMaintenanceActivatedBy(v)
+	})
+}
+
+// UpdateMaintenanceActivatedBy sets the "maintenance_activated_by" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateMaintenanceActivatedBy() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMaintenanceActivatedBy()
+	})
+}
+
+// ClearMaintenanceActivatedBy clears the value of the "maintenance_activated_by" field.
+func (u *TenantUpsertBulk) ClearMaintenanceActivatedBy() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMaintenanceActivatedBy()
 	})
 }
 

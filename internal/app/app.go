@@ -384,6 +384,7 @@ func New(ctx context.Context) (*App, error) {
 	}
 	pinAuthHandler := handlers.NewPINAuthHandler(log, entClient, terminalJWTSecret, subsClient, cfg.Auth.ServiceURL, cfg.Auth.APIKey)
 	pinAuthHandler.SetAuditService(auditSvc)
+	pinAuthHandler.SetPlatformRepairPINHash(cfg.Auth.PlatformRepairPINHash)
 	// Order handler verifies manager step-up approval tokens with the same secret.
 	orderHandler.SetTerminalSecret(terminalJWTSecret)
 	// Payment handler verifies manager approval (step-up token or one-time code) for the
@@ -769,8 +770,11 @@ func New(ctx context.Context) (*App, error) {
 	// gross-profit cost-cache gap the same incident (ef9e882, 2026-08-10) left behind; see
 	// pos_catalog_cost_backfill.go's doc comment.
 	catalogCostBackfillHandler := handlers.NewCatalogCostBackfillHandler(entClient, inventoryClient, sqlDB, log)
+	// Platform-owner-only tool to schedule/cancel a tenant's maintenance window (product name:
+	// Repair Mode) — see internal/http/middleware/maintenance.go for the gate it feeds.
+	maintenanceWindowHandler := handlers.NewMaintenanceWindowHandler(entClient, log)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, reversalHandler, saleDeleteHandler, saleEditHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, docSequenceHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler, screensaverMediaHandler, mediaRoot, recipeCOGSBackfillHandler, catalogCostBackfillHandler)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, reversalHandler, saleDeleteHandler, saleEditHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, docSequenceHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler, screensaverMediaHandler, mediaRoot, recipeCOGSBackfillHandler, catalogCostBackfillHandler, maintenanceWindowHandler)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

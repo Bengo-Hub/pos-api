@@ -91,6 +91,26 @@ func LastSyncAt(v time.Time) predicate.Tenant {
 	return predicate.Tenant(sql.FieldEQ(FieldLastSyncAt, v))
 }
 
+// MaintenanceStartsAt applies equality check predicate on the "maintenance_starts_at" field. It's identical to MaintenanceStartsAtEQ.
+func MaintenanceStartsAt(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEQ(FieldMaintenanceStartsAt, v))
+}
+
+// MaintenanceEndsAt applies equality check predicate on the "maintenance_ends_at" field. It's identical to MaintenanceEndsAtEQ.
+func MaintenanceEndsAt(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEQ(FieldMaintenanceEndsAt, v))
+}
+
+// MaintenanceReason applies equality check predicate on the "maintenance_reason" field. It's identical to MaintenanceReasonEQ.
+func MaintenanceReason(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEQ(FieldMaintenanceReason, v))
+}
+
+// MaintenanceActivatedBy applies equality check predicate on the "maintenance_activated_by" field. It's identical to MaintenanceActivatedByEQ.
+func MaintenanceActivatedBy(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEQ(FieldMaintenanceActivatedBy, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Tenant {
 	return predicate.Tenant(sql.FieldEQ(FieldCreatedAt, v))
@@ -549,6 +569,256 @@ func LastSyncAtIsNil() predicate.Tenant {
 // LastSyncAtNotNil applies the NotNil predicate on the "last_sync_at" field.
 func LastSyncAtNotNil() predicate.Tenant {
 	return predicate.Tenant(sql.FieldNotNull(FieldLastSyncAt))
+}
+
+// MaintenanceStartsAtEQ applies the EQ predicate on the "maintenance_starts_at" field.
+func MaintenanceStartsAtEQ(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEQ(FieldMaintenanceStartsAt, v))
+}
+
+// MaintenanceStartsAtNEQ applies the NEQ predicate on the "maintenance_starts_at" field.
+func MaintenanceStartsAtNEQ(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldNEQ(FieldMaintenanceStartsAt, v))
+}
+
+// MaintenanceStartsAtIn applies the In predicate on the "maintenance_starts_at" field.
+func MaintenanceStartsAtIn(vs ...time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldIn(FieldMaintenanceStartsAt, vs...))
+}
+
+// MaintenanceStartsAtNotIn applies the NotIn predicate on the "maintenance_starts_at" field.
+func MaintenanceStartsAtNotIn(vs ...time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldNotIn(FieldMaintenanceStartsAt, vs...))
+}
+
+// MaintenanceStartsAtGT applies the GT predicate on the "maintenance_starts_at" field.
+func MaintenanceStartsAtGT(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldGT(FieldMaintenanceStartsAt, v))
+}
+
+// MaintenanceStartsAtGTE applies the GTE predicate on the "maintenance_starts_at" field.
+func MaintenanceStartsAtGTE(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldGTE(FieldMaintenanceStartsAt, v))
+}
+
+// MaintenanceStartsAtLT applies the LT predicate on the "maintenance_starts_at" field.
+func MaintenanceStartsAtLT(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldLT(FieldMaintenanceStartsAt, v))
+}
+
+// MaintenanceStartsAtLTE applies the LTE predicate on the "maintenance_starts_at" field.
+func MaintenanceStartsAtLTE(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldLTE(FieldMaintenanceStartsAt, v))
+}
+
+// MaintenanceStartsAtIsNil applies the IsNil predicate on the "maintenance_starts_at" field.
+func MaintenanceStartsAtIsNil() predicate.Tenant {
+	return predicate.Tenant(sql.FieldIsNull(FieldMaintenanceStartsAt))
+}
+
+// MaintenanceStartsAtNotNil applies the NotNil predicate on the "maintenance_starts_at" field.
+func MaintenanceStartsAtNotNil() predicate.Tenant {
+	return predicate.Tenant(sql.FieldNotNull(FieldMaintenanceStartsAt))
+}
+
+// MaintenanceEndsAtEQ applies the EQ predicate on the "maintenance_ends_at" field.
+func MaintenanceEndsAtEQ(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEQ(FieldMaintenanceEndsAt, v))
+}
+
+// MaintenanceEndsAtNEQ applies the NEQ predicate on the "maintenance_ends_at" field.
+func MaintenanceEndsAtNEQ(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldNEQ(FieldMaintenanceEndsAt, v))
+}
+
+// MaintenanceEndsAtIn applies the In predicate on the "maintenance_ends_at" field.
+func MaintenanceEndsAtIn(vs ...time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldIn(FieldMaintenanceEndsAt, vs...))
+}
+
+// MaintenanceEndsAtNotIn applies the NotIn predicate on the "maintenance_ends_at" field.
+func MaintenanceEndsAtNotIn(vs ...time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldNotIn(FieldMaintenanceEndsAt, vs...))
+}
+
+// MaintenanceEndsAtGT applies the GT predicate on the "maintenance_ends_at" field.
+func MaintenanceEndsAtGT(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldGT(FieldMaintenanceEndsAt, v))
+}
+
+// MaintenanceEndsAtGTE applies the GTE predicate on the "maintenance_ends_at" field.
+func MaintenanceEndsAtGTE(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldGTE(FieldMaintenanceEndsAt, v))
+}
+
+// MaintenanceEndsAtLT applies the LT predicate on the "maintenance_ends_at" field.
+func MaintenanceEndsAtLT(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldLT(FieldMaintenanceEndsAt, v))
+}
+
+// MaintenanceEndsAtLTE applies the LTE predicate on the "maintenance_ends_at" field.
+func MaintenanceEndsAtLTE(v time.Time) predicate.Tenant {
+	return predicate.Tenant(sql.FieldLTE(FieldMaintenanceEndsAt, v))
+}
+
+// MaintenanceEndsAtIsNil applies the IsNil predicate on the "maintenance_ends_at" field.
+func MaintenanceEndsAtIsNil() predicate.Tenant {
+	return predicate.Tenant(sql.FieldIsNull(FieldMaintenanceEndsAt))
+}
+
+// MaintenanceEndsAtNotNil applies the NotNil predicate on the "maintenance_ends_at" field.
+func MaintenanceEndsAtNotNil() predicate.Tenant {
+	return predicate.Tenant(sql.FieldNotNull(FieldMaintenanceEndsAt))
+}
+
+// MaintenanceReasonEQ applies the EQ predicate on the "maintenance_reason" field.
+func MaintenanceReasonEQ(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEQ(FieldMaintenanceReason, v))
+}
+
+// MaintenanceReasonNEQ applies the NEQ predicate on the "maintenance_reason" field.
+func MaintenanceReasonNEQ(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldNEQ(FieldMaintenanceReason, v))
+}
+
+// MaintenanceReasonIn applies the In predicate on the "maintenance_reason" field.
+func MaintenanceReasonIn(vs ...string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldIn(FieldMaintenanceReason, vs...))
+}
+
+// MaintenanceReasonNotIn applies the NotIn predicate on the "maintenance_reason" field.
+func MaintenanceReasonNotIn(vs ...string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldNotIn(FieldMaintenanceReason, vs...))
+}
+
+// MaintenanceReasonGT applies the GT predicate on the "maintenance_reason" field.
+func MaintenanceReasonGT(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldGT(FieldMaintenanceReason, v))
+}
+
+// MaintenanceReasonGTE applies the GTE predicate on the "maintenance_reason" field.
+func MaintenanceReasonGTE(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldGTE(FieldMaintenanceReason, v))
+}
+
+// MaintenanceReasonLT applies the LT predicate on the "maintenance_reason" field.
+func MaintenanceReasonLT(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldLT(FieldMaintenanceReason, v))
+}
+
+// MaintenanceReasonLTE applies the LTE predicate on the "maintenance_reason" field.
+func MaintenanceReasonLTE(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldLTE(FieldMaintenanceReason, v))
+}
+
+// MaintenanceReasonContains applies the Contains predicate on the "maintenance_reason" field.
+func MaintenanceReasonContains(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldContains(FieldMaintenanceReason, v))
+}
+
+// MaintenanceReasonHasPrefix applies the HasPrefix predicate on the "maintenance_reason" field.
+func MaintenanceReasonHasPrefix(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldHasPrefix(FieldMaintenanceReason, v))
+}
+
+// MaintenanceReasonHasSuffix applies the HasSuffix predicate on the "maintenance_reason" field.
+func MaintenanceReasonHasSuffix(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldHasSuffix(FieldMaintenanceReason, v))
+}
+
+// MaintenanceReasonIsNil applies the IsNil predicate on the "maintenance_reason" field.
+func MaintenanceReasonIsNil() predicate.Tenant {
+	return predicate.Tenant(sql.FieldIsNull(FieldMaintenanceReason))
+}
+
+// MaintenanceReasonNotNil applies the NotNil predicate on the "maintenance_reason" field.
+func MaintenanceReasonNotNil() predicate.Tenant {
+	return predicate.Tenant(sql.FieldNotNull(FieldMaintenanceReason))
+}
+
+// MaintenanceReasonEqualFold applies the EqualFold predicate on the "maintenance_reason" field.
+func MaintenanceReasonEqualFold(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEqualFold(FieldMaintenanceReason, v))
+}
+
+// MaintenanceReasonContainsFold applies the ContainsFold predicate on the "maintenance_reason" field.
+func MaintenanceReasonContainsFold(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldContainsFold(FieldMaintenanceReason, v))
+}
+
+// MaintenanceActivatedByEQ applies the EQ predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByEQ(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEQ(FieldMaintenanceActivatedBy, v))
+}
+
+// MaintenanceActivatedByNEQ applies the NEQ predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByNEQ(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldNEQ(FieldMaintenanceActivatedBy, v))
+}
+
+// MaintenanceActivatedByIn applies the In predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByIn(vs ...string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldIn(FieldMaintenanceActivatedBy, vs...))
+}
+
+// MaintenanceActivatedByNotIn applies the NotIn predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByNotIn(vs ...string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldNotIn(FieldMaintenanceActivatedBy, vs...))
+}
+
+// MaintenanceActivatedByGT applies the GT predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByGT(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldGT(FieldMaintenanceActivatedBy, v))
+}
+
+// MaintenanceActivatedByGTE applies the GTE predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByGTE(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldGTE(FieldMaintenanceActivatedBy, v))
+}
+
+// MaintenanceActivatedByLT applies the LT predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByLT(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldLT(FieldMaintenanceActivatedBy, v))
+}
+
+// MaintenanceActivatedByLTE applies the LTE predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByLTE(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldLTE(FieldMaintenanceActivatedBy, v))
+}
+
+// MaintenanceActivatedByContains applies the Contains predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByContains(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldContains(FieldMaintenanceActivatedBy, v))
+}
+
+// MaintenanceActivatedByHasPrefix applies the HasPrefix predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByHasPrefix(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldHasPrefix(FieldMaintenanceActivatedBy, v))
+}
+
+// MaintenanceActivatedByHasSuffix applies the HasSuffix predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByHasSuffix(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldHasSuffix(FieldMaintenanceActivatedBy, v))
+}
+
+// MaintenanceActivatedByIsNil applies the IsNil predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByIsNil() predicate.Tenant {
+	return predicate.Tenant(sql.FieldIsNull(FieldMaintenanceActivatedBy))
+}
+
+// MaintenanceActivatedByNotNil applies the NotNil predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByNotNil() predicate.Tenant {
+	return predicate.Tenant(sql.FieldNotNull(FieldMaintenanceActivatedBy))
+}
+
+// MaintenanceActivatedByEqualFold applies the EqualFold predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByEqualFold(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldEqualFold(FieldMaintenanceActivatedBy, v))
+}
+
+// MaintenanceActivatedByContainsFold applies the ContainsFold predicate on the "maintenance_activated_by" field.
+func MaintenanceActivatedByContainsFold(v string) predicate.Tenant {
+	return predicate.Tenant(sql.FieldContainsFold(FieldMaintenanceActivatedBy, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

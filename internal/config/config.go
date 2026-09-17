@@ -113,7 +113,7 @@ type PostgresConfig struct {
 	// handful of heavy, staleness-tolerant read endpoints wired to use it (All-Sales list/export
 	// today — see app.go). Empty (the default everywhere this isn't explicitly configured, incl.
 	// local dev) falls back to the primary client — zero behavior change when unset.
-	ReadOnlyURL string `envconfig:"POSTGRES_READONLY_URL"`
+	ReadOnlyURL              string        `envconfig:"POSTGRES_READONLY_URL"`
 	MaxOpenConns             int           `envconfig:"POSTGRES_MAX_OPEN_CONNS" default:"8"`
 	MaxIdleConns             int           `envconfig:"POSTGRES_MAX_IDLE_CONNS" default:"4"`
 	ConnMaxLifetime          time.Duration `envconfig:"POSTGRES_CONN_MAX_LIFETIME" default:"15m"`
@@ -161,6 +161,11 @@ type AuthConfig struct {
 	// TerminalJWTSecret is the HMAC-SHA256 secret for signing short-lived terminal JWTs issued after PIN login.
 	// Falls back to INTERNAL_SERVICE_KEY when not set.
 	TerminalJWTSecret string `envconfig:"TERMINAL_JWT_SECRET"`
+	// PlatformRepairPINHash is the bcrypt hash of the platform-wide override PIN that lets a
+	// platform owner into a terminal PIN pad while that tenant is inside a scheduled maintenance
+	// window (see internal/http/middleware/maintenance.go). Never a literal PIN in source or
+	// config file — set only as a k8s Secret env var. Unset disables the override path entirely.
+	PlatformRepairPINHash string `envconfig:"PLATFORM_REPAIR_PIN_HASH"`
 }
 
 // Load gathers configuration from environment variables and optional .env files.

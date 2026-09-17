@@ -29,6 +29,14 @@ const (
 	FieldSyncStatus = "sync_status"
 	// FieldLastSyncAt holds the string denoting the last_sync_at field in the database.
 	FieldLastSyncAt = "last_sync_at"
+	// FieldMaintenanceStartsAt holds the string denoting the maintenance_starts_at field in the database.
+	FieldMaintenanceStartsAt = "maintenance_starts_at"
+	// FieldMaintenanceEndsAt holds the string denoting the maintenance_ends_at field in the database.
+	FieldMaintenanceEndsAt = "maintenance_ends_at"
+	// FieldMaintenanceReason holds the string denoting the maintenance_reason field in the database.
+	FieldMaintenanceReason = "maintenance_reason"
+	// FieldMaintenanceActivatedBy holds the string denoting the maintenance_activated_by field in the database.
+	FieldMaintenanceActivatedBy = "maintenance_activated_by"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -65,6 +73,10 @@ var Columns = []string{
 	FieldTimezone,
 	FieldSyncStatus,
 	FieldLastSyncAt,
+	FieldMaintenanceStartsAt,
+	FieldMaintenanceEndsAt,
+	FieldMaintenanceReason,
+	FieldMaintenanceActivatedBy,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -141,6 +153,26 @@ func BySyncStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByLastSyncAt orders the results by the last_sync_at field.
 func ByLastSyncAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLastSyncAt, opts...).ToFunc()
+}
+
+// ByMaintenanceStartsAt orders the results by the maintenance_starts_at field.
+func ByMaintenanceStartsAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMaintenanceStartsAt, opts...).ToFunc()
+}
+
+// ByMaintenanceEndsAt orders the results by the maintenance_ends_at field.
+func ByMaintenanceEndsAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMaintenanceEndsAt, opts...).ToFunc()
+}
+
+// ByMaintenanceReason orders the results by the maintenance_reason field.
+func ByMaintenanceReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMaintenanceReason, opts...).ToFunc()
+}
+
+// ByMaintenanceActivatedBy orders the results by the maintenance_activated_by field.
+func ByMaintenanceActivatedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMaintenanceActivatedBy, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

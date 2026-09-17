@@ -25,5 +25,11 @@
 - `pos.repair.received`, `pos.repair.ready`, `pos.repair.collected` → notifications (SMS to customer).
 
 ## Definition of Done
-- [ ] `go build ./...`; Ent+Atlas migration; RBAC perms (`pos.repair.*`); subscription-gated add-on.
+- [x] `go build ./...`; Ent+Atlas migration; RBAC perms (`pos.repair.*`); subscription-gated add-on.
 - [ ] E2E: intake → add parts (inventory consumption) → settle (treasury) → collected + SMS.
+- [x] 2026-09-17: visible for every use case (was retail/services only) — pos-ui's
+      `USE_CASE_MODULES` (use-module-access.ts) now includes `repairs` for hospitality and
+      quick_service too. See `sprint-maintenance-mode.md` for an unrelated, same-named feature
+      shipped the same day: a platform-owner tenant lockout also called "Repair Mode" by the
+      user, with no relation to this device/job-card module beyond sharing the word "repair" —
+      do not conflate the two.

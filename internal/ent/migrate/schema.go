@@ -3758,6 +3758,10 @@ var (
 		{Name: "timezone", Type: field.TypeString, Default: "Africa/Nairobi"},
 		{Name: "sync_status", Type: field.TypeString, Default: "synced"},
 		{Name: "last_sync_at", Type: field.TypeTime, Nullable: true},
+		{Name: "maintenance_starts_at", Type: field.TypeTime, Nullable: true},
+		{Name: "maintenance_ends_at", Type: field.TypeTime, Nullable: true},
+		{Name: "maintenance_reason", Type: field.TypeString, Nullable: true},
+		{Name: "maintenance_activated_by", Type: field.TypeString, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}

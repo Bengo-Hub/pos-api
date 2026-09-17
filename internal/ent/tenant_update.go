@@ -141,6 +141,86 @@ func (_u *TenantUpdate) ClearLastSyncAt() *TenantUpdate {
 	return _u
 }
 
+// SetMaintenanceStartsAt sets the "maintenance_starts_at" field.
+func (_u *TenantUpdate) SetMaintenanceStartsAt(v time.Time) *TenantUpdate {
+	_u.mutation.SetMaintenanceStartsAt(v)
+	return _u
+}
+
+// SetNillableMaintenanceStartsAt sets the "maintenance_starts_at" field if the given value is not nil.
+func (_u *TenantUpdate) SetNillableMaintenanceStartsAt(v *time.Time) *TenantUpdate {
+	if v != nil {
+		_u.SetMaintenanceStartsAt(*v)
+	}
+	return _u
+}
+
+// ClearMaintenanceStartsAt clears the value of the "maintenance_starts_at" field.
+func (_u *TenantUpdate) ClearMaintenanceStartsAt() *TenantUpdate {
+	_u.mutation.ClearMaintenanceStartsAt()
+	return _u
+}
+
+// SetMaintenanceEndsAt sets the "maintenance_ends_at" field.
+func (_u *TenantUpdate) SetMaintenanceEndsAt(v time.Time) *TenantUpdate {
+	_u.mutation.SetMaintenanceEndsAt(v)
+	return _u
+}
+
+// SetNillableMaintenanceEndsAt sets the "maintenance_ends_at" field if the given value is not nil.
+func (_u *TenantUpdate) SetNillableMaintenanceEndsAt(v *time.Time) *TenantUpdate {
+	if v != nil {
+		_u.SetMaintenanceEndsAt(*v)
+	}
+	return _u
+}
+
+// ClearMaintenanceEndsAt clears the value of the "maintenance_ends_at" field.
+func (_u *TenantUpdate) ClearMaintenanceEndsAt() *TenantUpdate {
+	_u.mutation.ClearMaintenanceEndsAt()
+	return _u
+}
+
+// SetMaintenanceReason sets the "maintenance_reason" field.
+func (_u *TenantUpdate) SetMaintenanceReason(v string) *TenantUpdate {
+	_u.mutation.SetMaintenanceReason(v)
+	return _u
+}
+
+// SetNillableMaintenanceReason sets the "maintenance_reason" field if the given value is not nil.
+func (_u *TenantUpdate) SetNillableMaintenanceReason(v *string) *TenantUpdate {
+	if v != nil {
+		_u.SetMaintenanceReason(*v)
+	}
+	return _u
+}
+
+// ClearMaintenanceReason clears the value of the "maintenance_reason" field.
+func (_u *TenantUpdate) ClearMaintenanceReason() *TenantUpdate {
+	_u.mutation.ClearMaintenanceReason()
+	return _u
+}
+
+// SetMaintenanceActivatedBy sets the "maintenance_activated_by" field.
+func (_u *TenantUpdate) SetMaintenanceActivatedBy(v string) *TenantUpdate {
+	_u.mutation.SetMaintenanceActivatedBy(v)
+	return _u
+}
+
+// SetNillableMaintenanceActivatedBy sets the "maintenance_activated_by" field if the given value is not nil.
+func (_u *TenantUpdate) SetNillableMaintenanceActivatedBy(v *string) *TenantUpdate {
+	if v != nil {
+		_u.SetMaintenanceActivatedBy(*v)
+	}
+	return _u
+}
+
+// ClearMaintenanceActivatedBy clears the value of the "maintenance_activated_by" field.
+func (_u *TenantUpdate) ClearMaintenanceActivatedBy() *TenantUpdate {
+	_u.mutation.ClearMaintenanceActivatedBy()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *TenantUpdate) SetUpdatedAt(v time.Time) *TenantUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -313,6 +393,30 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.LastSyncAtCleared() {
 		_spec.ClearField(tenant.FieldLastSyncAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.MaintenanceStartsAt(); ok {
+		_spec.SetField(tenant.FieldMaintenanceStartsAt, field.TypeTime, value)
+	}
+	if _u.mutation.MaintenanceStartsAtCleared() {
+		_spec.ClearField(tenant.FieldMaintenanceStartsAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.MaintenanceEndsAt(); ok {
+		_spec.SetField(tenant.FieldMaintenanceEndsAt, field.TypeTime, value)
+	}
+	if _u.mutation.MaintenanceEndsAtCleared() {
+		_spec.ClearField(tenant.FieldMaintenanceEndsAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.MaintenanceReason(); ok {
+		_spec.SetField(tenant.FieldMaintenanceReason, field.TypeString, value)
+	}
+	if _u.mutation.MaintenanceReasonCleared() {
+		_spec.ClearField(tenant.FieldMaintenanceReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.MaintenanceActivatedBy(); ok {
+		_spec.SetField(tenant.FieldMaintenanceActivatedBy, field.TypeString, value)
+	}
+	if _u.mutation.MaintenanceActivatedByCleared() {
+		_spec.ClearField(tenant.FieldMaintenanceActivatedBy, field.TypeString)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(tenant.FieldUpdatedAt, field.TypeTime, value)
@@ -537,6 +641,86 @@ func (_u *TenantUpdateOne) ClearLastSyncAt() *TenantUpdateOne {
 	return _u
 }
 
+// SetMaintenanceStartsAt sets the "maintenance_starts_at" field.
+func (_u *TenantUpdateOne) SetMaintenanceStartsAt(v time.Time) *TenantUpdateOne {
+	_u.mutation.SetMaintenanceStartsAt(v)
+	return _u
+}
+
+// SetNillableMaintenanceStartsAt sets the "maintenance_starts_at" field if the given value is not nil.
+func (_u *TenantUpdateOne) SetNillableMaintenanceStartsAt(v *time.Time) *TenantUpdateOne {
+	if v != nil {
+		_u.SetMaintenanceStartsAt(*v)
+	}
+	return _u
+}
+
+// ClearMaintenanceStartsAt clears the value of the "maintenance_starts_at" field.
+func (_u *TenantUpdateOne) ClearMaintenanceStartsAt() *TenantUpdateOne {
+	_u.mutation.ClearMaintenanceStartsAt()
+	return _u
+}
+
+// SetMaintenanceEndsAt sets the "maintenance_ends_at" field.
+func (_u *TenantUpdateOne) SetMaintenanceEndsAt(v time.Time) *TenantUpdateOne {
+	_u.mutation.SetMaintenanceEndsAt(v)
+	return _u
+}
+
+// SetNillableMaintenanceEndsAt sets the "maintenance_ends_at" field if the given value is not nil.
+func (_u *TenantUpdateOne) SetNillableMaintenanceEndsAt(v *time.Time) *TenantUpdateOne {
+	if v != nil {
+		_u.SetMaintenanceEndsAt(*v)
+	}
+	return _u
+}
+
+// ClearMaintenanceEndsAt clears the value of the "maintenance_ends_at" field.
+func (_u *TenantUpdateOne) ClearMaintenanceEndsAt() *TenantUpdateOne {
+	_u.mutation.ClearMaintenanceEndsAt()
+	return _u
+}
+
+// SetMaintenanceReason sets the "maintenance_reason" field.
+func (_u *TenantUpdateOne) SetMaintenanceReason(v string) *TenantUpdateOne {
+	_u.mutation.SetMaintenanceReason(v)
+	return _u
+}
+
+// SetNillableMaintenanceReason sets the "maintenance_reason" field if the given value is not nil.
+func (_u *TenantUpdateOne) SetNillableMaintenanceReason(v *string) *TenantUpdateOne {
+	if v != nil {
+		_u.SetMaintenanceReason(*v)
+	}
+	return _u
+}
+
+// ClearMaintenanceReason clears the value of the "maintenance_reason" field.
+func (_u *TenantUpdateOne) ClearMaintenanceReason() *TenantUpdateOne {
+	_u.mutation.ClearMaintenanceReason()
+	return _u
+}
+
+// SetMaintenanceActivatedBy sets the "maintenance_activated_by" field.
+func (_u *TenantUpdateOne) SetMaintenanceActivatedBy(v string) *TenantUpdateOne {
+	_u.mutation.SetMaintenanceActivatedBy(v)
+	return _u
+}
+
+// SetNillableMaintenanceActivatedBy sets the "maintenance_activated_by" field if the given value is not nil.
+func (_u *TenantUpdateOne) SetNillableMaintenanceActivatedBy(v *string) *TenantUpdateOne {
+	if v != nil {
+		_u.SetMaintenanceActivatedBy(*v)
+	}
+	return _u
+}
+
+// ClearMaintenanceActivatedBy clears the value of the "maintenance_activated_by" field.
+func (_u *TenantUpdateOne) ClearMaintenanceActivatedBy() *TenantUpdateOne {
+	_u.mutation.ClearMaintenanceActivatedBy()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *TenantUpdateOne) SetUpdatedAt(v time.Time) *TenantUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -739,6 +923,30 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 	}
 	if _u.mutation.LastSyncAtCleared() {
 		_spec.ClearField(tenant.FieldLastSyncAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.MaintenanceStartsAt(); ok {
+		_spec.SetField(tenant.FieldMaintenanceStartsAt, field.TypeTime, value)
+	}
+	if _u.mutation.MaintenanceStartsAtCleared() {
+		_spec.ClearField(tenant.FieldMaintenanceStartsAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.MaintenanceEndsAt(); ok {
+		_spec.SetField(tenant.FieldMaintenanceEndsAt, field.TypeTime, value)
+	}
+	if _u.mutation.MaintenanceEndsAtCleared() {
+		_spec.ClearField(tenant.FieldMaintenanceEndsAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.MaintenanceReason(); ok {
+		_spec.SetField(tenant.FieldMaintenanceReason, field.TypeString, value)
+	}
+	if _u.mutation.MaintenanceReasonCleared() {
+		_spec.ClearField(tenant.FieldMaintenanceReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.MaintenanceActivatedBy(); ok {
+		_spec.SetField(tenant.FieldMaintenanceActivatedBy, field.TypeString, value)
+	}
+	if _u.mutation.MaintenanceActivatedByCleared() {
+		_spec.ClearField(tenant.FieldMaintenanceActivatedBy, field.TypeString)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(tenant.FieldUpdatedAt, field.TypeTime, value)

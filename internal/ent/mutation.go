@@ -119121,28 +119121,32 @@ func (m *TableReservationMutation) ResetEdge(name string) error {
 // TenantMutation represents an operation that mutates the Tenant nodes in the graph.
 type TenantMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *uuid.UUID
-	name           *string
-	slug           *string
-	status         *string
-	use_case       *string
-	timezone       *string
-	sync_status    *string
-	last_sync_at   *time.Time
-	created_at     *time.Time
-	updated_at     *time.Time
-	clearedFields  map[string]struct{}
-	users          map[uuid.UUID]struct{}
-	removedusers   map[uuid.UUID]struct{}
-	clearedusers   bool
-	outlets        map[uuid.UUID]struct{}
-	removedoutlets map[uuid.UUID]struct{}
-	clearedoutlets bool
-	done           bool
-	oldValue       func(context.Context) (*Tenant, error)
-	predicates     []predicate.Tenant
+	op                       Op
+	typ                      string
+	id                       *uuid.UUID
+	name                     *string
+	slug                     *string
+	status                   *string
+	use_case                 *string
+	timezone                 *string
+	sync_status              *string
+	last_sync_at             *time.Time
+	maintenance_starts_at    *time.Time
+	maintenance_ends_at      *time.Time
+	maintenance_reason       *string
+	maintenance_activated_by *string
+	created_at               *time.Time
+	updated_at               *time.Time
+	clearedFields            map[string]struct{}
+	users                    map[uuid.UUID]struct{}
+	removedusers             map[uuid.UUID]struct{}
+	clearedusers             bool
+	outlets                  map[uuid.UUID]struct{}
+	removedoutlets           map[uuid.UUID]struct{}
+	clearedoutlets           bool
+	done                     bool
+	oldValue                 func(context.Context) (*Tenant, error)
+	predicates               []predicate.Tenant
 }
 
 var _ ent.Mutation = (*TenantMutation)(nil)
@@ -119527,6 +119531,202 @@ func (m *TenantMutation) ResetLastSyncAt() {
 	delete(m.clearedFields, tenant.FieldLastSyncAt)
 }
 
+// SetMaintenanceStartsAt sets the "maintenance_starts_at" field.
+func (m *TenantMutation) SetMaintenanceStartsAt(t time.Time) {
+	m.maintenance_starts_at = &t
+}
+
+// MaintenanceStartsAt returns the value of the "maintenance_starts_at" field in the mutation.
+func (m *TenantMutation) MaintenanceStartsAt() (r time.Time, exists bool) {
+	v := m.maintenance_starts_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaintenanceStartsAt returns the old "maintenance_starts_at" field's value of the Tenant entity.
+// If the Tenant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TenantMutation) OldMaintenanceStartsAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaintenanceStartsAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaintenanceStartsAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaintenanceStartsAt: %w", err)
+	}
+	return oldValue.MaintenanceStartsAt, nil
+}
+
+// ClearMaintenanceStartsAt clears the value of the "maintenance_starts_at" field.
+func (m *TenantMutation) ClearMaintenanceStartsAt() {
+	m.maintenance_starts_at = nil
+	m.clearedFields[tenant.FieldMaintenanceStartsAt] = struct{}{}
+}
+
+// MaintenanceStartsAtCleared returns if the "maintenance_starts_at" field was cleared in this mutation.
+func (m *TenantMutation) MaintenanceStartsAtCleared() bool {
+	_, ok := m.clearedFields[tenant.FieldMaintenanceStartsAt]
+	return ok
+}
+
+// ResetMaintenanceStartsAt resets all changes to the "maintenance_starts_at" field.
+func (m *TenantMutation) ResetMaintenanceStartsAt() {
+	m.maintenance_starts_at = nil
+	delete(m.clearedFields, tenant.FieldMaintenanceStartsAt)
+}
+
+// SetMaintenanceEndsAt sets the "maintenance_ends_at" field.
+func (m *TenantMutation) SetMaintenanceEndsAt(t time.Time) {
+	m.maintenance_ends_at = &t
+}
+
+// MaintenanceEndsAt returns the value of the "maintenance_ends_at" field in the mutation.
+func (m *TenantMutation) MaintenanceEndsAt() (r time.Time, exists bool) {
+	v := m.maintenance_ends_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaintenanceEndsAt returns the old "maintenance_ends_at" field's value of the Tenant entity.
+// If the Tenant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TenantMutation) OldMaintenanceEndsAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaintenanceEndsAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaintenanceEndsAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaintenanceEndsAt: %w", err)
+	}
+	return oldValue.MaintenanceEndsAt, nil
+}
+
+// ClearMaintenanceEndsAt clears the value of the "maintenance_ends_at" field.
+func (m *TenantMutation) ClearMaintenanceEndsAt() {
+	m.maintenance_ends_at = nil
+	m.clearedFields[tenant.FieldMaintenanceEndsAt] = struct{}{}
+}
+
+// MaintenanceEndsAtCleared returns if the "maintenance_ends_at" field was cleared in this mutation.
+func (m *TenantMutation) MaintenanceEndsAtCleared() bool {
+	_, ok := m.clearedFields[tenant.FieldMaintenanceEndsAt]
+	return ok
+}
+
+// ResetMaintenanceEndsAt resets all changes to the "maintenance_ends_at" field.
+func (m *TenantMutation) ResetMaintenanceEndsAt() {
+	m.maintenance_ends_at = nil
+	delete(m.clearedFields, tenant.FieldMaintenanceEndsAt)
+}
+
+// SetMaintenanceReason sets the "maintenance_reason" field.
+func (m *TenantMutation) SetMaintenanceReason(s string) {
+	m.maintenance_reason = &s
+}
+
+// MaintenanceReason returns the value of the "maintenance_reason" field in the mutation.
+func (m *TenantMutation) MaintenanceReason() (r string, exists bool) {
+	v := m.maintenance_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaintenanceReason returns the old "maintenance_reason" field's value of the Tenant entity.
+// If the Tenant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TenantMutation) OldMaintenanceReason(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaintenanceReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaintenanceReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaintenanceReason: %w", err)
+	}
+	return oldValue.MaintenanceReason, nil
+}
+
+// ClearMaintenanceReason clears the value of the "maintenance_reason" field.
+func (m *TenantMutation) ClearMaintenanceReason() {
+	m.maintenance_reason = nil
+	m.clearedFields[tenant.FieldMaintenanceReason] = struct{}{}
+}
+
+// MaintenanceReasonCleared returns if the "maintenance_reason" field was cleared in this mutation.
+func (m *TenantMutation) MaintenanceReasonCleared() bool {
+	_, ok := m.clearedFields[tenant.FieldMaintenanceReason]
+	return ok
+}
+
+// ResetMaintenanceReason resets all changes to the "maintenance_reason" field.
+func (m *TenantMutation) ResetMaintenanceReason() {
+	m.maintenance_reason = nil
+	delete(m.clearedFields, tenant.FieldMaintenanceReason)
+}
+
+// SetMaintenanceActivatedBy sets the "maintenance_activated_by" field.
+func (m *TenantMutation) SetMaintenanceActivatedBy(s string) {
+	m.maintenance_activated_by = &s
+}
+
+// MaintenanceActivatedBy returns the value of the "maintenance_activated_by" field in the mutation.
+func (m *TenantMutation) MaintenanceActivatedBy() (r string, exists bool) {
+	v := m.maintenance_activated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaintenanceActivatedBy returns the old "maintenance_activated_by" field's value of the Tenant entity.
+// If the Tenant object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TenantMutation) OldMaintenanceActivatedBy(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaintenanceActivatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaintenanceActivatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaintenanceActivatedBy: %w", err)
+	}
+	return oldValue.MaintenanceActivatedBy, nil
+}
+
+// ClearMaintenanceActivatedBy clears the value of the "maintenance_activated_by" field.
+func (m *TenantMutation) ClearMaintenanceActivatedBy() {
+	m.maintenance_activated_by = nil
+	m.clearedFields[tenant.FieldMaintenanceActivatedBy] = struct{}{}
+}
+
+// MaintenanceActivatedByCleared returns if the "maintenance_activated_by" field was cleared in this mutation.
+func (m *TenantMutation) MaintenanceActivatedByCleared() bool {
+	_, ok := m.clearedFields[tenant.FieldMaintenanceActivatedBy]
+	return ok
+}
+
+// ResetMaintenanceActivatedBy resets all changes to the "maintenance_activated_by" field.
+func (m *TenantMutation) ResetMaintenanceActivatedBy() {
+	m.maintenance_activated_by = nil
+	delete(m.clearedFields, tenant.FieldMaintenanceActivatedBy)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *TenantMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -119741,7 +119941,7 @@ func (m *TenantMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TenantMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 13)
 	if m.name != nil {
 		fields = append(fields, tenant.FieldName)
 	}
@@ -119762,6 +119962,18 @@ func (m *TenantMutation) Fields() []string {
 	}
 	if m.last_sync_at != nil {
 		fields = append(fields, tenant.FieldLastSyncAt)
+	}
+	if m.maintenance_starts_at != nil {
+		fields = append(fields, tenant.FieldMaintenanceStartsAt)
+	}
+	if m.maintenance_ends_at != nil {
+		fields = append(fields, tenant.FieldMaintenanceEndsAt)
+	}
+	if m.maintenance_reason != nil {
+		fields = append(fields, tenant.FieldMaintenanceReason)
+	}
+	if m.maintenance_activated_by != nil {
+		fields = append(fields, tenant.FieldMaintenanceActivatedBy)
 	}
 	if m.created_at != nil {
 		fields = append(fields, tenant.FieldCreatedAt)
@@ -119791,6 +120003,14 @@ func (m *TenantMutation) Field(name string) (ent.Value, bool) {
 		return m.SyncStatus()
 	case tenant.FieldLastSyncAt:
 		return m.LastSyncAt()
+	case tenant.FieldMaintenanceStartsAt:
+		return m.MaintenanceStartsAt()
+	case tenant.FieldMaintenanceEndsAt:
+		return m.MaintenanceEndsAt()
+	case tenant.FieldMaintenanceReason:
+		return m.MaintenanceReason()
+	case tenant.FieldMaintenanceActivatedBy:
+		return m.MaintenanceActivatedBy()
 	case tenant.FieldCreatedAt:
 		return m.CreatedAt()
 	case tenant.FieldUpdatedAt:
@@ -119818,6 +120038,14 @@ func (m *TenantMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldSyncStatus(ctx)
 	case tenant.FieldLastSyncAt:
 		return m.OldLastSyncAt(ctx)
+	case tenant.FieldMaintenanceStartsAt:
+		return m.OldMaintenanceStartsAt(ctx)
+	case tenant.FieldMaintenanceEndsAt:
+		return m.OldMaintenanceEndsAt(ctx)
+	case tenant.FieldMaintenanceReason:
+		return m.OldMaintenanceReason(ctx)
+	case tenant.FieldMaintenanceActivatedBy:
+		return m.OldMaintenanceActivatedBy(ctx)
 	case tenant.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case tenant.FieldUpdatedAt:
@@ -119880,6 +120108,34 @@ func (m *TenantMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetLastSyncAt(v)
 		return nil
+	case tenant.FieldMaintenanceStartsAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaintenanceStartsAt(v)
+		return nil
+	case tenant.FieldMaintenanceEndsAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaintenanceEndsAt(v)
+		return nil
+	case tenant.FieldMaintenanceReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaintenanceReason(v)
+		return nil
+	case tenant.FieldMaintenanceActivatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaintenanceActivatedBy(v)
+		return nil
 	case tenant.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -119930,6 +120186,18 @@ func (m *TenantMutation) ClearedFields() []string {
 	if m.FieldCleared(tenant.FieldLastSyncAt) {
 		fields = append(fields, tenant.FieldLastSyncAt)
 	}
+	if m.FieldCleared(tenant.FieldMaintenanceStartsAt) {
+		fields = append(fields, tenant.FieldMaintenanceStartsAt)
+	}
+	if m.FieldCleared(tenant.FieldMaintenanceEndsAt) {
+		fields = append(fields, tenant.FieldMaintenanceEndsAt)
+	}
+	if m.FieldCleared(tenant.FieldMaintenanceReason) {
+		fields = append(fields, tenant.FieldMaintenanceReason)
+	}
+	if m.FieldCleared(tenant.FieldMaintenanceActivatedBy) {
+		fields = append(fields, tenant.FieldMaintenanceActivatedBy)
+	}
 	return fields
 }
 
@@ -119949,6 +120217,18 @@ func (m *TenantMutation) ClearField(name string) error {
 		return nil
 	case tenant.FieldLastSyncAt:
 		m.ClearLastSyncAt()
+		return nil
+	case tenant.FieldMaintenanceStartsAt:
+		m.ClearMaintenanceStartsAt()
+		return nil
+	case tenant.FieldMaintenanceEndsAt:
+		m.ClearMaintenanceEndsAt()
+		return nil
+	case tenant.FieldMaintenanceReason:
+		m.ClearMaintenanceReason()
+		return nil
+	case tenant.FieldMaintenanceActivatedBy:
+		m.ClearMaintenanceActivatedBy()
 		return nil
 	}
 	return fmt.Errorf("unknown Tenant nullable field %s", name)
@@ -119978,6 +120258,18 @@ func (m *TenantMutation) ResetField(name string) error {
 		return nil
 	case tenant.FieldLastSyncAt:
 		m.ResetLastSyncAt()
+		return nil
+	case tenant.FieldMaintenanceStartsAt:
+		m.ResetMaintenanceStartsAt()
+		return nil
+	case tenant.FieldMaintenanceEndsAt:
+		m.ResetMaintenanceEndsAt()
+		return nil
+	case tenant.FieldMaintenanceReason:
+		m.ResetMaintenanceReason()
+		return nil
+	case tenant.FieldMaintenanceActivatedBy:
+		m.ResetMaintenanceActivatedBy()
 		return nil
 	case tenant.FieldCreatedAt:
 		m.ResetCreatedAt()

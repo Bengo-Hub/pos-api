@@ -32,6 +32,14 @@ type Tenant struct {
 	SyncStatus string `json:"sync_status,omitempty"`
 	// Last successful sync from auth-api
 	LastSyncAt *time.Time `json:"last_sync_at,omitempty"`
+	// Scheduled start of a maintenance window (product name: Repair Mode). While now is within [maintenance_starts_at, maintenance_ends_at], every non-platform-owner request to this tenant's POS is blocked with an under-maintenance response. Owned locally by pos-api, not synced from auth-api. Null means no window scheduled.
+	MaintenanceStartsAt *time.Time `json:"maintenance_starts_at,omitempty"`
+	// Scheduled end of the maintenance window. The lockout auto-resumes normal access once now passes this timestamp, with no manual step to turn it back off.
+	MaintenanceEndsAt *time.Time `json:"maintenance_ends_at,omitempty"`
+	// Free-text reason shown on the under-maintenance banner for the current or most recent window
+	MaintenanceReason *string `json:"maintenance_reason,omitempty"`
+	// Platform owner email/identifier who scheduled the current or most recent maintenance window
+	MaintenanceActivatedBy *string `json:"maintenance_activated_by,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -76,9 +84,9 @@ func (*Tenant) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case tenant.FieldName, tenant.FieldSlug, tenant.FieldStatus, tenant.FieldUseCase, tenant.FieldTimezone, tenant.FieldSyncStatus:
+		case tenant.FieldName, tenant.FieldSlug, tenant.FieldStatus, tenant.FieldUseCase, tenant.FieldTimezone, tenant.FieldSyncStatus, tenant.FieldMaintenanceReason, tenant.FieldMaintenanceActivatedBy:
 			values[i] = new(sql.NullString)
-		case tenant.FieldLastSyncAt, tenant.FieldCreatedAt, tenant.FieldUpdatedAt:
+		case tenant.FieldLastSyncAt, tenant.FieldMaintenanceStartsAt, tenant.FieldMaintenanceEndsAt, tenant.FieldCreatedAt, tenant.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case tenant.FieldID:
 			values[i] = new(uuid.UUID)
@@ -146,6 +154,34 @@ func (_m *Tenant) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.LastSyncAt = new(time.Time)
 				*_m.LastSyncAt = value.Time
+			}
+		case tenant.FieldMaintenanceStartsAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field maintenance_starts_at", values[i])
+			} else if value.Valid {
+				_m.MaintenanceStartsAt = new(time.Time)
+				*_m.MaintenanceStartsAt = value.Time
+			}
+		case tenant.FieldMaintenanceEndsAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field maintenance_ends_at", values[i])
+			} else if value.Valid {
+				_m.MaintenanceEndsAt = new(time.Time)
+				*_m.MaintenanceEndsAt = value.Time
+			}
+		case tenant.FieldMaintenanceReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field maintenance_reason", values[i])
+			} else if value.Valid {
+				_m.MaintenanceReason = new(string)
+				*_m.MaintenanceReason = value.String
+			}
+		case tenant.FieldMaintenanceActivatedBy:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field maintenance_activated_by", values[i])
+			} else if value.Valid {
+				_m.MaintenanceActivatedBy = new(string)
+				*_m.MaintenanceActivatedBy = value.String
 			}
 		case tenant.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -228,6 +264,26 @@ func (_m *Tenant) String() string {
 	if v := _m.LastSyncAt; v != nil {
 		builder.WriteString("last_sync_at=")
 		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.MaintenanceStartsAt; v != nil {
+		builder.WriteString("maintenance_starts_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.MaintenanceEndsAt; v != nil {
+		builder.WriteString("maintenance_ends_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.MaintenanceReason; v != nil {
+		builder.WriteString("maintenance_reason=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.MaintenanceActivatedBy; v != nil {
+		builder.WriteString("maintenance_activated_by=")
+		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")

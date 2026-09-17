@@ -165,6 +165,60 @@ func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutlet
 	return signed, permissions, nil
 }
 
+// issuePlatformRepairOverrideJWT signs a short-lived (1 hour, deliberately shorter than the
+// normal 4h terminal session) terminal JWT for a platform engineer who entered the platform
+// override PIN at a tenant's PIN pad while that tenant is inside a scheduled maintenance window
+// (see checkMaintenanceGate in pin_auth.go). There is no StaffMember behind this session — the
+// subject is a fresh random id — so Role is pinned to "admin" (the standard full-access POS role
+// code) purely to give real RBAC permissions for the tenant's own resources; IsPlatformOwner=true
+// is the separate flag that actually bypasses the maintenance/subscription/service-access gates a
+// real tenant admin does NOT bypass.
+func issuePlatformRepairOverrideJWT(tenantID uuid.UUID, tenantSlug string, outletID uuid.UUID, secret []byte, client *ent.Client, ctx context.Context) (string, []string, error) {
+	permissions, err := resolveRolePermissions(ctx, client, tenantID, "admin")
+	if err != nil {
+		return "", nil, fmt.Errorf("resolve admin permissions for platform repair override: %w", err)
+	}
+
+	outletCode := ""
+	outletUseCase := "hospitality"
+	isHQ := false
+	if outlet, oerr := client.Outlet.Get(ctx, outletID); oerr == nil {
+		outletCode = outlet.Code
+		if outlet.UseCase != nil {
+			outletUseCase = *outlet.UseCase
+		}
+		isHQ = outlet.IsHq
+	}
+
+	sessionUserID := uuid.New()
+	now := time.Now()
+	claims := terminalClaims{
+		UserID:          sessionUserID.String(),
+		TenantID:        tenantID.String(),
+		TenantSlug:      tenantSlug,
+		OutletID:        outletID.String(),
+		OutletCode:      outletCode,
+		OutletUseCase:   outletUseCase,
+		IsHQUser:        isHQ,
+		Name:            "Platform Repair Access",
+		Role:            "admin",
+		Permissions:     permissions,
+		IsPlatformOwner: true,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   sessionUserID.String(),
+			Issuer:    "pos-terminal",
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(1 * time.Hour)),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, serr := token.SignedString(secret)
+	if serr != nil {
+		return "", nil, serr
+	}
+	return signed, permissions, nil
+}
+
 // validateTerminalJWT parses and validates an HMAC-signed terminal JWT.
 func validateTerminalJWT(tokenStr string, secret []byte) (*terminalClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &terminalClaims{}, func(t *jwt.Token) (interface{}, error) {

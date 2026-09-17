@@ -122,6 +122,7 @@ func New(
 	mediaRoot string,
 	recipeCOGSBackfill *handlers.RecipeCOGSBackfillHandler,
 	catalogCostBackfill *handlers.CatalogCostBackfillHandler,
+	maintenanceWindow *handlers.MaintenanceWindowHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -185,6 +186,9 @@ func New(
 				// though every sibling platform-admin route below already does.
 				admin.Use(requirePlatformOwner)
 				serviceConfig.RegisterAdminRoutes(admin)
+				if maintenanceWindow != nil {
+					maintenanceWindow.RegisterRoutes(admin)
+				}
 
 				// Platform-default backup destination (OneDrive/GDrive/S3/WebDAV/
 				// SFTP/SMB) — platform-owner only. Secret params encrypted at rest.
@@ -326,6 +330,11 @@ func New(
 				// switch, same reasoning as RequireServiceAccess above. No-ops for every tenant
 				// without a support-fee obligation at all (absent claim).
 				prot.Use(authclient.RequireSupportFeeCurrentForMutations(7))
+				// Tenant maintenance window ("Repair Mode" in the product UI): blocks every
+				// non-platform-owner request while the tenant is inside a scheduled
+				// maintenance_starts_at/maintenance_ends_at window. Mounted last in this axis
+				// group so it always wins regardless of subscription/service-access state.
+				prot.Use(outletmw.RequireNotUnderMaintenance(entClient))
 			}
 
 			if idSvc != nil {
