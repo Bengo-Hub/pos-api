@@ -163,10 +163,20 @@ func (c *ConfirmedOrderConsumer) handleOrderConfirmed(ctx context.Context, evt *
 	// Build order lines (price field is total_price = unit_price * quantity).
 	lines := make([]OrderLineInput, 0, len(items))
 	for _, item := range items {
+		// POSOrderLine.name has a NotEmpty validator — an empty name here used to permanently
+		// fail this consumer (retried via NATS redelivery up to MaxDeliver, then silently
+		// dead-lettered; the order never reached the POS/online-order queue at all). Root cause
+		// was ordering-backend trusting a client-omitted item name (fixed there: it now always
+		// resolves the catalog's own name), but this fallback stays as defense in depth — no
+		// single upstream bug should ever be able to wedge an order out of the queue permanently.
+		name := item.Name
+		if name == "" {
+			name = "Item"
+		}
 		lines = append(lines, OrderLineInput{
 			CatalogItemID: uuid.Nil, // online items carry no local catalog mapping
 			SKU:           item.SKU,
-			Name:          item.Name,
+			Name:          name,
 			Quantity:      item.Quantity,
 			UnitPrice:     item.UnitPrice,
 			TotalPrice:    item.UnitPrice * item.Quantity,
