@@ -2790,7 +2790,7 @@ var (
 		{Name: "market_segment", Type: field.TypeString, Nullable: true},
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"staff", "online", "api"}, Default: "staff"},
 		{Name: "crm_contact_id", Type: field.TypeUUID, Nullable: true},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"confirmed", "checked_in", "checked_out", "cancelled", "no_show"}, Default: "confirmed"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "confirmed", "checked_in", "checked_out", "cancelled", "no_show"}, Default: "confirmed"},
 		{Name: "created_by", Type: field.TypeUUID},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "created_at", Type: field.TypeTime},
@@ -2816,6 +2816,49 @@ var (
 				Name:    "roombooking_tenant_id_arrival_date",
 				Unique:  false,
 				Columns: []*schema.Column{RoomBookingsColumns[1], RoomBookingsColumns[8]},
+			},
+		},
+	}
+	// RoomDamageReportsColumns holds the columns for the "room_damage_reports" table.
+	RoomDamageReportsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "room_id", Type: field.TypeUUID},
+		{Name: "room_guest_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "description", Type: field.TypeString},
+		{Name: "amount", Type: field.TypeFloat64},
+		{Name: "currency", Type: field.TypeString, Default: "KES"},
+		{Name: "evidence_urls", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected"}, Default: "pending"},
+		{Name: "reported_by", Type: field.TypeUUID},
+		{Name: "reviewed_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "review_notes", Type: field.TypeString, Nullable: true},
+		{Name: "folio_item_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// RoomDamageReportsTable holds the schema information for the "room_damage_reports" table.
+	RoomDamageReportsTable = &schema.Table{
+		Name:       "room_damage_reports",
+		Columns:    RoomDamageReportsColumns,
+		PrimaryKey: []*schema.Column{RoomDamageReportsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "roomdamagereport_tenant_id_room_id",
+				Unique:  false,
+				Columns: []*schema.Column{RoomDamageReportsColumns[1], RoomDamageReportsColumns[2]},
+			},
+			{
+				Name:    "roomdamagereport_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{RoomDamageReportsColumns[1], RoomDamageReportsColumns[8]},
+			},
+			{
+				Name:    "roomdamagereport_tenant_id_room_guest_id",
+				Unique:  false,
+				Columns: []*schema.Column{RoomDamageReportsColumns[1], RoomDamageReportsColumns[3]},
 			},
 		},
 	}
@@ -4090,6 +4133,7 @@ var (
 		RoomAmenitiesTable,
 		RoomAmenityAssignmentsTable,
 		RoomBookingsTable,
+		RoomDamageReportsTable,
 		RoomFolioItemsTable,
 		RoomFolioPaymentsTable,
 		RoomGuestsTable,

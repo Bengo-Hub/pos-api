@@ -33,6 +33,9 @@ type HotelHandler struct {
 	treasuryClient  *treasury.Client
 	inventoryClient *inventory.Client
 	subsClient      *subscriptions.Client
+	// mediaRoot is the local media volume root (MEDIA_ROOT) used for damage-evidence photo
+	// uploads — see SetMediaRoot / hotel_damage_reports.go.
+	mediaRoot string
 }
 
 func NewHotelHandler(log *zap.Logger, client *ent.Client, publisher *events.Publisher) *HotelHandler {

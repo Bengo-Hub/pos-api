@@ -284,10 +284,16 @@ func New(
 				// True-PDF variant (same tokenless data path) for DocPreview + sharing.
 				pub.Get("/{tenantID}/pos/outlets/{outletID}/menu.pdf", menu.GetMenuPDF)
 			}
-			// Public reservation endpoints Ã¢â‚¬â€ used by the embeddable booking widget
+			// Public reservation endpoints - used by the embeddable table-booking widget
 			if tables != nil {
 				pub.Get("/{tenantID}/pos/reservations/available", tables.GetAvailableSlots)
 				pub.Post("/{tenantID}/pos/reservations", tables.CreateReservation)
+			}
+			// Public room-booking endpoints - used by the embeddable room-booking widget
+			// (date-range availability + submit; mirrors the table-reservation pair above).
+			if hotel != nil {
+				pub.Get("/{tenantID}/pos/room-bookings/availability", hotel.PublicRoomAvailability)
+				pub.Post("/{tenantID}/pos/room-bookings", hotel.CreatePublicRoomBooking)
 			}
 			// Payment-gateway init proxy. Called by the embedded treasury/Paystack payment UI (a
 			// cross-origin "Books" iframe) which does NOT carry the POS user's JWT — so it must be
@@ -1330,6 +1336,15 @@ func New(
 							g.Get("/housekeeping", hotel.ListHousekeepingTasks)
 							g.With(hotelChange).Post("/housekeeping", hotel.CreateHousekeepingTask)
 							g.With(hotelChange).Patch("/housekeeping/{taskID}", hotel.UpdateHousekeepingTask)
+							// Damage/fine reports: front desk or housekeeping logs one (with optional
+							// photo evidence), a manager approves (auto-posts the folio charge when the
+							// stay is still active) or rejects it.
+							g.With(hotelChange).Post("/rooms/{id}/damage-reports", hotel.CreateDamageReport)
+							g.Get("/damage-reports", hotel.ListDamageReports)
+							g.Get("/damage-reports/{id}", hotel.GetDamageReport)
+							g.With(hotelManage).Post("/damage-reports/{id}/approve", hotel.ApproveDamageReport)
+							g.With(hotelManage).Post("/damage-reports/{id}/reject", hotel.RejectDamageReport)
+							g.With(hotelChange).Post("/damage-evidence/upload", hotel.UploadDamageEvidence)
 						})
 
 						// ── Bookable spaces: co-working desks, conference/meeting rooms — sell +

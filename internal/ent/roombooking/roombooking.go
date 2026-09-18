@@ -154,6 +154,7 @@ const DefaultStatus = StatusConfirmed
 
 // Status values.
 const (
+	StatusPending    Status = "pending"
 	StatusConfirmed  Status = "confirmed"
 	StatusCheckedIn  Status = "checked_in"
 	StatusCheckedOut Status = "checked_out"
@@ -168,7 +169,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusConfirmed, StatusCheckedIn, StatusCheckedOut, StatusCancelled, StatusNoShow:
+	case StatusPending, StatusConfirmed, StatusCheckedIn, StatusCheckedOut, StatusCancelled, StatusNoShow:
 		return nil
 	default:
 		return fmt.Errorf("roombooking: invalid enum value for status field: %q", s)

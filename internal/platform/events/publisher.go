@@ -177,6 +177,16 @@ func (p *Publisher) PublishHotelFolioCharge(ctx context.Context, tenantID uuid.U
 	return p.publish(ctx, tenantID, "hotel.folio_charge", data)
 }
 
+// PublishHotelDamageReported publishes hotel.damage.reported when a damage/fine report is logged.
+func (p *Publisher) PublishHotelDamageReported(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "hotel.damage.reported", data)
+}
+
+// PublishHotelDamageReviewed publishes hotel.damage.reviewed when a damage report is approved or rejected.
+func (p *Publisher) PublishHotelDamageReviewed(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "hotel.damage.reviewed", data)
+}
+
 // PublishHotelBookingCreated publishes hotel.booking.created for a multi-room/group booking.
 func (p *Publisher) PublishHotelBookingCreated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "hotel.booking.created", data)

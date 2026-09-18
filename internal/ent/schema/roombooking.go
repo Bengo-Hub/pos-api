@@ -55,7 +55,9 @@ func (RoomBooking) Fields() []ent.Field {
 			Nillable().
 			Comment("marketflow-api CRM contact ref — never duplicate contact master data here"),
 		field.Enum("status").
-			Values("confirmed", "checked_in", "checked_out", "cancelled", "no_show").
+			// "pending" is for guest-submitted self-service bookings (source=online) awaiting
+			// front-desk review — never the default for staff-created bookings (still "confirmed").
+			Values("pending", "confirmed", "checked_in", "checked_out", "cancelled", "no_show").
 			Default("confirmed"),
 		field.UUID("created_by", uuid.UUID{}).
 			Comment("user_id ref from auth-service"),

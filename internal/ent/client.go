@@ -100,6 +100,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/roomamenity"
 	"github.com/bengobox/pos-service/internal/ent/roomamenityassignment"
 	"github.com/bengobox/pos-service/internal/ent/roombooking"
+	"github.com/bengobox/pos-service/internal/ent/roomdamagereport"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomfoliopayment"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
@@ -309,6 +310,8 @@ type Client struct {
 	RoomAmenityAssignment *RoomAmenityAssignmentClient
 	// RoomBooking is the client for interacting with the RoomBooking builders.
 	RoomBooking *RoomBookingClient
+	// RoomDamageReport is the client for interacting with the RoomDamageReport builders.
+	RoomDamageReport *RoomDamageReportClient
 	// RoomFolioItem is the client for interacting with the RoomFolioItem builders.
 	RoomFolioItem *RoomFolioItemClient
 	// RoomFolioPayment is the client for interacting with the RoomFolioPayment builders.
@@ -472,6 +475,7 @@ func (c *Client) init() {
 	c.RoomAmenity = NewRoomAmenityClient(c.config)
 	c.RoomAmenityAssignment = NewRoomAmenityAssignmentClient(c.config)
 	c.RoomBooking = NewRoomBookingClient(c.config)
+	c.RoomDamageReport = NewRoomDamageReportClient(c.config)
 	c.RoomFolioItem = NewRoomFolioItemClient(c.config)
 	c.RoomFolioPayment = NewRoomFolioPaymentClient(c.config)
 	c.RoomGuest = NewRoomGuestClient(c.config)
@@ -682,6 +686,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		RoomAmenity:              NewRoomAmenityClient(cfg),
 		RoomAmenityAssignment:    NewRoomAmenityAssignmentClient(cfg),
 		RoomBooking:              NewRoomBookingClient(cfg),
+		RoomDamageReport:         NewRoomDamageReportClient(cfg),
 		RoomFolioItem:            NewRoomFolioItemClient(cfg),
 		RoomFolioPayment:         NewRoomFolioPaymentClient(cfg),
 		RoomGuest:                NewRoomGuestClient(cfg),
@@ -819,6 +824,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		RoomAmenity:              NewRoomAmenityClient(cfg),
 		RoomAmenityAssignment:    NewRoomAmenityAssignmentClient(cfg),
 		RoomBooking:              NewRoomBookingClient(cfg),
+		RoomDamageReport:         NewRoomDamageReportClient(cfg),
 		RoomFolioItem:            NewRoomFolioItemClient(cfg),
 		RoomFolioPayment:         NewRoomFolioPaymentClient(cfg),
 		RoomGuest:                NewRoomGuestClient(cfg),
@@ -901,16 +907,16 @@ func (c *Client) Use(hooks ...Hook) {
 		c.PrintAgent, c.PrintJob, c.Promotion, c.PromotionApplication,
 		c.PromotionRedemption, c.PromotionRule, c.RateLimitConfig, c.Referral,
 		c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
-		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
-		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
-		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
-		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
-		c.StaffPurchaseLink, c.StaffSchedule, c.StaffShiftOverride,
-		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
-		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
-		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
-		c.WeighingScaleReading,
+		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomDamageReport,
+		c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog,
+		c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
+		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
+		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
+		c.StaffPayroll, c.StaffPayrollLine, c.StaffPurchaseLink, c.StaffSchedule,
+		c.StaffShiftOverride, c.StockAlertSubscription, c.StockConsumptionEvent,
+		c.SyncFailure, c.Table, c.TableAssignment, c.TableReservation, c.Tenant,
+		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
+		c.WebhookSubscription, c.WeighingScaleReading,
 	} {
 		n.Use(hooks...)
 	}
@@ -939,16 +945,16 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.PrintAgent, c.PrintJob, c.Promotion, c.PromotionApplication,
 		c.PromotionRedemption, c.PromotionRule, c.RateLimitConfig, c.Referral,
 		c.RepairJob, c.RepairJobEvent, c.RepairJobPart, c.Resource, c.Room,
-		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomFolioItem,
-		c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog, c.ServiceConfig,
-		c.ServicePackage, c.ServicePackagePurchase, c.ServicePackageRedemption,
-		c.ServiceQueueEntry, c.ShiftRotation, c.ShiftRotationSlot, c.StaffAdvance,
-		c.StaffMember, c.StaffOutlet, c.StaffPayroll, c.StaffPayrollLine,
-		c.StaffPurchaseLink, c.StaffSchedule, c.StaffShiftOverride,
-		c.StockAlertSubscription, c.StockConsumptionEvent, c.SyncFailure, c.Table,
-		c.TableAssignment, c.TableReservation, c.Tenant, c.TenantSyncEvent, c.Tender,
-		c.User, c.UserPOSRole, c.WebhookDelivery, c.WebhookSubscription,
-		c.WeighingScaleReading,
+		c.RoomAmenity, c.RoomAmenityAssignment, c.RoomBooking, c.RoomDamageReport,
+		c.RoomFolioItem, c.RoomFolioPayment, c.RoomGuest, c.Section, c.SerialNumberLog,
+		c.ServiceConfig, c.ServicePackage, c.ServicePackagePurchase,
+		c.ServicePackageRedemption, c.ServiceQueueEntry, c.ShiftRotation,
+		c.ShiftRotationSlot, c.StaffAdvance, c.StaffMember, c.StaffOutlet,
+		c.StaffPayroll, c.StaffPayrollLine, c.StaffPurchaseLink, c.StaffSchedule,
+		c.StaffShiftOverride, c.StockAlertSubscription, c.StockConsumptionEvent,
+		c.SyncFailure, c.Table, c.TableAssignment, c.TableReservation, c.Tenant,
+		c.TenantSyncEvent, c.Tender, c.User, c.UserPOSRole, c.WebhookDelivery,
+		c.WebhookSubscription, c.WeighingScaleReading,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -1125,6 +1131,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.RoomAmenityAssignment.mutate(ctx, m)
 	case *RoomBookingMutation:
 		return c.RoomBooking.mutate(ctx, m)
+	case *RoomDamageReportMutation:
+		return c.RoomDamageReport.mutate(ctx, m)
 	case *RoomFolioItemMutation:
 		return c.RoomFolioItem.mutate(ctx, m)
 	case *RoomFolioPaymentMutation:
@@ -13282,6 +13290,139 @@ func (c *RoomBookingClient) mutate(ctx context.Context, m *RoomBookingMutation) 
 	}
 }
 
+// RoomDamageReportClient is a client for the RoomDamageReport schema.
+type RoomDamageReportClient struct {
+	config
+}
+
+// NewRoomDamageReportClient returns a client for the RoomDamageReport from the given config.
+func NewRoomDamageReportClient(c config) *RoomDamageReportClient {
+	return &RoomDamageReportClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `roomdamagereport.Hooks(f(g(h())))`.
+func (c *RoomDamageReportClient) Use(hooks ...Hook) {
+	c.hooks.RoomDamageReport = append(c.hooks.RoomDamageReport, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `roomdamagereport.Intercept(f(g(h())))`.
+func (c *RoomDamageReportClient) Intercept(interceptors ...Interceptor) {
+	c.inters.RoomDamageReport = append(c.inters.RoomDamageReport, interceptors...)
+}
+
+// Create returns a builder for creating a RoomDamageReport entity.
+func (c *RoomDamageReportClient) Create() *RoomDamageReportCreate {
+	mutation := newRoomDamageReportMutation(c.config, OpCreate)
+	return &RoomDamageReportCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of RoomDamageReport entities.
+func (c *RoomDamageReportClient) CreateBulk(builders ...*RoomDamageReportCreate) *RoomDamageReportCreateBulk {
+	return &RoomDamageReportCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RoomDamageReportClient) MapCreateBulk(slice any, setFunc func(*RoomDamageReportCreate, int)) *RoomDamageReportCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RoomDamageReportCreateBulk{err: fmt.Errorf("calling to RoomDamageReportClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RoomDamageReportCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RoomDamageReportCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for RoomDamageReport.
+func (c *RoomDamageReportClient) Update() *RoomDamageReportUpdate {
+	mutation := newRoomDamageReportMutation(c.config, OpUpdate)
+	return &RoomDamageReportUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RoomDamageReportClient) UpdateOne(_m *RoomDamageReport) *RoomDamageReportUpdateOne {
+	mutation := newRoomDamageReportMutation(c.config, OpUpdateOne, withRoomDamageReport(_m))
+	return &RoomDamageReportUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RoomDamageReportClient) UpdateOneID(id uuid.UUID) *RoomDamageReportUpdateOne {
+	mutation := newRoomDamageReportMutation(c.config, OpUpdateOne, withRoomDamageReportID(id))
+	return &RoomDamageReportUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for RoomDamageReport.
+func (c *RoomDamageReportClient) Delete() *RoomDamageReportDelete {
+	mutation := newRoomDamageReportMutation(c.config, OpDelete)
+	return &RoomDamageReportDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RoomDamageReportClient) DeleteOne(_m *RoomDamageReport) *RoomDamageReportDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RoomDamageReportClient) DeleteOneID(id uuid.UUID) *RoomDamageReportDeleteOne {
+	builder := c.Delete().Where(roomdamagereport.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RoomDamageReportDeleteOne{builder}
+}
+
+// Query returns a query builder for RoomDamageReport.
+func (c *RoomDamageReportClient) Query() *RoomDamageReportQuery {
+	return &RoomDamageReportQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRoomDamageReport},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a RoomDamageReport entity by its id.
+func (c *RoomDamageReportClient) Get(ctx context.Context, id uuid.UUID) (*RoomDamageReport, error) {
+	return c.Query().Where(roomdamagereport.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RoomDamageReportClient) GetX(ctx context.Context, id uuid.UUID) *RoomDamageReport {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *RoomDamageReportClient) Hooks() []Hook {
+	return c.hooks.RoomDamageReport
+}
+
+// Interceptors returns the client interceptors.
+func (c *RoomDamageReportClient) Interceptors() []Interceptor {
+	return c.inters.RoomDamageReport
+}
+
+func (c *RoomDamageReportClient) mutate(ctx context.Context, m *RoomDamageReportMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RoomDamageReportCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RoomDamageReportUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RoomDamageReportUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RoomDamageReportDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown RoomDamageReport mutation op: %q", m.Op())
+	}
+}
+
 // RoomFolioItemClient is a client for the RoomFolioItem schema.
 type RoomFolioItemClient struct {
 	config
@@ -18143,8 +18284,8 @@ type (
 		PrintAgent, PrintJob, Promotion, PromotionApplication, PromotionRedemption,
 		PromotionRule, RateLimitConfig, Referral, RepairJob, RepairJobEvent,
 		RepairJobPart, Resource, Room, RoomAmenity, RoomAmenityAssignment, RoomBooking,
-		RoomFolioItem, RoomFolioPayment, RoomGuest, Section, SerialNumberLog,
-		ServiceConfig, ServicePackage, ServicePackagePurchase,
+		RoomDamageReport, RoomFolioItem, RoomFolioPayment, RoomGuest, Section,
+		SerialNumberLog, ServiceConfig, ServicePackage, ServicePackagePurchase,
 		ServicePackageRedemption, ServiceQueueEntry, ShiftRotation, ShiftRotationSlot,
 		StaffAdvance, StaffMember, StaffOutlet, StaffPayroll, StaffPayrollLine,
 		StaffPurchaseLink, StaffSchedule, StaffShiftOverride, StockAlertSubscription,
@@ -18169,8 +18310,8 @@ type (
 		PrintAgent, PrintJob, Promotion, PromotionApplication, PromotionRedemption,
 		PromotionRule, RateLimitConfig, Referral, RepairJob, RepairJobEvent,
 		RepairJobPart, Resource, Room, RoomAmenity, RoomAmenityAssignment, RoomBooking,
-		RoomFolioItem, RoomFolioPayment, RoomGuest, Section, SerialNumberLog,
-		ServiceConfig, ServicePackage, ServicePackagePurchase,
+		RoomDamageReport, RoomFolioItem, RoomFolioPayment, RoomGuest, Section,
+		SerialNumberLog, ServiceConfig, ServicePackage, ServicePackagePurchase,
 		ServicePackageRedemption, ServiceQueueEntry, ShiftRotation, ShiftRotationSlot,
 		StaffAdvance, StaffMember, StaffOutlet, StaffPayroll, StaffPayrollLine,
 		StaffPurchaseLink, StaffSchedule, StaffShiftOverride, StockAlertSubscription,

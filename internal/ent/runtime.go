@@ -86,6 +86,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/roomamenity"
 	"github.com/bengobox/pos-service/internal/ent/roomamenityassignment"
 	"github.com/bengobox/pos-service/internal/ent/roombooking"
+	"github.com/bengobox/pos-service/internal/ent/roomdamagereport"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomfoliopayment"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
@@ -2428,6 +2429,38 @@ func init() {
 	roombookingDescID := roombookingFields[0].Descriptor()
 	// roombooking.DefaultID holds the default value on creation for the id field.
 	roombooking.DefaultID = roombookingDescID.Default.(func() uuid.UUID)
+	roomdamagereportFields := schema.RoomDamageReport{}.Fields()
+	_ = roomdamagereportFields
+	// roomdamagereportDescDescription is the schema descriptor for description field.
+	roomdamagereportDescDescription := roomdamagereportFields[4].Descriptor()
+	// roomdamagereport.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	roomdamagereport.DescriptionValidator = roomdamagereportDescDescription.Validators[0].(func(string) error)
+	// roomdamagereportDescAmount is the schema descriptor for amount field.
+	roomdamagereportDescAmount := roomdamagereportFields[5].Descriptor()
+	// roomdamagereport.AmountValidator is a validator for the "amount" field. It is called by the builders before save.
+	roomdamagereport.AmountValidator = roomdamagereportDescAmount.Validators[0].(func(float64) error)
+	// roomdamagereportDescCurrency is the schema descriptor for currency field.
+	roomdamagereportDescCurrency := roomdamagereportFields[6].Descriptor()
+	// roomdamagereport.DefaultCurrency holds the default value on creation for the currency field.
+	roomdamagereport.DefaultCurrency = roomdamagereportDescCurrency.Default.(string)
+	// roomdamagereportDescMetadata is the schema descriptor for metadata field.
+	roomdamagereportDescMetadata := roomdamagereportFields[14].Descriptor()
+	// roomdamagereport.DefaultMetadata holds the default value on creation for the metadata field.
+	roomdamagereport.DefaultMetadata = roomdamagereportDescMetadata.Default.(map[string]interface{})
+	// roomdamagereportDescCreatedAt is the schema descriptor for created_at field.
+	roomdamagereportDescCreatedAt := roomdamagereportFields[15].Descriptor()
+	// roomdamagereport.DefaultCreatedAt holds the default value on creation for the created_at field.
+	roomdamagereport.DefaultCreatedAt = roomdamagereportDescCreatedAt.Default.(func() time.Time)
+	// roomdamagereportDescUpdatedAt is the schema descriptor for updated_at field.
+	roomdamagereportDescUpdatedAt := roomdamagereportFields[16].Descriptor()
+	// roomdamagereport.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	roomdamagereport.DefaultUpdatedAt = roomdamagereportDescUpdatedAt.Default.(func() time.Time)
+	// roomdamagereport.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	roomdamagereport.UpdateDefaultUpdatedAt = roomdamagereportDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// roomdamagereportDescID is the schema descriptor for id field.
+	roomdamagereportDescID := roomdamagereportFields[0].Descriptor()
+	// roomdamagereport.DefaultID holds the default value on creation for the id field.
+	roomdamagereport.DefaultID = roomdamagereportDescID.Default.(func() uuid.UUID)
 	roomfolioitemFields := schema.RoomFolioItem{}.Fields()
 	_ = roomfolioitemFields
 	// roomfolioitemDescDescription is the schema descriptor for description field.

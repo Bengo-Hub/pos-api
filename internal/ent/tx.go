@@ -180,6 +180,8 @@ type Tx struct {
 	RoomAmenityAssignment *RoomAmenityAssignmentClient
 	// RoomBooking is the client for interacting with the RoomBooking builders.
 	RoomBooking *RoomBookingClient
+	// RoomDamageReport is the client for interacting with the RoomDamageReport builders.
+	RoomDamageReport *RoomDamageReportClient
 	// RoomFolioItem is the client for interacting with the RoomFolioItem builders.
 	RoomFolioItem *RoomFolioItemClient
 	// RoomFolioPayment is the client for interacting with the RoomFolioPayment builders.
@@ -463,6 +465,7 @@ func (tx *Tx) init() {
 	tx.RoomAmenity = NewRoomAmenityClient(tx.config)
 	tx.RoomAmenityAssignment = NewRoomAmenityAssignmentClient(tx.config)
 	tx.RoomBooking = NewRoomBookingClient(tx.config)
+	tx.RoomDamageReport = NewRoomDamageReportClient(tx.config)
 	tx.RoomFolioItem = NewRoomFolioItemClient(tx.config)
 	tx.RoomFolioPayment = NewRoomFolioPaymentClient(tx.config)
 	tx.RoomGuest = NewRoomGuestClient(tx.config)

@@ -459,6 +459,8 @@ func New(ctx context.Context) (*App, error) {
 		mediaRoot = "./media"
 	}
 	screensaverMediaHandler := handlers.NewScreensaverMediaHandler(log, serviceSettingsHandler, mediaRoot)
+	// Damage-evidence photo uploads (hotel module) share the same media volume.
+	hotelHandler.SetMediaRoot(mediaRoot)
 
 	// ERP: daily closings + returns
 	closingHandler := handlers.NewDailyClosingHandler(log, entClient)
