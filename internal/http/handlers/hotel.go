@@ -276,6 +276,13 @@ type checkInInput struct {
 	BookingID           string     `json:"booking_id"`
 	CRMContactID        string     `json:"crm_contact_id"`
 	CheckedBy           string     `json:"checked_in_by"`
+	// PaymentMethod/PaymentReference/PaymentAmount collect the room charge at check-in when the
+	// outlet's booking policy requires it (payment_timing=pay_upfront — see resolveBookingPolicy
+	// in roombooking.go). Only immediate desk tenders (cash/card_manual/mpesa manual code) are
+	// accepted here; an online gateway push belongs at checkout, not check-in.
+	PaymentMethod    string  `json:"payment_method"`
+	PaymentReference string  `json:"payment_reference"`
+	PaymentAmount    float64 `json:"payment_amount"`
 }
 
 // CheckIn handles POST /{tenantID}/hotel/rooms/{id}/check-in
@@ -318,6 +325,22 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 	if room.Status != entroom.StatusAvailable && room.Status != entroom.StatusReserved {
 		jsonError(w, "room is not available for check-in", http.StatusConflict)
 		return
+	}
+
+	// Enforce the outlet's room payment-timing policy (see resolveBookingPolicy in
+	// roombooking.go). pay_upfront requires an immediate desk tender to be supplied now;
+	// settle_at_checkout (default) and per_day_split collect nothing at this step.
+	policy := h.resolveBookingPolicy(r, tid, room.OutletID)
+	if policy.PaymentTiming == "pay_upfront" {
+		method := strings.ToLower(strings.TrimSpace(input.PaymentMethod))
+		if method == "" {
+			jsonError(w, "payment is required at check-in under this property's booking policy (pay upfront)", http.StatusBadRequest)
+			return
+		}
+		if !isImmediateHotelMethod(method) {
+			jsonError(w, "only cash, card, or M-Pesa payments are accepted at check-in", http.StatusBadRequest)
+			return
+		}
 	}
 
 	now := time.Now()
@@ -404,22 +427,46 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Post initial room charge to folio
-	_, err = tx.RoomFolioItem.Create().
-		SetTenantID(tid).
-		SetRoomID(roomID).
-		SetRoomGuestID(guest.ID).
-		SetDescription("Room charge").
-		SetAmount(totalCharge).
-		SetCurrency(room.Currency).
-		SetChargeType(entroomfolioitem.ChargeTypeRoomCharge).
-		SetCreatedBy(checkedInBy).
-		Save(r.Context())
-	if err != nil {
-		_ = tx.Rollback()
-		h.log.Error("create folio item failed", zap.Error(err))
-		jsonError(w, "failed to post room charge", http.StatusInternalServerError)
-		return
+	// Post the room charge to folio. Under per_day_split policy this is itemized as one line
+	// per night rather than a single lump sum — note this still posts everything at check-in
+	// (there's no scheduled job to defer each night's posting to its actual date); the value is
+	// per-night visibility on the bill, not incremental daily collection.
+	if policy.PaymentTiming == "per_day_split" {
+		for night := 1; night <= input.Nights; night++ {
+			_, err = tx.RoomFolioItem.Create().
+				SetTenantID(tid).
+				SetRoomID(roomID).
+				SetRoomGuestID(guest.ID).
+				SetDescription(fmt.Sprintf("Room charge — Night %d of %d", night, input.Nights)).
+				SetAmount(nightlyRate).
+				SetCurrency(room.Currency).
+				SetChargeType(entroomfolioitem.ChargeTypeRoomCharge).
+				SetCreatedBy(checkedInBy).
+				Save(r.Context())
+			if err != nil {
+				_ = tx.Rollback()
+				h.log.Error("create nightly folio item failed", zap.Error(err))
+				jsonError(w, "failed to post room charge", http.StatusInternalServerError)
+				return
+			}
+		}
+	} else {
+		_, err = tx.RoomFolioItem.Create().
+			SetTenantID(tid).
+			SetRoomID(roomID).
+			SetRoomGuestID(guest.ID).
+			SetDescription("Room charge").
+			SetAmount(totalCharge).
+			SetCurrency(room.Currency).
+			SetChargeType(entroomfolioitem.ChargeTypeRoomCharge).
+			SetCreatedBy(checkedInBy).
+			Save(r.Context())
+		if err != nil {
+			_ = tx.Rollback()
+			h.log.Error("create folio item failed", zap.Error(err))
+			jsonError(w, "failed to post room charge", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Mark room as occupied
@@ -435,6 +482,24 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Collect the room charge immediately under a pay_upfront policy (validated above, so
+	// PaymentMethod is guaranteed set here). The stay is already checked in at this point —
+	// a payment-recording failure here does not roll back the check-in (the guest is already
+	// in the room); it's surfaced via payment_recorded so the desk can collect it via the normal
+	// Settle flow instead, which still gates checkout on the balance regardless of this policy.
+	paymentRecorded := true
+	if policy.PaymentTiming == "pay_upfront" {
+		amount := input.PaymentAmount
+		if amount <= 0 {
+			amount = totalCharge
+		}
+		tenantSlug := chi.URLParam(r, "tenantID")
+		if _, _, _, perr := h.recordFolioPayment(r, tid, tenantSlug, room, guest.ID, guest.GuestName, amount, input.PaymentMethod, input.PaymentReference, amount, checkedInBy); perr != nil {
+			paymentRecorded = false
+			h.log.Error("check-in: pay_upfront payment recording failed", zap.Error(perr))
+		}
+	}
+
 	if h.publisher != nil {
 		_ = h.publisher.PublishHotelCheckIn(r.Context(), tid, map[string]any{
 			"room_id":       roomID,
@@ -448,7 +513,11 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	jsonOK(w, guest)
+	jsonOK(w, map[string]any{
+		"guest":            guest,
+		"payment_timing":   policy.PaymentTiming,
+		"payment_recorded": paymentRecorded,
+	})
 }
 
 type checkOutInput struct {
@@ -497,12 +566,12 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 		totalFolio = summary.ChargesTotal
 		if summary.Balance > 0.009 {
 			respondJSON(w, http.StatusConflict, map[string]any{
-				"error":       "outstanding_balance",
-				"message":     "Settle the outstanding bill before checking the guest out.",
-				"balance":     summary.Balance,
+				"error":         "outstanding_balance",
+				"message":       "Settle the outstanding bill before checking the guest out.",
+				"balance":       summary.Balance,
 				"charges_total": summary.ChargesTotal,
-				"paid_total":  summary.PaidTotal,
-				"currency":    summary.Currency,
+				"paid_total":    summary.PaidTotal,
+				"currency":      summary.Currency,
 			})
 			return
 		}
@@ -1482,12 +1551,23 @@ func (h *HotelHandler) BatchCheckout(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		items, _ := h.client.RoomFolioItem.Query().
-			Where(entroomfolioitem.TenantID(tid), entroomfolioitem.RoomGuestID(guest.ID)).
-			All(ctx)
+		// Same outstanding-balance gate as single-room CheckOut (see loadFolioSummary) — a
+		// batch/group checkout must not silently waive an unpaid bill.
+		summary, serr := h.loadFolioSummary(r, tid, roomID)
+		if serr != nil {
+			results = append(results, batchResult{RoomID: ridStr, GuestName: guest.GuestName, Error: "internal error"})
+			continue
+		}
 		var totalFolio float64
-		for _, item := range items {
-			totalFolio += item.Amount
+		if summary != nil {
+			totalFolio = summary.ChargesTotal
+			if summary.Balance > 0.009 {
+				results = append(results, batchResult{
+					RoomID: ridStr, GuestName: guest.GuestName, TotalFolio: totalFolio,
+					Error: fmt.Sprintf("outstanding balance %.2f %s — settle before checkout", summary.Balance, summary.Currency),
+				})
+				continue
+			}
 		}
 
 		guest.Update().

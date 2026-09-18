@@ -269,60 +269,17 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Capture in treasury (immediate-settle for cash/card; pending intent for online gateways).
-	var intentID, initiateURL string
-	if h.treasuryClient != nil {
-		// A folio can be settled in several charges, so each needs a UNIQUE reference — use a fresh id
-		// with the service-identifiable POS-{slug}-{hex} prefix (guest/room linkage stays in metadata).
-		intentReq := treasury.CreateIntentRequest{
-			SourceService: "pos",
-			ReferenceID:   payref.Build("POS", tenantSlug, uuid.Nil, uuid.New()),
-			ReferenceType: "hotel_folio",
-			Amount:        input.Amount,
-			Currency:      "KES",
-			PaymentMethod: immediateOrPending(immediate, treasuryMethodForHotel(input.Method)),
-			Description:   fmt.Sprintf("Hotel folio payment - %s", guest.GuestName),
-			OutletID:      room.OutletID.String(),
-			Metadata: map[string]any{
-				"service": "pos", "room_id": roomID.String(), "guest_id": guest.ID.String(), "entity_id": guest.ID.String(), "method": input.Method,
-				"room_revenue_amount": fmt.Sprintf("%.2f", roomRevenueAmount),
-			},
-		}
-		if input.Reference != "" {
-			intentReq.Metadata["external_ref"] = input.Reference
-		}
-		intent, ierr := h.treasuryClient.CreateIntent(r.Context(), tenantSlug, intentReq.ReferenceID, intentReq)
-		if ierr != nil {
-			h.log.Warn("hotel folio: treasury intent failed", zap.Error(ierr))
-			if !immediate {
-				jsonError(w, "could not start payment", http.StatusBadGateway)
-				return
-			}
-		} else {
-			intentID = intent.ResolvedID()
-			initiateURL = intent.InitiateURL
-		}
-	}
-
+	// Capture in treasury (immediate-settle for cash/card; pending intent for online gateways)
+	// and in the local payment ledger — shared with CheckIn's pay_upfront path.
 	recordedBy, _ := uuid.Parse(r.Header.Get("X-User-ID"))
-	create := h.client.RoomFolioPayment.Create().
-		SetTenantID(tid).
-		SetRoomID(roomID).
-		SetRoomGuestID(guest.ID).
-		SetAmount(input.Amount).
-		SetMethod(strings.ToLower(strings.TrimSpace(input.Method))).
-		SetStatus(status)
-	if input.Reference != "" {
-		create = create.SetReference(input.Reference)
-	}
-	if intentID != "" {
-		create = create.SetTreasuryIntentID(intentID)
-	}
-	if recordedBy != uuid.Nil {
-		create = create.SetRecordedBy(recordedBy)
-	}
-	if _, err := create.Save(r.Context()); err != nil {
-		h.log.Error("hotel folio: record payment failed", zap.Error(err))
+	intentID, initiateURL, _, perr := h.recordFolioPayment(r, tid, tenantSlug, room, guest.ID, guest.GuestName, input.Amount, input.Method, input.Reference, roomRevenueAmount, recordedBy)
+	if perr != nil {
+		if !immediate {
+			h.log.Warn("hotel folio: treasury intent failed", zap.Error(perr))
+			jsonError(w, "could not start payment", http.StatusBadGateway)
+			return
+		}
+		h.log.Error("hotel folio: record payment failed", zap.Error(perr))
 		jsonError(w, "failed to record payment", http.StatusInternalServerError)
 		return
 	}
@@ -368,4 +325,71 @@ func immediateOrPending(immediate bool, method string) string {
 		return method
 	}
 	return method // online gateway methods (mpesa/card/wallet) are initiated by treasury as usual
+}
+
+// recordFolioPayment captures a payment against a room guest's folio: a treasury payment
+// intent (when a treasury client is configured, outlet-attributed for correct per-outlet GL
+// posting) plus a local RoomFolioPayment row. Shared by SettleFolio (checkout) and CheckIn's
+// pay_upfront booking-policy path so every hotel settlement point gets identical treasury/GL
+// behaviour instead of two copies drifting apart.
+func (h *HotelHandler) recordFolioPayment(
+	r *http.Request, tid uuid.UUID, tenantSlug string, room *ent.Room, guestID uuid.UUID, guestName string,
+	amount float64, method, reference string, roomRevenueAmount float64, recordedBy uuid.UUID,
+) (intentID, initiateURL, status string, err error) {
+	immediate := isImmediateHotelMethod(method)
+	status = "pending"
+	if immediate {
+		status = "completed"
+	}
+
+	if h.treasuryClient != nil {
+		intentReq := treasury.CreateIntentRequest{
+			SourceService: "pos",
+			ReferenceID:   payref.Build("POS", tenantSlug, uuid.Nil, uuid.New()),
+			ReferenceType: "hotel_folio",
+			Amount:        amount,
+			Currency:      "KES",
+			PaymentMethod: immediateOrPending(immediate, treasuryMethodForHotel(method)),
+			Description:   fmt.Sprintf("Hotel folio payment - %s", guestName),
+			OutletID:      room.OutletID.String(),
+			Metadata: map[string]any{
+				"service": "pos", "room_id": room.ID.String(), "guest_id": guestID.String(), "entity_id": guestID.String(), "method": method,
+				"room_revenue_amount": fmt.Sprintf("%.2f", roomRevenueAmount),
+			},
+		}
+		if reference != "" {
+			intentReq.Metadata["external_ref"] = reference
+		}
+		intent, ierr := h.treasuryClient.CreateIntent(r.Context(), tenantSlug, intentReq.ReferenceID, intentReq)
+		if ierr != nil {
+			h.log.Warn("hotel folio: treasury intent failed", zap.Error(ierr))
+			if !immediate {
+				return "", "", "", ierr
+			}
+		} else {
+			intentID = intent.ResolvedID()
+			initiateURL = intent.InitiateURL
+		}
+	}
+
+	create := h.client.RoomFolioPayment.Create().
+		SetTenantID(tid).
+		SetRoomID(room.ID).
+		SetRoomGuestID(guestID).
+		SetAmount(amount).
+		SetMethod(strings.ToLower(strings.TrimSpace(method))).
+		SetStatus(status)
+	if reference != "" {
+		create = create.SetReference(reference)
+	}
+	if intentID != "" {
+		create = create.SetTreasuryIntentID(intentID)
+	}
+	if recordedBy != uuid.Nil {
+		create = create.SetRecordedBy(recordedBy)
+	}
+	if _, cerr := create.Save(r.Context()); cerr != nil {
+		return intentID, initiateURL, status, cerr
+	}
+	return intentID, initiateURL, status, nil
 }
