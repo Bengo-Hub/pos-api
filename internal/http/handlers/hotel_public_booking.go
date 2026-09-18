@@ -87,6 +87,45 @@ func (h *HotelHandler) resolveHospitalityOutlet(ctx context.Context, tid, outlet
 	return err == nil && outlet.UseCase != nil && *outlet.UseCase == "hospitality"
 }
 
+// publicBookingPolicy is the guest-facing subset of the outlet's booking policy — the terms a
+// guest should see before submitting a booking (cancellation window/fee, and whether payment
+// is due at check-in). Internal-only fields (amendment window/fee — those govern staff-side
+// changes to an existing booking, not the initial submission) are deliberately left out.
+type publicBookingPolicy struct {
+	CancellationWindowHours float64 `json:"cancellation_window_hours"`
+	CancellationFee         float64 `json:"cancellation_fee"`
+	Currency                string  `json:"currency"`
+	PaymentTiming           string  `json:"payment_timing"`
+}
+
+// PublicBookingPolicy handles GET /{tenantID}/pos/room-bookings/policy?outlet_id= — the
+// widget's actual configured cancellation terms and payment timing, so what the guest is told
+// can never drift from what the property really enforces (unlike the table-reservation
+// widget's data-cancellation-policy, which is just static text the embedder types in).
+func (h *HotelHandler) PublicBookingPolicy(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	outletID, err := uuid.Parse(r.URL.Query().Get("outlet_id"))
+	if err != nil {
+		jsonError(w, "outlet_id is required", http.StatusBadRequest)
+		return
+	}
+	if !h.resolveHospitalityOutlet(r.Context(), tid, outletID) {
+		jsonError(w, "outlet not found", http.StatusNotFound)
+		return
+	}
+	policy := h.resolveBookingPolicy(r, tid, outletID)
+	jsonOK(w, publicBookingPolicy{
+		CancellationWindowHours: policy.CancellationWindowHours,
+		CancellationFee:         policy.CancellationFee,
+		Currency:                policy.Currency,
+		PaymentTiming:           policy.PaymentTiming,
+	})
+}
+
 type roomTypeAvailability struct {
 	RoomType       string  `json:"room_type"`
 	AvailableCount int     `json:"available_count"`

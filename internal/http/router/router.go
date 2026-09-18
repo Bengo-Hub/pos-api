@@ -292,6 +292,7 @@ func New(
 			// Public room-booking endpoints - used by the embeddable room-booking widget
 			// (date-range availability + submit; mirrors the table-reservation pair above).
 			if hotel != nil {
+				pub.Get("/{tenantID}/pos/room-bookings/policy", hotel.PublicBookingPolicy)
 				pub.Get("/{tenantID}/pos/room-bookings/availability", hotel.PublicRoomAvailability)
 				pub.Post("/{tenantID}/pos/room-bookings", hotel.CreatePublicRoomBooking)
 			}
