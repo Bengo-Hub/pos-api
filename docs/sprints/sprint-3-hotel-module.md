@@ -184,3 +184,35 @@ go run cmd/migrate/main.go hotel_module
 ## Completion Notes (2026-05-09)
 
 Audit confirmed all Ent schemas exist: `room.go`, `roomguest.go`, `roomfolioitem.go`, `facility.go`, `facilitybooking.go`. HTTP handler `hotel_handler.go` is in place. Endpoints operational under `/{tenant}/hotel/rooms` (GET/POST/PATCH) and `/{tenant}/hotel/facilities` (GET/POST). Full check-in, check-out, folio, and facilities booking flows are wired.
+
+---
+
+## Follow-up: Self-Service Booking, Damage Reports, Payment-Timing Enforcement (2026-09-18)
+
+A later audit of the live module (see `.claude/memory/boi-guest-house-hotel-audit-and-room-load-2026-09-18.md`) found three real gaps against this original spec, all closed the same day.
+
+### 1. Room payment-timing policy now actually enforced
+`OutletSetting.metadata.booking_policy.payment_timing` (`settle_at_checkout` | `pay_upfront` | `per_day_split`, edited from Settings → Booking Policy) existed as a stored setting since the booking-policy feature shipped, but `CheckIn` never read it. Now:
+- `pay_upfront` requires an immediate desk tender (cash/card_manual/mpesa) supplied with the check-in call; the amount is posted via a new shared `recordFolioPayment` helper (extracted from `SettleFolio`'s treasury-intent logic — `SettleFolio` now calls the same helper, no behavior change there).
+- `per_day_split` posts the room charge as one `RoomFolioItem` per night instead of one lump sum. No scheduler exists to defer collection day-by-day — this gives per-night folio itemization, not incremental daily billing.
+- A payment-recording failure at check-in doesn't roll back the check-in itself (the guest already occupies the room); it's surfaced via a `payment_recorded` response field so the desk can collect it via the normal Settle flow instead, which still gates checkout on balance regardless.
+
+### 2. Self-service room booking (guest-facing widget)
+Mirrors the existing table-reservation widget (`public/widget/booking.js`) but for a date-range stay instead of a single time slot:
+- `RoomBooking.status` enum gained `pending` (plain varchar column, no DB constraint — no migration needed for this part).
+- New public (unauthenticated) endpoints, alongside `/pos/reservations` in the router's `pub` group:
+  - `GET /{tenant}/pos/room-bookings/availability?outlet_id=&arrival_date=&departure_date=` — per room_type available-room count + average rate, for the requested date range (room overlap computed the same way `HotelOccupancyReport` computes occupied room-nights).
+  - `POST /{tenant}/pos/room-bookings` — creates a `RoomBooking{source:online, status:pending}` after re-validating availability server-side; no separate confirm endpoint was needed since the existing `UpdateRoomBooking` status transition already handles it.
+  - `GET /{tenant}/pos/room-bookings/policy?outlet_id=` — the guest-facing cancellation/payment terms (reuses `resolveBookingPolicy`), so the widget's confirmation screen always reflects the real configured policy instead of static text.
+- New widget: `pos-ui/public/widget/room-booking.js`.
+- pos-ui's Bookings page gained a `pending` status filter/badge, and both amend and cancel now show the policy-computed fee **before** the staff confirms (client-side preview mirroring `computeBookingFee`), not just in the after-the-fact success toast.
+
+### 3. Damage/fine report workflow
+Previously a "damage" charge was just a folio line with no review step. New `RoomDamageReport` entity (`pending` → `approved`/`rejected`) with a real migration (`20260918200628_add_room_damage_reports.sql`, brand-new table):
+- Front desk/housekeeping logs one via `POST /{tenant}/hotel/rooms/{id}/damage-reports` (`pos.hotel.change`), with optional photo evidence uploaded through `POST /{tenant}/hotel/damage-evidence/upload` — reuses pos-api's existing local media-volume convention (`internal/http/handlers/media.go`'s screensaver uploader pattern, same `MEDIA_ROOT`), not a new storage mechanism.
+- A manager approves (`pos.hotel.manage`) — if the reported stay is still active, this posts the amount to the guest's folio as `charge_type=damage` through the same creation path `PostFolioCharge` uses, and links the resulting `RoomFolioItem`; if the guest already checked out, the report is still marked approved but nothing is auto-posted (`folio_posted:false` in the response) — or rejects with a required reason.
+- New pos-ui page `/hotel/damage-reports` (list + approve/reject) and a "Report Damage" action on the room detail page, available regardless of occupancy.
+- Also fixed the same day: pos-ui's "Add folio charge" dropdown was missing `damage` as a selectable option (had an invalid `"service"` value instead — silently fell back to `other` server-side).
+- `BatchCheckout` (group/tour checkout) now applies the same outstanding-balance gate as single-room `CheckOut` — it previously force-checked-out every room regardless of unpaid balance.
+
+**Deliberately not built**: a full incremental daily-billing scheduler for `per_day_split`, and a formal evidence-approval SLA/escalation flow for damage reports — both would be new infrastructure/product decisions beyond closing the identified gaps.
