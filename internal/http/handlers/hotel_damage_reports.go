@@ -83,7 +83,6 @@ type createDamageReportInput struct {
 	Amount       float64  `json:"amount"`
 	Currency     string   `json:"currency"`
 	EvidenceURLs []string `json:"evidence_urls"`
-	ReportedBy   string   `json:"reported_by"`
 }
 
 // CreateDamageReport handles POST /{tenantID}/hotel/rooms/{id}/damage-reports — logs a
@@ -122,7 +121,7 @@ func (h *HotelHandler) CreateDamageReport(w http.ResponseWriter, r *http.Request
 			currency = "KES"
 		}
 	}
-	reportedBy, _ := uuid.Parse(input.ReportedBy)
+	reportedBy, _ := uuid.Parse(r.Header.Get("X-User-ID"))
 
 	create := h.client.RoomDamageReport.Create().
 		SetTenantID(tid).
@@ -231,7 +230,6 @@ func (h *HotelHandler) ApproveDamageReport(w http.ResponseWriter, r *http.Reques
 	}
 	var input struct {
 		ReviewNotes string `json:"review_notes"`
-		ReviewedBy  string `json:"reviewed_by"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&input)
 
@@ -245,7 +243,7 @@ func (h *HotelHandler) ApproveDamageReport(w http.ResponseWriter, r *http.Reques
 		jsonError(w, "damage report has already been reviewed", http.StatusConflict)
 		return
 	}
-	reviewedBy, _ := uuid.Parse(input.ReviewedBy)
+	reviewedBy, _ := uuid.Parse(r.Header.Get("X-User-ID"))
 
 	folioPosted := false
 	upd := report.Update().
@@ -310,7 +308,6 @@ func (h *HotelHandler) RejectDamageReport(w http.ResponseWriter, r *http.Request
 	}
 	var input struct {
 		ReviewNotes string `json:"review_notes"`
-		ReviewedBy  string `json:"reviewed_by"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
@@ -331,7 +328,7 @@ func (h *HotelHandler) RejectDamageReport(w http.ResponseWriter, r *http.Request
 		jsonError(w, "damage report has already been reviewed", http.StatusConflict)
 		return
 	}
-	reviewedBy, _ := uuid.Parse(input.ReviewedBy)
+	reviewedBy, _ := uuid.Parse(r.Header.Get("X-User-ID"))
 
 	upd := report.Update().
 		SetStatus(entroomdamagereport.StatusRejected).
