@@ -179,8 +179,24 @@ func (h *HotelHandler) UpdateHousekeepingTask(w http.ResponseWriter, r *http.Req
 		case enthousekeeping.TaskTypeCheckoutClean, enthousekeeping.TaskTypeRoutineClean, enthousekeeping.TaskTypeMaintenance:
 			room, rerr := h.client.Room.Get(r.Context(), updated.RoomID)
 			if rerr == nil && (room.Status == entroom.StatusCleaning || room.Status == entroom.StatusMaintenance) {
-				if _, serr := h.client.Room.UpdateOneID(updated.RoomID).SetStatus(entroom.StatusAvailable).Save(r.Context()); serr != nil {
-					h.log.Warn("housekeeping complete: failed to mark room available", zap.Stringer("room_id", updated.RoomID), zap.Error(serr))
+				// A room can have MORE THAN ONE open task at a time (e.g. the auto-created
+				// checkout_clean plus a separate maintenance task a housekeeper logged after
+				// noticing something broken while cleaning) — completing just this one must not
+				// free the room while a sibling task for it is still pending/in_progress, or the
+				// room shows "available" while a genuinely unresolved issue sits silently open.
+				stillOpen, oerr := h.client.HousekeepingTask.Query().
+					Where(
+						enthousekeeping.RoomID(updated.RoomID),
+						enthousekeeping.IDNEQ(updated.ID),
+						enthousekeeping.StatusIn(enthousekeeping.StatusPending, enthousekeeping.StatusInProgress),
+					).
+					Exist(r.Context())
+				if oerr != nil {
+					h.log.Warn("housekeeping complete: failed to check for other open tasks, leaving room status as-is", zap.Stringer("room_id", updated.RoomID), zap.Error(oerr))
+				} else if !stillOpen {
+					if _, serr := h.client.Room.UpdateOneID(updated.RoomID).SetStatus(entroom.StatusAvailable).Save(r.Context()); serr != nil {
+						h.log.Warn("housekeeping complete: failed to mark room available", zap.Stringer("room_id", updated.RoomID), zap.Error(serr))
+					}
 				}
 			}
 		}

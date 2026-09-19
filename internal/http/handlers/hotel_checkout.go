@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -290,10 +291,16 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 	checkedOut := false
 	if input.Checkout && immediate && summary != nil && summary.Balance <= 0.009 {
 		now := time.Now()
-		if _, uerr := h.client.RoomGuest.UpdateOne(guest).
+		// Conditioned on the guest STILL being active — same double-submit/concurrent-CheckOut
+		// race guarded in CheckOut itself (hotel.go). affected==0 means another request already
+		// checked this guest out; skip the room-status flip and housekeeping task below rather
+		// than firing them a second time.
+		affected, uerr := h.client.RoomGuest.Update().
+			Where(entroomguest.ID(guest.ID), entroomguest.StatusEQ(entroomguest.StatusActive)).
 			SetStatus(entroomguest.StatusCheckedOut).
 			SetNillableCheckedOutBy(&recordedBy).
-			SetCheckedOutAt(now).Save(r.Context()); uerr == nil {
+			SetCheckedOutAt(now).Save(r.Context())
+		if uerr == nil && affected > 0 {
 			_, _ = h.client.Room.UpdateOneID(roomID).SetStatus(entroom.StatusCleaning).Save(r.Context())
 			checkedOut = true
 			if h.publisher != nil {
@@ -302,11 +309,14 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 					"total_folio": summary.ChargesTotal, "checked_out_at": now,
 				})
 			}
+			// context.WithoutCancel: see CheckOut's identical detached task-creation comment in
+			// hotel.go — r.Context() would otherwise race the server's post-handler cancellation.
+			bgCtx := context.WithoutCancel(r.Context())
 			go func() {
 				gid := guest.ID
 				_, _ = h.client.HousekeepingTask.Create().
 					SetTenantID(tid).SetRoomID(roomID).SetNillableRoomGuestID(&gid).
-					SetTaskType("checkout_clean").SetPriority("urgent").Save(r.Context())
+					SetTaskType("checkout_clean").SetPriority("urgent").Save(bgCtx)
 			}()
 		}
 	}

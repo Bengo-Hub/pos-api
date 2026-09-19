@@ -476,11 +476,26 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Mark room as occupied
-	_, err = tx.Room.UpdateOne(room).SetStatus(entroom.StatusOccupied).Save(r.Context())
+	// Mark room as occupied — conditioned on the room STILL being available/reserved at commit
+	// time, not just when it was read at the top of this handler. Without this WHERE clause, two
+	// concurrent check-ins for the same room (two front-desk terminals, or a retried double-
+	// submit) can both pass the earlier read-only status check before either commits, and both
+	// go on to create a guest + post a folio charge + occupy the room — a real double-booking
+	// with two "active" guests in one physical room. affected==0 means someone else won the race
+	// between the read above and here; roll back everything (guest + folio charge included)
+	// rather than leaving an orphaned guest/charge with no room to match.
+	affected, err := tx.Room.Update().
+		Where(entroom.ID(roomID), entroom.StatusIn(entroom.StatusAvailable, entroom.StatusReserved)).
+		SetStatus(entroom.StatusOccupied).
+		Save(r.Context())
 	if err != nil {
 		_ = tx.Rollback()
 		jsonError(w, "failed to update room status", http.StatusInternalServerError)
+		return
+	}
+	if affected == 0 {
+		_ = tx.Rollback()
+		jsonError(w, "room is not available for check-in", http.StatusConflict)
 		return
 	}
 
@@ -592,8 +607,13 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mark guest as checked out
-	_, err = tx.RoomGuest.UpdateOne(guest).
+	// Mark guest as checked out — conditioned on the guest STILL being active, not just when read
+	// above (same double-submit/two-terminal race as CheckIn's room-status flip). Without this, a
+	// double-click or a concurrent SettleFolio(checkout:true) call racing this endpoint could both
+	// pass the earlier lookup and both fire the "mark room cleaning + create housekeeping task"
+	// side effects a second time.
+	affected, err := tx.RoomGuest.Update().
+		Where(entroomguest.ID(guest.ID), entroomguest.StatusEQ(entroomguest.StatusActive)).
 		SetStatus(entroomguest.StatusCheckedOut).
 		SetCheckedOutBy(checkedOutBy).
 		SetCheckedOutAt(now).
@@ -601,6 +621,11 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		_ = tx.Rollback()
 		jsonError(w, "failed to check out guest", http.StatusInternalServerError)
+		return
+	}
+	if affected == 0 {
+		_ = tx.Rollback()
+		jsonError(w, "guest was already checked out", http.StatusConflict)
 		return
 	}
 
@@ -617,8 +642,13 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto-create housekeeping task for post-checkout clean
+	// Auto-create housekeeping task for post-checkout clean. context.WithoutCancel: net/http
+	// cancels r.Context() shortly after this handler returns, which this goroutine's Save() races
+	// against — without detaching, the task creation could silently lose that race under normal
+	// load, leaving the room in "cleaning" with no task ever created to complete it (the room-
+	// status-stuck bug this session fixed elsewhere, via a different cause).
 	guestIDCopy := guest.ID
+	bgCtx := context.WithoutCancel(r.Context())
 	go func() {
 		_, _ = h.client.HousekeepingTask.Create().
 			SetTenantID(tid).
@@ -626,7 +656,7 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 			SetNillableRoomGuestID(&guestIDCopy).
 			SetTaskType("checkout_clean").
 			SetPriority("urgent").
-			Save(r.Context())
+			Save(bgCtx)
 	}()
 
 	if h.publisher != nil {
@@ -1577,12 +1607,28 @@ func (h *HotelHandler) BatchCheckout(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		guest.Update().
+		// Conditioned on the guest STILL being active (same race guarded in single-room CheckOut)
+		// and the errors are no longer discarded — previously a failed update here still reported
+		// the room as successfully checked out to the caller, while the guest stayed active and
+		// the room stayed occupied in the database with no indication anything went wrong.
+		affected, uerr := h.client.RoomGuest.Update().
+			Where(entroomguest.ID(guest.ID), entroomguest.StatusEQ(entroomguest.StatusActive)).
 			SetStatus(entroomguest.StatusCheckedOut).
 			SetCheckedOutBy(checkedOutBy).
 			SetCheckedOutAt(now).
-			Exec(ctx) //nolint
-		h.client.Room.UpdateOneID(roomID).SetStatus(entroom.StatusCleaning).Exec(ctx) //nolint
+			Save(ctx)
+		if uerr != nil {
+			results = append(results, batchResult{RoomID: ridStr, GuestName: guest.GuestName, Error: "failed to check out guest"})
+			continue
+		}
+		if affected == 0 {
+			results = append(results, batchResult{RoomID: ridStr, GuestName: guest.GuestName, Error: "guest was already checked out"})
+			continue
+		}
+		if _, uerr := h.client.Room.UpdateOneID(roomID).SetStatus(entroom.StatusCleaning).Save(ctx); uerr != nil {
+			results = append(results, batchResult{RoomID: ridStr, GuestName: guest.GuestName, Error: "guest checked out, but failed to update room status"})
+			continue
+		}
 
 		// Auto-create housekeeping task
 		gid := guest.ID
