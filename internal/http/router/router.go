@@ -1324,6 +1324,7 @@ func New(
 								Post("/mealcards/{code}/redeem", hotel.RedeemMealCard)
 							g.With(hotelChange).Post("/rooms/{id}/check-in", hotel.CheckIn)
 							g.With(hotelChange).Post("/rooms/{id}/check-out", hotel.CheckOut)
+							g.With(hotelChange).Patch("/rooms/{id}/guest", hotel.UpdateGuest)
 							g.With(hotelChange).Post("/rooms/{id}/folio", hotel.PostFolioCharge)
 							g.Get("/rooms/{id}/folio", hotel.GetRoomFolio)
 							// Checkout/settlement: full bill summary + record folio payments (with history).

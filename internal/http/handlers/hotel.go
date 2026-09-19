@@ -374,6 +374,14 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 			h.log.Warn("check-in: inventory price lookup failed, using local rate", zap.Error(perr))
 		}
 	}
+	if input.Adults < 1 {
+		input.Adults = 1
+	}
+	// Occupancy-based pricing: adds a per-night surcharge for adults/children beyond the
+	// property's configured base occupancy (see occupancySurchargePerNight's doc comment) — a
+	// no-op (0) unless the property has explicitly configured BaseOccupancyAdults, so this never
+	// changes the charge for a tenant that hasn't opted in.
+	nightlyRate += occupancySurchargePerNight(policy, input.Adults, input.ChildAges)
 	totalCharge := nightlyRate * float64(input.Nights)
 	checkedInBy, _ := uuid.Parse(input.CheckedBy)
 
@@ -383,9 +391,6 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if input.Adults < 1 {
-		input.Adults = 1
-	}
 	guestBuilder := tx.RoomGuest.Create().
 		SetTenantID(tid).
 		SetRoomID(roomID).

@@ -341,3 +341,151 @@ func TestCheckIn_MissingPhone_ReturnsClearBadRequest(t *testing.T) {
 		t.Fatalf("expected no guest row created for a rejected check-in, got %d", guestCount)
 	}
 }
+
+// TestOccupancySurchargePerNight_MatchesStandardHotelPMSRule is a pure unit test of the pricing
+// arithmetic itself (base occupancy + extra-adult/child rates, standard hotel PMS practice — a
+// room rate covers a base number of adults for free; each adult beyond that adds a per-night fee;
+// a child below the free-age threshold is always free, one at or above it adds the child rate).
+func TestOccupancySurchargePerNight_MatchesStandardHotelPMSRule(t *testing.T) {
+	configured := bookingPolicy{BaseOccupancyAdults: 2, ExtraAdultRate: 500, ChildFreeUnderAge: 6, ExtraChildRate: 250}
+
+	cases := []struct {
+		name      string
+		policy    bookingPolicy
+		adults    int
+		childAges []int
+		want      float64
+	}{
+		{"disabled by default (BaseOccupancyAdults<=0) never charges extra", bookingPolicy{}, 6, []int{2, 9, 15}, 0},
+		{"within base occupancy, no extra adults, no surcharge", configured, 2, nil, 0},
+		{"one extra adult beyond base occupancy", configured, 3, nil, 500},
+		{"child below free age is free even alone", configured, 2, []int{5}, 0},
+		{"child at/above free age is chargeable", configured, 2, []int{8}, 250},
+		{"mixed: one extra adult + one free child + one chargeable child", configured, 3, []int{5, 8}, 500 + 250},
+		{"extra_child_rate=0 never charges children regardless of age", bookingPolicy{BaseOccupancyAdults: 2, ChildFreeUnderAge: 6, ExtraChildRate: 0}, 2, []int{10}, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := occupancySurchargePerNight(c.policy, c.adults, c.childAges)
+			if got != c.want {
+				t.Fatalf("expected surcharge %.2f, got %.2f", c.want, got)
+			}
+		})
+	}
+}
+
+// TestCheckIn_OccupancyPricing_UnconfiguredChargesFlatRateRegardlessOfHeadcount confirms the
+// end-to-end wiring for the (default, common) disabled case: a property that has never configured
+// occupancy pricing charges exactly the flat rate no matter how many adults/children check in --
+// unchanged from before this feature existed. (The "configured" end-to-end case is covered by the
+// pure unit test above; exercising the full outlet-settings FK chain here would test ent/seeding
+// more than the actual pricing logic.)
+func TestCheckIn_OccupancyPricing_UnconfiguredChargesFlatRateRegardlessOfHeadcount(t *testing.T) {
+	h, client := newHotelTestHandler(t)
+	ctx := context.Background()
+
+	t.Run("unconfigured property charges the flat rate regardless of headcount", func(t *testing.T) {
+		tid, outletID := uuid.New(), uuid.New()
+		room, err := client.Room.Create().
+			SetTenantID(tid).SetOutletID(outletID).SetRoomNumber("G6").SetName("G6").SetRatePerNight(800).
+			Save(ctx)
+		if err != nil {
+			t.Fatalf("seed room: %v", err)
+		}
+		// No OutletSetting row at all -- resolveBookingPolicy falls back to defaultBookingPolicy(),
+		// where BaseOccupancyAdults is 0 (disabled).
+
+		req := hotelRoomRequest(t, http.MethodPost, tid, room.ID, map[string]any{
+			"guest_name": "Legacy Test", "phone": "0700000001", "id_number": "ID-OCC-2",
+			"nights": 2, "adults": 5, "children": 3, "child_ages": []int{2, 9, 15},
+		})
+		rec := httptest.NewRecorder()
+		h.CheckIn(rec, req)
+		if rec.Code != http.StatusOK && rec.Code != http.StatusCreated {
+			t.Fatalf("check-in: status = %d, body = %s", rec.Code, rec.Body.String())
+		}
+
+		guest, err := client.RoomGuest.Query().Where(entroomguest.RoomID(room.ID), entroomguest.StatusEQ(entroomguest.StatusActive)).Only(ctx)
+		if err != nil {
+			t.Fatalf("load guest: %v", err)
+		}
+		want := 1600.0 // 800 * 2 nights, unaffected by 5 adults + 3 children
+		if guest.TotalRoomCharge != want {
+			t.Fatalf("expected total_room_charge %.2f (flat rate, occupancy pricing off by default), got %.2f -- a property that never configured this must see NO change in behavior", want, guest.TotalRoomCharge)
+		}
+	})
+}
+
+// TestUpdateGuest_EditsDetailsAndExtendsStay covers the new "Edit Guest / Booking" endpoint:
+// contact/ID corrections, occupancy, and extending a stay via either nights or an explicit
+// departure date -- and confirms it does NOT touch total_room_charge (documented in UpdateGuest's
+// own doc comment: this is a correction tool, not a re-billing one).
+func TestUpdateGuest_EditsDetailsAndExtendsStay(t *testing.T) {
+	h, client := newHotelTestHandler(t)
+	tid, outletID := uuid.New(), uuid.New()
+	ctx := context.Background()
+
+	room, err := client.Room.Create().
+		SetTenantID(tid).SetOutletID(outletID).SetRoomNumber("G7").SetName("G7").SetRatePerNight(800).
+		SetStatus(entroom.StatusOccupied).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("seed room: %v", err)
+	}
+	checkIn := time.Date(2026, 1, 10, 14, 0, 0, 0, time.UTC)
+	guest, err := client.RoomGuest.Create().
+		SetTenantID(tid).SetRoomID(room.ID).
+		SetGuestName("Original Name").SetPhone("0700000000").SetIDNumber("ID-EDIT-1").
+		SetCheckInDate(checkIn).SetNights(2).SetCheckOutDate(checkIn.AddDate(0, 0, 2)).
+		SetTotalRoomCharge(1600).SetCheckedInBy(uuid.New()).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("seed room guest: %v", err)
+	}
+
+	newPhone := "0711111111"
+	newAdults := 3
+	newAges := []int{7}
+	req := hotelRoomRequest(t, http.MethodPatch, tid, room.ID, map[string]any{
+		"phone": newPhone, "adults": newAdults, "child_ages": newAges, "nights": 4,
+	})
+	rec := httptest.NewRecorder()
+	h.UpdateGuest(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update guest: status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	reloaded, err := client.RoomGuest.Get(ctx, guest.ID)
+	if err != nil {
+		t.Fatalf("reload guest: %v", err)
+	}
+	if reloaded.Phone != newPhone {
+		t.Fatalf("expected phone %s, got %s", newPhone, reloaded.Phone)
+	}
+	if reloaded.Adults != newAdults {
+		t.Fatalf("expected adults %d, got %d", newAdults, reloaded.Adults)
+	}
+	if len(reloaded.ChildAges) != 1 || reloaded.ChildAges[0] != 7 {
+		t.Fatalf("expected child_ages [7], got %v", reloaded.ChildAges)
+	}
+	if reloaded.Nights != 4 {
+		t.Fatalf("expected nights extended to 4, got %d", reloaded.Nights)
+	}
+	wantCheckout := checkIn.AddDate(0, 0, 4)
+	if !reloaded.CheckOutDate.Equal(wantCheckout) {
+		t.Fatalf("expected check_out_date %v, got %v", wantCheckout, reloaded.CheckOutDate)
+	}
+	// The whole point of this handler being a correction tool, not a re-billing one: extending
+	// nights and adding an adult/child must NOT silently change what's already been charged.
+	if reloaded.TotalRoomCharge != 1600 {
+		t.Fatalf("expected total_room_charge to remain untouched at 1600, got %.2f -- UpdateGuest must never auto-adjust billing", reloaded.TotalRoomCharge)
+	}
+
+	// Rejects blanking a required field.
+	req2 := hotelRoomRequest(t, http.MethodPatch, tid, room.ID, map[string]any{"phone": ""})
+	rec2 := httptest.NewRecorder()
+	h.UpdateGuest(rec2, req2)
+	if rec2.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for blanking phone, got %d: %s", rec2.Code, rec2.Body.String())
+	}
+}

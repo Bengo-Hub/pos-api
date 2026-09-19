@@ -1200,6 +1200,12 @@ type bookingPolicyInput struct {
 	// see bookingPolicy's doc comment in roombooking.go.
 	CheckInTime  *string `json:"checkin_time"`
 	CheckOutTime *string `json:"checkout_time"`
+	// Occupancy-based pricing — see roombooking.go's occupancySurchargePerNight. Off (no charge
+	// change) until BaseOccupancyAdults is explicitly set positive.
+	BaseOccupancyAdults *int     `json:"base_occupancy_adults"`
+	ExtraAdultRate      *float64 `json:"extra_adult_rate"`
+	ChildFreeUnderAge   *int     `json:"child_free_under_age"`
+	ExtraChildRate      *float64 `json:"extra_child_rate"`
 }
 
 func defaultPolicyMap() map[string]any {
@@ -1213,6 +1219,11 @@ func defaultPolicyMap() map[string]any {
 		"payment_timing": "settle_at_checkout",
 		"checkin_time":   "14:00",
 		"checkout_time":  "10:00",
+		// Occupancy pricing defaults to OFF (0 = disabled) — see occupancySurchargePerNight.
+		"base_occupancy_adults": 0,
+		"extra_adult_rate":      0.0,
+		"child_free_under_age":  0,
+		"extra_child_rate":      0.0,
 	}
 }
 
@@ -1311,6 +1322,18 @@ func (h *ServiceSettingsHandler) PatchBookingPolicy(w http.ResponseWriter, r *ht
 		if _, terr := time.Parse("15:04", *in.CheckOutTime); terr == nil {
 			policy["checkout_time"] = *in.CheckOutTime
 		}
+	}
+	if in.BaseOccupancyAdults != nil && *in.BaseOccupancyAdults >= 0 {
+		policy["base_occupancy_adults"] = *in.BaseOccupancyAdults
+	}
+	if in.ExtraAdultRate != nil && *in.ExtraAdultRate >= 0 {
+		policy["extra_adult_rate"] = *in.ExtraAdultRate
+	}
+	if in.ChildFreeUnderAge != nil && *in.ChildFreeUnderAge >= 0 {
+		policy["child_free_under_age"] = *in.ChildFreeUnderAge
+	}
+	if in.ExtraChildRate != nil && *in.ExtraChildRate >= 0 {
+		policy["extra_child_rate"] = *in.ExtraChildRate
 	}
 	meta["booking_policy"] = policy
 

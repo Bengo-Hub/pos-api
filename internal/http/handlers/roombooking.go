@@ -37,13 +37,53 @@ type bookingPolicy struct {
 	// departure date is exactly what the existing Late Checkout approval flow is for.
 	CheckInTime  string `json:"checkin_time"`
 	CheckOutTime string `json:"checkout_time"`
+	// Occupancy-based pricing (standard hotel PMS practice: a nightly rate covers a base number
+	// of adults; extra adults/children beyond that add a per-night surcharge — see
+	// occupancySurchargePerNight's doc comment for the exact rule and sources). BaseOccupancyAdults
+	// <= 0 means occupancy pricing is OFF (the default): every tenant that has never touched this
+	// keeps charging the flat room rate regardless of adults/children, exactly as before this
+	// feature existed. A property opts in by setting a positive BaseOccupancyAdults.
+	BaseOccupancyAdults int     `json:"base_occupancy_adults"`
+	ExtraAdultRate      float64 `json:"extra_adult_rate"`
+	// ChildFreeUnderAge: children younger than this are always free, never counted toward the
+	// surcharge, regardless of how many. 0 means "no free age bracket" (every child chargeable at
+	// ExtraChildRate) — only meaningful once ExtraChildRate > 0.
+	ChildFreeUnderAge int     `json:"child_free_under_age"`
+	ExtraChildRate    float64 `json:"extra_child_rate"`
 }
 
 func defaultBookingPolicy() bookingPolicy {
 	return bookingPolicy{
 		FreeAmendmentWindowHours: 48, CancellationWindowHours: 72, Currency: "KES",
 		PaymentTiming: "settle_at_checkout", CheckInTime: "14:00", CheckOutTime: "10:00",
+		BaseOccupancyAdults: 0, ExtraAdultRate: 0, ChildFreeUnderAge: 0, ExtraChildRate: 0,
 	}
+}
+
+// occupancySurchargePerNight computes the per-night surcharge for a stay's adult/child count
+// against the property's configured base occupancy, following the standard hotel-industry model
+// (occupancy-based pricing / extra-adult & child rates — e.g. Booking.com's child-policy model,
+// Cloudbeds' base-rate-plus-extra-person matrix): a room rate covers a base number of adults for
+// free; each additional adult beyond that adds ExtraAdultRate per night; a child below
+// ChildFreeUnderAge is always free, a child at or above it adds ExtraChildRate per night. Disabled
+// entirely (returns 0) when BaseOccupancyAdults <= 0, so a property that has never configured this
+// keeps its historical flat-rate-regardless-of-occupancy behavior unchanged.
+func occupancySurchargePerNight(policy bookingPolicy, adults int, childAges []int) float64 {
+	if policy.BaseOccupancyAdults <= 0 {
+		return 0
+	}
+	var surcharge float64
+	if extraAdults := adults - policy.BaseOccupancyAdults; extraAdults > 0 {
+		surcharge += float64(extraAdults) * policy.ExtraAdultRate
+	}
+	if policy.ExtraChildRate > 0 {
+		for _, age := range childAges {
+			if age >= policy.ChildFreeUnderAge {
+				surcharge += policy.ExtraChildRate
+			}
+		}
+	}
+	return surcharge
 }
 
 // resolveBookingPolicy reads the outlet's booking policy from OutletSetting.metadata,
