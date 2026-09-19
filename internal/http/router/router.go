@@ -1178,6 +1178,11 @@ func New(
 							rp.With(outletmw.RequireUseCase("hospitality")).
 								With(subscriptions.RequireFeature(subscriptions.FeatureHotelModule)).
 								Get("/reports/hotel-occupancy", reports.HotelOccupancyReport)
+							// Daily occupancy/ADR/revenue trend + room-type performance + booking-source
+							// breakdown behind the Hotel Reports charts — same gate as the aggregate above.
+							rp.With(outletmw.RequireUseCase("hospitality")).
+								With(subscriptions.RequireFeature(subscriptions.FeatureHotelModule)).
+								Get("/reports/hotel-occupancy/trend", reports.HotelOccupancyTrend)
 						})
 					}
 

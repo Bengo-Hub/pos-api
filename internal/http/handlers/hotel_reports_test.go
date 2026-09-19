@@ -171,3 +171,105 @@ func TestHotelOccupancyReport_CheckedOutSameCalendarDay_NoOccupiedNightsNoInflat
 		t.Fatalf("posted revenue must still be reported in full regardless of nights, got %v", result.RoomRevenue)
 	}
 }
+
+// TestHotelOccupancyTrend_DailyBucketsSumToAggregate seeds a single 3-night stay fully inside
+// the report window and checks that the trend endpoint's daily buckets place exactly one
+// occupied room-night on each of the 3 nights actually stayed (not the arrival/departure day
+// alone, not a fractional smear across the whole window), and that the room-type and
+// booking-source cross-sections agree with that same total.
+func TestHotelOccupancyTrend_DailyBucketsSumToAggregate(t *testing.T) {
+	h, client := newReportsTestHandler(t)
+	tid, outletID := uuid.New(), uuid.New()
+
+	room, err := client.Room.Create().
+		SetTenantID(tid).
+		SetOutletID(outletID).
+		SetRoomNumber("G1").
+		SetName("G1").
+		SetRatePerNight(800).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed room: %v", err)
+	}
+
+	windowFrom := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	windowTo := time.Date(2026, 1, 10, 15, 30, 0, 0, time.UTC)
+	checkIn := time.Date(2026, 1, 5, 14, 0, 0, 0, time.UTC)
+	checkOut := time.Date(2026, 1, 8, 10, 0, 0, 0, time.UTC) // 3 nights: 5th, 6th, 7th
+
+	guest, err := client.RoomGuest.Create().
+		SetTenantID(tid).
+		SetRoomID(room.ID).
+		SetGuestName("Trend Guest").
+		SetPhone("0700000002").
+		SetIDNumber("ID-0003").
+		SetCheckInDate(checkIn).
+		SetNights(3).
+		SetCheckOutDate(checkOut).
+		SetTotalRoomCharge(2400).
+		SetCheckedInBy(uuid.New()).
+		SetCheckedInAt(checkIn).
+		SetStatus(entroomguest.StatusCheckedOut).
+		SetCheckedOutAt(checkOut).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed room guest: %v", err)
+	}
+
+	if _, err := client.RoomFolioItem.Create().
+		SetTenantID(tid).
+		SetRoomID(room.ID).
+		SetRoomGuestID(guest.ID).
+		SetDescription("Room charge - 3 nights").
+		SetAmount(2400).
+		SetChargeType("room_charge").
+		SetCreatedBy(uuid.New()).
+		SetCreatedAt(checkIn).
+		Save(context.Background()); err != nil {
+		t.Fatalf("seed folio item: %v", err)
+	}
+
+	req := reportsRequest(t, tid, &outletID, "from="+windowFrom.Format(time.RFC3339)+"&to="+windowTo.Format(time.RFC3339))
+	rec := httptest.NewRecorder()
+	h.HotelOccupancyTrend(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("HotelOccupancyTrend: status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var result hotelTrendResult
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode response: %v, body: %s", err, rec.Body.String())
+	}
+
+	occupiedDates := map[string]float64{}
+	var totalOccupied, totalRoomRevenue float64
+	for _, b := range result.Buckets {
+		totalOccupied += b.OccupiedRoomNights
+		totalRoomRevenue += b.RoomRevenue
+		if b.OccupiedRoomNights > 0 {
+			occupiedDates[b.Date] = b.OccupiedRoomNights
+		}
+	}
+	wantDates := map[string]float64{"2026-01-05": 1, "2026-01-06": 1, "2026-01-07": 1}
+	if len(occupiedDates) != len(wantDates) {
+		t.Fatalf("expected occupied nights on exactly %v, got %v", wantDates, occupiedDates)
+	}
+	for d, want := range wantDates {
+		if occupiedDates[d] != want {
+			t.Fatalf("expected %v occupied room-night(s) on %s, got %v", want, d, occupiedDates[d])
+		}
+	}
+	if totalOccupied != 3 {
+		t.Fatalf("expected 3 total occupied room-nights across buckets, got %v", totalOccupied)
+	}
+	if totalRoomRevenue != 2400 {
+		t.Fatalf("expected room revenue to appear once, on check-in day, summing to 2400, got %v", totalRoomRevenue)
+	}
+
+	if len(result.RoomTypeBreakdown) != 1 || result.RoomTypeBreakdown[0].OccupiedRoomNights != 3 {
+		t.Fatalf("expected room-type breakdown to show 3 occupied nights for the standard room type, got %+v", result.RoomTypeBreakdown)
+	}
+	if len(result.BookingSources) != 1 || result.BookingSources[0].Source != "staff" || result.BookingSources[0].Bookings != 1 {
+		t.Fatalf("expected 1 staff-sourced booking, got %+v", result.BookingSources)
+	}
+}
