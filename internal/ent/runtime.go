@@ -38,6 +38,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/leaverequest"
+	"github.com/bengobox/pos-service/internal/ent/lostfounditem"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	"github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
@@ -1033,6 +1034,34 @@ func init() {
 	leaverequestDescID := leaverequestFields[0].Descriptor()
 	// leaverequest.DefaultID holds the default value on creation for the id field.
 	leaverequest.DefaultID = leaverequestDescID.Default.(func() uuid.UUID)
+	lostfounditemFields := schema.LostFoundItem{}.Fields()
+	_ = lostfounditemFields
+	// lostfounditemDescDescription is the schema descriptor for description field.
+	lostfounditemDescDescription := lostfounditemFields[5].Descriptor()
+	// lostfounditem.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	lostfounditem.DescriptionValidator = lostfounditemDescDescription.Validators[0].(func(string) error)
+	// lostfounditemDescFoundAt is the schema descriptor for found_at field.
+	lostfounditemDescFoundAt := lostfounditemFields[12].Descriptor()
+	// lostfounditem.DefaultFoundAt holds the default value on creation for the found_at field.
+	lostfounditem.DefaultFoundAt = lostfounditemDescFoundAt.Default.(func() time.Time)
+	// lostfounditemDescMetadata is the schema descriptor for metadata field.
+	lostfounditemDescMetadata := lostfounditemFields[21].Descriptor()
+	// lostfounditem.DefaultMetadata holds the default value on creation for the metadata field.
+	lostfounditem.DefaultMetadata = lostfounditemDescMetadata.Default.(map[string]interface{})
+	// lostfounditemDescCreatedAt is the schema descriptor for created_at field.
+	lostfounditemDescCreatedAt := lostfounditemFields[22].Descriptor()
+	// lostfounditem.DefaultCreatedAt holds the default value on creation for the created_at field.
+	lostfounditem.DefaultCreatedAt = lostfounditemDescCreatedAt.Default.(func() time.Time)
+	// lostfounditemDescUpdatedAt is the schema descriptor for updated_at field.
+	lostfounditemDescUpdatedAt := lostfounditemFields[23].Descriptor()
+	// lostfounditem.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	lostfounditem.DefaultUpdatedAt = lostfounditemDescUpdatedAt.Default.(func() time.Time)
+	// lostfounditem.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	lostfounditem.UpdateDefaultUpdatedAt = lostfounditemDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// lostfounditemDescID is the schema descriptor for id field.
+	lostfounditemDescID := lostfounditemFields[0].Descriptor()
+	// lostfounditem.DefaultID holds the default value on creation for the id field.
+	lostfounditem.DefaultID = lostfounditemDescID.Default.(func() uuid.UUID)
 	loyaltyaccountFields := schema.LoyaltyAccount{}.Fields()
 	_ = loyaltyaccountFields
 	// loyaltyaccountDescCustomerPhone is the schema descriptor for customer_phone field.

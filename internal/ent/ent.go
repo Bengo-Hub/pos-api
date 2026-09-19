@@ -47,6 +47,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/leaverequest"
 	"github.com/bengobox/pos-service/internal/ent/licenseusagesnapshot"
+	"github.com/bengobox/pos-service/internal/ent/lostfounditem"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	"github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
@@ -226,6 +227,7 @@ func checkColumn(t, c string) error {
 			layawayplan.Table:              layawayplan.ValidColumn,
 			leaverequest.Table:             leaverequest.ValidColumn,
 			licenseusagesnapshot.Table:     licenseusagesnapshot.ValidColumn,
+			lostfounditem.Table:            lostfounditem.ValidColumn,
 			loyaltyaccount.Table:           loyaltyaccount.ValidColumn,
 			loyaltyprogram.Table:           loyaltyprogram.ValidColumn,
 			loyaltytransaction.Table:       loyaltytransaction.ValidColumn,

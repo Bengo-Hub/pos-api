@@ -187,6 +187,22 @@ func (p *Publisher) PublishHotelDamageReviewed(ctx context.Context, tenantID uui
 	return p.publish(ctx, tenantID, "hotel.damage.reviewed", data)
 }
 
+// PublishHotelDamageOverdue publishes hotel.damage.overdue when a damage report has sat pending
+// past the review SLA window (see scheduler.DamageReportReminderScheduler).
+func (p *Publisher) PublishHotelDamageOverdue(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "hotel.damage.overdue", data)
+}
+
+// PublishHotelLostFoundLogged publishes hotel.lost_found.logged when a found item is recorded.
+func (p *Publisher) PublishHotelLostFoundLogged(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "hotel.lost_found.logged", data)
+}
+
+// PublishHotelLostFoundClaimed publishes hotel.lost_found.claimed when a found item is claimed by its owner.
+func (p *Publisher) PublishHotelLostFoundClaimed(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "hotel.lost_found.claimed", data)
+}
+
 // PublishHotelBookingCreated publishes hotel.booking.created for a multi-room/group booking.
 func (p *Publisher) PublishHotelBookingCreated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "hotel.booking.created", data)

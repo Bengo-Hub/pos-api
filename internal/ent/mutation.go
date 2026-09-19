@@ -45,6 +45,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/layawaypayment"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
 	"github.com/bengobox/pos-service/internal/ent/leaverequest"
+	"github.com/bengobox/pos-service/internal/ent/lostfounditem"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	"github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
@@ -179,6 +180,7 @@ const (
 	TypeLayawayPlan              = "LayawayPlan"
 	TypeLeaveRequest             = "LeaveRequest"
 	TypeLicenseUsageSnapshot     = "LicenseUsageSnapshot"
+	TypeLostFoundItem            = "LostFoundItem"
 	TypeLoyaltyAccount           = "LoyaltyAccount"
 	TypeLoyaltyProgram           = "LoyaltyProgram"
 	TypeLoyaltyTransaction       = "LoyaltyTransaction"
@@ -34953,6 +34955,1793 @@ func (m *LicenseUsageSnapshotMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *LicenseUsageSnapshotMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown LicenseUsageSnapshot edge %s", name)
+}
+
+// LostFoundItemMutation represents an operation that mutates the LostFoundItem nodes in the graph.
+type LostFoundItemMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *uuid.UUID
+	tenant_id        *uuid.UUID
+	outlet_id        *uuid.UUID
+	room_id          *uuid.UUID
+	room_guest_id    *uuid.UUID
+	description      *string
+	category         *lostfounditem.Category
+	location_found   *string
+	storage_location *string
+	photo_urls       *[]string
+	appendphoto_urls []string
+	status           *lostfounditem.Status
+	found_by         *uuid.UUID
+	found_at         *time.Time
+	guest_name       *string
+	guest_phone      *string
+	guest_email      *string
+	claimed_by_name  *string
+	claimed_notes    *string
+	claimed_at       *time.Time
+	disposal_reason  *string
+	disposed_at      *time.Time
+	metadata         *map[string]interface{}
+	created_at       *time.Time
+	updated_at       *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*LostFoundItem, error)
+	predicates       []predicate.LostFoundItem
+}
+
+var _ ent.Mutation = (*LostFoundItemMutation)(nil)
+
+// lostfounditemOption allows management of the mutation configuration using functional options.
+type lostfounditemOption func(*LostFoundItemMutation)
+
+// newLostFoundItemMutation creates new mutation for the LostFoundItem entity.
+func newLostFoundItemMutation(c config, op Op, opts ...lostfounditemOption) *LostFoundItemMutation {
+	m := &LostFoundItemMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLostFoundItem,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLostFoundItemID sets the ID field of the mutation.
+func withLostFoundItemID(id uuid.UUID) lostfounditemOption {
+	return func(m *LostFoundItemMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LostFoundItem
+		)
+		m.oldValue = func(ctx context.Context) (*LostFoundItem, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LostFoundItem.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLostFoundItem sets the old LostFoundItem of the mutation.
+func withLostFoundItem(node *LostFoundItem) lostfounditemOption {
+	return func(m *LostFoundItemMutation) {
+		m.oldValue = func(context.Context) (*LostFoundItem, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LostFoundItemMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LostFoundItemMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of LostFoundItem entities.
+func (m *LostFoundItemMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LostFoundItemMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LostFoundItemMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LostFoundItem.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *LostFoundItemMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *LostFoundItemMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *LostFoundItemMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetOutletID sets the "outlet_id" field.
+func (m *LostFoundItemMutation) SetOutletID(u uuid.UUID) {
+	m.outlet_id = &u
+}
+
+// OutletID returns the value of the "outlet_id" field in the mutation.
+func (m *LostFoundItemMutation) OutletID() (r uuid.UUID, exists bool) {
+	v := m.outlet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutletID returns the old "outlet_id" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldOutletID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutletID: %w", err)
+	}
+	return oldValue.OutletID, nil
+}
+
+// ResetOutletID resets all changes to the "outlet_id" field.
+func (m *LostFoundItemMutation) ResetOutletID() {
+	m.outlet_id = nil
+}
+
+// SetRoomID sets the "room_id" field.
+func (m *LostFoundItemMutation) SetRoomID(u uuid.UUID) {
+	m.room_id = &u
+}
+
+// RoomID returns the value of the "room_id" field in the mutation.
+func (m *LostFoundItemMutation) RoomID() (r uuid.UUID, exists bool) {
+	v := m.room_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoomID returns the old "room_id" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldRoomID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoomID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoomID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoomID: %w", err)
+	}
+	return oldValue.RoomID, nil
+}
+
+// ClearRoomID clears the value of the "room_id" field.
+func (m *LostFoundItemMutation) ClearRoomID() {
+	m.room_id = nil
+	m.clearedFields[lostfounditem.FieldRoomID] = struct{}{}
+}
+
+// RoomIDCleared returns if the "room_id" field was cleared in this mutation.
+func (m *LostFoundItemMutation) RoomIDCleared() bool {
+	_, ok := m.clearedFields[lostfounditem.FieldRoomID]
+	return ok
+}
+
+// ResetRoomID resets all changes to the "room_id" field.
+func (m *LostFoundItemMutation) ResetRoomID() {
+	m.room_id = nil
+	delete(m.clearedFields, lostfounditem.FieldRoomID)
+}
+
+// SetRoomGuestID sets the "room_guest_id" field.
+func (m *LostFoundItemMutation) SetRoomGuestID(u uuid.UUID) {
+	m.room_guest_id = &u
+}
+
+// RoomGuestID returns the value of the "room_guest_id" field in the mutation.
+func (m *LostFoundItemMutation) RoomGuestID() (r uuid.UUID, exists bool) {
+	v := m.room_guest_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoomGuestID returns the old "room_guest_id" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldRoomGuestID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoomGuestID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoomGuestID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoomGuestID: %w", err)
+	}
+	return oldValue.RoomGuestID, nil
+}
+
+// ClearRoomGuestID clears the value of the "room_guest_id" field.
+func (m *LostFoundItemMutation) ClearRoomGuestID() {
+	m.room_guest_id = nil
+	m.clearedFields[lostfounditem.FieldRoomGuestID] = struct{}{}
+}
+
+// RoomGuestIDCleared returns if the "room_guest_id" field was cleared in this mutation.
+func (m *LostFoundItemMutation) RoomGuestIDCleared() bool {
+	_, ok := m.clearedFields[lostfounditem.FieldRoomGuestID]
+	return ok
+}
+
+// ResetRoomGuestID resets all changes to the "room_guest_id" field.
+func (m *LostFoundItemMutation) ResetRoomGuestID() {
+	m.room_guest_id = nil
+	delete(m.clearedFields, lostfounditem.FieldRoomGuestID)
+}
+
+// SetDescription sets the "description" field.
+func (m *LostFoundItemMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *LostFoundItemMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *LostFoundItemMutation) ResetDescription() {
+	m.description = nil
+}
+
+// SetCategory sets the "category" field.
+func (m *LostFoundItemMutation) SetCategory(l lostfounditem.Category) {
+	m.category = &l
+}
+
+// Category returns the value of the "category" field in the mutation.
+func (m *LostFoundItemMutation) Category() (r lostfounditem.Category, exists bool) {
+	v := m.category
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCategory returns the old "category" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldCategory(ctx context.Context) (v lostfounditem.Category, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCategory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCategory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCategory: %w", err)
+	}
+	return oldValue.Category, nil
+}
+
+// ResetCategory resets all changes to the "category" field.
+func (m *LostFoundItemMutation) ResetCategory() {
+	m.category = nil
+}
+
+// SetLocationFound sets the "location_found" field.
+func (m *LostFoundItemMutation) SetLocationFound(s string) {
+	m.location_found = &s
+}
+
+// LocationFound returns the value of the "location_found" field in the mutation.
+func (m *LostFoundItemMutation) LocationFound() (r string, exists bool) {
+	v := m.location_found
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLocationFound returns the old "location_found" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldLocationFound(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLocationFound is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLocationFound requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLocationFound: %w", err)
+	}
+	return oldValue.LocationFound, nil
+}
+
+// ClearLocationFound clears the value of the "location_found" field.
+func (m *LostFoundItemMutation) ClearLocationFound() {
+	m.location_found = nil
+	m.clearedFields[lostfounditem.FieldLocationFound] = struct{}{}
+}
+
+// LocationFoundCleared returns if the "location_found" field was cleared in this mutation.
+func (m *LostFoundItemMutation) LocationFoundCleared() bool {
+	_, ok := m.clearedFields[lostfounditem.FieldLocationFound]
+	return ok
+}
+
+// ResetLocationFound resets all changes to the "location_found" field.
+func (m *LostFoundItemMutation) ResetLocationFound() {
+	m.location_found = nil
+	delete(m.clearedFields, lostfounditem.FieldLocationFound)
+}
+
+// SetStorageLocation sets the "storage_location" field.
+func (m *LostFoundItemMutation) SetStorageLocation(s string) {
+	m.storage_location = &s
+}
+
+// StorageLocation returns the value of the "storage_location" field in the mutation.
+func (m *LostFoundItemMutation) StorageLocation() (r string, exists bool) {
+	v := m.storage_location
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStorageLocation returns the old "storage_location" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldStorageLocation(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStorageLocation is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStorageLocation requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStorageLocation: %w", err)
+	}
+	return oldValue.StorageLocation, nil
+}
+
+// ClearStorageLocation clears the value of the "storage_location" field.
+func (m *LostFoundItemMutation) ClearStorageLocation() {
+	m.storage_location = nil
+	m.clearedFields[lostfounditem.FieldStorageLocation] = struct{}{}
+}
+
+// StorageLocationCleared returns if the "storage_location" field was cleared in this mutation.
+func (m *LostFoundItemMutation) StorageLocationCleared() bool {
+	_, ok := m.clearedFields[lostfounditem.FieldStorageLocation]
+	return ok
+}
+
+// ResetStorageLocation resets all changes to the "storage_location" field.
+func (m *LostFoundItemMutation) ResetStorageLocation() {
+	m.storage_location = nil
+	delete(m.clearedFields, lostfounditem.FieldStorageLocation)
+}
+
+// SetPhotoUrls sets the "photo_urls" field.
+func (m *LostFoundItemMutation) SetPhotoUrls(s []string) {
+	m.photo_urls = &s
+	m.appendphoto_urls = nil
+}
+
+// PhotoUrls returns the value of the "photo_urls" field in the mutation.
+func (m *LostFoundItemMutation) PhotoUrls() (r []string, exists bool) {
+	v := m.photo_urls
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPhotoUrls returns the old "photo_urls" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldPhotoUrls(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPhotoUrls is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPhotoUrls requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPhotoUrls: %w", err)
+	}
+	return oldValue.PhotoUrls, nil
+}
+
+// AppendPhotoUrls adds s to the "photo_urls" field.
+func (m *LostFoundItemMutation) AppendPhotoUrls(s []string) {
+	m.appendphoto_urls = append(m.appendphoto_urls, s...)
+}
+
+// AppendedPhotoUrls returns the list of values that were appended to the "photo_urls" field in this mutation.
+func (m *LostFoundItemMutation) AppendedPhotoUrls() ([]string, bool) {
+	if len(m.appendphoto_urls) == 0 {
+		return nil, false
+	}
+	return m.appendphoto_urls, true
+}
+
+// ClearPhotoUrls clears the value of the "photo_urls" field.
+func (m *LostFoundItemMutation) ClearPhotoUrls() {
+	m.photo_urls = nil
+	m.appendphoto_urls = nil
+	m.clearedFields[lostfounditem.FieldPhotoUrls] = struct{}{}
+}
+
+// PhotoUrlsCleared returns if the "photo_urls" field was cleared in this mutation.
+func (m *LostFoundItemMutation) PhotoUrlsCleared() bool {
+	_, ok := m.clearedFields[lostfounditem.FieldPhotoUrls]
+	return ok
+}
+
+// ResetPhotoUrls resets all changes to the "photo_urls" field.
+func (m *LostFoundItemMutation) ResetPhotoUrls() {
+	m.photo_urls = nil
+	m.appendphoto_urls = nil
+	delete(m.clearedFields, lostfounditem.FieldPhotoUrls)
+}
+
+// SetStatus sets the "status" field.
+func (m *LostFoundItemMutation) SetStatus(l lostfounditem.Status) {
+	m.status = &l
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *LostFoundItemMutation) Status() (r lostfounditem.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldStatus(ctx context.Context) (v lostfounditem.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *LostFoundItemMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetFoundBy sets the "found_by" field.
+func (m *LostFoundItemMutation) SetFoundBy(u uuid.UUID) {
+	m.found_by = &u
+}
+
+// FoundBy returns the value of the "found_by" field in the mutation.
+func (m *LostFoundItemMutation) FoundBy() (r uuid.UUID, exists bool) {
+	v := m.found_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFoundBy returns the old "found_by" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldFoundBy(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFoundBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFoundBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFoundBy: %w", err)
+	}
+	return oldValue.FoundBy, nil
+}
+
+// ResetFoundBy resets all changes to the "found_by" field.
+func (m *LostFoundItemMutation) ResetFoundBy() {
+	m.found_by = nil
+}
+
+// SetFoundAt sets the "found_at" field.
+func (m *LostFoundItemMutation) SetFoundAt(t time.Time) {
+	m.found_at = &t
+}
+
+// FoundAt returns the value of the "found_at" field in the mutation.
+func (m *LostFoundItemMutation) FoundAt() (r time.Time, exists bool) {
+	v := m.found_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFoundAt returns the old "found_at" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldFoundAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFoundAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFoundAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFoundAt: %w", err)
+	}
+	return oldValue.FoundAt, nil
+}
+
+// ResetFoundAt resets all changes to the "found_at" field.
+func (m *LostFoundItemMutation) ResetFoundAt() {
+	m.found_at = nil
+}
+
+// SetGuestName sets the "guest_name" field.
+func (m *LostFoundItemMutation) SetGuestName(s string) {
+	m.guest_name = &s
+}
+
+// GuestName returns the value of the "guest_name" field in the mutation.
+func (m *LostFoundItemMutation) GuestName() (r string, exists bool) {
+	v := m.guest_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGuestName returns the old "guest_name" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldGuestName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGuestName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGuestName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGuestName: %w", err)
+	}
+	return oldValue.GuestName, nil
+}
+
+// ClearGuestName clears the value of the "guest_name" field.
+func (m *LostFoundItemMutation) ClearGuestName() {
+	m.guest_name = nil
+	m.clearedFields[lostfounditem.FieldGuestName] = struct{}{}
+}
+
+// GuestNameCleared returns if the "guest_name" field was cleared in this mutation.
+func (m *LostFoundItemMutation) GuestNameCleared() bool {
+	_, ok := m.clearedFields[lostfounditem.FieldGuestName]
+	return ok
+}
+
+// ResetGuestName resets all changes to the "guest_name" field.
+func (m *LostFoundItemMutation) ResetGuestName() {
+	m.guest_name = nil
+	delete(m.clearedFields, lostfounditem.FieldGuestName)
+}
+
+// SetGuestPhone sets the "guest_phone" field.
+func (m *LostFoundItemMutation) SetGuestPhone(s string) {
+	m.guest_phone = &s
+}
+
+// GuestPhone returns the value of the "guest_phone" field in the mutation.
+func (m *LostFoundItemMutation) GuestPhone() (r string, exists bool) {
+	v := m.guest_phone
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGuestPhone returns the old "guest_phone" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldGuestPhone(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGuestPhone is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGuestPhone requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGuestPhone: %w", err)
+	}
+	return oldValue.GuestPhone, nil
+}
+
+// ClearGuestPhone clears the value of the "guest_phone" field.
+func (m *LostFoundItemMutation) ClearGuestPhone() {
+	m.guest_phone = nil
+	m.clearedFields[lostfounditem.FieldGuestPhone] = struct{}{}
+}
+
+// GuestPhoneCleared returns if the "guest_phone" field was cleared in this mutation.
+func (m *LostFoundItemMutation) GuestPhoneCleared() bool {
+	_, ok := m.clearedFields[lostfounditem.FieldGuestPhone]
+	return ok
+}
+
+// ResetGuestPhone resets all changes to the "guest_phone" field.
+func (m *LostFoundItemMutation) ResetGuestPhone() {
+	m.guest_phone = nil
+	delete(m.clearedFields, lostfounditem.FieldGuestPhone)
+}
+
+// SetGuestEmail sets the "guest_email" field.
+func (m *LostFoundItemMutation) SetGuestEmail(s string) {
+	m.guest_email = &s
+}
+
+// GuestEmail returns the value of the "guest_email" field in the mutation.
+func (m *LostFoundItemMutation) GuestEmail() (r string, exists bool) {
+	v := m.guest_email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGuestEmail returns the old "guest_email" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldGuestEmail(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGuestEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGuestEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGuestEmail: %w", err)
+	}
+	return oldValue.GuestEmail, nil
+}
+
+// ClearGuestEmail clears the value of the "guest_email" field.
+func (m *LostFoundItemMutation) ClearGuestEmail() {
+	m.guest_email = nil
+	m.clearedFields[lostfounditem.FieldGuestEmail] = struct{}{}
+}
+
+// GuestEmailCleared returns if the "guest_email" field was cleared in this mutation.
+func (m *LostFoundItemMutation) GuestEmailCleared() bool {
+	_, ok := m.clearedFields[lostfounditem.FieldGuestEmail]
+	return ok
+}
+
+// ResetGuestEmail resets all changes to the "guest_email" field.
+func (m *LostFoundItemMutation) ResetGuestEmail() {
+	m.guest_email = nil
+	delete(m.clearedFields, lostfounditem.FieldGuestEmail)
+}
+
+// SetClaimedByName sets the "claimed_by_name" field.
+func (m *LostFoundItemMutation) SetClaimedByName(s string) {
+	m.claimed_by_name = &s
+}
+
+// ClaimedByName returns the value of the "claimed_by_name" field in the mutation.
+func (m *LostFoundItemMutation) ClaimedByName() (r string, exists bool) {
+	v := m.claimed_by_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClaimedByName returns the old "claimed_by_name" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldClaimedByName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClaimedByName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClaimedByName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClaimedByName: %w", err)
+	}
+	return oldValue.ClaimedByName, nil
+}
+
+// ClearClaimedByName clears the value of the "claimed_by_name" field.
+func (m *LostFoundItemMutation) ClearClaimedByName() {
+	m.claimed_by_name = nil
+	m.clearedFields[lostfounditem.FieldClaimedByName] = struct{}{}
+}
+
+// ClaimedByNameCleared returns if the "claimed_by_name" field was cleared in this mutation.
+func (m *LostFoundItemMutation) ClaimedByNameCleared() bool {
+	_, ok := m.clearedFields[lostfounditem.FieldClaimedByName]
+	return ok
+}
+
+// ResetClaimedByName resets all changes to the "claimed_by_name" field.
+func (m *LostFoundItemMutation) ResetClaimedByName() {
+	m.claimed_by_name = nil
+	delete(m.clearedFields, lostfounditem.FieldClaimedByName)
+}
+
+// SetClaimedNotes sets the "claimed_notes" field.
+func (m *LostFoundItemMutation) SetClaimedNotes(s string) {
+	m.claimed_notes = &s
+}
+
+// ClaimedNotes returns the value of the "claimed_notes" field in the mutation.
+func (m *LostFoundItemMutation) ClaimedNotes() (r string, exists bool) {
+	v := m.claimed_notes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClaimedNotes returns the old "claimed_notes" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldClaimedNotes(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClaimedNotes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClaimedNotes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClaimedNotes: %w", err)
+	}
+	return oldValue.ClaimedNotes, nil
+}
+
+// ClearClaimedNotes clears the value of the "claimed_notes" field.
+func (m *LostFoundItemMutation) ClearClaimedNotes() {
+	m.claimed_notes = nil
+	m.clearedFields[lostfounditem.FieldClaimedNotes] = struct{}{}
+}
+
+// ClaimedNotesCleared returns if the "claimed_notes" field was cleared in this mutation.
+func (m *LostFoundItemMutation) ClaimedNotesCleared() bool {
+	_, ok := m.clearedFields[lostfounditem.FieldClaimedNotes]
+	return ok
+}
+
+// ResetClaimedNotes resets all changes to the "claimed_notes" field.
+func (m *LostFoundItemMutation) ResetClaimedNotes() {
+	m.claimed_notes = nil
+	delete(m.clearedFields, lostfounditem.FieldClaimedNotes)
+}
+
+// SetClaimedAt sets the "claimed_at" field.
+func (m *LostFoundItemMutation) SetClaimedAt(t time.Time) {
+	m.claimed_at = &t
+}
+
+// ClaimedAt returns the value of the "claimed_at" field in the mutation.
+func (m *LostFoundItemMutation) ClaimedAt() (r time.Time, exists bool) {
+	v := m.claimed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClaimedAt returns the old "claimed_at" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldClaimedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClaimedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClaimedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClaimedAt: %w", err)
+	}
+	return oldValue.ClaimedAt, nil
+}
+
+// ClearClaimedAt clears the value of the "claimed_at" field.
+func (m *LostFoundItemMutation) ClearClaimedAt() {
+	m.claimed_at = nil
+	m.clearedFields[lostfounditem.FieldClaimedAt] = struct{}{}
+}
+
+// ClaimedAtCleared returns if the "claimed_at" field was cleared in this mutation.
+func (m *LostFoundItemMutation) ClaimedAtCleared() bool {
+	_, ok := m.clearedFields[lostfounditem.FieldClaimedAt]
+	return ok
+}
+
+// ResetClaimedAt resets all changes to the "claimed_at" field.
+func (m *LostFoundItemMutation) ResetClaimedAt() {
+	m.claimed_at = nil
+	delete(m.clearedFields, lostfounditem.FieldClaimedAt)
+}
+
+// SetDisposalReason sets the "disposal_reason" field.
+func (m *LostFoundItemMutation) SetDisposalReason(s string) {
+	m.disposal_reason = &s
+}
+
+// DisposalReason returns the value of the "disposal_reason" field in the mutation.
+func (m *LostFoundItemMutation) DisposalReason() (r string, exists bool) {
+	v := m.disposal_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisposalReason returns the old "disposal_reason" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldDisposalReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisposalReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisposalReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisposalReason: %w", err)
+	}
+	return oldValue.DisposalReason, nil
+}
+
+// ClearDisposalReason clears the value of the "disposal_reason" field.
+func (m *LostFoundItemMutation) ClearDisposalReason() {
+	m.disposal_reason = nil
+	m.clearedFields[lostfounditem.FieldDisposalReason] = struct{}{}
+}
+
+// DisposalReasonCleared returns if the "disposal_reason" field was cleared in this mutation.
+func (m *LostFoundItemMutation) DisposalReasonCleared() bool {
+	_, ok := m.clearedFields[lostfounditem.FieldDisposalReason]
+	return ok
+}
+
+// ResetDisposalReason resets all changes to the "disposal_reason" field.
+func (m *LostFoundItemMutation) ResetDisposalReason() {
+	m.disposal_reason = nil
+	delete(m.clearedFields, lostfounditem.FieldDisposalReason)
+}
+
+// SetDisposedAt sets the "disposed_at" field.
+func (m *LostFoundItemMutation) SetDisposedAt(t time.Time) {
+	m.disposed_at = &t
+}
+
+// DisposedAt returns the value of the "disposed_at" field in the mutation.
+func (m *LostFoundItemMutation) DisposedAt() (r time.Time, exists bool) {
+	v := m.disposed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisposedAt returns the old "disposed_at" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldDisposedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisposedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisposedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisposedAt: %w", err)
+	}
+	return oldValue.DisposedAt, nil
+}
+
+// ClearDisposedAt clears the value of the "disposed_at" field.
+func (m *LostFoundItemMutation) ClearDisposedAt() {
+	m.disposed_at = nil
+	m.clearedFields[lostfounditem.FieldDisposedAt] = struct{}{}
+}
+
+// DisposedAtCleared returns if the "disposed_at" field was cleared in this mutation.
+func (m *LostFoundItemMutation) DisposedAtCleared() bool {
+	_, ok := m.clearedFields[lostfounditem.FieldDisposedAt]
+	return ok
+}
+
+// ResetDisposedAt resets all changes to the "disposed_at" field.
+func (m *LostFoundItemMutation) ResetDisposedAt() {
+	m.disposed_at = nil
+	delete(m.clearedFields, lostfounditem.FieldDisposedAt)
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *LostFoundItemMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *LostFoundItemMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *LostFoundItemMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *LostFoundItemMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *LostFoundItemMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *LostFoundItemMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *LostFoundItemMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *LostFoundItemMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the LostFoundItem entity.
+// If the LostFoundItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LostFoundItemMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *LostFoundItemMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the LostFoundItemMutation builder.
+func (m *LostFoundItemMutation) Where(ps ...predicate.LostFoundItem) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LostFoundItemMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LostFoundItemMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LostFoundItem, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LostFoundItemMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LostFoundItemMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LostFoundItem).
+func (m *LostFoundItemMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LostFoundItemMutation) Fields() []string {
+	fields := make([]string, 0, 23)
+	if m.tenant_id != nil {
+		fields = append(fields, lostfounditem.FieldTenantID)
+	}
+	if m.outlet_id != nil {
+		fields = append(fields, lostfounditem.FieldOutletID)
+	}
+	if m.room_id != nil {
+		fields = append(fields, lostfounditem.FieldRoomID)
+	}
+	if m.room_guest_id != nil {
+		fields = append(fields, lostfounditem.FieldRoomGuestID)
+	}
+	if m.description != nil {
+		fields = append(fields, lostfounditem.FieldDescription)
+	}
+	if m.category != nil {
+		fields = append(fields, lostfounditem.FieldCategory)
+	}
+	if m.location_found != nil {
+		fields = append(fields, lostfounditem.FieldLocationFound)
+	}
+	if m.storage_location != nil {
+		fields = append(fields, lostfounditem.FieldStorageLocation)
+	}
+	if m.photo_urls != nil {
+		fields = append(fields, lostfounditem.FieldPhotoUrls)
+	}
+	if m.status != nil {
+		fields = append(fields, lostfounditem.FieldStatus)
+	}
+	if m.found_by != nil {
+		fields = append(fields, lostfounditem.FieldFoundBy)
+	}
+	if m.found_at != nil {
+		fields = append(fields, lostfounditem.FieldFoundAt)
+	}
+	if m.guest_name != nil {
+		fields = append(fields, lostfounditem.FieldGuestName)
+	}
+	if m.guest_phone != nil {
+		fields = append(fields, lostfounditem.FieldGuestPhone)
+	}
+	if m.guest_email != nil {
+		fields = append(fields, lostfounditem.FieldGuestEmail)
+	}
+	if m.claimed_by_name != nil {
+		fields = append(fields, lostfounditem.FieldClaimedByName)
+	}
+	if m.claimed_notes != nil {
+		fields = append(fields, lostfounditem.FieldClaimedNotes)
+	}
+	if m.claimed_at != nil {
+		fields = append(fields, lostfounditem.FieldClaimedAt)
+	}
+	if m.disposal_reason != nil {
+		fields = append(fields, lostfounditem.FieldDisposalReason)
+	}
+	if m.disposed_at != nil {
+		fields = append(fields, lostfounditem.FieldDisposedAt)
+	}
+	if m.metadata != nil {
+		fields = append(fields, lostfounditem.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, lostfounditem.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, lostfounditem.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LostFoundItemMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case lostfounditem.FieldTenantID:
+		return m.TenantID()
+	case lostfounditem.FieldOutletID:
+		return m.OutletID()
+	case lostfounditem.FieldRoomID:
+		return m.RoomID()
+	case lostfounditem.FieldRoomGuestID:
+		return m.RoomGuestID()
+	case lostfounditem.FieldDescription:
+		return m.Description()
+	case lostfounditem.FieldCategory:
+		return m.Category()
+	case lostfounditem.FieldLocationFound:
+		return m.LocationFound()
+	case lostfounditem.FieldStorageLocation:
+		return m.StorageLocation()
+	case lostfounditem.FieldPhotoUrls:
+		return m.PhotoUrls()
+	case lostfounditem.FieldStatus:
+		return m.Status()
+	case lostfounditem.FieldFoundBy:
+		return m.FoundBy()
+	case lostfounditem.FieldFoundAt:
+		return m.FoundAt()
+	case lostfounditem.FieldGuestName:
+		return m.GuestName()
+	case lostfounditem.FieldGuestPhone:
+		return m.GuestPhone()
+	case lostfounditem.FieldGuestEmail:
+		return m.GuestEmail()
+	case lostfounditem.FieldClaimedByName:
+		return m.ClaimedByName()
+	case lostfounditem.FieldClaimedNotes:
+		return m.ClaimedNotes()
+	case lostfounditem.FieldClaimedAt:
+		return m.ClaimedAt()
+	case lostfounditem.FieldDisposalReason:
+		return m.DisposalReason()
+	case lostfounditem.FieldDisposedAt:
+		return m.DisposedAt()
+	case lostfounditem.FieldMetadata:
+		return m.Metadata()
+	case lostfounditem.FieldCreatedAt:
+		return m.CreatedAt()
+	case lostfounditem.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LostFoundItemMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case lostfounditem.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case lostfounditem.FieldOutletID:
+		return m.OldOutletID(ctx)
+	case lostfounditem.FieldRoomID:
+		return m.OldRoomID(ctx)
+	case lostfounditem.FieldRoomGuestID:
+		return m.OldRoomGuestID(ctx)
+	case lostfounditem.FieldDescription:
+		return m.OldDescription(ctx)
+	case lostfounditem.FieldCategory:
+		return m.OldCategory(ctx)
+	case lostfounditem.FieldLocationFound:
+		return m.OldLocationFound(ctx)
+	case lostfounditem.FieldStorageLocation:
+		return m.OldStorageLocation(ctx)
+	case lostfounditem.FieldPhotoUrls:
+		return m.OldPhotoUrls(ctx)
+	case lostfounditem.FieldStatus:
+		return m.OldStatus(ctx)
+	case lostfounditem.FieldFoundBy:
+		return m.OldFoundBy(ctx)
+	case lostfounditem.FieldFoundAt:
+		return m.OldFoundAt(ctx)
+	case lostfounditem.FieldGuestName:
+		return m.OldGuestName(ctx)
+	case lostfounditem.FieldGuestPhone:
+		return m.OldGuestPhone(ctx)
+	case lostfounditem.FieldGuestEmail:
+		return m.OldGuestEmail(ctx)
+	case lostfounditem.FieldClaimedByName:
+		return m.OldClaimedByName(ctx)
+	case lostfounditem.FieldClaimedNotes:
+		return m.OldClaimedNotes(ctx)
+	case lostfounditem.FieldClaimedAt:
+		return m.OldClaimedAt(ctx)
+	case lostfounditem.FieldDisposalReason:
+		return m.OldDisposalReason(ctx)
+	case lostfounditem.FieldDisposedAt:
+		return m.OldDisposedAt(ctx)
+	case lostfounditem.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case lostfounditem.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case lostfounditem.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown LostFoundItem field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LostFoundItemMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case lostfounditem.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case lostfounditem.FieldOutletID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutletID(v)
+		return nil
+	case lostfounditem.FieldRoomID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoomID(v)
+		return nil
+	case lostfounditem.FieldRoomGuestID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoomGuestID(v)
+		return nil
+	case lostfounditem.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case lostfounditem.FieldCategory:
+		v, ok := value.(lostfounditem.Category)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCategory(v)
+		return nil
+	case lostfounditem.FieldLocationFound:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLocationFound(v)
+		return nil
+	case lostfounditem.FieldStorageLocation:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStorageLocation(v)
+		return nil
+	case lostfounditem.FieldPhotoUrls:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPhotoUrls(v)
+		return nil
+	case lostfounditem.FieldStatus:
+		v, ok := value.(lostfounditem.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case lostfounditem.FieldFoundBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFoundBy(v)
+		return nil
+	case lostfounditem.FieldFoundAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFoundAt(v)
+		return nil
+	case lostfounditem.FieldGuestName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGuestName(v)
+		return nil
+	case lostfounditem.FieldGuestPhone:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGuestPhone(v)
+		return nil
+	case lostfounditem.FieldGuestEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGuestEmail(v)
+		return nil
+	case lostfounditem.FieldClaimedByName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClaimedByName(v)
+		return nil
+	case lostfounditem.FieldClaimedNotes:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClaimedNotes(v)
+		return nil
+	case lostfounditem.FieldClaimedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClaimedAt(v)
+		return nil
+	case lostfounditem.FieldDisposalReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisposalReason(v)
+		return nil
+	case lostfounditem.FieldDisposedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisposedAt(v)
+		return nil
+	case lostfounditem.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case lostfounditem.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case lostfounditem.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LostFoundItem field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LostFoundItemMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LostFoundItemMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LostFoundItemMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown LostFoundItem numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LostFoundItemMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(lostfounditem.FieldRoomID) {
+		fields = append(fields, lostfounditem.FieldRoomID)
+	}
+	if m.FieldCleared(lostfounditem.FieldRoomGuestID) {
+		fields = append(fields, lostfounditem.FieldRoomGuestID)
+	}
+	if m.FieldCleared(lostfounditem.FieldLocationFound) {
+		fields = append(fields, lostfounditem.FieldLocationFound)
+	}
+	if m.FieldCleared(lostfounditem.FieldStorageLocation) {
+		fields = append(fields, lostfounditem.FieldStorageLocation)
+	}
+	if m.FieldCleared(lostfounditem.FieldPhotoUrls) {
+		fields = append(fields, lostfounditem.FieldPhotoUrls)
+	}
+	if m.FieldCleared(lostfounditem.FieldGuestName) {
+		fields = append(fields, lostfounditem.FieldGuestName)
+	}
+	if m.FieldCleared(lostfounditem.FieldGuestPhone) {
+		fields = append(fields, lostfounditem.FieldGuestPhone)
+	}
+	if m.FieldCleared(lostfounditem.FieldGuestEmail) {
+		fields = append(fields, lostfounditem.FieldGuestEmail)
+	}
+	if m.FieldCleared(lostfounditem.FieldClaimedByName) {
+		fields = append(fields, lostfounditem.FieldClaimedByName)
+	}
+	if m.FieldCleared(lostfounditem.FieldClaimedNotes) {
+		fields = append(fields, lostfounditem.FieldClaimedNotes)
+	}
+	if m.FieldCleared(lostfounditem.FieldClaimedAt) {
+		fields = append(fields, lostfounditem.FieldClaimedAt)
+	}
+	if m.FieldCleared(lostfounditem.FieldDisposalReason) {
+		fields = append(fields, lostfounditem.FieldDisposalReason)
+	}
+	if m.FieldCleared(lostfounditem.FieldDisposedAt) {
+		fields = append(fields, lostfounditem.FieldDisposedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LostFoundItemMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LostFoundItemMutation) ClearField(name string) error {
+	switch name {
+	case lostfounditem.FieldRoomID:
+		m.ClearRoomID()
+		return nil
+	case lostfounditem.FieldRoomGuestID:
+		m.ClearRoomGuestID()
+		return nil
+	case lostfounditem.FieldLocationFound:
+		m.ClearLocationFound()
+		return nil
+	case lostfounditem.FieldStorageLocation:
+		m.ClearStorageLocation()
+		return nil
+	case lostfounditem.FieldPhotoUrls:
+		m.ClearPhotoUrls()
+		return nil
+	case lostfounditem.FieldGuestName:
+		m.ClearGuestName()
+		return nil
+	case lostfounditem.FieldGuestPhone:
+		m.ClearGuestPhone()
+		return nil
+	case lostfounditem.FieldGuestEmail:
+		m.ClearGuestEmail()
+		return nil
+	case lostfounditem.FieldClaimedByName:
+		m.ClearClaimedByName()
+		return nil
+	case lostfounditem.FieldClaimedNotes:
+		m.ClearClaimedNotes()
+		return nil
+	case lostfounditem.FieldClaimedAt:
+		m.ClearClaimedAt()
+		return nil
+	case lostfounditem.FieldDisposalReason:
+		m.ClearDisposalReason()
+		return nil
+	case lostfounditem.FieldDisposedAt:
+		m.ClearDisposedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LostFoundItem nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LostFoundItemMutation) ResetField(name string) error {
+	switch name {
+	case lostfounditem.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case lostfounditem.FieldOutletID:
+		m.ResetOutletID()
+		return nil
+	case lostfounditem.FieldRoomID:
+		m.ResetRoomID()
+		return nil
+	case lostfounditem.FieldRoomGuestID:
+		m.ResetRoomGuestID()
+		return nil
+	case lostfounditem.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case lostfounditem.FieldCategory:
+		m.ResetCategory()
+		return nil
+	case lostfounditem.FieldLocationFound:
+		m.ResetLocationFound()
+		return nil
+	case lostfounditem.FieldStorageLocation:
+		m.ResetStorageLocation()
+		return nil
+	case lostfounditem.FieldPhotoUrls:
+		m.ResetPhotoUrls()
+		return nil
+	case lostfounditem.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case lostfounditem.FieldFoundBy:
+		m.ResetFoundBy()
+		return nil
+	case lostfounditem.FieldFoundAt:
+		m.ResetFoundAt()
+		return nil
+	case lostfounditem.FieldGuestName:
+		m.ResetGuestName()
+		return nil
+	case lostfounditem.FieldGuestPhone:
+		m.ResetGuestPhone()
+		return nil
+	case lostfounditem.FieldGuestEmail:
+		m.ResetGuestEmail()
+		return nil
+	case lostfounditem.FieldClaimedByName:
+		m.ResetClaimedByName()
+		return nil
+	case lostfounditem.FieldClaimedNotes:
+		m.ResetClaimedNotes()
+		return nil
+	case lostfounditem.FieldClaimedAt:
+		m.ResetClaimedAt()
+		return nil
+	case lostfounditem.FieldDisposalReason:
+		m.ResetDisposalReason()
+		return nil
+	case lostfounditem.FieldDisposedAt:
+		m.ResetDisposedAt()
+		return nil
+	case lostfounditem.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case lostfounditem.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case lostfounditem.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LostFoundItem field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LostFoundItemMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LostFoundItemMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LostFoundItemMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LostFoundItemMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LostFoundItemMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LostFoundItemMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LostFoundItemMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LostFoundItem unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LostFoundItemMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LostFoundItem edge %s", name)
 }
 
 // LoyaltyAccountMutation represents an operation that mutates the LoyaltyAccount nodes in the graph.

@@ -1196,6 +1196,10 @@ type bookingPolicyInput struct {
 	// PaymentTiming controls when the room charge is taken: settle_at_checkout | pay_upfront |
 	// per_day_split. Folio extras are ALWAYS settled at checkout regardless.
 	PaymentTiming *string `json:"payment_timing"`
+	// CheckInTime/CheckOutTime (HH:MM, 24h) drive the check-in form's departure auto-fill —
+	// see bookingPolicy's doc comment in roombooking.go.
+	CheckInTime  *string `json:"checkin_time"`
+	CheckOutTime *string `json:"checkout_time"`
 }
 
 func defaultPolicyMap() map[string]any {
@@ -1207,6 +1211,8 @@ func defaultPolicyMap() map[string]any {
 		"currency":                    "KES",
 		// Default to the long-standing behaviour: room is settled together with extras at checkout.
 		"payment_timing": "settle_at_checkout",
+		"checkin_time":   "14:00",
+		"checkout_time":  "10:00",
 	}
 }
 
@@ -1294,6 +1300,16 @@ func (h *ServiceSettingsHandler) PatchBookingPolicy(w http.ResponseWriter, r *ht
 		switch *in.PaymentTiming {
 		case "settle_at_checkout", "pay_upfront", "per_day_split":
 			policy["payment_timing"] = *in.PaymentTiming
+		}
+	}
+	if in.CheckInTime != nil {
+		if _, terr := time.Parse("15:04", *in.CheckInTime); terr == nil {
+			policy["checkin_time"] = *in.CheckInTime
+		}
+	}
+	if in.CheckOutTime != nil {
+		if _, terr := time.Parse("15:04", *in.CheckOutTime); terr == nil {
+			policy["checkout_time"] = *in.CheckOutTime
 		}
 	}
 	meta["booking_policy"] = policy

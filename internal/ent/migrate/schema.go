@@ -1078,6 +1078,56 @@ var (
 		Columns:    LicenseUsageSnapshotsColumns,
 		PrimaryKey: []*schema.Column{LicenseUsageSnapshotsColumns[0]},
 	}
+	// LostFoundItemsColumns holds the columns for the "lost_found_items" table.
+	LostFoundItemsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "outlet_id", Type: field.TypeUUID},
+		{Name: "room_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "room_guest_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "description", Type: field.TypeString},
+		{Name: "category", Type: field.TypeEnum, Enums: []string{"electronics", "clothing", "jewelry", "documents", "toiletries", "luggage", "other"}, Default: "other"},
+		{Name: "location_found", Type: field.TypeString, Nullable: true},
+		{Name: "storage_location", Type: field.TypeString, Nullable: true},
+		{Name: "photo_urls", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"stored", "claimed", "disposed", "donated"}, Default: "stored"},
+		{Name: "found_by", Type: field.TypeUUID},
+		{Name: "found_at", Type: field.TypeTime},
+		{Name: "guest_name", Type: field.TypeString, Nullable: true},
+		{Name: "guest_phone", Type: field.TypeString, Nullable: true},
+		{Name: "guest_email", Type: field.TypeString, Nullable: true},
+		{Name: "claimed_by_name", Type: field.TypeString, Nullable: true},
+		{Name: "claimed_notes", Type: field.TypeString, Nullable: true},
+		{Name: "claimed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "disposal_reason", Type: field.TypeString, Nullable: true},
+		{Name: "disposed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// LostFoundItemsTable holds the schema information for the "lost_found_items" table.
+	LostFoundItemsTable = &schema.Table{
+		Name:       "lost_found_items",
+		Columns:    LostFoundItemsColumns,
+		PrimaryKey: []*schema.Column{LostFoundItemsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "lostfounditem_tenant_id_outlet_id",
+				Unique:  false,
+				Columns: []*schema.Column{LostFoundItemsColumns[1], LostFoundItemsColumns[2]},
+			},
+			{
+				Name:    "lostfounditem_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{LostFoundItemsColumns[1], LostFoundItemsColumns[10]},
+			},
+			{
+				Name:    "lostfounditem_tenant_id_room_id",
+				Unique:  false,
+				Columns: []*schema.Column{LostFoundItemsColumns[1], LostFoundItemsColumns[3]},
+			},
+		},
+	}
 	// LoyaltyAccountsColumns holds the columns for the "loyalty_accounts" table.
 	LoyaltyAccountsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -4084,6 +4134,7 @@ var (
 		LayawayPlansTable,
 		LeaveRequestsTable,
 		LicenseUsageSnapshotsTable,
+		LostFoundItemsTable,
 		LoyaltyAccountsTable,
 		LoyaltyProgramsTable,
 		LoyaltyTransactionsTable,

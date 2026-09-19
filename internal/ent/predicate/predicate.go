@@ -111,6 +111,9 @@ type LeaveRequest func(*sql.Selector)
 // LicenseUsageSnapshot is the predicate function for licenseusagesnapshot builders.
 type LicenseUsageSnapshot func(*sql.Selector)
 
+// LostFoundItem is the predicate function for lostfounditem builders.
+type LostFoundItem func(*sql.Selector)
+
 // LoyaltyAccount is the predicate function for loyaltyaccount builders.
 type LoyaltyAccount func(*sql.Selector)
 

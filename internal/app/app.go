@@ -82,6 +82,8 @@ type App struct {
 	layawayReminderScheduler       *scheduler.LayawayReminderScheduler
 	arDriftAuditScheduler          *paymentmodule.ARDriftAuditScheduler
 	creditSettlementSyncReconciler *paymentmodule.CreditSettlementSyncReconciler
+	roomNightlyBillingScheduler    *scheduler.RoomNightlyBillingScheduler
+	damageReportReminderScheduler  *scheduler.DamageReportReminderScheduler
 }
 
 // newReadOnlyEntClient opens a separate Ent client against cfg.ReadOnlyURL (a read replica, via
@@ -711,6 +713,13 @@ func New(ctx context.Context) (*App, error) {
 	if eventPub := orderSvc.GetPublisher(); eventPub != nil {
 		layawayReminder = scheduler.NewLayawayReminderScheduler(log, entClient, eventPub)
 	}
+	// Incremental per-night room billing for the per_day_split booking policy — see the
+	// scheduler's own doc comment for why CheckIn only posts the first night up front.
+	roomNightlyBilling := scheduler.NewRoomNightlyBillingScheduler(log, entClient)
+	var damageReportReminder *scheduler.DamageReportReminderScheduler
+	if eventPub := orderSvc.GetPublisher(); eventPub != nil {
+		damageReportReminder = scheduler.NewDamageReportReminderScheduler(log, entClient, eventPub)
+	}
 
 	// Wire publisher into KDS handler for waiter notification event publishing
 	if pub := orderSvc.GetPublisher(); pub != nil {
@@ -806,6 +815,8 @@ func New(ctx context.Context) (*App, error) {
 		layawayReminderScheduler:       layawayReminder,
 		arDriftAuditScheduler:          arDriftAudit,
 		creditSettlementSyncReconciler: creditSettlementSyncReconciler,
+		roomNightlyBillingScheduler:    roomNightlyBilling,
+		damageReportReminderScheduler:  damageReportReminder,
 	}, nil
 }
 
@@ -862,6 +873,16 @@ func (a *App) Run(ctx context.Context) error {
 	// Start fleet-wide POS-vs-treasury AR drift audit — see payments/ar_drift_audit.go
 	if a.arDriftAuditScheduler != nil {
 		go a.arDriftAuditScheduler.Start(ctx)
+	}
+
+	// Start incremental per-night room billing (per_day_split booking policy)
+	if a.roomNightlyBillingScheduler != nil {
+		go a.roomNightlyBillingScheduler.Start(ctx)
+	}
+
+	// Start damage-report review SLA reminders
+	if a.damageReportReminderScheduler != nil {
+		go a.damageReportReminderScheduler.Start(ctx)
 	}
 
 	a.log.Info("pos service starting", zap.String("addr", a.httpServer.Addr))

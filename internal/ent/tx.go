@@ -82,6 +82,8 @@ type Tx struct {
 	LeaveRequest *LeaveRequestClient
 	// LicenseUsageSnapshot is the client for interacting with the LicenseUsageSnapshot builders.
 	LicenseUsageSnapshot *LicenseUsageSnapshotClient
+	// LostFoundItem is the client for interacting with the LostFoundItem builders.
+	LostFoundItem *LostFoundItemClient
 	// LoyaltyAccount is the client for interacting with the LoyaltyAccount builders.
 	LoyaltyAccount *LoyaltyAccountClient
 	// LoyaltyProgram is the client for interacting with the LoyaltyProgram builders.
@@ -416,6 +418,7 @@ func (tx *Tx) init() {
 	tx.LayawayPlan = NewLayawayPlanClient(tx.config)
 	tx.LeaveRequest = NewLeaveRequestClient(tx.config)
 	tx.LicenseUsageSnapshot = NewLicenseUsageSnapshotClient(tx.config)
+	tx.LostFoundItem = NewLostFoundItemClient(tx.config)
 	tx.LoyaltyAccount = NewLoyaltyAccountClient(tx.config)
 	tx.LoyaltyProgram = NewLoyaltyProgramClient(tx.config)
 	tx.LoyaltyTransaction = NewLoyaltyTransactionClient(tx.config)

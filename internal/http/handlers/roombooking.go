@@ -30,10 +30,20 @@ type bookingPolicy struct {
 	// PaymentTiming: settle_at_checkout (default) | pay_upfront | per_day_split. Controls when the
 	// room charge is taken. Folio extras are always settled at checkout regardless of this value.
 	PaymentTiming string `json:"payment_timing"`
+	// CheckInTime/CheckOutTime (HH:MM, 24h) are the property's standard times — the check-in
+	// form uses CheckOutTime to auto-fill a guest's departure date/time from nights (departure
+	// date = arrival date + nights, at this time) instead of leaving staff to type a full
+	// departure datetime by hand. Not enforced as a hard cutoff — a stay past this time on the
+	// departure date is exactly what the existing Late Checkout approval flow is for.
+	CheckInTime  string `json:"checkin_time"`
+	CheckOutTime string `json:"checkout_time"`
 }
 
 func defaultBookingPolicy() bookingPolicy {
-	return bookingPolicy{FreeAmendmentWindowHours: 48, CancellationWindowHours: 72, Currency: "KES", PaymentTiming: "settle_at_checkout"}
+	return bookingPolicy{
+		FreeAmendmentWindowHours: 48, CancellationWindowHours: 72, Currency: "KES",
+		PaymentTiming: "settle_at_checkout", CheckInTime: "14:00", CheckOutTime: "10:00",
+	}
 }
 
 // resolveBookingPolicy reads the outlet's booking policy from OutletSetting.metadata,
@@ -92,11 +102,11 @@ type roomBookingInput struct {
 	RoomsCount                int       `json:"rooms_count"`
 	ArrivalDate               time.Time `json:"arrival_date"`
 	DepartureDate             time.Time `json:"departure_date"`
-	InventoryRatePlanBundleID string         `json:"inventory_rate_plan_bundle_id"`
-	MarketSegment             string         `json:"market_segment"`
-	Source                    string         `json:"source"`
-	CRMContactID              string         `json:"crm_contact_id"`
-	CreatedBy                 string         `json:"created_by"`
+	InventoryRatePlanBundleID string    `json:"inventory_rate_plan_bundle_id"`
+	MarketSegment             string    `json:"market_segment"`
+	Source                    string    `json:"source"`
+	CRMContactID              string    `json:"crm_contact_id"`
+	CreatedBy                 string    `json:"created_by"`
 	// Metadata carries flexible, non-relational booking details (booking_type,
 	// adults, children, notes, package_inclusions) — stored as-is on the booking.
 	Metadata map[string]any `json:"metadata"`

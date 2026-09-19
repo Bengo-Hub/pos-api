@@ -119,10 +119,15 @@ func (h *HotelHandler) GetRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The single guest edge here is the room's MOST RECENT stay regardless of status (ordered by
+	// check-in time), not just an active one — a checked-out room shows "cleaning"/"maintenance"
+	// with no active guest, but front desk/housekeeping still needs to see who was just there
+	// (for a damage report or lost-item claim raised right after checkout). The frontend decides
+	// "Current Guest" vs "Last Guest" framing from guest.status itself.
 	room, err := h.client.Room.Query().
 		Where(entroom.ID(roomID), entroom.TenantID(tid)).
 		WithGuests(func(q *ent.RoomGuestQuery) {
-			q.Where(entroomguest.StatusEQ(entroomguest.StatusActive)).Limit(1)
+			q.Order(ent.Desc(entroomguest.FieldCheckedInAt)).Limit(1)
 		}).
 		WithFolioItems().
 		Only(r.Context())
@@ -430,28 +435,27 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Post the room charge to folio. Under per_day_split policy this is itemized as one line
-	// per night rather than a single lump sum — note this still posts everything at check-in
-	// (there's no scheduled job to defer each night's posting to its actual date); the value is
-	// per-night visibility on the bill, not incremental daily collection.
+	// Post the room charge to folio. Under per_day_split policy only the FIRST night is posted
+	// here — scheduler.RoomNightlyBillingScheduler posts each subsequent night as it actually
+	// occurs, so the guest is only ever billed for nights genuinely stayed (an early checkout
+	// under this policy naturally owes less, matching real incremental billing rather than a
+	// per-night line-item label on one lump sum charged all at once).
 	if policy.PaymentTiming == "per_day_split" {
-		for night := 1; night <= input.Nights; night++ {
-			_, err = tx.RoomFolioItem.Create().
-				SetTenantID(tid).
-				SetRoomID(roomID).
-				SetRoomGuestID(guest.ID).
-				SetDescription(fmt.Sprintf("Room charge — Night %d of %d", night, input.Nights)).
-				SetAmount(nightlyRate).
-				SetCurrency(room.Currency).
-				SetChargeType(entroomfolioitem.ChargeTypeRoomCharge).
-				SetCreatedBy(checkedInBy).
-				Save(r.Context())
-			if err != nil {
-				_ = tx.Rollback()
-				h.log.Error("create nightly folio item failed", zap.Error(err))
-				jsonError(w, "failed to post room charge", http.StatusInternalServerError)
-				return
-			}
+		_, err = tx.RoomFolioItem.Create().
+			SetTenantID(tid).
+			SetRoomID(roomID).
+			SetRoomGuestID(guest.ID).
+			SetDescription(fmt.Sprintf("Room charge — Night 1 of %d", input.Nights)).
+			SetAmount(nightlyRate).
+			SetCurrency(room.Currency).
+			SetChargeType(entroomfolioitem.ChargeTypeRoomCharge).
+			SetCreatedBy(checkedInBy).
+			Save(r.Context())
+		if err != nil {
+			_ = tx.Rollback()
+			h.log.Error("create first-night folio item failed", zap.Error(err))
+			jsonError(w, "failed to post room charge", http.StatusInternalServerError)
+			return
 		}
 	} else {
 		_, err = tx.RoomFolioItem.Create().

@@ -429,6 +429,18 @@ func (f LicenseUsageSnapshotFunc) Mutate(ctx context.Context, m ent.Mutation) (e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LicenseUsageSnapshotMutation", m)
 }
 
+// The LostFoundItemFunc type is an adapter to allow the use of ordinary
+// function as LostFoundItem mutator.
+type LostFoundItemFunc func(context.Context, *ent.LostFoundItemMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LostFoundItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LostFoundItemMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LostFoundItemMutation", m)
+}
+
 // The LoyaltyAccountFunc type is an adapter to allow the use of ordinary
 // function as LoyaltyAccount mutator.
 type LoyaltyAccountFunc func(context.Context, *ent.LoyaltyAccountMutation) (ent.Value, error)

@@ -1346,6 +1346,14 @@ func New(
 							g.With(hotelManage).Post("/damage-reports/{id}/approve", hotel.ApproveDamageReport)
 							g.With(hotelManage).Post("/damage-reports/{id}/reject", hotel.RejectDamageReport)
 							g.With(hotelChange).Post("/damage-evidence/upload", hotel.UploadDamageEvidence)
+							// Lost & found: log an item (with optional photos), claim it back to its
+							// owner, or dispose/donate it once unclaimed for good.
+							g.With(hotelChange).Post("/lost-found", hotel.CreateLostFoundItem)
+							g.Get("/lost-found", hotel.ListLostFoundItems)
+							g.Get("/lost-found/{id}", hotel.GetLostFoundItem)
+							g.With(hotelChange).Post("/lost-found/{id}/claim", hotel.ClaimLostFoundItem)
+							g.With(hotelManage).Post("/lost-found/{id}/dispose", hotel.DisposeLostFoundItem)
+							g.With(hotelChange).Post("/lost-found/upload", hotel.UploadLostFoundPhoto)
 						})
 
 						// ── Bookable spaces: co-working desks, conference/meeting rooms — sell +
