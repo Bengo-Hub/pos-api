@@ -21,21 +21,21 @@ type chargeTypeRevenue struct {
 
 // hotelOccupancyResult is the response body for GET /reports/hotel-occupancy.
 type hotelOccupancyResult struct {
-	From                string              `json:"from"`
-	To                  string              `json:"to"`
-	TotalRooms          int                 `json:"total_rooms"`
-	AvailableRoomNights float64             `json:"available_room_nights"`
-	OccupiedRoomNights  float64             `json:"occupied_room_nights"`
-	OccupancyRate       float64             `json:"occupancy_rate"` // 0..1
-	RoomRevenue         float64             `json:"room_revenue"`
-	AncillaryRevenue    float64             `json:"ancillary_revenue"`
-	TotalRevenue        float64             `json:"total_revenue"`
+	From                string  `json:"from"`
+	To                  string  `json:"to"`
+	TotalRooms          int     `json:"total_rooms"`
+	AvailableRoomNights float64 `json:"available_room_nights"`
+	OccupiedRoomNights  float64 `json:"occupied_room_nights"`
+	OccupancyRate       float64 `json:"occupancy_rate"` // 0..1
+	RoomRevenue         float64 `json:"room_revenue"`
+	AncillaryRevenue    float64 `json:"ancillary_revenue"`
+	TotalRevenue        float64 `json:"total_revenue"`
 	// ADR (Average Daily Rate) = room revenue / occupied room-nights. RevPAR (Revenue Per
 	// Available Room) = room revenue / available room-nights (equivalently occupancy_rate * ADR).
 	// Both standard hospitality KPIs — see https://en.wikipedia.org/wiki/RevPAR.
-	ADR              float64             `json:"adr"`
-	RevPAR           float64             `json:"revpar"`
-	RevenueByCharge  []chargeTypeRevenue `json:"revenue_by_charge_type"`
+	ADR             float64             `json:"adr"`
+	RevPAR          float64             `json:"revpar"`
+	RevenueByCharge []chargeTypeRevenue `json:"revenue_by_charge_type"`
 }
 
 // HotelOccupancyReport handles GET /{tenantID}/pos/reports/hotel-occupancy — occupancy %, ADR,
@@ -47,9 +47,12 @@ type hotelOccupancyResult struct {
 // RequireFeature(FeatureHotelModule) — see router.go's /hotel group), so this only ever runs for
 // tenants actually entitled to and running the hotel module.
 //
-// Occupied room-nights are computed by overlapping each RoomGuest stay ([check_in_date,
-// checked_out_at-or-check_out_date)) with the requested window, clipped to the window's bounds —
-// a stay spanning the window boundary contributes only the nights that actually fall inside it.
+// Occupied room-nights are computed by overlapping each RoomGuest stay's calendar nights
+// ([check_in_date, checked_out_at-or-check_out_date), truncated to whole days) with the
+// requested window (also truncated to whole days, inclusive of the window's own end date) —
+// a stay spanning the window boundary contributes only the nights that actually fall inside it,
+// and a guest still checked in as of the window's end date always counts as occupying that
+// final night in full, regardless of what time of day the report happens to run.
 // Revenue is recognized by RoomFolioItem.created_at falling inside the window (the same folio
 // items GL posting will eventually itemize by charge_type — see
 // D:\Projects\Codevertex\.claude\plans\boi-multi-use-case-subscription-and-hospitality-audit-2026-08-18.md).
@@ -83,7 +86,18 @@ func (h *ReportsHandler) HotelOccupancyReport(w http.ResponseWriter, r *http.Req
 		roomIDs[i] = rm.ID
 	}
 
-	periodDays := to.Sub(from).Hours() / 24
+	// Room-nights are whole calendar nights, never a fraction of one -- mirrors how "nights" is
+	// computed everywhere else in the hotel module (the folio's Nights field, the frontend's
+	// calendarDaysBetween, RoomNightlyBillingScheduler's elapsedDays+1). Using raw wall-clock
+	// hours/24 here previously counted a guest who checked in minutes ago as ~0.002 "nights"
+	// occupied even though a full night's charge had already posted -- with real folio revenue
+	// on top, ADR (= room_revenue / occupied_room_nights) could explode into the millions. The
+	// window is clamped to day boundaries (windowEnd includes the report's own "to" date in full,
+	// i.e. "through tonight") so a guest who is still in-house as of the report's end date always
+	// counts as occupying tonight's room-night, regardless of what hour "now" happens to be.
+	windowStart := startOfDayIn(from, loc)
+	windowEnd := startOfDayIn(to, loc).AddDate(0, 0, 1)
+	periodDays := windowEnd.Sub(windowStart).Hours() / 24
 	availableRoomNights := float64(totalRooms) * periodDays
 
 	var occupiedRoomNights float64
@@ -92,7 +106,7 @@ func (h *ReportsHandler) HotelOccupancyReport(w http.ResponseWriter, r *http.Req
 			Where(
 				entroomguest.TenantID(tid),
 				entroomguest.RoomIDIn(roomIDs...),
-				entroomguest.CheckInDateLT(to),
+				entroomguest.CheckInDateLT(windowEnd),
 			).
 			All(r.Context())
 		if gerr != nil {
@@ -101,16 +115,26 @@ func (h *ReportsHandler) HotelOccupancyReport(w http.ResponseWriter, r *http.Req
 			return
 		}
 		for _, g := range guests {
-			stayEnd := g.CheckOutDate
+			ciDate := startOfDayIn(g.CheckInDate, loc)
+			var coDate time.Time
 			if g.Status == entroomguest.StatusCheckedOut && g.CheckedOutAt != nil {
-				stayEnd = *g.CheckedOutAt
+				// The departure calendar day itself is excluded -- the guest didn't sleep
+				// there that night, same convention as the checkout nights calculation.
+				coDate = startOfDayIn(*g.CheckedOutAt, loc)
+			} else {
+				// Still in-house: sold through tonight even if the scheduled departure date
+				// is further out, but never past the scheduled checkout.
+				coDate = startOfDayIn(g.CheckOutDate, loc)
+				if coDate.After(windowEnd) {
+					coDate = windowEnd
+				}
 			}
-			start, end := g.CheckInDate, stayEnd
-			if start.Before(from) {
-				start = from
+			start, end := ciDate, coDate
+			if start.Before(windowStart) {
+				start = windowStart
 			}
-			if end.After(to) {
-				end = to
+			if end.After(windowEnd) {
+				end = windowEnd
 			}
 			if end.After(start) {
 				occupiedRoomNights += end.Sub(start).Hours() / 24
