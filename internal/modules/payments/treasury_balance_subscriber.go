@@ -11,7 +11,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/clientrecord"
 	"github.com/bengobox/pos-service/internal/ent/customerbalancecache"
+	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	"github.com/bengobox/pos-service/internal/modules/notifications"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
@@ -209,4 +211,99 @@ func currencyOrDefault(c string) string {
 		return "KES"
 	}
 	return c
+}
+
+// customerDeletedEvent is the wire shape of treasury.customer.deleted (arpa.DeleteCustomerBalance's
+// PublishBalanceEvent call — same envelope shape as balanceUpdatedEvent above).
+type customerDeletedEvent struct {
+	TenantID string         `json:"tenant_id"`
+	Payload  map[string]any `json:"payload"`
+}
+
+// subscribeCustomerDeleted cleans up POS's OWN crm_contact_id-keyed footprint — LoyaltyAccount,
+// CustomerBalanceCache, ClientRecord — once treasury-api has hard-deleted a customer (the
+// "delete a customer" Clients-page action; see arpa.DeleteCustomerBalance's doc comment for why
+// treasury only fires this once the customer's balance is confirmed zero). Without this, deleting
+// a customer in treasury silently left three stale POS rows behind — a loyalty account still
+// showing points for someone the platform no longer considers a customer, a stale credit-cache
+// entry, and an orphaned stylist-notes record — exactly the kind of cross-service leftover the
+// original "hard delete" request was asking to close. Matched by crm_contact_id when the event
+// carries one, else by customer_identifier/phone (mirrors subscribeCustomerBalanceUpdated's own
+// dual-key matching) — best-effort throughout: this is cleanup of secondary, non-financial local
+// caches, never something that should block or retry-storm the delete itself.
+func (s *TreasurySubscriber) subscribeCustomerDeleted(js nats.JetStreamContext) error {
+	sharedevents.SubscribeQueueWithRebind(s.log, js, "treasury", "treasury.customer.deleted", "pos-treasury-customer-deleted", func(msg *nats.Msg) {
+		defer func() { _ = msg.Ack() }()
+
+		var evt customerDeletedEvent
+		if err := json.Unmarshal(msg.Data, &evt); err != nil {
+			s.log.Error("treasury.customer.deleted: unmarshal", zap.Error(err))
+			return
+		}
+		tenantID, err := uuid.Parse(evt.TenantID)
+		if err != nil {
+			s.log.Warn("treasury.customer.deleted: invalid tenant id", zap.String("tenant_id", evt.TenantID))
+			return
+		}
+		crmContactStr, _ := evt.Payload["crm_contact_id"].(string)
+		identifier, _ := evt.Payload["customer_identifier"].(string)
+		var crmContactID *uuid.UUID
+		if crmContactStr != "" {
+			if id, perr := uuid.Parse(crmContactStr); perr == nil {
+				crmContactID = &id
+			}
+		}
+		if crmContactID == nil && identifier == "" {
+			return // can't key the cleanup against anything
+		}
+
+		ctx := context.Background()
+
+		cbcQ := s.client.CustomerBalanceCache.Delete().Where(customerbalancecache.TenantID(tenantID))
+		if crmContactID != nil {
+			cbcQ = cbcQ.Where(customerbalancecache.CrmContactID(*crmContactID))
+		} else {
+			cbcQ = cbcQ.Where(customerbalancecache.CustomerIdentifier(identifier))
+		}
+		if n, derr := cbcQ.Exec(ctx); derr != nil {
+			s.log.Warn("treasury.customer.deleted: cache cleanup failed", zap.Error(derr))
+		} else if n > 0 {
+			s.log.Info("treasury.customer.deleted: cache row(s) removed", zap.Int("count", n))
+		}
+
+		if crmContactID != nil {
+			if n, derr := s.client.LoyaltyAccount.Delete().
+				Where(loyaltyaccount.TenantID(tenantID), loyaltyaccount.CrmContactID(*crmContactID)).
+				Exec(ctx); derr != nil {
+				s.log.Warn("treasury.customer.deleted: loyalty account cleanup failed", zap.Error(derr))
+			} else if n > 0 {
+				s.log.Info("treasury.customer.deleted: loyalty account(s) removed", zap.Int("count", n))
+			}
+
+			if n, derr := s.client.ClientRecord.Delete().
+				Where(clientrecord.TenantID(tenantID), clientrecord.CrmContactID(*crmContactID)).
+				Exec(ctx); derr != nil {
+				s.log.Warn("treasury.customer.deleted: client record cleanup failed", zap.Error(derr))
+			} else if n > 0 {
+				s.log.Info("treasury.customer.deleted: client record(s) removed", zap.Int("count", n))
+			}
+		} else if identifier != "" {
+			if n, derr := s.client.LoyaltyAccount.Delete().
+				Where(loyaltyaccount.TenantID(tenantID), loyaltyaccount.CustomerPhone(identifier)).
+				Exec(ctx); derr != nil {
+				s.log.Warn("treasury.customer.deleted: loyalty account cleanup failed", zap.Error(derr))
+			} else if n > 0 {
+				s.log.Info("treasury.customer.deleted: loyalty account(s) removed", zap.Int("count", n))
+			}
+
+			if n, derr := s.client.ClientRecord.Delete().
+				Where(clientrecord.TenantID(tenantID), clientrecord.Phone(identifier)).
+				Exec(ctx); derr != nil {
+				s.log.Warn("treasury.customer.deleted: client record cleanup failed", zap.Error(derr))
+			} else if n > 0 {
+				s.log.Info("treasury.customer.deleted: client record(s) removed", zap.Int("count", n))
+			}
+		}
+	}, nats.Durable("pos-treasury-customer-deleted"), nats.ManualAck())
+	return nil
 }
