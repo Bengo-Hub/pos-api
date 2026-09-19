@@ -483,6 +483,15 @@ type ApplyToDebtRequest struct {
 	Amount    float64 `json:"amount"`
 	Reference string  `json:"reference,omitempty"`
 	UserID    string  `json:"user_id,omitempty"`
+	// CustomerIdentifier is an OPTIONAL fallback key sent ALONGSIDE the URL's contactIDOrIdentifier
+	// — set this to the customer's phone whenever contactIDOrIdentifier is a resolved CRM contact
+	// UUID, so treasury can find the customer's balance via EITHER key. Same fallback ARPaymentRequest
+	// carries (see its own doc comment / creditSettlementKey) — a customer's first credit-sale
+	// invoice can post phone-only (no CRM contact resolved yet), and a CRM contact linked for that
+	// phone LATER means this offset's own resolved crm_contact_id can be one that balance row never
+	// had. Without it, the offset fails outright with "no accounts-receivable balance found" even
+	// though the correct balance genuinely exists.
+	CustomerIdentifier string `json:"customer_identifier,omitempty"`
 }
 
 // ApplyToDebtResponse is the updated treasury customer-balance row.

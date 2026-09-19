@@ -701,11 +701,18 @@ func (s *Service) recordCreditSale(ctx context.Context, order *ent.POSOrder, req
 		available, _ := strconv.ParseFloat(creditResp.StoreCreditBalance, 64)
 		offset := math.Min(available, req.Amount)
 		if offset > 0.005 {
+			// identifierFallback mirrors creditSettlementKey (credit_settlement.go): only send the
+			// phone alongside a resolved crm_contact_id, never when key already IS the phone/staff
+			// fallback — a customer's first credit sale can post phone-only before a CRM contact
+			// gets linked later, so a crm-only lookup here can miss that same balance row exactly
+			// like the settle-credit path did (boi-enterprises, KELVIN PORT, 2026-09-14).
 			key := crmContactID
+			identifierFallback := phone
 			if key == "" {
 				key = phone
+				identifierFallback = ""
 			}
-			s.dispatchStoreCreditOffset(order.ID, req.TenantSlug, key, offset, order.OrderNumber, order.UserID)
+			s.dispatchStoreCreditOffset(order.ID, req.TenantSlug, key, identifierFallback, offset, order.OrderNumber, order.UserID)
 		}
 	}
 
@@ -1187,7 +1194,11 @@ func (s *Service) dispatchTreasuryIntent(paymentID uuid.UUID, tenantSlug string,
 // dispatchStoreCreditOffset nets a customer's existing store credit into a fresh credit-sale debt
 // OFF the payment-confirm request path — see the comment at its call site in recordCreditSale.
 // Follows the same detached-context/panic-recovery idiom as dispatchPostFinalize.
-func (s *Service) dispatchStoreCreditOffset(orderID uuid.UUID, tenantSlug, key string, offset float64, reference string, userID uuid.UUID) {
+//
+// identifierFallback mirrors creditSettlementKey's own identifierFallback (credit_settlement.go):
+// only meaningful when key is itself a resolved crm_contact_id, never when key already IS the
+// phone/"staff:" fallback — see the call site.
+func (s *Service) dispatchStoreCreditOffset(orderID uuid.UUID, tenantSlug, key, identifierFallback string, offset float64, reference string, userID uuid.UUID) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -1197,7 +1208,7 @@ func (s *Service) dispatchStoreCreditOffset(orderID uuid.UUID, tenantSlug, key s
 		}()
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		s.runStoreCreditOffset(ctx, orderID, tenantSlug, key, offset, reference, userID)
+		s.runStoreCreditOffset(ctx, orderID, tenantSlug, key, identifierFallback, offset, reference, userID)
 	}()
 }
 
@@ -1206,14 +1217,15 @@ func (s *Service) dispatchStoreCreditOffset(orderID uuid.UUID, tenantSlug, key s
 // whatever the synchronous on-account stamp already wrote instead of clobbering it). Best-effort,
 // matching the original synchronous behavior: never fails an already-recorded sale — failures are
 // logged and simply leave the debt un-netted for a later manual reconcile.
-func (s *Service) runStoreCreditOffset(ctx context.Context, orderID uuid.UUID, tenantSlug, key string, offset float64, reference string, userID uuid.UUID) {
+func (s *Service) runStoreCreditOffset(ctx context.Context, orderID uuid.UUID, tenantSlug, key, identifierFallback string, offset float64, reference string, userID uuid.UUID) {
 	if s.treasuryClient == nil {
 		return
 	}
 	if _, err := s.treasuryClient.ApplyCustomerCreditToDebt(ctx, tenantSlug, key, treasury.ApplyToDebtRequest{
-		Amount:    offset,
-		Reference: reference,
-		UserID:    userID.String(),
+		Amount:             offset,
+		Reference:          reference,
+		UserID:             userID.String(),
+		CustomerIdentifier: identifierFallback,
 	}); err != nil {
 		s.log.Warn("payments: store-credit offset failed — debt left un-netted",
 			zap.Error(err), zap.String("order_id", orderID.String()))
