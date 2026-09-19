@@ -170,6 +170,17 @@ func TestCheckOut_ConcurrentRequests_OnlyOneSucceeds(t *testing.T) {
 			case http.StatusOK:
 				atomic.AddInt32(&successes, 1)
 			case http.StatusConflict:
+				// Lost the race at the final conditional status update (guest.Status flipped
+				// to checked_out by another request between this one's initial lookup and its
+				// own update attempt).
+				atomic.AddInt32(&conflicts, 1)
+			case http.StatusNotFound:
+				// Lost the race even earlier: CheckOut's initial "find active guest" lookup
+				// itself already sees no active guest, because a faster request's checkout had
+				// already fully committed by the time this one's read ran. Equally valid proof
+				// the race is closed -- which of the two failure modes a loser hits is a timing
+				// accident of goroutine/connection scheduling, not something either request
+				// controls.
 				atomic.AddInt32(&conflicts, 1)
 			default:
 				t.Errorf("unexpected status %d: %s", rec.Code, rec.Body.String())
@@ -280,5 +291,53 @@ func TestHousekeepingComplete_RoomStaysOutOfService_WhileASiblingTaskIsOpen(t *t
 	}
 	if reloaded.Status != entroom.StatusAvailable {
 		t.Fatalf("expected room to become available once every open task is completed, got %s", reloaded.Status)
+	}
+}
+
+// TestCheckIn_MissingPhone_ReturnsClearBadRequest guards the live-reported "failed to check in
+// guest" bug: RoomGuest.phone is NotEmpty at the schema level, but only id_number had an explicit
+// pre-check -- an empty phone (nothing in the UI blocked or marked it required) fell through to
+// ent's raw validator error and 500'd with no indication of which field was the problem. Now
+// guest_name and phone get the same clear-400 treatment id_number already had.
+func TestCheckIn_MissingPhone_ReturnsClearBadRequest(t *testing.T) {
+	h, client := newHotelTestHandler(t)
+	tid, outletID := uuid.New(), uuid.New()
+
+	room, err := client.Room.Create().
+		SetTenantID(tid).
+		SetOutletID(outletID).
+		SetRoomNumber("G4").
+		SetName("G4").
+		SetRatePerNight(800).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed room: %v", err)
+	}
+
+	req := hotelRoomRequest(t, http.MethodPost, tid, room.ID, map[string]any{
+		"guest_name": "Test Guest",
+		"phone":      "",
+		"id_number":  "ID-0001",
+		"nights":     1,
+	})
+	rec := httptest.NewRecorder()
+	h.CheckIn(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for a missing phone, got %d: %s", rec.Code, rec.Body.String())
+	}
+	reloaded, err := client.Room.Get(context.Background(), room.ID)
+	if err != nil {
+		t.Fatalf("reload room: %v", err)
+	}
+	if reloaded.Status != entroom.StatusAvailable {
+		t.Fatalf("expected room to remain available after a rejected check-in, got %s", reloaded.Status)
+	}
+	guestCount, err := client.RoomGuest.Query().Where(entroomguest.RoomID(room.ID)).Count(context.Background())
+	if err != nil {
+		t.Fatalf("count guests: %v", err)
+	}
+	if guestCount != 0 {
+		t.Fatalf("expected no guest row created for a rejected check-in, got %d", guestCount)
 	}
 }

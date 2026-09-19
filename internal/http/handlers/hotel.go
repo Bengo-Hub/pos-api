@@ -315,9 +315,20 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "nights must be at least 1", http.StatusBadRequest)
 		return
 	}
-	// Guest ID is required (RoomGuest.id_number is NotEmpty at the schema level). Validate
-	// here so a missing/blank ID returns a clear 400 instead of leaking the ent validator
-	// failure as a 500.
+	// guest_name, phone, and id_number are all NotEmpty at the schema level. Validate them here
+	// so a missing/blank value returns a clear 400 instead of leaking the raw ent validator
+	// failure ("value is less than the required length") as an opaque 500 -- exactly what
+	// happened for phone: id_number already had this guard, phone and guest_name didn't, so a
+	// check-in submitted with an empty phone (nothing in the UI marked it required or blocked
+	// the submit) 500'd with no indication of which field was the actual problem.
+	if strings.TrimSpace(input.GuestName) == "" {
+		jsonError(w, "guest_name is required for check-in", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(input.Phone) == "" {
+		jsonError(w, "phone is required for check-in", http.StatusBadRequest)
+		return
+	}
 	if strings.TrimSpace(input.IDNumber) == "" {
 		jsonError(w, "id_number is required for check-in", http.StatusBadRequest)
 		return
