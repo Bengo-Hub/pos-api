@@ -1,4 +1,4 @@
-h1:iiVJcHhme/ipE4LTM7c2fIiGm3UHfbs/bpbKp5gKRa4=
+h1:lrHfiqBuRyTc3n0SZkwZQxpu+euk7wEJCEEg/KbMddI=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -104,3 +104,4 @@ h1:iiVJcHhme/ipE4LTM7c2fIiGm3UHfbs/bpbKp5gKRa4=
 20260906190655_add_promotion_usage_caps.sql h1:weoCaMTVgtlCKwsWCLM1tv1Oo0dN7n4PXwdaD2DD+A8=
 20260917064702_add_tenant_maintenance_window.sql h1:WAANaEl7FTuj9Rb1YAY5eYj0sdee54U9R2Vu4nDJ/FE=
 20260918200628_add_room_damage_reports.sql h1:bZol+27gO8dpM9lzzabTtts+RCcAiJlfrMk5g6nmphI=
+20260919053428_add_lost_found_items.sql h1:aEVg2TiOKaVTApwxlVOZJEYr5lISMcYKoSWp1y0mm8E=
