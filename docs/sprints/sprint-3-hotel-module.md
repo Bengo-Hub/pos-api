@@ -198,7 +198,7 @@ A later audit of the live module (see `.claude/memory/boi-guest-house-hotel-audi
 - A payment-recording failure at check-in doesn't roll back the check-in itself (the guest already occupies the room); it's surfaced via a `payment_recorded` response field so the desk can collect it via the normal Settle flow instead, which still gates checkout on balance regardless.
 
 ### 2. Self-service room booking (guest-facing widget)
-Mirrors the existing table-reservation widget (`public/widget/booking.js`) but for a date-range stay instead of a single time slot:
+Mirrors the existing table-reservation widget (`public/widget/table-booking.js`) but for a date-range stay instead of a single time slot:
 - `RoomBooking.status` enum gained `pending` (plain varchar column, no DB constraint — no migration needed for this part).
 - New public (unauthenticated) endpoints, alongside `/pos/reservations` in the router's `pub` group:
   - `GET /{tenant}/pos/room-bookings/availability?outlet_id=&arrival_date=&departure_date=` — per room_type available-room count + average rate, for the requested date range (room overlap computed the same way `HotelOccupancyReport` computes occupied room-nights).
