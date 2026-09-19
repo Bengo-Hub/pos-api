@@ -2,7 +2,7 @@
 
 **Status:** ✅ Complete  
 **Period:** March–April 2026  
-**Last updated:** 2026-05-09  
+**Last updated:** 2026-09-19  
 **Goal:** Add hotel/lodge management — rooms, check-in/out, room folio charges, facilities booking
 
 ---
@@ -215,4 +215,50 @@ Previously a "damage" charge was just a folio line with no review step. New `Roo
 - Also fixed the same day: pos-ui's "Add folio charge" dropdown was missing `damage` as a selectable option (had an invalid `"service"` value instead — silently fell back to `other` server-side).
 - `BatchCheckout` (group/tour checkout) now applies the same outstanding-balance gate as single-room `CheckOut` — it previously force-checked-out every room regardless of unpaid balance.
 
-**Deliberately not built**: a full incremental daily-billing scheduler for `per_day_split`, and a formal evidence-approval SLA/escalation flow for damage reports — both would be new infrastructure/product decisions beyond closing the identified gaps.
+**Deliberately not built (at the time)**: a full incremental daily-billing scheduler for `per_day_split`, and a formal evidence-approval SLA/escalation flow for damage reports — both would be new infrastructure/product decisions beyond closing the identified gaps. Both were built the following day; see the next section.
+
+---
+
+## Follow-up: Lost & Found, Live Booking-Logic Bugs, Hospitality Dashboard, Hotel BI (2026-09-19)
+
+A live BOI Guest House booking session surfaced two data-correctness bugs the same day they happened, plus a set of product requests (repair-module gating, per-outlet dashboard, checkout auto-fill, hotel reporting depth). All closed same-day.
+
+### 1. Incremental night billing + damage-report SLA reminders (previously deferred)
+- New `RoomNightlyBillingScheduler` (`internal/platform/scheduler/room_nightly_billing.go`, hourly ticker): for every active `RoomGuest` whose outlet is on `per_day_split`, posts any night's `RoomFolioItem` that has come due (`elapsedDays+1`, capped at `guest.Nights`) but hasn't been posted yet. This is itemized posting, not payment collection — it does not attempt to charge a card/M-Pesa automatically for each night; front desk still collects via the normal folio flow.
+- New `DamageReportReminderScheduler` (`internal/platform/scheduler/damage_report_reminder.go`, hourly ticker): flags a pending `RoomDamageReport` older than 24h with a one-time `hotel.damage.overdue` event (`metadata.overdue_notified` guards against re-firing), for notifications-service to act on. No formal escalation chain beyond this single notification.
+
+### 2. Lost & Found (new)
+New `LostFoundItem` entity (`internal/ent/schema/lostfounditem.go`, migration `20260919053428_add_lost_found_items.sql`): tracks an item found on the property through `stored` → `claimed`/`disposed`/`donated`, with category, location found/stored, optional guest attribution (auto-prefilled from `RoomGuest` when a `room_guest_id` is supplied), and photo evidence via the same local-media-volume convention as damage reports.
+- Backend: `internal/http/handlers/hotel_lost_found.go` — create/list/get/claim/dispose, `POST .../lost-found/{id}/photo` upload.
+- Frontend: `LostFoundModal` (log a found item, mirrors `DamageReportModal`), a `/hotel/lost-found` review page (status/category filters, claim with claimant name/notes, dispose/donate with a required reason), wired into the room detail sidebar and the hotel overview quick-links.
+
+### 3. Nights-calculation bug (financial correctness)
+Reported live: a 2-night booking billed 3 nights on the folio. Root cause was in TWO places, both fixed:
+- **Frontend** (`hotel/rooms/[roomId]/page.tsx`): `handleCheckIn` recomputed nights from the raw millisecond gap between arrival/departure via `Math.ceil(...)`, silently overriding an explicit Nights value whenever the two picked times of day didn't align exactly to 24h multiples. Replaced with a calendar-day-based sync model (`calendarDaysBetween`, `departureFromNights`) where nights and the two datetime pickers stay in sync with exactly one "driver" at a time, applying the outlet's configured check-out time (see #5) rather than an arbitrary time-of-day.
+- **Backend** (`internal/http/handlers/hotel_reports.go`'s `HotelOccupancyReport`): a SEPARATE instance of the same root-cause bug class — `occupied_room_nights` was computed from raw wall-clock hours since check-in divided by 24, not whole calendar nights. A guest who had just checked in (or a same-day check-in/checkout used for testing) contributed a near-zero fractional night even though a full night's charge had posted, so `ADR = room_revenue / occupied_room_nights` could read in the millions while occupancy showed 0.0%. Rewrote using calendar-day boundaries (`roomGuestNightInterval`, shared with the new trend endpoint below) — a guest still checked in as of the report window's end date now always counts as occupying that night in full. Two regression tests reproduce the exact reported scenario.
+
+### 4. Room status / guest-visibility bug (data correctness)
+Reported live: a just-booked room showed "Cleaning" on the rooms list, and its detail page said "This room is available" with no guest info. Two separate bugs:
+- `GetRoom` only ever loaded the guest edge for `status=active` guests — a room mid-cleaning (guest already checked out) returned no guest at all, so the detail page couldn't show who had just stayed there. Now loads the single most recent guest regardless of status (`WithGuests` ordered by `checked_in_at desc`, limit 1); the frontend derives `lastGuest` (display) separately from `guest` (the narrower "currently active" view check-in/checkout actions still require).
+- `UpdateHousekeepingTask` never touched `Room.Status` on completion — a checkout-clean/routine-clean/maintenance task marked "completed" never returned the room to `available`, so every checked-out room stayed permanently "stuck" in `cleaning` until a staff member manually patched its status. Now flips the room back to `available` when such a task completes, but ONLY if the room is currently `cleaning`/`maintenance` (never overrides `occupied`/`reserved`).
+- Frontend room-detail page also gained a status-aware empty state (`ROOM_STATUS_COPY`), a "Last Guest" card, a `canCheckIn` gate matching the backend's own accepted-status set, and a manual "mark room available now" override for a room stuck in `cleaning`/`maintenance`.
+
+### 5. Checkout auto-fill from booking policy
+`BookingPolicy` gained `checkin_time`/`checkout_time` (HH:MM, default 14:00/10:00), editable from Settings → Booking Policy. The room detail check-in form now auto-fills the departure date from arrival + nights at the configured checkout time (and recomputes nights when the departure date is edited directly instead) — see #3 for the underlying date-sync fix this policy field feeds into.
+
+### 6. Repair module: hospitality/services/quick_service no longer get it
+Reverses a prior "available for every use case" decision: Repairs is now retail-only (`nav-config.ts`'s `hideForProfiles` + `use-module-access.ts`'s `USE_CASE_MODULES`), per current product direction — a hospitality or salon business doesn't do device repairs.
+
+### 7. Per-outlet, per-use-case hospitality dashboard
+New `HospitalityDashboard` component, rendered instead of the generic admin dashboard when `isHospitality`. Combines `useDashboardSummary` (POS order revenue) with the already-correct `useHotelOccupancyReport` client-side rather than modifying the shared `GetSummary` endpoint (which has other consumers and is deliberately left POS-order-only). Shows accommodation KPIs (room revenue, occupancy, ADR, RevPAR) unconditionally, and F&B/conference/facility widgets only when `hasModule`/`hasFeature` says the outlet actually offers them — a pure-accommodation property like BOI Guest House never sees an F&B revenue card it can't populate.
+
+### 8. Hotel Reports: daily trend + room-type + booking-source BI
+New `GET /reports/hotel-occupancy/trend` (same hospitality + hotel_module gate as the existing aggregate report), sharing `roomGuestNightInterval` with it so the two can never disagree. Returns:
+- A daily bucket series (occupancy rate, ADR, room vs ancillary revenue) — charted on `/hotel/reports` as a combined stacked-revenue-bars + occupancy-line chart.
+- Room-type performance (revenue + occupancy per `room_type`).
+- Booking-source breakdown (`RoomGuest.source`: staff front-desk vs the online self-service widget vs API) — a field that existed since the original schema but was never surfaced in any report until now.
+
+### 9. treasury-api: Room Revenue was invisible on the financial dashboard
+Separate investigation of "how is hotel revenue channeled through to financial reports" found that while `PostPaymentToLedgerItemized` correctly posts room charges to account 4410 (Room Revenue, split from 4400 Sales Revenue), treasury-api's `businessRevenueAccountCodes()` — which feeds the Dashboard's headline Revenue KPI, the P&L Summary tab, and the Revenue by Outlet chart — hardcoded `{"4400", "4500"}` and was never updated to include 4410. Room revenue was visible on the Reports → Profit & Loss tab and the Chart of Accounts (both account-agnostic), but effectively invisible everywhere else. Fixed in `finance-service/treasury-api/internal/modules/finance/aggregates.go`.
+
+**Deliberately not built**: a true incremental payment-collection mechanism beyond posting the itemized per-night charge (see #1); a formal SLA escalation chain beyond the single overdue notification (see #1); any change to the shared `GetSummary` endpoint (see #7).
