@@ -126,13 +126,22 @@ func TestEdit_NonFiscalized_IncreaseOnGenuineCreditSale_StaysCredit(t *testing.T
 		t.Fatalf("expected kind=increase, got %q", result.Kind)
 	}
 
-	// No payment row should have been fabricated — the increment is still owed, not collected.
+	// A genuine credit increase must leave the SAME on-account marker payment trail a normal
+	// credit sale gets — see applyInPlaceIncrease's doc comment: without it, a later reduction of
+	// this exact line has no marker row for reversals.netPayments to net first and silently nets
+	// a real cash payment from the ORIGINAL sale instead. It must not count as money collected.
 	pays, err := client.POSPayment.Query().Where(entpospayment.OrderID(order.ID)).All(context.Background())
 	if err != nil {
 		t.Fatalf("load payments: %v", err)
 	}
-	if len(pays) != 0 {
-		t.Errorf("expected 0 payment rows for a genuine credit increase, got %d", len(pays))
+	if len(pays) != 1 {
+		t.Fatalf("expected 1 on-account marker payment row for a genuine credit increase, got %d", len(pays))
+	}
+	if method, _ := pays[0].PaymentData["method"].(string); method != "on_account" {
+		t.Errorf("marker payment method = %q, want on_account", method)
+	}
+	if pays[0].Amount != 50 {
+		t.Errorf("marker payment amount = %v, want 50 (the incremental value)", pays[0].Amount)
 	}
 	reloaded, err := client.POSOrder.Get(context.Background(), order.ID)
 	if err != nil {
@@ -228,7 +237,10 @@ func TestEdit_NonFiscalized_IncreaseSettlement_ExplicitCreditOverride(t *testing
 	if err != nil {
 		t.Fatalf("load payments: %v", err)
 	}
-	if len(pays) != 0 {
-		t.Errorf("expected 0 payment rows for an explicit credit override, got %d", len(pays))
+	if len(pays) != 1 {
+		t.Fatalf("expected 1 on-account marker payment row for an explicit credit override, got %d", len(pays))
+	}
+	if method, _ := pays[0].PaymentData["method"].(string); method != "on_account" {
+		t.Errorf("marker payment method = %q, want on_account", method)
 	}
 }

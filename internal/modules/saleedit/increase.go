@@ -296,6 +296,34 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 				return fmt.Errorf("stamp on_account metadata: %w", err)
 			}
 		}
+
+		// A genuine-credit increase must leave the SAME on-account marker POSPayment trail a
+		// normal credit sale gets (payments.Service.recordCreditSale's SetPaymentData({"method":
+		// "on_account"}) row — this package deliberately doesn't import payments, see
+		// recomputePaidTotal's doc comment, so the literal is repeated rather than a shared
+		// const). Without it, reversals.netPayments (see its own doc comment on on-account-first
+		// netting) has no marker row to net first when this increment is later reduced/removed via
+		// Edit Sale, and silently nets a REAL cash payment from the ORIGINAL sale instead —
+		// corrupting paid_total (understating real cash collected) AND making stepTreasuryGL's
+		// cashNettedForReversal see a "cash-netted" amount that was never actually cash, so it
+		// posts a phantom cash refund instead of writing off the real AR debt via offset_invoice.
+		// The customer's treasury balance_due then never drops even though the line was voided —
+		// confirmed against the exact shape reported live: an item added via Edit Sale to an
+		// already-settled cash sale, billed on credit, later removed — "Partial" status and the AR
+		// balance both stuck forever. Excluded from paid_total by design (RecomputePaidTotal/
+		// netPayments both skip method=="on_account"), so this never inflates what the till claims
+		// to have collected.
+		if _, err := s.client.POSPayment.Create().
+			SetOrderID(order.ID).
+			SetTenderID(uuid.Nil).
+			SetAmount(incrementalAmount).
+			SetCurrency(order.Currency).
+			SetStatus("completed").
+			SetOccurredAt(time.Now()).
+			SetPaymentData(map[string]any{"method": "on_account", "sale_edit_increase": true}).
+			Save(ctx); err != nil {
+			return fmt.Errorf("record on-account marker payment: %w", err)
+		}
 	}
 
 	// Both calls below are already best-effort by their own error handling (logged-and-continue,
