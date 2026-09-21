@@ -46,8 +46,11 @@ func (h *PaymentHandler) ReconcileAR(w http.ResponseWriter, r *http.Request) {
 	}
 	crmContactID := strings.TrimSpace(input.CrmContactID)
 	key := crmContactID
+	identifierFallback := ""
 	if key == "" {
 		key = identifier
+	} else {
+		identifierFallback = identifier
 	}
 	if key == "" {
 		jsonError(w, "crm_contact_id or customer_identifier required", http.StatusBadRequest)
@@ -58,7 +61,7 @@ func (h *PaymentHandler) ReconcileAR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tenantSlug := chi.URLParam(r, "tenantID")
-	terms, err := h.treasuryClient.GetCreditTerms(r.Context(), tenantSlug, key)
+	terms, err := h.treasuryClient.GetCreditTerms(r.Context(), tenantSlug, key, identifierFallback)
 	if err != nil {
 		h.log.Error("ar reconcile: fetch treasury balance failed", zap.Error(err))
 		jsonError(w, "failed to load treasury balance", http.StatusBadGateway)

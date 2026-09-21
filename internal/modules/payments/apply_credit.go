@@ -41,15 +41,19 @@ func (s *Service) applyCustomerCreditTender(ctx context.Context, order *ent.POSO
 	// to net against their real stored credit (same bug class as the credit-settlement key fix).
 	crmContactID := s.ResolveOrCreateCrmContactID(ctx, req.TenantID, phone, name)
 	key := crmContactID
+	identifierFallback := ""
 	if key == "" {
 		key = phone
+	} else {
+		identifierFallback = phone
 	}
 
 	if _, err := s.treasuryClient.ApplyCustomerCredit(ctx, req.TenantSlug, key, treasury.ApplyCreditRequest{
-		Amount:     req.Amount,
-		POSOrderID: order.ID.String(),
-		Reference:  order.OrderNumber,
-		UserID:     order.UserID.String(),
+		Amount:             req.Amount,
+		POSOrderID:         order.ID.String(),
+		Reference:          order.OrderNumber,
+		UserID:             order.UserID.String(),
+		CustomerIdentifier: identifierFallback,
 	}); err != nil {
 		return nil, fmt.Errorf("payments: apply customer credit rejected: %w", err)
 	}

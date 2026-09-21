@@ -193,10 +193,13 @@ func resolveReconcileTarget(ctx context.Context, tc *treasury.Client, tenantID u
 		return fallback, true
 	}
 	key := crmContactID
+	identifierFallback := ""
 	if key == "" {
 		key = identifier
+	} else {
+		identifierFallback = identifier
 	}
-	terms, err := tc.GetCreditTerms(ctx, tenantID.String(), key)
+	terms, err := tc.GetCreditTerms(ctx, tenantID.String(), key, identifierFallback)
 	if err != nil {
 		return 0, false
 	}

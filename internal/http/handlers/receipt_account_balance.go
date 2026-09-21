@@ -35,13 +35,15 @@ func (h *ReceiptHandler) ensureCustomerAccountBalance(ctx context.Context, tenan
 	}
 
 	key := phone
+	identifierFallback := ""
 	if h.resolveCrmContact != nil {
 		if crmID := h.resolveCrmContact(ctx, order.TenantID, phone); crmID != "" {
 			key = crmID
+			identifierFallback = phone
 		}
 	}
 
-	terms, err := h.treasury.GetCreditTerms(ctx, tenantSlug, key)
+	terms, err := h.treasury.GetCreditTerms(ctx, tenantSlug, key, identifierFallback)
 	if err != nil {
 		// Was Debug — a failure here silently drops the "Balance Due"/"Amount Owing" line from
 		// the printed receipt with zero trace, indistinguishable from a genuinely-settled

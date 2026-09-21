@@ -442,8 +442,17 @@ type CreditTermsResponse struct {
 
 // GetCreditTerms fetches a customer's AR balance + credit terms from treasury over S2S.
 // contactIDOrIdentifier is the CRM contact UUID (preferred) or the phone identifier.
-func (c *Client) GetCreditTerms(ctx context.Context, tenantSlug, contactIDOrIdentifier string) (*CreditTermsResponse, error) {
+// identifierFallback is an OPTIONAL second key (typically the phone) sent alongside a resolved
+// crm_contact_id — same fallback ARPaymentRequest/ApplyToDebtRequest carry (see their own doc
+// comments): a customer's balance row can predate a CRM contact getting linked for their phone,
+// so a crm-only lookup can come back as an all-zero "no AR row" response — which is exactly how a
+// customer's real store credit went invisible on the POS terminal despite genuinely having some.
+// Pass "" when there is nothing to fall back to (e.g. contactIDOrIdentifier is already the phone).
+func (c *Client) GetCreditTerms(ctx context.Context, tenantSlug, contactIDOrIdentifier, identifierFallback string) (*CreditTermsResponse, error) {
 	u := fmt.Sprintf("%s/api/v1/s2s/%s/ar/customers/%s/credit-terms", c.baseURL, tenantSlug, url.PathEscape(contactIDOrIdentifier))
+	if identifierFallback != "" {
+		u += "?customer_identifier=" + url.QueryEscape(identifierFallback)
+	}
 	return doRequest[CreditTermsResponse](ctx, c.httpClient, http.MethodGet, u, c.apiKey, nil)
 }
 
@@ -458,6 +467,9 @@ type ApplyCreditRequest struct {
 	POSOrderID string  `json:"pos_order_id,omitempty"`
 	Reference  string  `json:"reference,omitempty"`
 	UserID     string  `json:"user_id,omitempty"`
+	// CustomerIdentifier is an OPTIONAL fallback key sent ALONGSIDE the URL's contactIDOrIdentifier
+	// — same fallback ApplyToDebtRequest/ARPaymentRequest carry (see their own doc comments).
+	CustomerIdentifier string `json:"customer_identifier,omitempty"`
 }
 
 // ApplyCreditResponse is the updated treasury customer-balance row.
@@ -611,6 +623,10 @@ type PayoutCreditRequest struct {
 	Amount        float64 `json:"amount"`
 	PayoutChannel string  `json:"payout_channel"`
 	Reference     string  `json:"reference,omitempty"`
+	// CustomerIdentifier is an OPTIONAL fallback key sent ALONGSIDE the URL's contactIDOrIdentifier
+	// — same fallback ApplyCreditRequest/ApplyToDebtRequest/ARPaymentRequest carry (see their own
+	// doc comments).
+	CustomerIdentifier string `json:"customer_identifier,omitempty"`
 }
 
 // PayoutCreditResponse is the updated treasury customer-balance row.

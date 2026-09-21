@@ -228,10 +228,13 @@ func (s *ARDriftAuditScheduler) auditOne(ctx context.Context, tenantID uuid.UUID
 		crmContactID = s.svc.ResolveCrmContactID(ctx, tenantID, phone)
 	}
 	key := crmContactID
+	identifierFallback := ""
 	if key == "" {
 		key = phone
+	} else {
+		identifierFallback = phone
 	}
-	terms, err := s.svc.treasuryClient.GetCreditTerms(ctx, tenantID.String(), key)
+	terms, err := s.svc.treasuryClient.GetCreditTerms(ctx, tenantID.String(), key, identifierFallback)
 	if err != nil {
 		s.log.Warn("ar drift audit: live balance fetch failed",
 			zap.String("tenant_id", tenantID.String()), zap.String("customer_key", key), zap.Error(err))

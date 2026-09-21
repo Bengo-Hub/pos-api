@@ -28,22 +28,25 @@ func (h *ClientHandler) SetTreasuryClient(tc *treasury.Client) {
 }
 
 // creditKeyForAccount resolves the treasury customer key for a loyalty account:
-// crm_contact_id when linked, else the phone identifier.
-func (h *ClientHandler) creditKeyForAccount(r *http.Request, tid uuid.UUID) (key, name string, ok bool) {
+// crm_contact_id when linked, else the phone identifier. identifierFallback is the phone,
+// returned alongside a crm_contact_id key so the caller can send both — the customer's treasury
+// balance row can predate this loyalty account's CRM link, so a crm-only lookup can miss it (see
+// GetCreditTerms's own doc comment).
+func (h *ClientHandler) creditKeyForAccount(r *http.Request, tid uuid.UUID) (key, identifierFallback, name string, ok bool) {
 	accountID, err := uuid.Parse(chi.URLParam(r, "accountID"))
 	if err != nil {
-		return "", "", false
+		return "", "", "", false
 	}
 	acc, err := h.db.LoyaltyAccount.Query().
 		Where(entla.ID(accountID), entla.TenantID(tid)).
 		Only(r.Context())
 	if err != nil {
-		return "", "", false
+		return "", "", "", false
 	}
 	if acc.CrmContactID != nil {
-		return acc.CrmContactID.String(), acc.CustomerName, true
+		return acc.CrmContactID.String(), acc.CustomerPhone, acc.CustomerName, true
 	}
-	return acc.CustomerPhone, acc.CustomerName, true
+	return acc.CustomerPhone, "", acc.CustomerName, true
 }
 
 // GetCredit handles GET /{tenantID}/pos/clients/{accountID}/credit — the customer's AR
@@ -58,13 +61,13 @@ func (h *ClientHandler) GetCredit(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "treasury client not configured", http.StatusServiceUnavailable)
 		return
 	}
-	key, _, ok := h.creditKeyForAccount(r, tid)
+	key, identifierFallback, _, ok := h.creditKeyForAccount(r, tid)
 	if !ok {
 		jsonError(w, "customer account not found", http.StatusNotFound)
 		return
 	}
 	tenantSlug := chi.URLParam(r, "tenantID")
-	terms, err := h.treasury.GetCreditTerms(r.Context(), tenantSlug, key)
+	terms, err := h.treasury.GetCreditTerms(r.Context(), tenantSlug, key, identifierFallback)
 	if err != nil {
 		// Self-healing fallback (Phase D): the live S2S call is ALWAYS tried first — treasury
 		// remains the single source of truth — but when it fails, fall back to the
@@ -100,15 +103,19 @@ func (h *ClientHandler) GetCreditByIdentifier(w http.ResponseWriter, r *http.Req
 		return
 	}
 	key := strings.TrimSpace(r.URL.Query().Get("crm_contact_id"))
+	phone := strings.TrimSpace(r.URL.Query().Get("phone"))
+	identifierFallback := ""
 	if key == "" {
-		key = strings.TrimSpace(r.URL.Query().Get("phone"))
+		key = phone
+	} else {
+		identifierFallback = phone
 	}
 	if key == "" {
 		jsonError(w, "crm_contact_id or phone required", http.StatusBadRequest)
 		return
 	}
 	tenantSlug := chi.URLParam(r, "tenantID")
-	terms, err := h.treasury.GetCreditTerms(r.Context(), tenantSlug, key)
+	terms, err := h.treasury.GetCreditTerms(r.Context(), tenantSlug, key, identifierFallback)
 	if err != nil {
 		if cached, cerr := h.creditFromCache(r.Context(), tid, key); cerr == nil && cached != nil {
 			h.log.Warn("get credit terms by identifier proxy failed — serving cached balance", zap.Error(err))
@@ -178,7 +185,7 @@ func (h *ClientHandler) PayoutCredit(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "treasury client not configured", http.StatusServiceUnavailable)
 		return
 	}
-	key, _, ok := h.creditKeyForAccount(r, tid)
+	key, identifierFallback, _, ok := h.creditKeyForAccount(r, tid)
 	if !ok {
 		jsonError(w, "customer account not found", http.StatusNotFound)
 		return
@@ -188,6 +195,7 @@ func (h *ClientHandler) PayoutCredit(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+	body.CustomerIdentifier = identifierFallback
 	tenantSlug := chi.URLParam(r, "tenantID")
 	resp, err := h.treasury.PayoutCustomerCredit(r.Context(), tenantSlug, key, body)
 	if err != nil {
