@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	entappt "github.com/bengobox/pos-service/internal/ent/appointment"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
+	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 )
 
 // appointmentCapacityLookback is how far back the default parallel capacity looks for distinct
@@ -25,6 +27,13 @@ const appointmentCapacityLookback = 60 * 24 * time.Hour
 // keeps taking bookings at 10:00 after the first one lands.
 func (h *AppointmentHandler) PublicBookedSlots(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
+	if err != nil {
+		// The storefront addresses the tenant by slug; resolve it when the tenant middleware only
+		// carried the slug.
+		if t, terr := h.db.Tenant.Query().Where(enttenant.Slug(chi.URLParam(r, "tenantID"))).Only(r.Context()); terr == nil {
+			tid, err = t.ID, nil
+		}
+	}
 	if err != nil {
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
 		return
