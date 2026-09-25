@@ -20,6 +20,7 @@ import (
 	entorderlink "github.com/bengobox/pos-service/internal/ent/orderlink"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
@@ -251,6 +252,11 @@ type markCollectedRequest struct {
 	PaymentMethod string `json:"payment_method"`
 	// Reference is the M-Pesa code when the customer paid the counter by M-Pesa.
 	Reference string `json:"reference"`
+	// CollectionCode is the 6-digit code the pickup customer shows at the counter.
+	CollectionCode string `json:"collection_code"`
+	// NoCodeReason lets the counter hand over without the code (phone dead, message deleted)
+	// after checking the customer another way; it is recorded on the order.
+	NoCodeReason string `json:"no_code_reason"`
 }
 
 // MarkCollected handles POST /{tenantID}/pos/online-orders/{orderID}/collected
@@ -306,6 +312,26 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 	external := h.externalOrderID(r, oid)
 	isOnline := external != ""
 	isDelivery := string(order.OrderSubtype) == "delivery"
+
+	// Pickup: hand the bag to the person holding the collection code. Without it the counter must
+	// say how they checked the customer, which is kept on the order.
+	if isOnline && !isDelivery && ordersmod.CollectionCodeRequired(meta) {
+		reason := strings.TrimSpace(body.NoCodeReason)
+		switch {
+		case strings.TrimSpace(body.CollectionCode) != "":
+			if !ordersmod.CollectionCodeMatches(meta, body.CollectionCode) {
+				jsonError(w, "that code does not match this order", http.StatusUnprocessableEntity)
+				return
+			}
+			meta["collection_code_verified"] = true
+		case len(reason) >= 3:
+			meta["collection_code_verified"] = false
+			meta["collection_code_skipped_reason"] = reason
+		default:
+			jsonError(w, "ask the customer for their collection code", http.StatusConflict)
+			return
+		}
+	}
 
 	// A pay-on-collection online order cannot leave the counter until the money is taken.
 	if isOnline {

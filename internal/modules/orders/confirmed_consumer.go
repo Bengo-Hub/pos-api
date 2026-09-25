@@ -385,6 +385,12 @@ func onlineOrderMetadata(data map[string]interface{}, orderIDStr, source, subtyp
 	if code := stringField(data, "mpesa_code"); code != "" {
 		meta["mpesa_code"] = code
 	}
+	// Pickup: the code the customer shows at the counter. Only a hash is kept, so POS screens that
+	// return order metadata never display it; the counter types what the customer shows and
+	// MarkCollected compares hashes.
+	if code := stringField(data, "collection_code"); code != "" {
+		meta[MetaCollectionCodeHash] = HashCollectionCode(orderIDStr, code)
+	}
 	if addr := stringField(data, "delivery_address"); addr != "" {
 		meta["delivery_address"] = addr
 	}
