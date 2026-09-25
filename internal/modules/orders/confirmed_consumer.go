@@ -340,6 +340,14 @@ func onlineOrderMetadata(data map[string]interface{}, orderIDStr, source, subtyp
 		"amount_due":         amountDue,
 		"online_grand_total": grandTotal,
 	}
+	// Manual M-Pesa: the customer paid the business Till/Paybill and keyed in the code at checkout.
+	// The counter must verify it against the M-Pesa message before handing the order over.
+	if channel := stringField(data, "payment_channel"); channel != "" {
+		meta["payment_channel"] = channel
+	}
+	if code := stringField(data, "mpesa_code"); code != "" {
+		meta["mpesa_code"] = code
+	}
 	if addr := stringField(data, "delivery_address"); addr != "" {
 		meta["delivery_address"] = addr
 	}

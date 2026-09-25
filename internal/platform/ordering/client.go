@@ -123,3 +123,34 @@ func (c *Client) CancelOrder(ctx context.Context, tenantSlug, externalOrderID, r
 	}
 	return nil
 }
+
+// VerifyManualPayment tells ordering-backend the outlet matched the customer's M-Pesa code (paid
+// to the business's own Till/Paybill) against its M-Pesa statement. ordering marks the order paid
+// and records the payment in treasury under that code.
+func (c *Client) VerifyManualPayment(ctx context.Context, tenantSlug, externalOrderID, reference string) error {
+	if !c.Enabled() {
+		return fmt.Errorf("ordering: client not configured (ORDERING_SERVICE_URL unset)")
+	}
+	endpoint := fmt.Sprintf("%s/api/v1/%s/admin/orders/%s/payment/verify",
+		c.baseURL, url.PathEscape(tenantSlug), url.PathEscape(externalOrderID))
+	payload, err := json.Marshal(map[string]string{"reference": reference})
+	if err != nil {
+		return fmt.Errorf("ordering: marshal verify body: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("ordering: build verify request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", c.apiKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("ordering: verify request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("ordering: upstream error %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
+}

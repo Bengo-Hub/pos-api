@@ -245,6 +245,8 @@ type markCollectedRequest struct {
 	CashCollected bool `json:"cash_collected"`
 	// PaymentMethod records how it was paid at the counter ("cash", "mpesa", "card").
 	PaymentMethod string `json:"payment_method"`
+	// Reference is the M-Pesa code when the customer paid the counter by M-Pesa.
+	Reference string `json:"reference"`
 }
 
 // MarkCollected handles POST /{tenantID}/pos/online-orders/{orderID}/collected
@@ -301,6 +303,10 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 	// A pay-on-collection online order cannot leave the counter until the money is taken.
 	if isOnline {
 		prepaid, _ := meta["prepaid"].(bool)
+		if channel, _ := meta["payment_channel"].(string); channel == "mpesa_manual" && !prepaid {
+			jsonError(w, "verify the customer's M-Pesa code before handing the order over", http.StatusConflict)
+			return
+		}
 		if !prepaid && !body.CashCollected {
 			due, _ := meta["amount_due"].(float64)
 			jsonError(w, fmt.Sprintf("collect %.2f from the customer before handing the order over", due), http.StatusConflict)
@@ -309,6 +315,9 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 		if !prepaid {
 			meta["cash_collected"] = true
 			meta["collected_payment_method"] = firstNonEmptyStr(body.PaymentMethod, "cash")
+			if ref := strings.ToUpper(strings.TrimSpace(body.Reference)); ref != "" {
+				meta["collected_reference"] = ref
+			}
 		}
 	}
 
@@ -354,6 +363,7 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 			"tenant_id":         tid.String(),
 			"cash_collected":    body.CashCollected,
 			"payment_method":    body.PaymentMethod,
+			"reference":         strings.ToUpper(strings.TrimSpace(body.Reference)),
 		}
 		if isDelivery {
 			// Delivered by the outlet's own staff (no rider app): ordering walks the order through
