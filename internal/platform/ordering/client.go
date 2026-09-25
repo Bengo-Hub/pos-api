@@ -50,7 +50,10 @@ func (c *Client) Enabled() bool { return c != nil && c.baseURL != "" }
 // AssignRider delegates rider assignment for a delivery order to the canonical
 // ordering-backend endpoint:
 //
-//	PUT /api/v1/{tenantSlug}/admin/orders/{externalOrderID}/rider  body {"rider_id":"..."}
+//	PUT /api/v1/{tenantSlug}/s2s/orders/{externalOrderID}/rider  body {"rider_id":"..."}
+//
+// All order actions use ordering's /s2s/orders routes, which accept the service key; the
+// /admin/orders routes need a signed-in user and refused these calls (401).
 //
 // ordering-backend owns the order + the downstream logistics task creation; pos-api
 // must NOT call logistics /tasks assign directly.
@@ -59,7 +62,7 @@ func (c *Client) AssignRider(ctx context.Context, tenantSlug, externalOrderID, r
 		return fmt.Errorf("ordering: client not configured (ORDERING_SERVICE_URL unset)")
 	}
 
-	endpoint := fmt.Sprintf("%s/api/v1/%s/admin/orders/%s/rider",
+	endpoint := fmt.Sprintf("%s/api/v1/%s/s2s/orders/%s/rider",
 		c.baseURL, url.PathEscape(tenantSlug), url.PathEscape(externalOrderID))
 
 	payload, err := json.Marshal(map[string]string{"rider_id": riderID})
@@ -98,7 +101,7 @@ func (c *Client) CancelOrder(ctx context.Context, tenantSlug, externalOrderID, r
 	if !c.Enabled() {
 		return fmt.Errorf("ordering: client not configured (ORDERING_SERVICE_URL unset)")
 	}
-	endpoint := fmt.Sprintf("%s/api/v1/%s/admin/orders/%s/cancel",
+	endpoint := fmt.Sprintf("%s/api/v1/%s/s2s/orders/%s/cancel",
 		c.baseURL, url.PathEscape(tenantSlug), url.PathEscape(externalOrderID))
 	payload, err := json.Marshal(map[string]string{"reason": reason})
 	if err != nil {
@@ -130,7 +133,7 @@ func (c *Client) UpdateOrderStatus(ctx context.Context, tenantSlug, externalOrde
 	if !c.Enabled() {
 		return fmt.Errorf("ordering: client not configured (ORDERING_SERVICE_URL unset)")
 	}
-	endpoint := fmt.Sprintf("%s/api/v1/%s/admin/orders/%s/status",
+	endpoint := fmt.Sprintf("%s/api/v1/%s/s2s/orders/%s/status",
 		c.baseURL, url.PathEscape(tenantSlug), url.PathEscape(externalOrderID))
 	payload, err := json.Marshal(map[string]string{"status": status})
 	if err != nil {
@@ -161,7 +164,7 @@ func (c *Client) VerifyManualPayment(ctx context.Context, tenantSlug, externalOr
 	if !c.Enabled() {
 		return fmt.Errorf("ordering: client not configured (ORDERING_SERVICE_URL unset)")
 	}
-	endpoint := fmt.Sprintf("%s/api/v1/%s/admin/orders/%s/payment/verify",
+	endpoint := fmt.Sprintf("%s/api/v1/%s/s2s/orders/%s/payment/verify",
 		c.baseURL, url.PathEscape(tenantSlug), url.PathEscape(externalOrderID))
 	payload, err := json.Marshal(map[string]string{"reference": reference})
 	if err != nil {
