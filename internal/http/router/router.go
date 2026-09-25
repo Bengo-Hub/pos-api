@@ -1249,24 +1249,24 @@ func New(
 						pos.Get("/online-orders/dispatch", onlineOrders.ListDeliveryDispatch)
 						// Pickup hand-off + delivery rider assignment mutate order state Ã¢â‚¬â€ gate on
 						// orders.change (waiter, manager+). Reads (pickup/rider lists) stay open.
-						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.online_orders.change", "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/ready", onlineOrders.MarkReady)
-						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.online_orders.change", "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/collected", onlineOrders.MarkCollected)
 						// Reject an online order the outlet cannot fulfil: delegated to ordering-backend
 						// (refund + customer notice); the POS record and KDS tickets are voided here.
-						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.online_orders.change", "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/reject", onlineOrders.Reject)
 						// Accept an online order held for acceptance (manual acceptance, the default).
-						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.online_orders.change", "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/accept", onlineOrders.Accept)
 						// Confirm a customer's M-Pesa payment to the business Till/Paybill (manual M-Pesa).
-						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.orders.change", "pos.orders.manage"), onlineFeat).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.online_orders.change", "pos.payments.add", "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/verify-payment", onlineOrders.VerifyPayment)
 						// WS-D delivery rider assignment: list fleet (proxy logistics) +
 						// assign rider (delegate to ordering-backend, which owns the order).
 						pos.Get("/online-orders/riders", onlineOrders.ListAvailableRiders)
-						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.online_orders.change", "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/assign-rider", onlineOrders.AssignRider)
 						// Shipments: hand a sale with shipping details to logistics-api (delivery-
 						// execution source of truth) — creates a delivery task, pos keeps the reference.

@@ -592,6 +592,10 @@ func seedRBACPermissions(ctx context.Context, client *ent.Client) error {
 		"commissions", "packages", "clients",
 		// Hospitality features: conference/events + delegate meal cards, promotions/happy-hour
 		"conference", "promotions",
+		// Online orders queue (accept/reject, ready, confirm M-Pesa, hand over, assign rider).
+		// Separate from pos.orders.* so the counter cashier can run the queue without gaining
+		// "change any sale" rights on the till.
+		"online_orders",
 	}
 	actions := []string{
 		"add", "view", "view_own", "change", "change_own",
@@ -728,7 +732,7 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				"pos.outlets.*",
 				"pos.devices.*", "pos.sessions.*", "pos.cash_drawers.*",
 				"pos.tables.*", "pos.gift_cards.*", "pos.price_books.*",
-				"pos.modifiers.*", "pos.channels.*",
+				"pos.modifiers.*", "pos.channels.*", "pos.online_orders.*",
 				"pos.config.*",
 				"pos.users.*",
 				"pos.reports.*", "pos.hotel.*", "pos.appointments.*",
@@ -774,6 +778,9 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				// Hotel F&B: view rooms/events + redeem conference delegate meal cards at the till.
 				"pos.hotel.view", "pos.conference.view", "pos.conference.change",
 				"pos.promotions.view",
+				// The counter runs the online orders queue: accept/reject, ready, confirm the
+				// customer's M-Pesa code, take payment on collection and hand the order over.
+				"pos.online_orders.view", "pos.online_orders.change",
 			},
 		},
 		{
@@ -794,6 +801,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				"pos.payments.add", "pos.payments.view_own",
 				"pos.catalog.view",
 				"pos.tables.view", "pos.tables.change_own",
+				// Pickup/delivery hand-off from the online orders queue.
+				"pos.online_orders.view", "pos.online_orders.change",
 				"pos.modifiers.view",
 				"pos.sessions.add", "pos.sessions.view_own",
 				// Own cash float so recorded cash reconciles at shift close, like a cashier.
@@ -818,6 +827,7 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				"pos.catalog.view",
 				// Tables: settle/transfer/clear ANY table (not just own).
 				"pos.tables.view", "pos.tables.change", "pos.tables.change_own", "pos.tables.manage",
+				"pos.online_orders.view", "pos.online_orders.change",
 				"pos.modifiers.view",
 				"pos.sessions.add", "pos.sessions.view_own",
 				"pos.cash_drawers.add", "pos.cash_drawers.view_own", "pos.cash_drawers.change_own",
@@ -861,6 +871,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				// See active happy-hour promotions applied at the desk.
 				"pos.promotions.view",
 				"pos.appointments.view", "pos.appointments.change",
+				// Front desk accepts online room-service/pickup orders and service bookings.
+				"pos.online_orders.view", "pos.online_orders.change",
 			},
 		},
 		{
