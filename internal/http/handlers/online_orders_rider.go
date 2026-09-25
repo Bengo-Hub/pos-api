@@ -143,6 +143,17 @@ func (h *OnlineOrderHandler) AssignRider(w http.ResponseWriter, r *http.Request)
 			jsonError(w, "failed to assign rider", http.StatusBadGateway)
 			return
 		}
+		// Reflect it on the queue card right away ("Rider assigned"); later rider progress arrives
+		// through ordering's status events.
+		meta := order.Metadata
+		if meta == nil {
+			meta = map[string]any{}
+		}
+		meta["rider_id"] = body.RiderID
+		meta["dispatch_status"] = "rider_assigned"
+		if _, uErr := h.db.POSOrder.UpdateOne(order).SetMetadata(meta).Save(r.Context()); uErr != nil {
+			h.log.Warn("assign-rider: failed to stamp order metadata", zap.Error(uErr))
+		}
 		jsonOK(w, map[string]any{
 			"status": "rider_assigned", "order_id": oid.String(),
 			"external_order_id": link.ExternalOrderID, "rider_id": body.RiderID,
