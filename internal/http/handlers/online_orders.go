@@ -30,6 +30,7 @@ type OnlineOrderHandler struct {
 	db        *ent.Client
 	publisher *events.Publisher
 	rider     *riderDeps // optional WS-D assign-rider dependencies (ordering client + logistics URL)
+	releaser  orderReleaser
 }
 
 // NewOnlineOrderHandler creates a new OnlineOrderHandler.
@@ -215,6 +216,9 @@ func (h *OnlineOrderHandler) MarkReady(w http.ResponseWriter, r *http.Request) {
 	case "cancelled", "voided", "completed":
 		jsonError(w, "order is already "+order.Status, http.StatusConflict)
 		return
+	case "awaiting_acceptance":
+		jsonError(w, "accept the order first", http.StatusConflict)
+		return
 	}
 
 	updated, err := h.db.POSOrder.UpdateOneID(oid).
@@ -289,6 +293,9 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 	switch order.Status {
 	case "cancelled", "voided":
 		jsonError(w, "order was "+order.Status, http.StatusConflict)
+		return
+	case "awaiting_acceptance":
+		jsonError(w, "accept the order first", http.StatusConflict)
 		return
 	}
 

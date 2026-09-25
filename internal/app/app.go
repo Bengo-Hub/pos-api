@@ -447,6 +447,8 @@ func New(ctx context.Context) (*App, error) {
 	// for POS-NATIVE delivery orders). All use the shared INTERNAL_SERVICE_KEY.
 	logisticsDispatch := logisticsclient.NewClient(cfg.Logistics.ServiceURL, cfg.Logistics.APIKey, cfg.Logistics.RequestTimeout)
 	onlineOrderHandler.SetRiderDeps(orderingS2SClient, logisticsDispatch, cfg.Logistics.ServiceURL, cfg.Logistics.APIKey)
+	// Accepting a held online order releases it to the kitchen through the order service.
+	onlineOrderHandler.SetOrderReleaser(orderSvc)
 
 	// Platform admin: service configuration CRUD
 	serviceConfigHandler := handlers.NewServiceConfigHandler(entClient, log)

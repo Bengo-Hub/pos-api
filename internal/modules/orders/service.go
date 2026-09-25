@@ -40,6 +40,10 @@ const (
 	StatusCancelled      = "cancelled"
 	StatusRefunded       = "refunded"
 	StatusVoided         = "voided"
+	// StatusAwaitingAcceptance holds an online order the outlet has not accepted yet (manual order
+	// acceptance): it rings in the online-orders queue with Accept / Reject and gets no KDS tickets
+	// or kitchen chits until accepted (see ReleaseHeldOrder).
+	StatusAwaitingAcceptance = "awaiting_acceptance"
 )
 
 // lineIsNonBillable reports whether an order line is flagged free-of-charge: the POS
@@ -84,6 +88,8 @@ var validTransitions = map[string][]string{
 	// draft → completed is required for retail orders that skip the "open" stage.
 	StatusDraft:          {StatusOpen, StatusPendingPayment, StatusCompleted, StatusCancelled, StatusVoided},
 	StatusOpen:           {StatusPendingPayment, StatusCompleted, StatusCancelled, StatusVoided},
+	// A held online order is either accepted (opened) or rejected/cancelled.
+	StatusAwaitingAcceptance: {StatusOpen, StatusCancelled, StatusVoided},
 	StatusPendingPayment: {StatusCompleted, StatusCancelled, StatusVoided},
 	StatusCompleted:      {StatusRefunded},
 	StatusCancelled:      {},
@@ -140,6 +146,9 @@ type CreateOrderRequest struct {
 	// orders priced elsewhere (online orders arrive with the price the customer already paid or
 	// was quoted), so the POS record never re-discounts that bill.
 	SkipAutoDiscounts bool
+	// HoldForAcceptance creates the order in StatusAwaitingAcceptance: no KDS tickets and no
+	// kitchen chits until the outlet accepts it (ReleaseHeldOrder).
+	HoldForAcceptance bool
 }
 
 // OrderLineInput represents a single line item in an order.
@@ -852,6 +861,9 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	if isHospitalityOrder {
 		initialStatus = StatusOpen
 	}
+	if req.HoldForAcceptance {
+		initialStatus = StatusAwaitingAcceptance
+	}
 
 	// source defaults to pos_terminal; the back-office Add Sale flow passes "back_office".
 	source := req.Source
@@ -1058,8 +1070,9 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		})
 	}
 
-	// For hospitality orders that were auto-opened, create KDS tickets immediately.
-	if isHospitalityOrder {
+	// For hospitality orders that were auto-opened, create KDS tickets immediately. An order held
+	// for acceptance gets them when it is accepted (ReleaseHeldOrder).
+	if isHospitalityOrder && !req.HoldForAcceptance {
 		_ = s.createKDSTicketsForOrder(ctx, req.TenantID, result)
 		// Background printing (AccuPOS model): enqueue kitchen/bar tickets + customer bill for the
 		// outlet's Local Print Agent so the till never blocks on (or re-does) printing.
@@ -1067,6 +1080,31 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	}
 
 	return result, nil
+}
+
+// ReleaseHeldOrder moves an accepted online order out of StatusAwaitingAcceptance: it opens (a
+// takeaway/delivery goes to the kitchen) and its KDS tickets and kitchen chits are created exactly
+// as for an order that was never held. Returns false when the order was not held (already
+// released, cancelled, or never held), so repeated acceptance signals are harmless.
+func (s *Service) ReleaseHeldOrder(ctx context.Context, tenantID, orderID uuid.UUID) bool {
+	n, err := s.client.POSOrder.Update().
+		Where(posorder.ID(orderID), posorder.TenantID(tenantID), posorder.Status(StatusAwaitingAcceptance)).
+		SetStatus(StatusOpen).
+		Save(ctx)
+	if err != nil || n == 0 {
+		return false
+	}
+	order, err := s.client.POSOrder.Query().Where(posorder.ID(orderID)).WithLines().Only(ctx)
+	if err != nil {
+		return true
+	}
+	if isHospitalitySubtype(string(order.OrderSubtype)) {
+		_ = s.createKDSTicketsForOrder(ctx, tenantID, order)
+		s.enqueueAutoPrintJobs(ctx, tenantID, order)
+	}
+	s.log.Info("held online order accepted and released to the kitchen",
+		zap.String("order_id", orderID.String()), zap.String("order_number", order.OrderNumber))
+	return true
 }
 
 // ValidateStatusTransition checks if a status transition is allowed.

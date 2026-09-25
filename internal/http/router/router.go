@@ -1257,6 +1257,9 @@ func New(
 						// (refund + customer notice); the POS record and KDS tickets are voided here.
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/reject", onlineOrders.Reject)
+						// Accept an online order held for acceptance (manual acceptance, the default).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
+							Post("/online-orders/{orderID}/accept", onlineOrders.Accept)
 						// Confirm a customer's M-Pesa payment to the business Till/Paybill (manual M-Pesa).
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.payments.add", "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/verify-payment", onlineOrders.VerifyPayment)

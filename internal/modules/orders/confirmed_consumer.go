@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entappointment "github.com/bengobox/pos-service/internal/ent/appointment"
 	entorderlink "github.com/bengobox/pos-service/internal/ent/orderlink"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
@@ -104,33 +105,39 @@ func (c *ConfirmedOrderConsumer) SubscribeToConfirmedOrders(nc *nats.Conn) error
 		return fmt.Errorf("confirmed consumer: jetstream init: %w", err)
 	}
 
-	sharedevents.SubscribeQueueWithRebind(c.logger, js, "ordering", "ordering.order.confirmed", "pos-confirmed-orders", func(msg *nats.Msg) {
-		var evt ConfirmedOrderEvent
-		if err := json.Unmarshal(msg.Data, &evt); err != nil {
-			c.logger.Error("confirmed consumer: failed to unmarshal event", zap.Error(err))
-			_ = msg.Ack() // unrecoverable parse error — drop
-			return
-		}
+	subscribe := func(subject, durable string, hold bool) {
+		sharedevents.SubscribeQueueWithRebind(c.logger, js, "ordering", subject, durable, func(msg *nats.Msg) {
+			var evt ConfirmedOrderEvent
+			if err := json.Unmarshal(msg.Data, &evt); err != nil {
+				c.logger.Error("confirmed consumer: failed to unmarshal event", zap.Error(err))
+				_ = msg.Ack() // unrecoverable parse error — drop
+				return
+			}
 
-		ctx := context.Background()
-		if err := c.handleOrderConfirmed(ctx, &evt); err != nil {
-			c.logger.Error("confirmed consumer: failed to handle order",
-				zap.String("event_id", evt.ID),
-				zap.Error(err),
-			)
-			_ = msg.Nak() // retry
-			return
-		}
-		_ = msg.Ack()
-	},
-		nats.BindStream("ordering"),
-		nats.Durable("pos-confirmed-orders"),
-		nats.ManualAck(),
-		nats.AckWait(30*time.Second),
-		nats.MaxDeliver(5),
-	)
-
-	c.logger.Info("confirmed consumer started", zap.String("subject", "ordering.order.confirmed"))
+			ctx := context.Background()
+			if err := c.handleOrderHandoff(ctx, &evt, hold); err != nil {
+				c.logger.Error("confirmed consumer: failed to handle order",
+					zap.String("event_id", evt.ID),
+					zap.String("subject", subject),
+					zap.Error(err),
+				)
+				_ = msg.Nak() // retry
+				return
+			}
+			_ = msg.Ack()
+		},
+			nats.BindStream("ordering"),
+			nats.Durable(durable),
+			nats.ManualAck(),
+			nats.AckWait(30*time.Second),
+			nats.MaxDeliver(5),
+		)
+		c.logger.Info("online order consumer started", zap.String("subject", subject), zap.Bool("hold", hold))
+	}
+	// Confirmed: the kitchen gets it (or a held order is released once accepted).
+	subscribe("ordering.order.confirmed", "pos-confirmed-orders", false)
+	// Awaiting acceptance (manual acceptance): the queue rings with Accept / Reject; no tickets yet.
+	subscribe("ordering.order.awaiting_acceptance", "pos-awaiting-acceptance-orders", true)
 	return nil
 }
 
@@ -150,6 +157,13 @@ func onlineOrderClientReference(onlineOrderID string) string {
 
 // handleOrderConfirmed idempotently ingests a confirmed online order into POS.
 func (c *ConfirmedOrderConsumer) handleOrderConfirmed(ctx context.Context, evt *ConfirmedOrderEvent) error {
+	return c.handleOrderHandoff(ctx, evt, false)
+}
+
+// handleOrderHandoff ingests an online order into POS. hold=true (awaiting acceptance) creates the
+// POS record and appointments on hold; hold=false (confirmed) creates them live, or releases the
+// ones created earlier on hold.
+func (c *ConfirmedOrderConsumer) handleOrderHandoff(ctx context.Context, evt *ConfirmedOrderEvent, hold bool) error {
 	data := evt.Data
 
 	orderIDStr, _ := data["order_id"].(string)
@@ -187,32 +201,54 @@ func (c *ConfirmedOrderConsumer) handleOrderConfirmed(ctx context.Context, evt *
 	}
 
 	if len(services) > 0 {
-		if err := c.createAppointments(ctx, tenantID, outletID, orderIDStr, data, services); err != nil {
+		if err := c.createAppointments(ctx, tenantID, outletID, orderIDStr, data, services, hold); err != nil {
 			return err
 		}
 	}
 	if len(products) > 0 {
-		if err := c.createOutletOrder(ctx, tenantID, outletID, orderIDStr, data, products); err != nil {
+		if err := c.createOutletOrder(ctx, tenantID, outletID, orderIDStr, data, products, hold); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+// releaseAccepted opens the held POS order(s) and confirms the held appointments of an online
+// order that has now been accepted. Idempotent.
+func (c *ConfirmedOrderConsumer) releaseAccepted(ctx context.Context, tenantID uuid.UUID, orderIDStr string) {
+	links, err := c.client.OrderLink.Query().Where(entorderlink.ExternalOrderID(orderIDStr)).All(ctx)
+	if err != nil {
+		return
+	}
+	for _, l := range links {
+		switch l.ChannelSource {
+		case channelClickAndCollect, channelDelivery:
+			c.orderSvc.ReleaseHeldOrder(ctx, tenantID, l.OrderID)
+		case channelAppointment:
+			_ = c.client.Appointment.UpdateOneID(l.OrderID).
+				Where(entappointment.StatusEQ(entappointment.StatusScheduled)).
+				SetStatus(entappointment.StatusConfirmed).
+				Exec(ctx)
+		}
+	}
+}
+
 // createOutletOrder creates (or finds) the POS record the kitchen and counter work from.
-func (c *ConfirmedOrderConsumer) createOutletOrder(ctx context.Context, tenantID, outletID uuid.UUID, orderIDStr string, data map[string]interface{}, items []confirmedItemData) error {
+func (c *ConfirmedOrderConsumer) createOutletOrder(ctx context.Context, tenantID, outletID uuid.UUID, orderIDStr string, data map[string]interface{}, items []confirmedItemData, hold bool) error {
 	fulfillmentType, _ := data["fulfillment_type"].(string)
 	source, subtype, channelSource := fulfillmentRouting(fulfillmentType)
 
-	// Already linked (redelivery, or the legacy for_pickup consumer got there first): done.
+	// Already linked: a redelivery, or the order was offered for acceptance earlier. A confirmation
+	// releases the held record to the kitchen; anything else is a duplicate.
 	if exists, _ := c.client.OrderLink.Query().
 		Where(
 			entorderlink.ExternalOrderID(orderIDStr),
 			entorderlink.ChannelSourceIn(channelClickAndCollect, channelDelivery),
 		).
 		Exist(ctx); exists {
-		c.logger.Info("confirmed consumer: online order already linked, skipping duplicate",
-			zap.String("external_order_id", orderIDStr))
+		if !hold {
+			c.releaseAccepted(ctx, tenantID, orderIDStr)
+		}
 		return nil
 	}
 
@@ -288,6 +324,7 @@ func (c *ConfirmedOrderConsumer) createOutletOrder(ctx context.Context, tenantID
 		Charges:           charges,
 		Source:            "online_ordering",
 		SkipAutoDiscounts: true,
+		HoldForAcceptance: hold,
 	})
 	if err != nil {
 		return fmt.Errorf("create POS order for online order %s: %w", orderIDStr, err)
@@ -369,11 +406,20 @@ func onlineOrderMetadata(data map[string]interface{}, orderIDStr, source, subtyp
 // createAppointments books each service line into the outlet's appointment calendar so the salon,
 // barber or garage sees the online booking next to walk-ins and phone bookings instead of a
 // takeaway ticket. The deposit paid online (if any) and the balance due are noted on it.
-func (c *ConfirmedOrderConsumer) createAppointments(ctx context.Context, tenantID, outletID uuid.UUID, orderIDStr string, data map[string]interface{}, services []confirmedItemData) error {
+func (c *ConfirmedOrderConsumer) createAppointments(ctx context.Context, tenantID, outletID uuid.UUID, orderIDStr string, data map[string]interface{}, services []confirmedItemData, hold bool) error {
 	if exists, _ := c.client.OrderLink.Query().
 		Where(entorderlink.ExternalOrderID(orderIDStr), entorderlink.ChannelSource(channelAppointment)).
 		Exist(ctx); exists {
+		if !hold {
+			c.releaseAccepted(ctx, tenantID, orderIDStr)
+		}
 		return nil
+	}
+	// A booking waiting for the outlet to accept it shows as "scheduled" (tentative) and becomes
+	// "confirmed" on acceptance.
+	status := "confirmed"
+	if hold {
+		status = "scheduled"
 	}
 	loc := c.orderSvc.tenantLocation(ctx, tenantID)
 	customerName := stringField(data, "customer_name")
@@ -394,7 +440,7 @@ func (c *ConfirmedOrderConsumer) createAppointments(ctx context.Context, tenantI
 			SetServiceSku(firstNonEmpty(svc.SKU, "SERVICE")).
 			SetStartTime(start).
 			SetEndTime(end).
-			SetStatus("confirmed").
+			SetStatus(entappointment.Status(status)).
 			SetCustomerName(customerName).
 			SetCustomerPhone(customerPhone).
 			SetNotes(notes)

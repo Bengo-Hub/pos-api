@@ -168,6 +168,23 @@ func (s *KDSOrderingSubscriber) handleStatusChanged(ctx context.Context, evt *or
 		return fmt.Errorf("get POS order: %w", err)
 	}
 
+	// A held (awaiting acceptance) order only gets its tickets when ordering.order.confirmed
+	// releases it (ConfirmedOrderConsumer). An acceptance of a scheduled order arrives here before
+	// its prep window: record it so the queue shows "Accepted" instead of asking again.
+	if posOrder.Status == StatusAwaitingAcceptance {
+		if newStatus == "confirmed" {
+			meta := posOrder.Metadata
+			if meta == nil {
+				meta = map[string]any{}
+			}
+			if _, done := meta["accepted_at"]; !done {
+				meta["accepted_at"] = time.Now().Format(time.RFC3339)
+				_ = s.client.POSOrder.UpdateOneID(posOrder.ID).SetMetadata(meta).Exec(ctx)
+			}
+		}
+		return nil
+	}
+
 	// Fetch order lines to build KDS item payload
 	lines, err := s.client.POSOrderLine.Query().
 		Where(posorderline.OrderID(posOrder.ID)).

@@ -124,6 +124,36 @@ func (c *Client) CancelOrder(ctx context.Context, tenantSlug, externalOrderID, r
 	return nil
 }
 
+// UpdateOrderStatus moves an online order to status in ordering-backend (e.g. "confirmed" when the
+// outlet accepts it from the POS queue).
+func (c *Client) UpdateOrderStatus(ctx context.Context, tenantSlug, externalOrderID, status string) error {
+	if !c.Enabled() {
+		return fmt.Errorf("ordering: client not configured (ORDERING_SERVICE_URL unset)")
+	}
+	endpoint := fmt.Sprintf("%s/api/v1/%s/admin/orders/%s/status",
+		c.baseURL, url.PathEscape(tenantSlug), url.PathEscape(externalOrderID))
+	payload, err := json.Marshal(map[string]string{"status": status})
+	if err != nil {
+		return fmt.Errorf("ordering: marshal status body: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("ordering: build status request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", c.apiKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("ordering: status request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("ordering: upstream error %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
 // VerifyManualPayment tells ordering-backend the outlet matched the customer's M-Pesa code (paid
 // to the business's own Till/Paybill) against its M-Pesa statement. ordering marks the order paid
 // and records the payment in treasury under that code.
