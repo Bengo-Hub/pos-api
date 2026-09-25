@@ -289,6 +289,11 @@ func New(
 				pub.Get("/{tenantID}/pos/reservations/available", tables.GetAvailableSlots)
 				pub.Post("/{tenantID}/pos/reservations", tables.CreateReservation)
 			}
+			// Public appointment availability - the online storefront's appointment picker hides
+			// times the outlet is already fully booked for (intervals only, no customer data).
+			if appointments != nil {
+				pub.Get("/{tenantID}/pos/appointments/booked-slots", appointments.PublicBookedSlots)
+			}
 			// Public room-booking endpoints - used by the embeddable room-booking widget
 			// (date-range availability + submit; mirrors the table-reservation pair above).
 			if hotel != nil {
@@ -1248,6 +1253,10 @@ func New(
 							Post("/online-orders/{orderID}/ready", onlineOrders.MarkReady)
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/collected", onlineOrders.MarkCollected)
+						// Reject an online order the outlet cannot fulfil: delegated to ordering-backend
+						// (refund + customer notice); the POS record and KDS tickets are voided here.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), onlineFeat).
+							Post("/online-orders/{orderID}/reject", onlineOrders.Reject)
 						// WS-D delivery rider assignment: list fleet (proxy logistics) +
 						// assign rider (delegate to ordering-backend, which owns the order).
 						pos.Get("/online-orders/riders", onlineOrders.ListAvailableRiders)

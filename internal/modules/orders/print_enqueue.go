@@ -51,6 +51,7 @@ func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, 
 	profiles := printing.ProfilesFromRaw(setting.PrinterProfiles)
 	lines, err := s.client.POSOrderLine.Query().
 		Where(posorderline.OrderID(order.ID)).
+		WithModifiers().
 		All(ctx)
 	if err != nil || len(lines) == 0 {
 		return

@@ -136,6 +136,10 @@ type CreateOrderRequest struct {
 	// parseAndValidateEffectiveDate). The caller (handler) is responsible for the
 	// pos.orders.manage permission check before forwarding a non-empty value here.
 	BusinessDate string
+	// SkipAutoDiscounts disables the automatic happy-hour / negotiated-meal evaluation. Set for
+	// orders priced elsewhere (online orders arrive with the price the customer already paid or
+	// was quoted), so the POS record never re-discounts that bill.
+	SkipAutoDiscounts bool
 }
 
 // OrderLineInput represents a single line item in an order.
@@ -746,7 +750,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	// now). AddOrderLines (below) passes each existing line's real created_at so items added later
 	// during a happy-hour window still earn the deal.
 	createdAt := time.Now()
-	if s.happyHourFn != nil {
+	if s.happyHourFn != nil && !req.SkipAutoDiscounts {
 		timed := make([]TimedOrderLine, len(req.Lines))
 		for i, l := range req.Lines {
 			timed[i] = TimedOrderLine{OrderLineInput: l, AddedAt: createdAt}
@@ -1267,11 +1271,7 @@ func routeLinesToStations(lines []*ent.POSOrderLine, stations []*ent.KDSStation)
 	}
 
 	for _, l := range lines {
-		item := map[string]any{
-			"sku":      l.Sku,
-			"name":     l.Name,
-			"quantity": l.Quantity,
-		}
+		item := kdsTicketItem(l)
 
 		// Priorities 1–2 (explicit override, hot-beverage guard, category_filter match) live in
 		// resolveStationForLine — the SAME function used to stamp kds_station_id on the line at
@@ -1424,6 +1424,7 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 
 	lines, err := s.client.POSOrderLine.Query().
 		Where(posorderline.OrderID(order.ID)).
+		WithModifiers().
 		All(ctx)
 	if err != nil {
 		return err
@@ -1431,6 +1432,10 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 
 	stationItems := routeLinesToStations(lines, stations)
 	tableRef := parseTableRef(order)
+	orderSource := "pos"
+	if id, _ := order.Metadata["online_order_id"].(string); id != "" {
+		orderSource = "online"
+	}
 
 	for _, station := range stations {
 		items := stationItems[station.ID]
@@ -1473,6 +1478,8 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 					"table_reference": tableRef,
 					"status":          string(kdsticket.StatusPending),
 					"items":           items,
+					"order_subtype":   string(order.OrderSubtype),
+					"order_source":    orderSource,
 				},
 			})
 		}

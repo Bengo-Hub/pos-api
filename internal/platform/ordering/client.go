@@ -90,3 +90,36 @@ func (c *Client) AssignRider(ctx context.Context, tenantSlug, externalOrderID, r
 	}
 	return nil
 }
+
+// CancelOrder asks ordering-backend (the owner of online orders) to cancel an online order the
+// outlet cannot fulfil. ordering releases the stock hold, refunds a prepaid order, notifies the
+// customer and publishes ordering.order.cancelled, which voids the POS record and KDS tickets.
+func (c *Client) CancelOrder(ctx context.Context, tenantSlug, externalOrderID, reason string) error {
+	if !c.Enabled() {
+		return fmt.Errorf("ordering: client not configured (ORDERING_SERVICE_URL unset)")
+	}
+	endpoint := fmt.Sprintf("%s/api/v1/%s/admin/orders/%s/cancel",
+		c.baseURL, url.PathEscape(tenantSlug), url.PathEscape(externalOrderID))
+	payload, err := json.Marshal(map[string]string{"reason": reason})
+	if err != nil {
+		return fmt.Errorf("ordering: marshal cancel body: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("ordering: build cancel request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", c.apiKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("ordering: cancel request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		c.log.Warn("ordering: cancel upstream error",
+			zap.Int("status", resp.StatusCode), zap.String("external_order_id", externalOrderID))
+		return fmt.Errorf("ordering: upstream error %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
+}

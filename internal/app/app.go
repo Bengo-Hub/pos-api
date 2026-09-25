@@ -599,6 +599,11 @@ func New(ctx context.Context) (*App, error) {
 		if err := kdsOrderingSubscriber.SubscribeToOrderingEvents(natsConn); err != nil {
 			log.Warn("app: failed to subscribe to ordering status events for KDS", zap.Error(err))
 		}
+		// Online orders cancelled outside the outlet (customer, admin, payment timeout) void the
+		// POS record and its KDS tickets so the kitchen stops.
+		if err := kdsOrderingSubscriber.SubscribeToOnlineCancellations(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to online order cancellations", zap.Error(err))
+		}
 	}
 
 	// Subscribe to treasury events: payment.success/failed → complete/fail local payment; etims → store invoice data

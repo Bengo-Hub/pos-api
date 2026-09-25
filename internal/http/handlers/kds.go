@@ -207,7 +207,7 @@ func (h *KDSHandler) getQueue(w http.ResponseWriter, r *http.Request, stationTyp
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"data": tickets, "total": len(tickets)})
+	jsonOK(w, map[string]any{"data": h.withOrderSource(r.Context(), tickets), "total": len(tickets)})
 }
 
 // kdsRecentCutoff returns the received-at cutoff for the KDS board. Defaults to the last 24h so
@@ -276,7 +276,18 @@ func (h *KDSHandler) ListTickets(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"data": tickets, "total": len(tickets)})
+	views := h.withOrderSource(r.Context(), tickets)
+	// ?order_source=online|pos narrows the board to one channel (the KDS "Online Orders" filter).
+	if src := r.URL.Query().Get("order_source"); src == "online" || src == "pos" {
+		filtered := views[:0]
+		for _, v := range views {
+			if v.OrderSource == src {
+				filtered = append(filtered, v)
+			}
+		}
+		views = filtered
+	}
+	jsonOK(w, map[string]any{"data": views, "total": len(views)})
 }
 
 // StartTicket handles POST /{tenantID}/pos/kds/tickets/{id}/start
@@ -400,6 +411,11 @@ func (h *KDSHandler) transitionTicket(w http.ResponseWriter, r *http.Request, to
 		})
 	}
 
+	// Starting an online order's first ticket moves the customer's tracker to "Preparing".
+	if toStatus == entkdsticket.StatusInProgress {
+		h.publishOnlinePreparing(r.Context(), tid, updated)
+	}
+
 	// Publish pos.kds.order.ready at the ORDER level — only once every KDS ticket
 	// for the order is ready (mirrors syncOrderOnAllTicketsServed). external_order_id
 	// is resolved via OrderLink so ordering-backend can notify the online customer.
@@ -431,6 +447,12 @@ func (h *KDSHandler) syncOrderOnAllTicketsServed(ctx context.Context, tid, order
 		).
 		Count(ctx)
 	if err != nil || remaining > 0 {
+		return
+	}
+
+	// Online orders are paid through ordering (online or on collection/delivery): they wait at
+	// the counter as ready rather than entering the till's pending_payment queue.
+	if h.settleOnlineOrderServed(ctx, tid, orderID, orderNumber) {
 		return
 	}
 

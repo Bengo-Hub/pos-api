@@ -2,6 +2,7 @@ package printing
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bengobox/pos-service/internal/ent"
@@ -78,7 +79,7 @@ func StationTicketData(order *ent.POSOrder, stationLabel string, items []map[str
 		if qty == 0 {
 			qty = 1
 		}
-		ri = append(ri, ReceiptItem{Name: name, Quantity: qty})
+		ri = append(ri, ReceiptItem{Name: name, Quantity: qty, Notes: stationItemNotes(it)})
 	}
 
 	tableRef := ""
@@ -96,7 +97,58 @@ func StationTicketData(order *ent.POSOrder, stationLabel string, items []map[str
 		DateTime:    order.CreatedAt,
 		Header:      stationLabel,
 		Items:       ri,
+		Banner:      OnlineOrderBanner(order),
 	}
+}
+
+// stationItemNotes flattens a station item's modifiers and notes into the single "*" line the
+// kitchen chit prints under the item ("Oat milk, Extra shot | no sugar").
+func stationItemNotes(it map[string]any) string {
+	parts := []string{}
+	switch mods := it["modifiers"].(type) {
+	case []string:
+		if len(mods) > 0 {
+			parts = append(parts, strings.Join(mods, ", "))
+		}
+	case []any:
+		labels := make([]string, 0, len(mods))
+		for _, m := range mods {
+			if s, ok := m.(string); ok && s != "" {
+				labels = append(labels, s)
+			}
+		}
+		if len(labels) > 0 {
+			parts = append(parts, strings.Join(labels, ", "))
+		}
+	}
+	if n, _ := it["notes"].(string); strings.TrimSpace(n) != "" {
+		parts = append(parts, strings.TrimSpace(n))
+	}
+	return strings.Join(parts, " | ")
+}
+
+// OnlineOrderBanner is the attention line for an order that came from the online store, so the
+// kitchen packs it for collection or a rider rather than plating it for a table:
+// "ONLINE PICKUP", "ONLINE DELIVERY", plus the promised time for a scheduled order and the
+// customer's order notes. Empty for POS-native orders.
+func OnlineOrderBanner(order *ent.POSOrder) string {
+	if order == nil || order.Metadata == nil {
+		return ""
+	}
+	if id, _ := order.Metadata["online_order_id"].(string); id == "" {
+		return ""
+	}
+	label := "ONLINE PICKUP"
+	if ft, _ := order.Metadata["fulfillment_type"].(string); ft == "delivery" {
+		label = "ONLINE DELIVERY"
+	}
+	if at, _ := order.Metadata["scheduled_for_label"].(string); at != "" {
+		label += " FOR " + at
+	}
+	if notes, _ := order.Metadata["order_notes"].(string); strings.TrimSpace(notes) != "" {
+		label += " | " + strings.TrimSpace(notes)
+	}
+	return "*** " + label + " ***"
 }
 
 // StationTicketDataWithBanner is StationTicketData plus an attention banner (e.g.
@@ -104,7 +156,9 @@ func StationTicketData(order *ent.POSOrder, stationLabel string, items []map[str
 // order — so the station never re-prepares the whole bill.
 func StationTicketDataWithBanner(order *ent.POSOrder, stationLabel string, items []map[string]any, banner string) ReceiptData {
 	d := StationTicketData(order, stationLabel, items)
-	d.Banner = banner
+	if banner != "" {
+		d.Banner = banner
+	}
 	return d
 }
 

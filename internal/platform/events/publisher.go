@@ -157,6 +157,20 @@ func (p *Publisher) PublishOnlineOrderCollected(ctx context.Context, tenantID uu
 	return p.publish(ctx, tenantID, "online_order.collected", data)
 }
 
+// PublishOnlineOrderDelivered publishes pos.online_order.delivered when the outlet delivered an
+// online delivery order with its own staff (no rider app). ordering-backend walks the order to
+// delivered, which settles cash on delivery and consumes the stock reservation.
+func (p *Publisher) PublishOnlineOrderDelivered(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "online_order.delivered", data)
+}
+
+// PublishOnlineOrderPreparing publishes pos.online_order.preparing the first time the outlet starts
+// an online order (a KDS ticket moves to in progress), so ordering-backend can show the customer
+// "Preparing" instead of leaving the tracker on "Confirmed" until the food is ready.
+func (p *Publisher) PublishOnlineOrderPreparing(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "online_order.preparing", data)
+}
+
 // PublishERPSalePosted publishes a pos.erp.sale_posted event for external ERP / accounting system sync.
 func (p *Publisher) PublishERPSalePosted(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "erp.sale_posted", data)

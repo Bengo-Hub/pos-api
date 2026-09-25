@@ -363,7 +363,7 @@ func (h *OnlineOrderHandler) ListDeliveryDispatch(w http.ResponseWriter, r *http
 			q = q.Where(posorder.OutletID(oid))
 		}
 	}
-	orders, err := q.Order(ent.Desc(posorder.FieldCreatedAt)).Limit(100).All(r.Context())
+	orders, err := q.WithLines().Order(ent.Desc(posorder.FieldCreatedAt)).Limit(100).All(r.Context())
 	if err != nil {
 		h.log.Error("list delivery dispatch failed", zap.Error(err))
 		jsonError(w, "failed to list delivery orders", http.StatusInternalServerError)

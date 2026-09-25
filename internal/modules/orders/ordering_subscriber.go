@@ -82,12 +82,29 @@ func (s *KDSOrderingSubscriber) SubscribeToOrderingEvents(nc *nats.Conn) error {
 		}
 
 		newStatus, _ := evt.Data["new_status"].(string)
+		ctx := context.Background()
+		if isLifecycleStatus(newStatus) {
+			if err := s.applyOnlineLifecycle(ctx, &evt, newStatus); err != nil {
+				s.logger.Error("online lifecycle: failed to mirror status", zap.String("new_status", newStatus), zap.Error(err))
+				_ = msg.Nak()
+				return
+			}
+			_ = msg.Ack()
+			return
+		}
 		if newStatus != "confirmed" && newStatus != "preparing" {
 			_ = msg.Ack()
 			return
 		}
+		if newStatus == "preparing" {
+			if orderID, _ := evt.Data["order_id"].(string); orderID != "" {
+				if o := s.onlinePOSOrder(ctx, orderID); o != nil && s.kitchenAlreadyStarted(ctx, o.ID) {
+					_ = msg.Ack() // echo of our own KDS start; leave the other stations alone
+					return
+				}
+			}
+		}
 
-		ctx := context.Background()
 		if err := s.handleStatusChanged(ctx, &evt, newStatus); err != nil {
 			s.logger.Error("kds: failed to handle ordering status change",
 				zap.String("event_id", evt.ID),
@@ -154,6 +171,7 @@ func (s *KDSOrderingSubscriber) handleStatusChanged(ctx context.Context, evt *or
 	// Fetch order lines to build KDS item payload
 	lines, err := s.client.POSOrderLine.Query().
 		Where(posorderline.OrderID(posOrder.ID)).
+		WithModifiers().
 		All(ctx)
 	if err != nil {
 		return fmt.Errorf("query order lines: %w", err)
