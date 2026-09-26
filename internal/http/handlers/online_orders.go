@@ -408,6 +408,11 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 			"payment_method":    body.PaymentMethod,
 			"reference":         strings.ToUpper(strings.TrimSpace(body.Reference)),
 		}
+		// The terminal payment already booked this money in treasury (as a POS intent), so
+		// ordering must mark the order paid without settling its own intent a second time.
+		if paid, _ := meta["paid_at_terminal"].(bool); paid {
+			payload["paid_at_terminal"] = true
+		}
 		if isDelivery {
 			// Delivered by the outlet's own staff (no rider app): ordering walks the order through
 			// out-for-delivery to delivered, settling cash on delivery.
