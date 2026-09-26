@@ -5,6 +5,7 @@ package inventory
 import (
 	"bytes"
 	"context"
+	"errors"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -456,6 +457,11 @@ type ReverseConsumptionResponse struct {
 
 // ReverseConsumption calls inventory-api to reverse (part of) an order's recorded BOM
 // consumption — the stock side of a POS sale reversal. Idempotent server-side.
+// ErrNothingToReverse means inventory recorded no consumption for the order (a service/voucher
+// sale, or one already reversed): there is no stock to put back, which callers restoring stock
+// should treat as done rather than as a failure.
+var ErrNothingToReverse = errors.New("nothing left to reverse")
+
 func (c *Client) ReverseConsumption(ctx context.Context, tenantID string, req ReverseConsumptionRequest) (*ReverseConsumptionResponse, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
@@ -478,7 +484,11 @@ func (c *Client) ReverseConsumption(ctx context.Context, tenantID string, req Re
 
 	if resp.StatusCode >= 400 {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
-		return nil, fmt.Errorf("inventory.Client.ReverseConsumption: status %d: %s", resp.StatusCode, strings.TrimSpace(string(msg)))
+		body := strings.TrimSpace(string(msg))
+		if resp.StatusCode == http.StatusUnprocessableEntity && strings.Contains(body, "nothing left to reverse") {
+			return nil, fmt.Errorf("inventory.Client.ReverseConsumption: %w: %s", ErrNothingToReverse, body)
+		}
+		return nil, fmt.Errorf("inventory.Client.ReverseConsumption: status %d: %s", resp.StatusCode, body)
 	}
 	var out ReverseConsumptionResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {

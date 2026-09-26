@@ -2,6 +2,7 @@ package saledelete
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -116,16 +117,22 @@ func (s *Service) deleteNonFiscalized(ctx context.Context, tenantID uuid.UUID, o
 			Reason:         fmt.Sprintf("Delete Sale (shred): %s", req.Reason),
 			IdempotencyKey: "pos-shred-" + shred.ID.String(),
 		})
-		if ierr != nil {
+		switch {
+		case errors.Is(ierr, inventory.ErrNothingToReverse):
+			// A service/voucher sale never drew stock: nothing to put back, so the deletion
+			// continues (it used to abort here, making such sales impossible to delete).
+			steps[0] = nowStep(StepInventory, "inventory", StatusSkipped, "no stock was consumed by this sale", "")
+		case ierr != nil:
 			steps[0] = nowStep(StepInventory, "inventory", StatusFailed, ierr.Error(), "")
 			shred = s.persistShredSteps(ctx, shred, steps, "")
 			return s.failResult(shred, order.ID), fmt.Errorf("restore inventory: %w", ierr)
+		default:
+			detail := fmt.Sprintf("%d ingredient line(s) reversed", len(resp.Ingredients))
+			if resp.AlreadyProcessed {
+				detail = "already reversed (idempotent replay)"
+			}
+			steps[0] = nowStep(StepInventory, "inventory", StatusCompleted, detail, resp.ID)
 		}
-		detail := fmt.Sprintf("%d ingredient line(s) reversed", len(resp.Ingredients))
-		if resp.AlreadyProcessed {
-			detail = "already reversed (idempotent replay)"
-		}
-		steps[0] = nowStep(StepInventory, "inventory", StatusCompleted, detail, resp.ID)
 	} else {
 		steps[0] = nowStep(StepInventory, "inventory", StatusSkipped, "inventory client not configured", "")
 	}
