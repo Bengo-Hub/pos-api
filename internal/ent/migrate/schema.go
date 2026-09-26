@@ -1738,6 +1738,35 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[10]},
 			},
+			{
+				Name:    "posorder_tenant_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[45]},
+			},
+			{
+				Name:    "posorder_tenant_id_business_date",
+				Unique:  false,
+				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[40]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "business_date IS NOT NULL",
+				},
+			},
+			{
+				Name:    "posorder_tenant_id_offline_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[8]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "offline_created_at IS NOT NULL",
+				},
+			},
+			{
+				Name:    "posorder_pickup_queue",
+				Unique:  false,
+				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[45]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "status NOT IN ('cancelled', 'voided') AND (metadata ->> 'collected') IS DISTINCT FROM 'true'",
+				},
+			},
 		},
 	}
 	// PosOrderEventsColumns holds the columns for the "pos_order_events" table.

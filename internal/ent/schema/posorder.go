@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
@@ -234,5 +235,21 @@ func (POSOrder) Indexes() []ent.Index {
 		index.Fields("tenant_id", "client_reference").Unique(),
 		// Speeds up the All-Sales "Sources" filter + the POS-only sales list.
 		index.Fields("tenant_id", "source"),
+		// Date-range reports and lists (order_date_range.go effectiveDateGTE/LTE) OR three
+		// branches: business_date when set, else offline_created_at when set, else created_at.
+		// One index per branch lets Postgres bitmap-OR them instead of scanning a tenant's whole
+		// sales history; the two override indexes are partial because those columns are rarely set.
+		index.Fields("tenant_id", "created_at"),
+		index.Fields("tenant_id", "business_date").
+			StorageKey("posorder_tenant_id_business_date").
+			Annotations(entsql.IndexWhere("business_date IS NOT NULL")),
+		index.Fields("tenant_id", "offline_created_at").
+			StorageKey("posorder_tenant_id_offline_created_at").
+			Annotations(entsql.IndexWhere("offline_created_at IS NOT NULL")),
+		// Counter pickup queue (online_orders.go ListPickup): only orders still waiting to be
+		// handed over, so it stays small while collected history grows.
+		index.Fields("tenant_id", "created_at").
+			StorageKey("posorder_pickup_queue").
+			Annotations(entsql.IndexWhere("status NOT IN ('cancelled', 'voided') AND (metadata ->> 'collected') IS DISTINCT FROM 'true'")),
 	}
 }
