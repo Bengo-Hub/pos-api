@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	entkdsticket "github.com/bengobox/pos-service/internal/ent/kdsticket"
 	entorderlink "github.com/bengobox/pos-service/internal/ent/orderlink"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	entpospayment "github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -333,6 +335,14 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
+	// Money already taken at the terminal (the order was rung through checkout) counts as
+	// collected. Asking for it again here would have the counter record the same cash twice.
+	if isOnline && !body.CashCollected && paidAtTerminal(order.TotalAmount, order.PaidTotal) {
+		body.CashCollected = true
+		body.PaymentMethod = firstNonEmptyStr(body.PaymentMethod, h.terminalPaymentMethod(r.Context(), oid))
+		meta["paid_at_terminal"] = true
+	}
+
 	// A pay-on-collection online order cannot leave the counter until the money is taken.
 	if isOnline {
 		prepaid, _ := meta["prepaid"].(bool)
@@ -410,6 +420,28 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 	}
 
 	jsonOK(w, updated)
+}
+
+// paidAtTerminal reports whether terminal payments already cover the order (half-cent tolerance
+// for float totals). A zero-total order is never "paid at terminal": there was nothing to take.
+func paidAtTerminal(total, paid float64) bool {
+	return total > 0 && paid+0.005 >= total
+}
+
+// terminalPaymentMethod is how the order's latest completed terminal payment was tendered
+// ("cash", "mpesa", "card"), for telling ordering how a pay-on-collection order was settled.
+func (h *OnlineOrderHandler) terminalPaymentMethod(ctx context.Context, orderID uuid.UUID) string {
+	p, err := h.db.POSPayment.Query().
+		Where(entpospayment.OrderID(orderID), entpospayment.Status("completed")).
+		Order(ent.Desc(entpospayment.FieldOccurredAt)).
+		First(ctx)
+	if err != nil {
+		return "cash"
+	}
+	if m, _ := p.PaymentData["method"].(string); m != "" {
+		return m
+	}
+	return "cash"
 }
 
 // rejectRequest is the body of the reject action.
