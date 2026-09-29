@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path"
@@ -11,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/Bengo-Hub/httpware"
@@ -120,59 +118,13 @@ func (h *ScreensaverMediaHandler) Upload(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := r.ParseMultipartForm(maxScreensaverBytes); err != nil {
-		jsonError(w, "invalid multipart form (max 8MB)", http.StatusBadRequest)
-		return
-	}
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		jsonError(w, "missing file field", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-	if header.Size > maxScreensaverBytes {
-		jsonError(w, "file too large (max 8MB)", http.StatusRequestEntityTooLarge)
-		return
-	}
-
-	// Sniff the real content type — never trust the extension/Content-Type header.
-	head := make([]byte, 512)
-	n, _ := io.ReadFull(file, head)
-	mime := http.DetectContentType(head[:n])
-	ext, ok := screensaverExtByMIME[mime]
+	rel, dst, ok := storeTenantMedia(w, r, h.log, h.root, mediaUploadSpec{
+		Subfolder: screensaverSubfolder, MaxBytes: maxScreensaverBytes, SizeLabel: "8MB",
+		ExtByMIME: screensaverExtByMIME, TypesLabel: "PNG, JPEG, WebP or MP4",
+	})
 	if !ok {
-		jsonError(w, "unsupported media type — use PNG, JPEG, WebP or MP4", http.StatusUnsupportedMediaType)
 		return
 	}
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		jsonError(w, "failed to read upload", http.StatusInternalServerError)
-		return
-	}
-
-	slug := tenantSlugFrom(r)
-	dir := filepath.Join(h.root, slug, screensaverSubfolder)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		h.log.Error("screensaver mkdir", zap.Error(err))
-		jsonError(w, "media storage unavailable", http.StatusInternalServerError)
-		return
-	}
-	name := uuid.NewString() + ext
-	dst := filepath.Join(dir, name)
-	out, err := os.Create(dst)
-	if err != nil {
-		h.log.Error("screensaver create", zap.Error(err))
-		jsonError(w, "media storage unavailable", http.StatusInternalServerError)
-		return
-	}
-	if _, err := io.Copy(out, io.LimitReader(file, maxScreensaverBytes)); err != nil {
-		out.Close()
-		_ = os.Remove(dst)
-		jsonError(w, "failed to store upload", http.StatusInternalServerError)
-		return
-	}
-	out.Close()
-
-	rel := path.Join(mediaURLPrefix, slug, screensaverSubfolder, name)
 	updated := append(urls, rel)
 	if err := h.saveURLs(r, sctx, updated); err != nil {
 		_ = os.Remove(dst)

@@ -93,7 +93,7 @@ func (POSOrder) Fields() []ent.Field {
 		field.String("currency").
 			Default("KES"),
 		field.Enum("order_subtype").
-			Values("dine_in", "takeaway", "room_service", "delivery", "bar_tab", "retail").
+			Values("dine_in", "takeaway", "room_service", "delivery", "bar_tab", "retail", "service_job").
 			Default("dine_in"),
 		field.UUID("room_id", uuid.UUID{}).
 			Optional().
@@ -251,5 +251,11 @@ func (POSOrder) Indexes() []ent.Index {
 		index.Fields("tenant_id", "created_at").
 			StorageKey("posorder_pickup_queue").
 			Annotations(entsql.IndexWhere("status NOT IN ('cancelled', 'voided') AND (metadata ->> 'collected') IS DISTINCT FROM 'true'")),
+		// Services job orders (printing, garage, laundry): the job list, the production-stage
+		// dashboard counts and the job reports filter by outlet + status over job rows only, so
+		// the index stays the size of the job book, not the tenant's whole sales history.
+		index.Fields("tenant_id", "outlet_id", "status", "created_at").
+			StorageKey("posorder_service_jobs").
+			Annotations(entsql.IndexWhere("order_subtype = 'service_job'")),
 	}
 }

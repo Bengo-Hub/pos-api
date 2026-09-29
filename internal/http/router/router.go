@@ -542,6 +542,15 @@ func New(
 						// alone is sufficient here (see orders.Service.UpdateSaleInfo).
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
 							Patch("/orders/{orderID}/sale-info", orders.UpdateSaleInfo)
+						// Services job orders: reception edits the brief/attachments, production moves
+						// the stage from the board (pos.kds.change), the front desk marks it collected.
+						pos.With(outletmw.RequireServicePermission(rbacSvc,
+							"pos.orders.add", "pos.orders.change", "pos.orders.change_own", "pos.orders.manage", "pos.kds.change")).
+							Patch("/orders/{orderID}/job", orders.UpdateJob)
+						// Reference media for a job (512 KB images or PDF per file).
+						pos.With(orderWrite).Post("/orders/job-attachments", orders.UploadJobAttachment)
+						// Services jobs dashboard counts (in production, ready, due today, overdue).
+						pos.With(orderRead).Get("/jobs/summary", orders.JobSummary)
 						// Tenant-admin Delete-Sale ("shred") tool for a FINALIZED sale — admin-only by
 						// default (carved out of manager's pos.orders.* wildcard in the seed),
 						// tenant-configurable via the Roles & Permissions matrix. POST, not DELETE:
@@ -879,12 +888,15 @@ func New(
 						pos.With(staffManage).Post("/staff/{staffID}/deactivate", staffAdmin.DeactivateStaff)
 					}
 
-					// KDS Ã¢â‚¬â€ hospitality and quick_service only; outlet must have enable_kds=true
+					// KDS board: kitchen/bar display for hospitality and quick_service, production board for services jobs. Outlet must have enable_kds=true.
 					if kds != nil {
 						pos.Group(func(k chi.Router) {
-							k.Use(outletmw.RequireUseCase("hospitality", "quick_service"))
+							// The "kds" plan feature gates the food display only; a services production
+							// board (printing, garage, laundry jobs) runs on the enable_kds toggle its
+							// job profile switches on.
+							k.Use(outletmw.RequireUseCase("hospitality", "quick_service", "services"))
 							k.Use(outletmw.RequireKDSEnabled(entClient))
-							k.Use(subscriptions.RequireFeature(subscriptions.FeatureKDS))
+							k.Use(outletmw.GateUnlessUseCase(subscriptions.RequireFeature(subscriptions.FeatureKDS), "services"))
 							k.Get("/kds/stations", kds.ListStations)
 							k.Post("/kds/stations", kds.CreateStation)
 							k.Put("/kds/stations/{id}", kds.UpdateStation)
@@ -1173,7 +1185,7 @@ func New(
 							// with reports.view could call it directly and get real-but-meaningless
 							// station data back, unlike every other use-case-scoped route group (see the
 							// loyalty routes above) which already enforces RequireUseCase.
-							rp.With(outletmw.RequireUseCase("hospitality", "quick_service")).
+							rp.With(outletmw.RequireUseCase("hospitality", "quick_service", "services")).
 								Get("/reports/sales/by-kds-station", reports.SalesByKDSStation)
 							// Occupancy %, ADR, RevPAR, room-vs-ancillary revenue split — hotel-module
 							// tenants only (rooms/RoomGuest/RoomFolioItem are meaningless without it),
@@ -1199,7 +1211,7 @@ func New(
 							rp.Get("/reports/sales-by-item-type", reportPDF.SalesByItemType)
 							// Same use-case gate as the JSON route above — a retail/pharmacy outlet
 							// should never be able to export a "Sales by KDS Station" PDF/CSV either.
-							rp.With(outletmw.RequireUseCase("hospitality", "quick_service")).
+							rp.With(outletmw.RequireUseCase("hospitality", "quick_service", "services")).
 								Get("/reports/sales-by-kds-station-document", reportPDF.SalesByKDSStationDoc)
 							rp.Get("/reports/daily-sales", reportPDF.DailySales)
 							rp.Get("/reports/shift/{sessionID}", reportPDF.ShiftReportPDF)

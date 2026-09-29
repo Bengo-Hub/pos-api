@@ -27,6 +27,7 @@ import (
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/http/middleware"
+	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
@@ -310,7 +311,7 @@ func useCaseItemTypes(useCase string) string {
 // quick day-pass sale through the normal order pipeline.
 func isBookableServiceUseCase(useCase string) bool {
 	switch strings.ToUpper(strings.TrimSpace(useCase)) {
-	case "HOSPITALITY_FACILITY", "CONFERENCE", "SALON_SERVICE", "AMENITY", "HOSPITALITY_ROOM":
+	case "HOSPITALITY_FACILITY", "CONFERENCE", "SALON_SERVICE", "NAIL_SERVICE", "SPA_SERVICE", "AMENITY", "HOSPITALITY_ROOM":
 		return true
 	default:
 		return false
@@ -378,7 +379,7 @@ func categoryAllowedForUseCaseSet(categoryName string, useCases []string) bool {
 	return false
 }
 
-// resolveExtraCatalogUseCases loads the outlet's hybrid catalog_use_cases from
+// resolveOutletCatalogConfig loads the outlet's hybrid catalog_use_cases from
 // OutletSetting, gated on the tenant holding the facility_booking subscription
 // feature. This is the plan-gating hook: an outlet admin can configure
 // catalog_use_cases=["services"] at any time, but it only takes effect once the
@@ -386,21 +387,57 @@ func categoryAllowedForUseCaseSet(categoryName string, useCases []string) bool {
 // the hybrid catalog automatically, with zero further config, and downgrading
 // silently falls back to the primary use_case only (fail-closed, never a hard
 // failure). A missing/errored settings row is likewise treated as "no extras".
-func (h *CatalogHandler) resolveExtraCatalogUseCases(ctx context.Context, outletID *uuid.UUID) []string {
+//
+// The same settings row also carries a services outlet's service profile (printing, salon,
+// garage, ...), which narrows the catalog to that trade's SERVICE items. Both come from one
+// query. The profile is only resolved for an outlet whose primary use case is services.
+func (h *CatalogHandler) resolveOutletCatalogConfig(ctx context.Context, outletID *uuid.UUID, primaryUseCase string) ([]string, *outletpolicy.ServiceProfile) {
 	if outletID == nil {
-		return nil
+		return nil, nil
 	}
+	isServices := outletpolicy.NormalizeUseCase(primaryUseCase) == outletpolicy.UseCaseServices
 	claims, ok := authclient.ClaimsFromContext(ctx)
-	if !ok || !claims.HasFeature(subscriptions.FeatureFacilityBooking) {
-		return nil
+	wantExtras := ok && claims.HasFeature(subscriptions.FeatureFacilityBooking)
+	if !wantExtras && !isServices {
+		return nil, nil
 	}
 	s, err := h.client.OutletSetting.Query().
 		Where(entoutletsetting.OutletID(*outletID)).
 		Only(ctx)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
-	return s.CatalogUseCases
+	var extras []string
+	if wantExtras {
+		extras = s.CatalogUseCases
+	}
+	if isServices {
+		if p, found := outletpolicy.ServiceProfileFromMetadata(s.Metadata); found {
+			return extras, &p
+		}
+	}
+	return extras, nil
+}
+
+// serviceProfileAllowsItem applies a services outlet's profile on top of the category gate:
+// a SERVICE item must belong to the profile's trade (by inventory item use_case), and a profile
+// that sells retail goods (a print shop's paper, a salon's hair products) lets GOODS in
+// merchandise categories through even though the plain services gate excludes them. Food and
+// component categories stay excluded either way.
+func serviceProfileAllowsItem(profile *outletpolicy.ServiceProfile, itemType, itemUseCase, categoryName string, categoryAllowed bool) bool {
+	if profile == nil {
+		return categoryAllowed
+	}
+	if strings.EqualFold(itemType, "SERVICE") && !profile.AllowsItemUseCase(itemUseCase) {
+		return false
+	}
+	if categoryAllowed {
+		return true
+	}
+	if profile.SellsRetailGoods && strings.EqualFold(itemType, "GOODS") {
+		return categoryAllowedForUseCase(categoryName, "retail")
+	}
+	return false
 }
 
 func doInventoryGET(ctx context.Context, path string, outletID string) ([]byte, error) {
@@ -1290,7 +1327,8 @@ func (h *CatalogHandler) assembleMenuItems(
 	// on OutletSetting.catalog_use_cases (e.g. a hospitality cafe also selling co-working/
 	// conference SERVICE packages via "services"). Both the inventory-api type fetch and
 	// the category gate below use this set instead of the single primary use_case.
-	useCases := effectiveCatalogUseCases(useCase, h.resolveExtraCatalogUseCases(ctx, outletID))
+	extraUseCases, serviceProfile := h.resolveOutletCatalogConfig(ctx, outletID, useCase)
+	useCases := effectiveCatalogUseCases(useCase, extraUseCases)
 
 	// Fetch items + pricing from inventory-api — through a short-TTL Redis cache.
 	//
@@ -1353,7 +1391,10 @@ func (h *CatalogHandler) assembleMenuItems(
 		// Exclude items whose category doesn't belong to any of this outlet's use cases
 		// (primary + hybrid extras). A hospitality cafe with "services" enabled keeps its
 		// food menu AND its co-working/conference SERVICE packages.
-		if len(useCases) > 0 && !categoryAllowedForUseCaseSet(item.CategoryName, useCases) {
+		categoryOK := len(useCases) == 0 || categoryAllowedForUseCaseSet(item.CategoryName, useCases)
+		// A services outlet with a profile (printing, salon, garage) additionally narrows SERVICE
+		// items to its trade and lets its retail goods through.
+		if !serviceProfileAllowsItem(serviceProfile, item.Type, item.UseCase, item.CategoryName, categoryOK) {
 			continue
 		}
 

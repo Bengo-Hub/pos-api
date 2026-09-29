@@ -27,7 +27,31 @@ func kdsTicketItem(l *ent.POSOrderLine) map[string]any {
 	if notes := lineNotes(l); notes != "" {
 		item["notes"] = notes
 	}
+	// Services job lines carry the spec sheet the production station works from (size,
+	// material, finishing for a print job; vehicle details for a garage job).
+	if specs := lineJobSpecs(l); len(specs) > 0 {
+		item["job_specs"] = specs
+	}
 	return item
+}
+
+// lineJobSpecs returns the non-empty job spec values captured on a services job line.
+func lineJobSpecs(l *ent.POSOrderLine) map[string]string {
+	if l == nil || l.Metadata == nil {
+		return nil
+	}
+	raw, ok := l.Metadata["job_specs"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	out := make(map[string]string, len(raw))
+	for k, v := range raw {
+		s := strings.TrimSpace(fmt.Sprint(v))
+		if s != "" && s != "<nil>" {
+			out[k] = s
+		}
+	}
+	return out
 }
 
 // lineModifierLabels returns human-readable modifier labels for a line.

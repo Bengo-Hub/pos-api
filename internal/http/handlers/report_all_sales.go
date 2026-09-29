@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/Bengo-Hub/httpware"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
@@ -77,6 +77,19 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 		// by this default). Applies uniformly to the on-screen list, the summary footer, and the
 		// PDF/CSV export since they all share this filter builder.
 		filters = append(filters, posorder.StatusNEQ(orders.StatusDraft))
+	}
+	// order_subtype narrows to one or more subtypes (e.g. service_job for the services job
+	// list and the jobs dashboard). Unknown values simply match nothing.
+	if subtype := strings.TrimSpace(q.Get("order_subtype")); subtype != "" {
+		var subtypes []posorder.OrderSubtype
+		for _, s := range strings.Split(subtype, ",") {
+			if s = strings.TrimSpace(s); s != "" {
+				subtypes = append(subtypes, posorder.OrderSubtype(s))
+			}
+		}
+		if len(subtypes) > 0 {
+			filters = append(filters, posorder.OrderSubtypeIn(subtypes...))
+		}
 	}
 	// staff_id / user_id scope the list to orders belonging to a specific staff member —
 	// matches EITHER the order's creator (user_id) OR the cashier actually attributed as

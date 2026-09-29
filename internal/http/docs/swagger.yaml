@@ -104,6 +104,23 @@ definitions:
         example: OK
         type: string
     type: object
+  orders.JobSummary:
+    properties:
+      awaiting_proof:
+        type: integer
+      balance_outstanding:
+        type: number
+      deposits_held:
+        type: number
+      due_today:
+        type: integer
+      in_production:
+        type: integer
+      overdue:
+        type: integer
+      ready_for_collection:
+        type: integer
+    type: object
 info:
   contact: {}
   description: HTTP API for the Codevertex POS service. Provides point-of-sale operations,
@@ -213,6 +230,45 @@ paths:
       summary: Preview next POS document number
       tags:
       - document-numbering
+  /{tenantID}/pos/jobs/summary:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orders.JobSummary'
+      summary: Services jobs dashboard summary for the active outlet
+      tags:
+      - orders
+  /{tenantID}/pos/orders/{orderID}/job:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order ID
+        in: path
+        name: orderID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update a services job order
+      tags:
+      - orders
   /{tenantID}/pos/orders/bulk-delete:
     post:
       consumes:
@@ -255,6 +311,74 @@ paths:
       summary: Bulk-void unsettled orders
       tags:
       - orders
+  /{tenantID}/pos/orders/job-attachments:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Image (PNG, JPEG, WebP) or PDF, max 512 KB
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "413":
+          description: Request Entity Too Large
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "415":
+          description: Unsupported Media Type
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upload a job attachment (512 KB image or PDF)
+      tags:
+      - orders
+  /{tenantID}/pos/service-profiles:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List services sub use cases (service profiles)
+      tags:
+      - settings
+  /{tenantID}/pos/settings/service-profile:
+    patch:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Set a services outlet's service profile and default job deposit
+      tags:
+      - settings
   /healthz:
     get:
       description: Returns OK when the POS API process is running.

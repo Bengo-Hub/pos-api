@@ -81,6 +81,9 @@ var ErrInvalidBusinessDate = errors.New("invalid business_date")
 // absent — it is an order STATUS, not a subtype (legacy clients send it from Save as Draft).
 var validOrderSubtypes = map[string]struct{}{
 	"dine_in": {}, "takeaway": {}, "room_service": {}, "delivery": {}, "bar_tab": {}, "retail": {},
+	// service_job: a services job order (printing, garage, laundry) that goes through production
+	// and is paid at collection. Opens like a kitchen order so the production board gets tickets.
+	"service_job": {},
 }
 
 // validTransitions defines allowed status transitions.
@@ -678,15 +681,16 @@ func (s *Service) DefaultCurrency() string {
 	return s.defaultCurrency
 }
 
-// isHospitalitySubtype reports whether an order subtype is kitchen/service-routed (needs a KDS
-// ticket the instant it's placed) as opposed to plain retail. CreateOrder uses this to decide the
+// isTicketedSubtype reports whether an order subtype is routed to a board (a kitchen/bar KDS
+// ticket, or a production-board ticket for a services job) the instant it's placed, as opposed to
+// plain retail. CreateOrder uses this to decide the
 // initial status (open vs. draft); AddOrderLines uses it to decide whether a still-draft order
 // gets re-opened when items are added — a retail order must stay "draft" until actually checked
 // out (see CreateOrder's own comment), since "open" is treated as a committed, reportable sale
 // everywhere else (NonCommittedStatus, All-Sales due/outstanding totals).
-func isHospitalitySubtype(subtype string) bool {
+func isTicketedSubtype(subtype string) bool {
 	switch subtype {
-	case "dine_in", "takeaway", "room_service", "bar_tab", "delivery":
+	case "dine_in", "takeaway", "room_service", "bar_tab", "delivery", "service_job":
 		return true
 	}
 	return false
@@ -818,6 +822,16 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	if req.TableID != "" {
 		meta["table_id"] = req.TableID
 	}
+	// Services job orders: validate the job header (due date, brief, attachments) and stamp the
+	// first production stage of the outlet's service profile.
+	if subtype == SubtypeServiceJob {
+		rawJob, _ := meta["job"].(map[string]any)
+		job, jobErr := NormalizeNewJob(rawJob, s.OutletServiceProfile(ctx, req.OutletID), req.UserID, time.Now())
+		if jobErr != nil {
+			return nil, jobErr
+		}
+		meta["job"] = job
+	}
 	// Record the applied happy-hour discount at order level (amount + promo name) so the bill,
 	// receipt, and reports can attribute the saving even for storewide promos with no per-line
 	// scope. Per-line detail (label + item saving) is stamped on each line below.
@@ -857,7 +871,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	// prepare the food (delivery is then dispatched to a rider, takeaway is packed for pickup).
 	// Only "retail" (non-prepared goods) stays a draft until paid.
 	initialStatus := StatusDraft
-	isHospitalityOrder := isHospitalitySubtype(subtype)
+	isHospitalityOrder := isTicketedSubtype(subtype)
 	if isHospitalityOrder {
 		initialStatus = StatusOpen
 	}
@@ -1098,7 +1112,7 @@ func (s *Service) ReleaseHeldOrder(ctx context.Context, tenantID, orderID uuid.U
 	if err != nil {
 		return true
 	}
-	if isHospitalitySubtype(string(order.OrderSubtype)) {
+	if isTicketedSubtype(string(order.OrderSubtype)) {
 		_ = s.createKDSTicketsForOrder(ctx, tenantID, order)
 		s.enqueueAutoPrintJobs(ctx, tenantID, order)
 	}
@@ -2090,7 +2104,7 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 	// outstanding sale (confirmed live: order 000278, a still-uncompleted retail cart, showed
 	// "Outstanding: 215,000" and offered Record Payment, which correctly rejected it since no
 	// credit sale was ever actually finalized).
-	if order.Status == StatusPendingPayment || (order.Status == StatusDraft && isHospitalitySubtype(string(order.OrderSubtype))) {
+	if order.Status == StatusPendingPayment || (order.Status == StatusDraft && isTicketedSubtype(string(order.OrderSubtype))) {
 		upd = upd.SetStatus(StatusOpen)
 	}
 	if _, err = upd.Save(ctx); err != nil {

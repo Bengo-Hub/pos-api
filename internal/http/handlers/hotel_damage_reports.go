@@ -2,11 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
-	"os"
-	"path"
-	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -359,62 +355,13 @@ func (h *HotelHandler) RejectDamageReport(w http.ResponseWriter, r *http.Request
 // content-type sniffing). The caller collects one or more returned URLs client-side and passes
 // them as evidence_urls on CreateDamageReport — this endpoint does not itself touch the report.
 func (h *HotelHandler) UploadDamageEvidence(w http.ResponseWriter, r *http.Request) {
-	if h.mediaRoot == "" {
-		jsonError(w, "media storage not configured", http.StatusServiceUnavailable)
-		return
-	}
-	if err := r.ParseMultipartForm(maxDamageEvidenceBytes); err != nil {
-		jsonError(w, "invalid multipart form (max 8MB)", http.StatusBadRequest)
-		return
-	}
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		jsonError(w, "missing file field", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-	if header.Size > maxDamageEvidenceBytes {
-		jsonError(w, "file too large (max 8MB)", http.StatusRequestEntityTooLarge)
-		return
-	}
-
-	head := make([]byte, 512)
-	n, _ := io.ReadFull(file, head)
-	mime := http.DetectContentType(head[:n])
-	ext, ok := damageEvidenceExtByMIME[mime]
+	rel, _, ok := storeTenantMedia(w, r, h.log, h.mediaRoot, mediaUploadSpec{
+		Subfolder: damageEvidenceSubfolder, MaxBytes: maxDamageEvidenceBytes, SizeLabel: "8MB",
+		ExtByMIME: damageEvidenceExtByMIME, TypesLabel: "PNG, JPEG or WebP",
+	})
 	if !ok {
-		jsonError(w, "unsupported media type — use PNG, JPEG or WebP", http.StatusUnsupportedMediaType)
 		return
 	}
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		jsonError(w, "failed to read upload", http.StatusInternalServerError)
-		return
-	}
-
-	slug := tenantSlugFrom(r)
-	dir := filepath.Join(h.mediaRoot, slug, damageEvidenceSubfolder)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		h.log.Error("damage evidence mkdir", zap.Error(err))
-		jsonError(w, "media storage unavailable", http.StatusInternalServerError)
-		return
-	}
-	name := uuid.NewString() + ext
-	dst := filepath.Join(dir, name)
-	out, err := os.Create(dst)
-	if err != nil {
-		h.log.Error("damage evidence create", zap.Error(err))
-		jsonError(w, "media storage unavailable", http.StatusInternalServerError)
-		return
-	}
-	if _, err := io.Copy(out, io.LimitReader(file, maxDamageEvidenceBytes)); err != nil {
-		out.Close()
-		_ = os.Remove(dst)
-		jsonError(w, "failed to store upload", http.StatusInternalServerError)
-		return
-	}
-	out.Close()
-
-	rel := path.Join(mediaURLPrefix, slug, damageEvidenceSubfolder, name)
 	w.WriteHeader(http.StatusCreated)
 	jsonOK(w, map[string]any{"url": rel})
 }

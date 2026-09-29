@@ -56,7 +56,7 @@ var useCaseRoles = map[string][]string{
 	"hospitality":   {"manager", "cashier", "waiter", "barista", "kitchen", "bar", "receptionist"},
 	"quick_service": {"manager", "cashier", "barista", "kitchen"},
 	"retail":        {"manager", "cashier"},
-	"services":      {"manager", "cashier", "receptionist"},
+	"services":      {"manager", "cashier", "receptionist", "stylist", "therapist", "technician"},
 }
 
 // PINAuthHandler handles terminal PIN login for cashier/waiter/kitchen staff.

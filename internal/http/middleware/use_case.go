@@ -10,6 +10,7 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
+	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
 	"github.com/google/uuid"
 )
 
@@ -32,8 +33,8 @@ type settingCacheEntry struct {
 }
 
 var (
-	settingCacheMu sync.RWMutex
-	settingCache   = make(map[uuid.UUID]settingCacheEntry)
+	settingCacheMu  sync.RWMutex
+	settingCache    = make(map[uuid.UUID]settingCacheEntry)
 	settingCacheTTL = 5 * time.Minute
 )
 
@@ -56,6 +57,15 @@ func getOutletSetting(ctx context.Context, client *ent.Client, outletID uuid.UUI
 	settingCache[outletID] = settingCacheEntry{setting: s, fetchedAt: time.Now()}
 	settingCacheMu.Unlock()
 	return s
+}
+
+// InvalidateOutletSetting drops the cached settings row for an outlet so a module toggle or a
+// service-profile change takes effect on this replica immediately. Other replicas pick it up
+// when their entry expires (settingCacheTTL).
+func InvalidateOutletSetting(outletID uuid.UUID) {
+	settingCacheMu.Lock()
+	delete(settingCache, outletID)
+	settingCacheMu.Unlock()
 }
 
 // RequireKDSEnabled gates routes to outlets that have enable_kds=true in their
@@ -140,7 +150,10 @@ func RequireUseCase(allowed ...string) func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
-			if set[outlet.UseCase] {
+			// Compare the normalized profile, not the raw string: an outlet stored as "salon",
+			// "hotel" or "Services" must reach the same routes its terminal already renders
+			// (pos-ui normalizes the same way).
+			if set[outlet.UseCase] || set[outletpolicy.NormalizeUseCase(outlet.UseCase)] {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -151,6 +164,28 @@ func RequireUseCase(allowed ...string) func(http.Handler) http.Handler {
 				"message":  "this feature is not available for your outlet type",
 				"use_case": outlet.UseCase,
 			})
+		})
+	}
+}
+
+// GateUnlessUseCase applies gate only to outlets whose normalized use case is NOT in exempt.
+// The KDS routes use it so a services outlet's production board is not locked behind the
+// hospitality "kds" plan feature: the services board is gated by the outlet's own
+// enable_kds toggle and use case instead.
+func GateUnlessUseCase(gate func(http.Handler) http.Handler, exempt ...string) func(http.Handler) http.Handler {
+	skip := make(map[string]bool, len(exempt))
+	for _, uc := range exempt {
+		skip[uc] = true
+	}
+	return func(next http.Handler) http.Handler {
+		gated := gate(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if outlet := OutletFromContext(r.Context()); outlet != nil &&
+				skip[outletpolicy.NormalizeUseCase(outlet.UseCase)] {
+				next.ServeHTTP(w, r)
+				return
+			}
+			gated.ServeHTTP(w, r)
 		})
 	}
 }

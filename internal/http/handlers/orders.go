@@ -49,6 +49,8 @@ type POSOrderHandler struct {
 	// inventoryClient propagates order-line price corrections to the inventory catalog
 	// (EditOrderLine's update_catalog_price option). Optional — nil skips propagation.
 	inventoryClient *inventory.Client
+	// mediaRoot is the local media volume root (MEDIA_ROOT) for services job attachments.
+	mediaRoot string
 	// treasuryClient is used ONLY to check whether a specific order actually has a KRA
 	// eTIMS-signed invoice before a void-refusal message mentions eTIMS at all — many
 	// tenants are not eTIMS-integrated, and an unconditional "KRA" mention scared them
@@ -1352,10 +1354,10 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, orders.ErrInvalidOrderSubtype) {
-			jsonError(w, "invalid order_subtype: must be one of dine_in, takeaway, room_service, delivery, bar_tab, retail", http.StatusBadRequest)
+			jsonError(w, "invalid order_subtype: must be one of dine_in, takeaway, room_service, delivery, bar_tab, retail, service_job", http.StatusBadRequest)
 			return
 		}
-		if errors.Is(err, orders.ErrInvalidBusinessDate) {
+		if errors.Is(err, orders.ErrInvalidBusinessDate) || errors.Is(err, orders.ErrInvalidJob) {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}

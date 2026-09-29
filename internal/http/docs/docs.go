@@ -235,6 +235,25 @@ const docTemplate = `{
                 }
             }
         },
+        "/{tenantID}/pos/jobs/summary": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Services jobs dashboard summary for the active outlet",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orders.JobSummary"
+                        }
+                    }
+                }
+            }
+        },
         "/{tenantID}/pos/orders/bulk-delete": {
             "post": {
                 "consumes": [
@@ -296,6 +315,151 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handlers.bulkVoidOrdersResult"
+                        }
+                    }
+                }
+            }
+        },
+        "/{tenantID}/pos/orders/job-attachments": {
+            "post": {
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Upload a job attachment (512 KB image or PDF)",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Image (PNG, JPEG, WebP) or PDF, max 512 KB",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/{tenantID}/pos/orders/{orderID}/job": {
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Update a services job order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/{tenantID}/pos/service-profiles": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "List services sub use cases (service profiles)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/{tenantID}/pos/settings/service-profile": {
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Set a services outlet's service profile and default job deposit",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -459,6 +623,32 @@ const docTemplate = `{
                 "status": {
                     "type": "string",
                     "example": "OK"
+                }
+            }
+        },
+        "orders.JobSummary": {
+            "type": "object",
+            "properties": {
+                "awaiting_proof": {
+                    "type": "integer"
+                },
+                "balance_outstanding": {
+                    "type": "number"
+                },
+                "deposits_held": {
+                    "type": "number"
+                },
+                "due_today": {
+                    "type": "integer"
+                },
+                "in_production": {
+                    "type": "integer"
+                },
+                "overdue": {
+                    "type": "integer"
+                },
+                "ready_for_collection": {
+                    "type": "integer"
                 }
             }
         }

@@ -19,8 +19,8 @@ var moduleUseCases = map[string][]string{
 	// "promotions" is deliberately ABSENT (common): discounts are a cross-use-case
 	// Sell surface since the happy-hour editor was folded into Sell → Discounts.
 	"tables": {"hospitality"},
-	// Shared between hospitality (table service + counter) and quick_service.
-	"kds": {"hospitality", "quick_service"},
+	// Kitchen/bar display for hospitality and quick_service; production board for services jobs.
+	"kds": {"hospitality", "quick_service", "services"},
 	// Shared between hospitality (dine-in reservations/room service) and services (bookings).
 	"appointments": {"hospitality", "services"},
 	"packages":     {"hospitality", "services"},

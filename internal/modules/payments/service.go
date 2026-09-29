@@ -1118,7 +1118,10 @@ func (s *Service) completeOrderIfFullyPaid(ctx context.Context, order *ent.POSOr
 			// flow that completed the order directly), or in a state that can't complete: still
 			// sweep any open tickets — idempotent, only pending/in_progress/ready tickets are
 			// touched — so a settled bill can never leave food sitting on the live KDS board.
-			s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID)
+			// A services job is the exception: paid up front, it is still in production.
+			if !orders.IsServiceJob(string(order.OrderSubtype)) {
+				s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID)
+			}
 			return
 		}
 		updated, gerr := s.client.POSOrder.Get(ctx, order.ID)
@@ -1302,7 +1305,11 @@ func (s *Service) runPostFinalize(ctx context.Context, order *ent.POSOrder) {
 	// A settled order is done in the kitchen/bar regardless of whether staff ever bumped its tickets
 	// on the KDS board (quick-service counter sales skip the board entirely) — force-serve any that
 	// are still open so the live board doesn't show food for an order that's already been paid for.
-	s.goSafe(&wg, order, "kds-clear", func() { s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID) })
+	// A services job paid in full before it is finished stays on the production board; its tickets
+	// clear when the job reaches its final stage (orders.UpdateJob).
+	if !orders.IsServiceJob(string(order.OrderSubtype)) {
+		s.goSafe(&wg, order, "kds-clear", func() { s.orderSvc.AutoClearKDSTicketsForOrder(ctx, order.TenantID, order.ID) })
+	}
 
 	// eTIMS sign → receipt print, in sequence (the printed bill must be fiscalised first). Runs here
 	// on the fan-out goroutine — NOT the confirm request path — so KRA latency never hangs Confirm;

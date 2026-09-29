@@ -26,6 +26,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	enttable "github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tender"
+	"github.com/bengobox/pos-service/internal/modules/orders"
+	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
 	"github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 )
@@ -181,6 +183,8 @@ type outletDef struct {
 	enableAppts bool
 	enableHotel bool
 	defaultView string
+	// serviceProfile is a services outlet's sub use case (outletpolicy.ServiceProfiles key).
+	serviceProfile string
 }
 
 // outletsByTenantSlug defines the POS outlets per tenant.
@@ -225,16 +229,30 @@ var outletsByTenantSlug = map[string][]outletDef{
 			defaultView: "catalog",
 		},
 		{
-			slug:        "demo-services",
-			code:        "SVC",
-			name:        "Demo Beauty & Wellness",
-			useCase:     "services",
-			isHQ:        false,
-			pinMessage:  "Welcome to Demo Beauty & Wellness — check appointments board",
-			displayMode: "card",
-			enableKDS:   false,
-			enableAppts: true,
-			defaultView: "catalog",
+			slug:           "demo-services",
+			code:           "SVC",
+			name:           "Demo Beauty & Wellness",
+			useCase:        "services",
+			isHQ:           false,
+			pinMessage:     "Welcome to Demo Beauty & Wellness — check appointments board",
+			displayMode:    "card",
+			enableKDS:      false,
+			enableAppts:    true,
+			defaultView:    "catalog",
+			serviceProfile: outletpolicy.ProfileSalonBarber,
+		},
+		{
+			slug:           "demo-printing",
+			code:           "PRT",
+			name:           "Demo Print & Branding",
+			useCase:        "services",
+			isHQ:           false,
+			pinMessage:     "Welcome to Demo Print & Branding. Check the production board for today's jobs.",
+			displayMode:    "list",
+			enableKDS:      true,
+			enableAppts:    false,
+			defaultView:    "catalog",
+			serviceProfile: outletpolicy.ProfilePrintingBranding,
 		},
 	},
 }
@@ -257,6 +275,9 @@ func seedOutlets(ctx context.Context, client *ent.Client, tenantID uuid.UUID, te
 			}
 			if err2 := seedOutletSetting(ctx, client, existing.ID, d); err2 != nil {
 				log.Printf("  ⚠️  outlet setting for %s: %v", d.name, err2)
+			}
+			if err2 := seedServiceProfile(ctx, client, tenantID, existing.ID, d); err2 != nil {
+				log.Printf("  ⚠️  service profile for %s: %v", d.name, err2)
 			}
 			log.Printf("  ✓ Outlet exists: %s/%s (use_case=%s)", tenantSlug, d.code, d.useCase)
 			continue
@@ -283,6 +304,9 @@ func seedOutlets(ctx context.Context, client *ent.Client, tenantID uuid.UUID, te
 
 		if err := seedOutletSetting(ctx, client, o.ID, d); err != nil {
 			log.Printf("  ⚠️  outlet setting for %s: %v", d.name, err)
+		}
+		if err := seedServiceProfile(ctx, client, tenantID, o.ID, d); err != nil {
+			log.Printf("  ⚠️  service profile for %s: %v", d.name, err)
 		}
 
 		if d.isHQ {
@@ -352,6 +376,38 @@ func seedOutletSetting(ctx context.Context, client *ent.Client, outletID uuid.UU
 		return fmt.Errorf("create outlet setting: %w", err)
 	}
 	log.Printf("  ✓ OutletSetting created for outlet %s (hotel=%v)", outletID, d.enableHotel)
+	return nil
+}
+
+// seedServiceProfile stamps a services outlet's sub use case into its settings metadata and, for
+// a job profile, creates the profile's default production station (the same path an admin takes
+// when picking the profile in Settings). Other metadata keys are kept.
+func seedServiceProfile(ctx context.Context, client *ent.Client, tenantID, outletID uuid.UUID, d outletDef) error {
+	if d.serviceProfile == "" {
+		return nil
+	}
+	profile, ok := outletpolicy.LookupServiceProfile(d.serviceProfile)
+	if !ok {
+		return fmt.Errorf("unknown service profile %q", d.serviceProfile)
+	}
+	setting, err := client.OutletSetting.Query().Where(outletsetting.OutletID(outletID)).Only(ctx)
+	if err != nil {
+		return err
+	}
+	meta := map[string]any{}
+	for k, v := range setting.Metadata {
+		meta[k] = v
+	}
+	meta[outletpolicy.MetaKeyServiceProfile] = profile.Key
+	if _, err := setting.Update().SetMetadata(meta).Save(ctx); err != nil {
+		return err
+	}
+	if profile.Workflow == outletpolicy.WorkflowJob {
+		if err := orders.EnsureProfileStations(ctx, client, tenantID, outletID, profile); err != nil {
+			return err
+		}
+	}
+	log.Printf("  ✓ Service profile %s set on outlet %s", profile.Key, outletID)
 	return nil
 }
 
@@ -925,7 +981,7 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 		{
 			code:        "technician",
 			name:        "Technician",
-			description: "Service staff: manage own appointments, view queue, see own commissions",
+			description: "Service and production staff: work jobs on the production board, manage own appointments, view queue, see own commissions",
 			permissions: []string{
 				"pos.orders.add", "pos.orders.view_own",
 				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
@@ -934,6 +990,8 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				"pos.sessions.add", "pos.sessions.view_own",
 				"pos.appointments.view", "pos.appointments.change_own",
 				"pos.queue.view", "pos.queue.change",
+				// Production board for services job orders (printing, garage, laundry).
+				"pos.kds.view", "pos.kds.change",
 				"pos.commissions.view_own",
 				"pos.clients.view",
 			},

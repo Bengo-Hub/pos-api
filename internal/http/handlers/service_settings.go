@@ -113,6 +113,10 @@ type settingsResponse struct {
 	HiddenItems           []string            `json:"hidden_items"`
 	DisabledModulesByRole map[string][]string `json:"disabled_modules_by_role"`
 	HiddenItemsByRole     map[string][]string `json:"hidden_items_by_role"`
+	// services sub use case (printing, salon, garage, ...) and its default job deposit percent.
+	// Stored in metadata; empty for non-services outlets or before an admin picks one.
+	ServiceProfile    string  `json:"service_profile"`
+	JobDepositPercent float64 `json:"job_deposit_percent"`
 	// shift settings
 	ShiftAutoEndEnabled bool `json:"shift_auto_end_enabled"`
 	ShiftMaxHours       int  `json:"shift_max_hours"`
@@ -270,6 +274,11 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		HideDraftDeleteForCashier: metaBoolDefault(s.Metadata, metaKeyHideDraftDeleteForCashier, false),
 		HideDraftResumeForCashier: metaBoolDefault(s.Metadata, metaKeyHideDraftResumeForCashier, false),
 		UpdatedAt:                 s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+	if profile, ok := outletpolicy.ServiceProfileFromMetadata(s.Metadata); ok &&
+		outletpolicy.NormalizeUseCase(useCase) == outletpolicy.UseCaseServices {
+		r.ServiceProfile = profile.Key
+		r.JobDepositPercent = outletpolicy.JobDepositPercent(s.Metadata, profile)
 	}
 	return r
 }
@@ -932,6 +941,7 @@ func (h *ServiceSettingsHandler) PatchModules(w http.ResponseWriter, r *http.Req
 		jsonError(w, "failed to save module settings", http.StatusInternalServerError)
 		return
 	}
+	outletmw.InvalidateOutletSetting(outlet.ID)
 	jsonOK(w, toSettingsResponse(outlet, updated))
 }
 
@@ -1083,6 +1093,13 @@ func (h *ServiceSettingsHandler) SwitchOutlet(w http.ResponseWriter, r *http.Req
 	})
 }
 
+// validOutletUseCases are the use cases pos-api runs an outlet under (the same set the auth
+// outlet sync accepts). Anything else would leave the outlet with no working terminal profile.
+var validOutletUseCases = map[string]bool{
+	outletpolicy.UseCaseHospitality: true, outletpolicy.UseCaseQuickService: true,
+	outletpolicy.UseCaseRetail: true, outletpolicy.UseCaseServices: true,
+}
+
 // outletConfigInput for PATCH /settings/outlet — updates outlet-level config (e.g. use_case).
 type outletConfigInput struct {
 	UseCase *string `json:"use_case"`
@@ -1114,7 +1131,12 @@ func (h *ServiceSettingsHandler) PatchOutletConfig(w http.ResponseWriter, r *htt
 
 	upd := outlet.Update()
 	if input.UseCase != nil {
-		upd = upd.SetNillableUseCase(input.UseCase)
+		uc := strings.ToLower(strings.TrimSpace(*input.UseCase))
+		if !validOutletUseCases[uc] {
+			jsonError(w, "use_case must be one of hospitality, quick_service, retail, services", http.StatusBadRequest)
+			return
+		}
+		upd = upd.SetUseCase(uc)
 	}
 	updated, err := upd.Save(r.Context())
 	if err != nil {
@@ -1355,6 +1377,8 @@ func (h *ServiceSettingsHandler) RegisterRoutes(r chi.Router) {
 	r.Patch("/pos/settings/outlet", h.PatchOutletConfig)
 	r.Get("/pos/settings/booking-policy", h.GetBookingPolicy)
 	r.Patch("/pos/settings/booking-policy", h.PatchBookingPolicy)
+	r.Get("/pos/service-profiles", h.ListServiceProfiles)
+	r.Patch("/pos/settings/service-profile", h.PatchServiceProfile)
 	r.Get("/pos/outlets/{outletID}/settings", h.GetSettings)
 	r.Put("/pos/outlets/{outletID}/settings", h.PutSettings)
 	// TruLoad-inspired outlet switch endpoint

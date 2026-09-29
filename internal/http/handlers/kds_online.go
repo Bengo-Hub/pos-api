@@ -23,6 +23,18 @@ type kdsTicketView struct {
 	OrderSource string `json:"order_source"`
 	OrderLabel  string `json:"order_label,omitempty"`
 	OrderNotes  string `json:"order_notes,omitempty"`
+	// Job is set for services job orders (printing, garage, laundry): the production board shows
+	// the customer, due date, current stage, brief, attachments and payment position from it.
+	Job *kdsJobView `json:"job,omitempty"`
+}
+
+// kdsJobView is the job header the production board renders on a services ticket.
+type kdsJobView struct {
+	CustomerName  string         `json:"customer_name,omitempty"`
+	CustomerPhone string         `json:"customer_phone,omitempty"`
+	TotalAmount   float64        `json:"total_amount"`
+	PaidTotal     float64        `json:"paid_total"`
+	Details       map[string]any `json:"details,omitempty"`
 }
 
 // withOrderSource decorates tickets with their order source/label for the board.
@@ -51,8 +63,28 @@ func (h *KDSHandler) withOrderSource(ctx context.Context, tickets []*ent.KDSTick
 			}
 		}
 	}
+	// Services job headers: one batched query restricted to service_job orders, so a kitchen
+	// board pays nothing extra.
+	jobs := map[uuid.UUID]*kdsJobView{}
+	if jobOrders, jerr := h.client.POSOrder.Query().
+		Where(entposorder.IDIn(ids...), entposorder.OrderSubtypeEQ(entposorder.OrderSubtypeServiceJob)).
+		All(ctx); jerr == nil {
+		for _, o := range jobOrders {
+			jv := &kdsJobView{TotalAmount: o.TotalAmount, PaidTotal: o.PaidTotal}
+			if o.CustomerName != nil {
+				jv.CustomerName = *o.CustomerName
+			}
+			if o.CustomerPhone != nil {
+				jv.CustomerPhone = *o.CustomerPhone
+			}
+			if d, ok := o.Metadata["job"].(map[string]any); ok {
+				jv.Details = d
+			}
+			jobs[o.ID] = jv
+		}
+	}
 	for _, t := range tickets {
-		v := kdsTicketView{KDSTicket: t, OrderSource: "pos"}
+		v := kdsTicketView{KDSTicket: t, OrderSource: "pos", Job: jobs[t.OrderID]}
 		if o, ok := online[t.OrderID]; ok {
 			v.OrderSource = "online"
 			v.OrderLabel = onlineOrderLabel(o)

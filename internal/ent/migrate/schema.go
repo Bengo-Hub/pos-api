@@ -1687,7 +1687,7 @@ var (
 		{Name: "round_off", Type: field.TypeFloat64, Default: 0},
 		{Name: "paid_total", Type: field.TypeFloat64, Default: 0},
 		{Name: "currency", Type: field.TypeString, Default: "KES"},
-		{Name: "order_subtype", Type: field.TypeEnum, Enums: []string{"dine_in", "takeaway", "room_service", "delivery", "bar_tab", "retail"}, Default: "dine_in"},
+		{Name: "order_subtype", Type: field.TypeEnum, Enums: []string{"dine_in", "takeaway", "room_service", "delivery", "bar_tab", "retail", "service_job"}, Default: "dine_in"},
 		{Name: "room_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "room_guest_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
@@ -1765,6 +1765,14 @@ var (
 				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[45]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "status NOT IN ('cancelled', 'voided') AND (metadata ->> 'collected') IS DISTINCT FROM 'true'",
+				},
+			},
+			{
+				Name:    "posorder_service_jobs",
+				Unique:  false,
+				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[2], PosOrdersColumns[9], PosOrdersColumns[45]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "order_subtype = 'service_job'",
 				},
 			},
 		},
