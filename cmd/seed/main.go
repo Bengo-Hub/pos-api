@@ -919,6 +919,9 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.
 				"pos.orders.delete_own", "pos.orders.resume_draft",
 				"pos.catalog.view", "pos.payments.view",
+				// The front desk takes money: a print job's deposit and balance at collection, a
+				// salon booking, a guest's bill at checkout.
+				"pos.payments.add",
 				"pos.tables.view",
 				"pos.sessions.add", "pos.sessions.view_own",
 				"pos.hotel.*",
