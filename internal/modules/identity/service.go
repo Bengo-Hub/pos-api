@@ -243,6 +243,9 @@ func mapGlobalRoleToPOSRole(roles []string) string {
 			return "receptionist"
 		case "pharmacist":
 			return "pharmacist"
+		// Services specialist roles (salon, spa, printing/garage production).
+		case "stylist", "therapist", "technician":
+			return r
 		case "accountant":
 			return "accountant"
 		case "staff":

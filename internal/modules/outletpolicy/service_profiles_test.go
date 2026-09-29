@@ -139,6 +139,14 @@ func TestStaffRolesFor(t *testing.T) {
 	if r := StaffRolesFor("retail", &printing); has(r, "technician") || !has(r, "cashier") {
 		t.Errorf("a profile must not leak into retail roles: %v", r)
 	}
+	for _, uc := range []string{"hospitality", "services", "retail"} {
+		if !has(StaffRolesFor(uc, nil), "receptionist") {
+			t.Errorf("%s outlets have a front desk: %v", uc, StaffRolesFor(uc, nil))
+		}
+	}
+	if r := StaffRolesFor("retail", nil); has(r, "waiter") || has(r, "kitchen") {
+		t.Errorf("retail must not list table-service roles: %v", r)
+	}
 	if h := StaffRolesFor("hotel", nil); !has(h, "waiter") {
 		t.Errorf("hotel normalizes to hospitality: %v", h)
 	}

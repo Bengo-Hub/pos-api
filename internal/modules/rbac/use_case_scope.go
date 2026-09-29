@@ -61,15 +61,19 @@ func ModuleMatchesUseCase(module, useCase string) bool {
 // cashier/viewer/accountant) is treated as common — visible under every use case, matching
 // their cross-cutting seeded permission grants.
 var systemRoleUseCases = map[string][]string{
-	"waiter":              {"hospitality"},
-	"floor_supervisor":    {"hospitality"},
-	"kitchen":             {"hospitality", "quick_service"},
-	"bar":                 {"hospitality"},
-	"receptionist":        {"hospitality"},
-	"barista":             {"hospitality", "quick_service"},
-	"stylist":             {"services"},
-	"therapist":           {"services"},
-	"technician":          {"services"},
+	"waiter":           {"hospitality"},
+	"floor_supervisor": {"hospitality"},
+	"kitchen":          {"hospitality", "quick_service"},
+	"bar":              {"hospitality"},
+	// A front desk exists wherever customers are received: a hotel or restaurant, a services
+	// outlet (print shop job intake, salon bookings) and a retail counter. What the receptionist
+	// sees there comes from the outlet's modules (the hotel module only on a hospitality outlet
+	// running it), not from the role.
+	"receptionist": {"hospitality", "retail", "services"},
+	"barista":      {"hospitality", "quick_service"},
+	"stylist":      {"services"},
+	"therapist":    {"services"},
+	"technician":   {"services"},
 }
 
 // RoleUseCases resolves the use case(s) a role applies to. System roles use the static map

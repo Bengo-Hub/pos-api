@@ -913,7 +913,7 @@ func seedRBACRoles(ctx context.Context, client *ent.Client) error {
 		{
 			code:        "receptionist",
 			name:        "Receptionist",
-			description: "Manage hotel check-in/out, bookings, conference meal cards, and room service orders",
+			description: "Front desk: receives customers and takes their orders; on a hotel outlet also check-in/out, bookings and conference meal cards",
 			permissions: []string{
 				"pos.orders.add", "pos.orders.view", "pos.orders.change_own",
 				// Dedicated draft-only actions (2026-08-28) — see cashier's roleDef comment above.

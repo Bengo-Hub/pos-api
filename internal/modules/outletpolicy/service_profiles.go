@@ -387,7 +387,7 @@ func JobDepositPercent(meta map[string]any, profile ServiceProfile) float64 {
 var useCaseStaffRoles = map[string][]string{
 	UseCaseHospitality:  {"manager", "cashier", "waiter", "barista", "kitchen", "bar", "receptionist"},
 	UseCaseQuickService: {"manager", "cashier", "barista", "kitchen"},
-	UseCaseRetail:       {"manager", "cashier"},
+	UseCaseRetail:       {"manager", "cashier", "receptionist"},
 	UseCaseServices:     {"manager", "cashier", "receptionist"},
 }
 

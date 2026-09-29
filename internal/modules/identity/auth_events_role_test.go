@@ -28,3 +28,13 @@ func TestMapSSORoleToPOS(t *testing.T) {
 		}
 	}
 }
+
+// TestMapGlobalRoleToPOSRole pins JIT provisioning: a services specialist signing in through SSO
+// gets their own POS role, not the read-only viewer fallback.
+func TestMapGlobalRoleToPOSRole(t *testing.T) {
+	for _, r := range []string{"technician", "stylist", "therapist", "receptionist", "barista"} {
+		if got := mapGlobalRoleToPOSRole([]string{r}); got != r {
+			t.Errorf("mapGlobalRoleToPOSRole(%q) = %q, want %q", r, got, r)
+		}
+	}
+}

@@ -48,7 +48,10 @@ func MapGlobalRolesToServiceRole(roles []string) string {
 		{"admin", "admin"},
 		{"manager", "manager"}, {"store_manager", "manager"}, {"outlet_manager", "manager"},
 		{"cashier", "cashier"}, {"waiter", "waiter"}, {"kitchen", "kitchen"},
-		{"bar", "bar"}, {"receptionist", "receptionist"},
+		{"bar", "bar"}, {"receptionist", "receptionist"}, {"barista", "barista"},
+		{"pharmacist", "pharmacist"},
+		// Services trade specialists keep their own role (production board, appointments).
+		{"technician", "technician"}, {"stylist", "stylist"}, {"therapist", "therapist"},
 		{"staff", "cashier"}, {"member", "cashier"}, {"viewer", "cashier"},
 	}
 	for _, m := range order {
