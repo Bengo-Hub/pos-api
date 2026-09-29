@@ -630,11 +630,13 @@ func mapSSORoleToPOS(payload map[string]interface{}) string {
 			return "manager" // RBAC-scoped access, different from admin
 		case "staff":
 			return "cashier"
-		case "cashier", "waiter", "receptionist", "kitchen", "bar", "pharmacist", "stylist", "therapist":
+		// technician works a services outlet's production board (printing, garage, laundry);
+		// barista runs a cafe bar. Both are seeded POS system roles with PIN login.
+		case "cashier", "waiter", "receptionist", "kitchen", "bar", "barista", "pharmacist", "stylist", "therapist", "technician":
 			return role
 		case "viewer":
 			return "" // viewer accesses POS via SSO only, no PIN login
-		case "rider", "driver", "delivery_coordinator", "technician", "customer", "member":
+		case "rider", "driver", "delivery_coordinator", "customer", "member":
 			return ""
 		}
 	}
