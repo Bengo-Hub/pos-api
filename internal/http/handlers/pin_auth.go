@@ -20,9 +20,12 @@ import (
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
+	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
+	"github.com/bengobox/pos-service/internal/ent/predicate"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
+	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
 	"github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 	"github.com/bengobox/pos-service/internal/posrole"
@@ -49,14 +52,34 @@ func pinFastHash(tenantID, userID uuid.UUID, pin string) string {
 	return fmt.Sprintf("%x", h)
 }
 
-// useCaseRoles maps a POS outlet use case to the staff roles that make sense
-// at that type of terminal. Only these roles appear in the PIN login staff grid
-// when an outlet_id query param is provided.
-var useCaseRoles = map[string][]string{
-	"hospitality":   {"manager", "cashier", "waiter", "barista", "kitchen", "bar", "receptionist"},
-	"quick_service": {"manager", "cashier", "barista", "kitchen"},
-	"retail":        {"manager", "cashier"},
-	"services":      {"manager", "cashier", "receptionist", "stylist", "therapist", "technician"},
+// outletStaffScope narrows a staff query to the people who belong on one outlet's PIN login:
+// staff assigned to that outlet (plus the admin-level roles that may sign in anywhere, the same
+// rule IdentifyByPIN applies), in the roles the outlet's use case and service profile use
+// (outletpolicy.StaffRolesFor). A printing shop therefore lists neither the salon's stylists
+// nor another outlet's cashiers. Returns false when the outlet is not this tenant's.
+func (h *PINAuthHandler) outletStaffScope(ctx context.Context, tid, outletID uuid.UUID) ([]predicate.StaffMember, bool) {
+	o, err := h.client.Outlet.Query().Where(entoutlet.ID(outletID), entoutlet.TenantID(tid)).Only(ctx)
+	if err != nil {
+		return nil, false
+	}
+	useCase := ""
+	if o.UseCase != nil {
+		useCase = *o.UseCase
+	}
+	var profile *outletpolicy.ServiceProfile
+	if s, serr := h.client.OutletSetting.Query().Where(entoutletsetting.OutletID(outletID)).Only(ctx); serr == nil {
+		if p, ok := outletpolicy.ServiceProfileFromMetadata(s.Metadata); ok {
+			profile = &p
+		}
+	}
+	roles := outletpolicy.StaffRolesFor(useCase, profile)
+	return []predicate.StaffMember{
+		entstaff.Or(
+			entstaff.HasOutletsWith(entstaffoutlet.OutletID(outletID)),
+			entstaff.RoleIn(adminLevelStaffRoles...),
+		),
+		entstaff.RoleIn(append(roles, adminLevelStaffRoles...)...),
+	}, true
 }
 
 // PINAuthHandler handles terminal PIN login for cashier/waiter/kitchen staff.
@@ -169,13 +192,17 @@ func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 	q := h.client.StaffMember.Query().Where(entstaff.TenantID(tid), entstaff.IsActive(true))
 
 	if outletIDStr := r.URL.Query().Get("outlet_id"); outletIDStr != "" {
-		if outletUUID, err := uuid.Parse(outletIDStr); err == nil {
-			if o, err := h.client.Outlet.Query().Where(entoutlet.ID(outletUUID)).Only(r.Context()); err == nil && o.UseCase != nil {
-				if allowed, ok := useCaseRoles[*o.UseCase]; ok {
-					q = q.Where(entstaff.RoleIn(allowed...))
-				}
-			}
+		outletUUID, perr := uuid.Parse(outletIDStr)
+		if perr != nil {
+			jsonError(w, "invalid outlet_id", http.StatusBadRequest)
+			return
 		}
+		scope, ok := h.outletStaffScope(r.Context(), tid, outletUUID)
+		if !ok {
+			jsonError(w, "outlet not found", http.StatusNotFound)
+			return
+		}
+		q = q.Where(scope...)
 	}
 
 	p := pagination.Parse(r)
@@ -853,13 +880,17 @@ func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 	q := h.client.StaffMember.Query().Where(entstaff.TenantID(tid), entstaff.IsActive(true))
 
 	if outletIDStr := r.URL.Query().Get("outlet_id"); outletIDStr != "" {
-		if outletUUID, err := uuid.Parse(outletIDStr); err == nil {
-			if o, err := h.client.Outlet.Query().Where(entoutlet.ID(outletUUID)).Only(r.Context()); err == nil && o.UseCase != nil {
-				if allowed, ok := useCaseRoles[*o.UseCase]; ok {
-					q = q.Where(entstaff.RoleIn(allowed...))
-				}
-			}
+		outletUUID, perr := uuid.Parse(outletIDStr)
+		if perr != nil {
+			jsonError(w, "invalid outlet_id", http.StatusBadRequest)
+			return
 		}
+		scope, ok := h.outletStaffScope(r.Context(), tid, outletUUID)
+		if !ok {
+			jsonError(w, "outlet not found", http.StatusNotFound)
+			return
+		}
+		q = q.Where(scope...)
 	}
 
 	p := pagination.Parse(r)

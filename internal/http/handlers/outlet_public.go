@@ -8,6 +8,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
+	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
 )
 
 // PublicOutletHandler serves outlet info for unauthenticated kiosk pages.
@@ -28,6 +29,12 @@ type outletPublicItem struct {
 	IsHQ     bool                  `json:"is_hq"`
 	Status   string                `json:"status"`
 	Settings *outletSettingsPublic `json:"settings,omitempty"`
+	// ServiceProfile is a services outlet's sub use case (printing_branding, salon_barber, ...).
+	// The ordering storefront uses it to show the right booking form.
+	ServiceProfile string `json:"service_profile,omitempty"`
+	// StaffRoles are the roles this outlet's PIN login shows (outletpolicy.StaffRolesFor), so a
+	// print shop's login never offers salon roles.
+	StaffRoles []string `json:"staff_roles"`
 }
 
 type outletSettingsPublic struct {
@@ -148,6 +155,14 @@ func toOutletPublicItem(o *ent.Outlet) outletPublicItem {
 		IsHQ:    o.IsHq,
 		Status:  o.Status,
 	}
+	var profile *outletpolicy.ServiceProfile
+	if s := o.Edges.Settings; s != nil && outletpolicy.NormalizeUseCase(useCase) == outletpolicy.UseCaseServices {
+		if p, ok := outletpolicy.ServiceProfileFromMetadata(s.Metadata); ok {
+			profile = &p
+			item.ServiceProfile = p.Key
+		}
+	}
+	item.StaffRoles = outletpolicy.StaffRolesFor(useCase, profile)
 	if s := o.Edges.Settings; s != nil {
 		settings := &outletSettingsPublic{}
 		if s.PinLoginMessage != nil {

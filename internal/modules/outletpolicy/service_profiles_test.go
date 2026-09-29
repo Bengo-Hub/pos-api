@@ -111,3 +111,40 @@ func TestServiceProfileFromMetadataAndDeposit(t *testing.T) {
 		t.Errorf("deposit must clamp to 0, got %v", got)
 	}
 }
+
+func TestStaffRolesFor(t *testing.T) {
+	has := func(list []string, r string) bool {
+		for _, x := range list {
+			if x == r {
+				return true
+			}
+		}
+		return false
+	}
+	printing, _ := LookupServiceProfile(ProfilePrintingBranding)
+	salon, _ := LookupServiceProfile(ProfileSalonBarber)
+
+	p := StaffRolesFor("services", &printing)
+	if !has(p, "technician") || !has(p, "cashier") || has(p, "stylist") || has(p, "therapist") {
+		t.Errorf("printing roles = %v", p)
+	}
+	s := StaffRolesFor("services", &salon)
+	if !has(s, "stylist") || has(s, "technician") {
+		t.Errorf("salon roles = %v", s)
+	}
+	unset := StaffRolesFor("services", nil)
+	if !has(unset, "stylist") || !has(unset, "technician") || !has(unset, "therapist") {
+		t.Errorf("services without a profile must list every specialist, got %v", unset)
+	}
+	if r := StaffRolesFor("retail", &printing); has(r, "technician") || !has(r, "cashier") {
+		t.Errorf("a profile must not leak into retail roles: %v", r)
+	}
+	if h := StaffRolesFor("hotel", nil); !has(h, "waiter") {
+		t.Errorf("hotel normalizes to hospitality: %v", h)
+	}
+	for _, prof := range ServiceProfiles() {
+		if len(prof.StaffRoles) == 0 || len(prof.Modules) == 0 {
+			t.Errorf("profile %s must define staff roles and modules", prof.Key)
+		}
+	}
+}

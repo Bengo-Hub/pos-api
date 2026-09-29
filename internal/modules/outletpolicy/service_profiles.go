@@ -98,6 +98,13 @@ type ServiceProfile struct {
 	// DesignFromScratch offers the customer a "design it for me" option instead of attaching
 	// their own artwork (printing and branding).
 	DesignFromScratch bool `json:"design_from_scratch"`
+	// StaffRoles are the specialist staff roles of this trade, shown on the outlet's PIN login
+	// next to the manager, cashier and receptionist every services outlet has.
+	StaffRoles []string `json:"staff_roles"`
+	// Modules are the pos-ui sidebar modules this trade uses on top of the common ones
+	// (dashboard, terminal, orders, cash drawer, shifts, reports, clients, settings). Keys match
+	// pos-ui's ModuleKey.
+	Modules []string `json:"modules"`
 }
 
 // HasStage reports whether stage is one of the profile's production stages.
@@ -185,6 +192,8 @@ var printingProfile = ServiceProfile{
 	DefaultDepositPct:  70,
 	AcceptsAttachments: true,
 	DesignFromScratch:  true,
+	StaffRoles:         []string{"technician"},
+	Modules:            []string{"production", "loyalty"},
 }
 
 // serviceProfiles is the ordered registry. Order drives the admin picker.
@@ -196,6 +205,8 @@ var serviceProfiles = []ServiceProfile{
 		Workflow:    WorkflowAppointment, ItemUseCases: []string{ItemUseCaseSalon},
 		SellsRetailGoods: true, JobLabel: "Appointment", PerformerLabel: "Stylist",
 		DefaultDepositPct: 0, AcceptsAttachments: true,
+		StaffRoles: []string{"stylist"},
+		Modules:    []string{"appointments", "queue", "packages", "resources", "commissions", "staff_schedule", "loyalty"},
 	},
 	{
 		Key: ProfileNailParlour, Label: "Nail Parlour",
@@ -203,6 +214,8 @@ var serviceProfiles = []ServiceProfile{
 		Workflow:    WorkflowAppointment, ItemUseCases: []string{ItemUseCaseNail, ItemUseCaseSalon},
 		SellsRetailGoods: true, JobLabel: "Appointment", PerformerLabel: "Nail technician",
 		DefaultDepositPct: 0, AcceptsAttachments: true,
+		StaffRoles: []string{"stylist"},
+		Modules:    []string{"appointments", "queue", "packages", "resources", "commissions", "staff_schedule", "loyalty"},
 	},
 	{
 		Key: ProfileSpaWellness, Label: "Spa & Wellness",
@@ -210,6 +223,8 @@ var serviceProfiles = []ServiceProfile{
 		Workflow:    WorkflowAppointment, ItemUseCases: []string{ItemUseCaseSpa, ItemUseCaseSalon},
 		SellsRetailGoods: true, JobLabel: "Session", PerformerLabel: "Therapist",
 		DefaultDepositPct: 0, AcceptsAttachments: false,
+		StaffRoles: []string{"therapist"},
+		Modules:    []string{"appointments", "packages", "resources", "commissions", "staff_schedule", "loyalty"},
 	},
 	{
 		Key: ProfileAutoGarage, Label: "Garage & Auto Service",
@@ -231,6 +246,8 @@ var serviceProfiles = []ServiceProfile{
 		},
 		DefaultStations:   []DefaultStation{{Name: "Workshop", StationType: "all"}},
 		DefaultDepositPct: 0, AcceptsAttachments: true,
+		StaffRoles: []string{"technician"},
+		Modules:    []string{"production", "staff_schedule", "loyalty"},
 	},
 	{
 		Key: ProfileCarWash, Label: "Car Wash & Detailing",
@@ -240,6 +257,8 @@ var serviceProfiles = []ServiceProfile{
 		SpecFields: []SpecField{
 			{Key: "vehicle_reg", Label: "Vehicle reg", Type: "text", Required: true},
 		},
+		StaffRoles: []string{"technician"},
+		Modules:    []string{"queue", "resources", "packages", "loyalty"},
 	},
 	{
 		Key: ProfileLaundryDryCleaning, Label: "Laundry & Dry Cleaning",
@@ -259,6 +278,8 @@ var serviceProfiles = []ServiceProfile{
 		},
 		DefaultStations:   []DefaultStation{{Name: "Laundry", StationType: "all"}},
 		DefaultDepositPct: 0,
+		StaffRoles:        []string{"technician"},
+		Modules:           []string{"production", "loyalty"},
 	},
 	{
 		Key: ProfileTailoringFashion, Label: "Tailoring & Fashion Design",
@@ -279,12 +300,16 @@ var serviceProfiles = []ServiceProfile{
 		},
 		DefaultStations:   []DefaultStation{{Name: "Workroom", StationType: "all"}},
 		DefaultDepositPct: 50, AcceptsAttachments: true,
+		StaffRoles: []string{"technician"},
+		Modules:    []string{"production", "appointments", "loyalty"},
 	},
 	{
 		Key: ProfileDeviceRepair, Label: "Phone & Electronics Repair",
 		Description: "Device repairs tracked on repair tickets with parts, diagnosis and warranty.",
 		Workflow:    WorkflowJob, ItemUseCases: []string{ItemUseCaseRepair},
 		SellsRetailGoods: true, JobLabel: "Repair ticket", PerformerLabel: "Technician",
+		StaffRoles: []string{"technician"},
+		Modules:    []string{"repairs", "loyalty"},
 	},
 	{
 		Key: ProfileProfessionalGeneral, Label: "General Professional Services",
@@ -300,6 +325,8 @@ var serviceProfiles = []ServiceProfile{
 		},
 		DefaultStations:   []DefaultStation{{Name: "Work queue", StationType: "all"}},
 		DefaultDepositPct: 0, AcceptsAttachments: true,
+		StaffRoles: []string{"technician", "stylist", "therapist"},
+		Modules:    []string{"production", "appointments", "queue", "resources", "packages", "commissions", "staff_schedule", "loyalty"},
 	},
 }
 
@@ -353,4 +380,34 @@ func JobDepositPercent(meta map[string]any, profile ServiceProfile) float64 {
 		return 100
 	}
 	return pct
+}
+
+// useCaseStaffRoles are the staff roles each use case's terminal and PIN login show. A services
+// outlet adds its profile's specialist roles on top of the services base.
+var useCaseStaffRoles = map[string][]string{
+	UseCaseHospitality:  {"manager", "cashier", "waiter", "barista", "kitchen", "bar", "receptionist"},
+	UseCaseQuickService: {"manager", "cashier", "barista", "kitchen"},
+	UseCaseRetail:       {"manager", "cashier"},
+	UseCaseServices:     {"manager", "cashier", "receptionist"},
+}
+
+// servicesSpecialistRoles covers a services outlet that has not picked a profile yet.
+var servicesSpecialistRoles = []string{"stylist", "therapist", "technician"}
+
+// StaffRolesFor returns the staff roles an outlet's PIN login and staff pickers show: the use
+// case's roles, plus, for a services outlet, its profile's specialist roles (all of them while no
+// profile is set). A printing shop therefore never lists stylists or therapists.
+func StaffRolesFor(useCase string, profile *ServiceProfile) []string {
+	uc := NormalizeUseCase(useCase)
+	base := useCaseStaffRoles[uc]
+	out := make([]string, 0, len(base)+3)
+	out = append(out, base...)
+	if uc != UseCaseServices {
+		return out
+	}
+	extra := servicesSpecialistRoles
+	if profile != nil && len(profile.StaffRoles) > 0 {
+		extra = profile.StaffRoles
+	}
+	return append(out, extra...)
 }

@@ -107,6 +107,22 @@ The `Appointment`, `StaffMember`, and `CommissionRecord` schemas already exist i
 - [ ] Wire `CommissionRecord` creation into `orders.Service.Complete()`
 - [ ] Update `docs/erd.md`
 
+### Service profiles and job orders (2026-09-29)
+
+Full design: [../service-profiles.md](../service-profiles.md).
+
+- [x] Service profile registry (10 trades) with `GET /pos/service-profiles` and `PATCH /pos/settings/service-profile`
+- [x] Catalog narrows a services outlet's SERVICE items to its trade (inventory item use case)
+- [x] `service_job` order subtype: job header in order metadata, per-line spec sheets, production tickets
+- [x] `PATCH /pos/orders/{id}/job` (stages, proof, brief, attachments, collected) with audit events
+- [x] `POST /pos/orders/job-attachments` (512 KB images or PDF), shared `storeTenantMedia` helper
+- [x] Production board on the KDS routes for services outlets; final stage hands the job to payment
+- [x] `GET /pos/jobs/summary` backed by the `posorder_service_jobs` partial index
+- [x] Printing and branding shipped end to end and deployed (pos-api `6b24fac`, pos-ui `23a4697`)
+- [ ] Appointment profiles: per-line performer, commission attribution, style reference media (phase 3)
+- [ ] Garage, laundry, tailoring, car wash polish (phase 3)
+- [ ] Plan feature codes `service_jobs`, `appointments`, `online_booking` (phase 4)
+
 ## Completion Notes (2026-05-25)
 
 Full appointment CRUD and all status action endpoints are shipped. Walk-in queue (list/create/patch status) is implemented under `RequireUseCase("services")`. Resource management (list/create/patch status) is implemented with `Resource` ent schema and Atlas migration. Commission records (list/get) are shipped. Service packages, client records CRUD, commission rules/payout, and appointment-to-resource conflict detection remain unimplemented.
