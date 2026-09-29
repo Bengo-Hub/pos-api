@@ -76,10 +76,17 @@ func (h *PINAuthHandler) outletStaffScope(ctx context.Context, tid, outletID uui
 	return []predicate.StaffMember{
 		entstaff.Or(
 			entstaff.HasOutletsWith(entstaffoutlet.OutletID(outletID)),
-			entstaff.RoleIn(adminLevelStaffRoles...),
+			entstaff.RoleIn(tenantWideStaffRoles...),
 		),
 		entstaff.RoleIn(append(roles, adminLevelStaffRoles...)...),
 	}, true
+}
+
+// tenantWideStaffRoles are the owner/admin roles listed on every outlet's PIN grid. Managers and
+// supervisors are listed only where they are assigned (an outlet manager belongs to their own
+// outlets), although IdentifyByPIN still lets any admin-level PIN sign in anywhere.
+var tenantWideStaffRoles = []string{
+	"admin", "superuser", "owner", "super_admin", "pos_admin", "tenant_admin", "system_admin", "administrator",
 }
 
 // PINAuthHandler handles terminal PIN login for cashier/waiter/kitchen staff.
