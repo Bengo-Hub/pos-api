@@ -57,5 +57,5 @@ func (h *Hub) WakeOutlet(tenantID, outletID uuid.UUID) {
 func (h *Hub) ServeWS(ctx context.Context, conn *websocket.Conn, tenantID, outletID uuid.UUID) {
 	sub := h.fan.Subscribe(tenantID.String(), "outlet:"+outletID.String())
 	defer h.fan.Unsubscribe(sub)
-	realtime.Pump(ctx, conn, sub, jobAvailable, func([]byte) []byte { return pong })
+	eventslib.Pump(ctx, realtime.Socket(conn), sub, jobAvailable, func([]byte) []byte { return pong })
 }

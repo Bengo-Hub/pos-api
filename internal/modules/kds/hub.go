@@ -67,7 +67,7 @@ func (h *Hub) ServeWS(ctx context.Context, conn *websocket.Conn, tenantID, outle
 	sub := h.fan.Subscribe(tenantID.String(), scope)
 	defer h.fan.Unsubscribe(sub)
 	hello, _ := json.Marshal(Message{Type: "ping", Payload: map[string]any{"ts": time.Now().Unix()}})
-	realtime.Pump(ctx, conn, sub, hello, func(frame []byte) []byte {
+	eventslib.Pump(ctx, realtime.Socket(conn), sub, hello, func(frame []byte) []byte {
 		var in struct {
 			Type string `json:"type"`
 		}

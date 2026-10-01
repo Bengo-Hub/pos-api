@@ -60,7 +60,7 @@ func (h *Hub) ServeWS(ctx context.Context, conn *websocket.Conn, tenantID, userI
 	sub := h.fan.Subscribe(tenantID.String(), userScope(userID))
 	defer h.fan.Unsubscribe(sub)
 	hello, _ := json.Marshal(Message{Type: "ping", Payload: map[string]any{"ts": time.Now().Unix()}})
-	realtime.Pump(ctx, conn, sub, hello, pongFor)
+	eventslib.Pump(ctx, realtime.Socket(conn), sub, hello, pongFor)
 }
 
 // pongFor answers the client's JSON {"type":"ping"} keepalive.
