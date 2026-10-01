@@ -3,6 +3,7 @@ package payments
 import (
 	"context"
 	"fmt"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"time"
 
 	"go.uber.org/zap"
@@ -47,6 +48,10 @@ func (r *TreasuryIntentReconciler) Start(ctx context.Context) {
 }
 
 func (r *TreasuryIntentReconciler) runOnce(ctx context.Context) error {
+	// Runs on every replica's ticker; only the first replica in each period does the work.
+	if !sharedcache.ClaimPeriod(ctx, "pos:intent-reconciler", 2*time.Minute) {
+		return nil
+	}
 	now := time.Now()
 	// Floor of 2 minutes skips payments still inside the normal async dispatch window so the
 	// reconciler never races a legitimate in-flight create. Ceiling of 24h bounds the scan.

@@ -2,6 +2,7 @@ package payments
 
 import (
 	"context"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"strconv"
 	"strings"
 	"time"
@@ -138,6 +139,10 @@ type custGroup struct {
 //     one page), but its size is bounded by the number of DISTINCT customers with currently-open
 //     balances, which is a much smaller number than the order count itself.
 func (s *ARDriftAuditScheduler) run(ctx context.Context) {
+	// Runs on every replica's ticker; only the first replica in each period does the work.
+	if !sharedcache.ClaimPeriod(ctx, "pos:ar-drift-audit", arDriftInterval) {
+		return
+	}
 	if s.svc == nil || s.svc.treasuryClient == nil {
 		return
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Bengo-Hub/httpware"
 	"net/http"
 	"time"
 
@@ -102,10 +103,10 @@ func (h *PaymentHandler) StreamPaymentStatus(w http.ResponseWriter, r *http.Requ
 		bgCancel()
 	}()
 
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
+	httpware.StreamHeaders(w)
+	// The server WriteTimeout (20s) would cut this up-to-90s stream; lift it for this response.
+	// (chi's Timeout no longer applies to SSE: the router wraps it in BypassForStreaming.)
+	httpware.ExtendWriteDeadline(w)
 	w.WriteHeader(http.StatusOK)
 
 	flusher, ok := w.(http.Flusher)

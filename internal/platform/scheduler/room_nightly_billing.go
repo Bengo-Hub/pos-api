@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"fmt"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"time"
 
 	"github.com/google/uuid"
@@ -49,6 +50,10 @@ func (s *RoomNightlyBillingScheduler) Start(ctx context.Context) {
 }
 
 func (s *RoomNightlyBillingScheduler) run(ctx context.Context) {
+	// Runs on every replica's ticker; only the first replica in each period does the work.
+	if !sharedcache.ClaimPeriod(ctx, "pos:room-nightly-billing", time.Hour) {
+		return
+	}
 	guests, err := s.db.RoomGuest.Query().
 		Where(roomguest.StatusEQ(roomguest.StatusActive)).
 		All(ctx)

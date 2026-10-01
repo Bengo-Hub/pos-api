@@ -365,15 +365,7 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Validate bcrypt
 	if err := bcrypt.CompareHashAndPassword([]byte(*member.PinHash), []byte(input.PIN)); err != nil {
-		attempts := member.PinFailedAttempts + 1
-		upd := h.client.StaffMember.UpdateOne(member).SetPinFailedAttempts(attempts)
-		if attempts >= maxFailedAttempts {
-			locked := time.Now().Add(lockoutDuration)
-			upd = upd.SetPinLockedUntil(locked)
-			h.log.Warn("PIN login locked after failed attempts",
-				zap.String("user_id", userID.String()), zap.Int("attempts", attempts))
-		}
-		_ = upd.Exec(r.Context())
+		h.recordPINFailure(r.Context(), member)
 		jsonError(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
@@ -810,13 +802,7 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 
 	// Bcrypt verify (primary on fast-hash path, redundant but kept for defence-in-depth)
 	if err := bcrypt.CompareHashAndPassword([]byte(*member.PinHash), []byte(input.PIN)); err != nil {
-		attempts := member.PinFailedAttempts + 1
-		upd := h.client.StaffMember.UpdateOne(member).SetPinFailedAttempts(attempts)
-		if attempts >= maxFailedAttempts {
-			locked := time.Now().Add(lockoutDuration)
-			upd = upd.SetPinLockedUntil(locked)
-		}
-		_ = upd.Exec(r.Context())
+		h.recordPINFailure(r.Context(), member)
 		jsonError(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
@@ -934,4 +920,22 @@ func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	jsonOK(w, pagination.NewResponse(out, total, p))
+}
+
+// recordPINFailure counts one wrong PIN atomically and locks the member once the count reaches
+// maxFailedAttempts. The count is incremented in SQL (pin_failed_attempts + 1) and read back;
+// writing back "value read earlier + 1" let a parallel burst of guesses (several terminals or
+// replicas at once) count as a single attempt and never reach the lockout.
+func (h *PINAuthHandler) recordPINFailure(ctx context.Context, member *ent.StaffMember) {
+	updated, err := h.client.StaffMember.UpdateOneID(member.ID).AddPinFailedAttempts(1).Save(ctx)
+	if err != nil {
+		h.log.Warn("record PIN failure", zap.Error(err))
+		return
+	}
+	if updated.PinFailedAttempts >= maxFailedAttempts && (updated.PinLockedUntil == nil || time.Now().After(*updated.PinLockedUntil)) {
+		if err := h.client.StaffMember.UpdateOneID(member.ID).SetPinLockedUntil(time.Now().Add(lockoutDuration)).Exec(ctx); err == nil {
+			h.log.Warn("PIN login locked after failed attempts",
+				zap.String("user_id", member.UserID.String()), zap.Int("attempts", updated.PinFailedAttempts))
+		}
+	}
 }

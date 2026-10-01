@@ -205,17 +205,9 @@ func (h *ScreensaverMediaHandler) saveURLs(r *http.Request, sctx *settingsCtx, u
 
 // ServeMedia mounts the read-only public file server for GET /media/* at the router root.
 // Public by design (screensaver images render on the pre-auth PIN screen); the media tree
-// contains only admin-uploaded display assets, never documents.
+// contains only admin-uploaded display assets, never documents. httpware.StaticMedia refuses
+// directory listings, dotfiles and path escapes, and marks the UUID-named uploads immutable so
+// browsers, service workers and the CDN keep them.
 func ServeMedia(root string) http.HandlerFunc {
-	fs := http.StripPrefix(mediaURLPrefix, http.FileServer(http.Dir(root)))
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Never allow path escapes or directory listings.
-		clean := path.Clean(r.URL.Path)
-		if strings.Contains(clean, "..") || strings.HasSuffix(r.URL.Path, "/") {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Cache-Control", "public, max-age=86400")
-		fs.ServeHTTP(w, r)
-	}
+	return http.StripPrefix(strings.TrimSuffix(mediaURLPrefix, "/"), httpware.StaticMedia(root, httpware.MediaOptions{})).ServeHTTP
 }

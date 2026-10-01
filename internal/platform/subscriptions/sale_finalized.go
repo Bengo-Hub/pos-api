@@ -3,6 +3,7 @@ package subscriptions
 import (
 	"context"
 	"encoding/json"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"math"
 	"strings"
 	"time"
@@ -12,10 +13,10 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entcommrule "github.com/bengobox/pos-service/internal/ent/commissionrule"
 	entaccount "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	entprogram "github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	entreferral "github.com/bengobox/pos-service/internal/ent/referral"
-	entcommrule "github.com/bengobox/pos-service/internal/ent/commissionrule"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
@@ -41,7 +42,8 @@ func NewSaleFinalizedSubscriber(db *ent.Client, logger *zap.Logger, publisher *e
 func (s *SaleFinalizedSubscriber) Start(conn *nats.Conn) error {
 	// QueueSubscribe (not Subscribe): with >1 pos-api replica only ONE pod in the
 	// "pos-sale-finalized" group handles each event, so loyalty earn / referral /
-	// commission side-effects run exactly once (this handler is not idempotent).
+	// commission side-effects run once per delivery; handle() also claims each order once,
+	// which covers republished events.
 	sub, err := conn.QueueSubscribe("pos.sale.finalized", "pos-sale-finalized", s.handle)
 	if err != nil {
 		return err
@@ -58,19 +60,19 @@ func (s *SaleFinalizedSubscriber) Stop() {
 }
 
 type saleFinalizedPayload struct {
-	TenantID   string        `json:"tenant_id"`
-	OrderID    string        `json:"order_id"`
-	OutletID   string        `json:"outlet_id"`
-	TotalAmount float64     `json:"total_amount"`
-	CustomerPhone string    `json:"customer_phone"`
-	Lines      []saleLinePayload `json:"lines"`
+	TenantID      string            `json:"tenant_id"`
+	OrderID       string            `json:"order_id"`
+	OutletID      string            `json:"outlet_id"`
+	TotalAmount   float64           `json:"total_amount"`
+	CustomerPhone string            `json:"customer_phone"`
+	Lines         []saleLinePayload `json:"lines"`
 }
 
 type saleLinePayload struct {
-	ServiceSKU     string  `json:"service_sku"`
-	CatalogItemID  string  `json:"catalog_item_id"`
-	StaffMemberID  string  `json:"staff_member_id"`
-	SaleAmount     float64 `json:"sale_amount"`
+	ServiceSKU    string  `json:"service_sku"`
+	CatalogItemID string  `json:"catalog_item_id"`
+	StaffMemberID string  `json:"staff_member_id"`
+	SaleAmount    float64 `json:"sale_amount"`
 }
 
 func (s *SaleFinalizedSubscriber) handle(msg *nats.Msg) {
@@ -96,6 +98,14 @@ func (s *SaleFinalizedSubscriber) handle(msg *nats.Msg) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
+
+	// Loyalty earn, referral claim and commissions are not idempotent, and the event can
+	// arrive twice (SaleFinalizedReconciler republishes an order whose publish looked failed
+	// or missing). One claim per order makes the side effects run once.
+	if orderID != uuid.Nil && !sharedcache.ClaimOnce(ctx, "pos:sale-finalized:"+orderID.String(), 30*24*time.Hour) {
+		s.logger.Info("sale.finalized: already processed, skipping", zap.String("order_id", p.OrderID))
+		return
+	}
 
 	s.autoEarnLoyalty(ctx, tenantID, orderID, p)
 	s.autoClaimReferral(ctx, tenantID, orderID, p)

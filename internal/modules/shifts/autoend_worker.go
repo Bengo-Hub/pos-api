@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
-	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 )
 
 // AutoEndWorker periodically closes shift sessions that have exceeded the
@@ -43,6 +44,10 @@ func (w *AutoEndWorker) Start(ctx context.Context) {
 }
 
 func (w *AutoEndWorker) runOnce(ctx context.Context) error {
+	// Runs on every replica's ticker; only the first replica in each period does the work.
+	if !sharedcache.ClaimPeriod(ctx, "pos:shift-autoend", 15*time.Minute) {
+		return nil
+	}
 	// Load all outlet settings that have auto-end enabled.
 	settings, err := w.client.OutletSetting.Query().
 		Where(outletsetting.ShiftAutoEndEnabled(true)).

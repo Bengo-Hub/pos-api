@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,6 +41,10 @@ func (s *LayawayReminderScheduler) Start(ctx context.Context) {
 }
 
 func (s *LayawayReminderScheduler) run(ctx context.Context) {
+	// Runs on every replica's ticker; only the first replica in each period does the work.
+	if !sharedcache.ClaimPeriod(ctx, "pos:layaway-reminders", 24*time.Hour) {
+		return
+	}
 	now := time.Now()
 	tomorrowStart := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
 	tomorrowEnd := tomorrowStart.Add(24 * time.Hour)

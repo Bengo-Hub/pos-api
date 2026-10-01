@@ -3,6 +3,7 @@ package payments
 import (
 	"context"
 	"errors"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -78,6 +79,10 @@ func (r *CreditSettlementSyncReconciler) Start(ctx context.Context) {
 }
 
 func (r *CreditSettlementSyncReconciler) runOnce(ctx context.Context) {
+	// Runs on every replica's ticker; only the first replica in each period does the work.
+	if !sharedcache.ClaimPeriod(ctx, "pos:credit-settlement-reconciler", 2*time.Minute) {
+		return
+	}
 	if r.svc == nil || r.svc.treasuryClient == nil {
 		return
 	}

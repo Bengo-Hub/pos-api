@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"net/http"
 	"time"
 
@@ -100,6 +101,10 @@ func (w *DeliveryWorker) Dispatch(ctx context.Context, tenantID uuid.UUID, event
 }
 
 func (w *DeliveryWorker) processPending(ctx context.Context) {
+	// Runs on every replica's ticker; only the first replica in each period does the work.
+	if !sharedcache.ClaimPeriod(ctx, "pos:webhook-delivery", deliveryInterval) {
+		return
+	}
 	deliveries, err := w.db.WebhookDelivery.Query().
 		Where(entdelivery.Status("pending")).
 		Limit(50).

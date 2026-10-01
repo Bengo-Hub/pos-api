@@ -50,7 +50,6 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/tenant"
 	treasurymodule "github.com/bengobox/pos-service/internal/modules/treasury"
 	webhookmodule "github.com/bengobox/pos-service/internal/modules/webhooks"
-	"github.com/bengobox/pos-service/internal/platform/cache"
 	"github.com/bengobox/pos-service/internal/platform/database"
 	"github.com/bengobox/pos-service/internal/platform/erp"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -127,11 +126,29 @@ func New(ctx context.Context) (*App, error) {
 		return nil, fmt.Errorf("postgres init: %w", err)
 	}
 
-	redisClient := cache.NewClient(cfg.Redis)
+	redisClient, redisErr := sharedcache.NewRedis(ctx, sharedcache.RedisConfig{
+		Addr: cfg.Redis.Addr, Username: cfg.Redis.Username, Password: cfg.Redis.Password,
+		DB: cfg.Redis.DB, TLS: cfg.Redis.TLSRequired, DialTimeout: cfg.Redis.DialTimeout,
+	})
+	if redisErr != nil {
+		log.Warn("redis not reachable at startup", zap.Error(redisErr))
+	}
+	// Scheduled jobs and reconcilers run once per period fleet-wide (sharedcache.ClaimPeriod),
+	// and one-off side effects are claimed once (sharedcache.ClaimOnce).
+	sharedcache.SetLeaseClient(redisClient)
 
 	natsConn, err := events.Connect(cfg.Events)
 	if err != nil {
 		log.Warn("event bus connection failed", zap.Error(err))
+	}
+	// One cross-replica relay for the KDS, print-agent and notification hubs.
+	var relay *eventslib.Broadcaster
+	if natsConn != nil {
+		relay = eventslib.NewBroadcaster(log, natsConn, "pos")
+		// Drop revoked/rotated API keys from every validator on this pod at once.
+		_ = eventslib.NewBroadcaster(log, natsConn, "auth").Subscribe("apikey.changed", func(m eventslib.BroadcastMessage) {
+			authclient.InvalidateAPIKeyHash(string(m.Data))
+		})
 	}
 
 	healthHandler := handlers.NewHealthHandler(log, dbPool, redisClient, natsConn)
@@ -355,7 +372,7 @@ func New(ctx context.Context) (*App, error) {
 	hotelHandler.SetInventoryClient(inventoryClient)
 	hotelHandler.SetSubscriptionsClient(subsClient)
 	kdsHandler := handlers.NewKDSHandler(log, entClient)
-	kdsHandler.Hub().SetRedis(redisClient)
+	kdsHandler.Hub().SetRelay(relay)
 	kdsHub := kdsHandler.Hub()
 	deviceHandler := handlers.NewDeviceHandler(log, entClient)
 	if pub := orderSvc.GetPublisher(); pub != nil {
@@ -365,10 +382,9 @@ func New(ctx context.Context) (*App, error) {
 	// Cross-pod relay: with multiple pos-api replicas, the pod that consumes an inventory/treasury
 	// event (or handles the triggering HTTP request) is rarely the same pod a given terminal's
 	// WebSocket is connected to. Without this, catalog_changed/eTIMS-block/treasury-balance pushes
-	// only reached terminals lucky enough to share a pod with the event — see notifications.Hub's
-	// doc comment. Mirrors kdsHandler/printHub's SetRedis+Start below.
+	// only reached terminals lucky enough to share a pod with the event (see notifications.Hub).
 	notifHub := notificationsHandler.Hub()
-	notifHub.SetRedis(redisClient)
+	notifHub.SetRelay(relay)
 	// Push the eTIMS fiscal block to the selling cashier's terminal the instant a sale is signed
 	// (sync checkout sign OR async treasury.etims.invoice_transmitted), so the receipt's KRA TIMS
 	// details appear via WebSocket push instead of the terminal polling the receipt endpoint.
@@ -752,7 +768,7 @@ func New(ctx context.Context) (*App, error) {
 	// job is claimed in ms instead of on the next poll; Redis relays the nudge across replicas (the
 	// enqueue and the agent socket can live on different pods). Agents without a socket keep polling.
 	printHub := printing.NewHub(log)
-	printHub.SetRedis(redisClient)
+	printHub.SetRelay(relay)
 	printQueue.SetHub(printHub)
 	orderSvc.SetPrintQueue(printQueue)
 	paymentSvc.SetPrintQueue(printQueue)
@@ -781,7 +797,7 @@ func New(ctx context.Context) (*App, error) {
 		Enabled:       cfg.Backup.ScheduleEnabled,
 		Hour:          cfg.Backup.ScheduleHour,
 		RetentionDays: cfg.Backup.RetentionDays,
-	}, log).Start(ctx)
+	}, log).WithRedis(redisClient).Start(ctx)
 
 	// One-time recovery tool: fleet-wide recipe-COGS backfill (platform-owner only).
 	recipeCOGSBackfillHandler := handlers.NewRecipeCOGSBackfillHandler(entClient, inventoryClient, treasuryClient, log)
@@ -868,10 +884,8 @@ func (a *App) Run(ctx context.Context) error {
 		go a.creditSettlementSyncReconciler.Start(ctx)
 	}
 
-	// Start KDS/print/notification hub Redis pub/sub relays — no-op if Redis is not configured
-	go a.kdsHub.Start(ctx)
-	go a.printHub.Start(ctx)
-	go a.notifHub.Start(ctx)
+	// KDS/print/notification hubs relay through the shared Broadcaster wired in New (no
+	// background loop to start).
 
 	// Start layaway payment-due reminder scheduler — fires once at startup then every 24h
 	if a.layawayReminderScheduler != nil {

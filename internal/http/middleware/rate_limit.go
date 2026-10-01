@@ -23,11 +23,10 @@ func DefaultRateLimitConfig() RateLimitConfig {
 	return RateLimitConfig{Requests: 100, Window: 60 * time.Second}
 }
 
-// IPRateLimit is a Redis sliding-window rate limiter keyed by client IP, built on
-// github.com/Bengo-Hub/shared-ratelimit's Limiter (extracted from treasury-api/notifications-api;
-// same ZSET sliding-window algorithm and fail-open-on-Redis-error posture pos-api's own
-// hand-rolled fixed-window counter approximated less precisely). Returns 429 with standard
-// Retry-After and X-RateLimit-* headers.
+// IPRateLimit limits requests per client IP on shared-ratelimit's Limiter: GCRA in Redis, exact
+// across every pos-api replica, with a per-pod fallback while Redis is down. Returns 429 with
+// Retry-After and X-RateLimit-* headers. WebSocket/SSE and health probes are exempt inside the
+// shared limiter; the poll endpoints below are exempt here.
 func IPRateLimit(rc *redis.Client, log *zap.Logger, cfg RateLimitConfig) func(http.Handler) http.Handler {
 	if rc == nil {
 		// No Redis — pass through (allow all). Warn via no-op so callers can detect this.
@@ -38,11 +37,10 @@ func IPRateLimit(rc *redis.Client, log *zap.Logger, cfg RateLimitConfig) func(ht
 	}
 
 	limiter := sharedratelimit.NewLimiter(rc, log, "pos")
-	limited := limiter.Middleware(sharedratelimit.IPKey, cfg.Requests, cfg.Window)
-
-	return func(next http.Handler) http.Handler {
-		wrapped := limited(next)
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return limiter.MiddlewareWith(sharedratelimit.IPKey, sharedratelimit.Options{
+		Limit:  cfg.Requests,
+		Window: cfg.Window,
+		Skip: func(r *http.Request) bool {
 			// Exempt long-lived SSE streams and the lightweight payment-status poll from the per-IP
 			// counter: a stream holds one connection but the browser reconnects on the 30s request
 			// timeout, and a bounded payment poll fires a handful of times — counting either against
@@ -51,13 +49,10 @@ func IPRateLimit(rc *redis.Client, log *zap.Logger, cfg RateLimitConfig) func(ht
 			// subscriber, not these endpoints.
 			// /catalog/version is the terminal's tiny catalog-freshness poll (two aggregates on an
 			// indexed column, fired every ~45s per terminal) — same starvation math as payment-status.
-			if p := r.URL.Path; strings.HasSuffix(p, "/stream") || strings.HasSuffix(p, "/payment-status") || strings.HasSuffix(p, "/catalog/version") {
-				next.ServeHTTP(w, r)
-				return
-			}
-			wrapped.ServeHTTP(w, r)
-		})
-	}
+			p := r.URL.Path
+			return strings.HasSuffix(p, "/stream") || strings.HasSuffix(p, "/payment-status") || strings.HasSuffix(p, "/catalog/version")
+		},
+	})
 }
 
 // DefaultPINRateLimitConfig throttles PIN identify/login attempts much harder than ordinary
@@ -67,7 +62,7 @@ func DefaultPINRateLimitConfig() RateLimitConfig {
 	return RateLimitConfig{Requests: 8, Window: 60 * time.Second}
 }
 
-// PINRateLimit is a Redis sliding-window rate limiter keyed by client IP, dedicated to PIN
+// PINRateLimit is a per-IP limiter (shared-ratelimit GCRA, exact across replicas) dedicated to PIN
 // authentication routes (identify/login/step-up), built on shared-ratelimit's Limiter. It uses
 // its own Redis key namespace ("rl:pos-pin:" vs IPRateLimit's "rl:pos:") so it counts
 // independently of — and stacks with — the general per-IP limiter rather than sharing/racing its

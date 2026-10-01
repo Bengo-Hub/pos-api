@@ -3,6 +3,7 @@ package payments
 import (
 	"context"
 	"encoding/json"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"time"
 
 	"go.uber.org/zap"
@@ -65,6 +66,10 @@ type outboxPayload struct {
 }
 
 func (r *SaleFinalizedReconciler) runOnce(ctx context.Context) error {
+	// Runs on every replica's ticker; only the first replica in each period does the work.
+	if !sharedcache.ClaimPeriod(ctx, "pos:sale-finalized-reconciler", 5*time.Minute) {
+		return nil
+	}
 	now := time.Now()
 	// Floor of 2 minutes skips orders still inside the normal async fan-out window so the
 	// reconciler never races a legitimate in-flight publish. Ceiling of 24h bounds the scan.

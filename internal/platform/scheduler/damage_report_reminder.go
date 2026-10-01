@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"time"
 
 	"go.uber.org/zap"
@@ -45,6 +46,10 @@ func (s *DamageReportReminderScheduler) Start(ctx context.Context) {
 }
 
 func (s *DamageReportReminderScheduler) run(ctx context.Context) {
+	// Runs on every replica's ticker; only the first replica in each period does the work.
+	if !sharedcache.ClaimPeriod(ctx, "pos:damage-report-reminder", time.Hour) {
+		return
+	}
 	cutoff := time.Now().Add(-damageReportSLAHours * time.Hour)
 	reports, err := s.db.RoomDamageReport.Query().
 		Where(
