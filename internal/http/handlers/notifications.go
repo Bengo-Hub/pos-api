@@ -45,19 +45,13 @@ func (h *NotificationsHandler) StreamNotifications(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// The stream is always for the caller's own user: every token carries it (terminal JWTs set
+	// Subject to the staff member's user ID, SSO tokens carry sub). A ?user_id= override is not
+	// accepted, since it let any authenticated session subscribe to another user's alerts.
 	userID, ok := callerUserID(r)
 	if !ok {
-		// Fallback: allow ?user_id= for terminal JWTs that may not have Subject
-		if uidStr := r.URL.Query().Get("user_id"); uidStr != "" {
-			userID, err = uuid.Parse(uidStr)
-			if err != nil {
-				jsonError(w, "invalid user_id", http.StatusBadRequest)
-				return
-			}
-		} else {
-			jsonError(w, "unauthenticated", http.StatusUnauthorized)
-			return
-		}
+		jsonError(w, "unauthenticated", http.StatusUnauthorized)
+		return
 	}
 
 	conn, wsErr := websocket.Accept(w, r, &websocket.AcceptOptions{
