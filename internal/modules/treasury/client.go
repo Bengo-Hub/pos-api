@@ -839,6 +839,13 @@ type PublicGatewaysResponse struct {
 	MTNMoMo      bool `json:"mtn_momo"`
 	AirtelMoney  bool `json:"airtel_money"`
 	BankTransfer bool `json:"bank_transfer"`
+	// PayHero rails (treasury 2026-10-02), offered when the tenant's PayHero account can take them
+	// in the sale's currency: other mobile money networks, card hosted checkout, bank deposit, and
+	// the offline paybill for a customer who cannot take a phone prompt.
+	MobileMoney    bool `json:"mobile_money"`
+	PayHeroCard    bool `json:"payhero_card"`
+	PayHeroBank    bool `json:"payhero_bank"`
+	PayHeroOffline bool `json:"payhero_offline"`
 }
 
 // treasuryGatewaysWire is treasury's ACTUAL response shape for GET /api/v1/pay/{tenant}/gateways:
@@ -863,8 +870,14 @@ type treasuryGatewaysWire struct {
 // Decoding that straight into PublicGatewaysResponse yielded all-false, which silently hid EVERY online
 // gateway (M-Pesa, Paystack/Card, Wallet) in the POS payment modal even when the tenant had enabled
 // them. We now decode the array (and tolerate the flat form) and derive the flags from it.
-func (c *Client) GetPublicGateways(ctx context.Context, tenantSlug string) (*PublicGatewaysResponse, error) {
+//
+// currency (the outlet's) lets treasury ask the tenant's PayHero account which rails exist in that
+// currency's country (e.g. MTN and Airtel for UGX); empty keeps treasury's default.
+func (c *Client) GetPublicGateways(ctx context.Context, tenantSlug, currency string) (*PublicGatewaysResponse, error) {
 	url := fmt.Sprintf("%s/api/v1/pay/%s/gateways", c.baseURL, tenantSlug)
+	if cur := strings.ToUpper(strings.TrimSpace(currency)); len(cur) == 3 {
+		url += "?currency=" + cur
+	}
 	wire, err := doRequest[treasuryGatewaysWire](ctx, c.httpClient, http.MethodGet, url, c.apiKey, nil)
 	if err != nil {
 		return nil, err
@@ -891,6 +904,14 @@ func (c *Client) GetPublicGateways(ctx context.Context, tenantSlug string) (*Pub
 			out.AirtelMoney = true
 		case "bank_transfer", "bank":
 			out.BankTransfer = true
+		case "payhero_momo", "mobile_money":
+			out.MobileMoney = true
+		case "payhero_card":
+			out.PayHeroCard = true
+		case "payhero_bank":
+			out.PayHeroBank = true
+		case "payhero_offline":
+			out.PayHeroOffline = true
 		}
 	}
 	return out, nil

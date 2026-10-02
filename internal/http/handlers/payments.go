@@ -549,6 +549,7 @@ func (h *PaymentHandler) GetGateways(w http.ResponseWriter, r *http.Request) {
 	openDefault := map[string]any{
 		"mpesa": true, "paystack": true, "wallet": !payg, "cod": !payg, "complimentary": false,
 		"mtn_momo": false, "airtel_money": false, "bank_transfer": false,
+		"mobile_money": false, "payhero_card": false, "payhero_bank": false, "payhero_offline": false,
 	}
 
 	if tenantSlug == "" || h.treasuryClient == nil {
@@ -556,7 +557,7 @@ func (h *PaymentHandler) GetGateways(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gateways, err := h.treasuryClient.GetPublicGateways(r.Context(), tenantSlug)
+	gateways, err := h.treasuryClient.GetPublicGateways(r.Context(), tenantSlug, r.URL.Query().Get("currency"))
 	if err != nil {
 		h.log.Warn("get public gateways failed — failing open", zap.String("tenant", tenantSlug), zap.Error(err))
 		jsonOK(w, openDefault)
