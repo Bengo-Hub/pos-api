@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/modules/returns"
@@ -116,6 +117,50 @@ type returnResponse struct {
 	OrderNumber   string `json:"order_number,omitempty"`
 	CustomerName  string `json:"customer_name,omitempty"`
 	CustomerPhone string `json:"customer_phone,omitempty"`
+	// OutletName is the branch the return belongs to (location means outlet). Falls back to the
+	// original sale's outlet for older returns stored without one.
+	OutletName string `json:"outlet_name,omitempty"`
+}
+
+// returnOutletNames resolves each return's branch name in one batched query. A return saved with
+// a nil outlet (before 2026-10-02 the UI never sent outlet_id) uses its sale's outlet instead.
+func (h *ReturnHandler) returnOutletNames(ctx context.Context, tid uuid.UUID, rets []*ent.POSReturn, orderOutlet map[uuid.UUID]uuid.UUID) map[uuid.UUID]string {
+	outletOf := make(map[uuid.UUID]uuid.UUID, len(rets))
+	ids := make([]uuid.UUID, 0, len(rets))
+	seen := map[uuid.UUID]bool{}
+	for _, ret := range rets {
+		oid := ret.OutletID
+		if oid == uuid.Nil {
+			oid = orderOutlet[ret.OrderID]
+		}
+		if oid == uuid.Nil {
+			continue
+		}
+		outletOf[ret.ID] = oid
+		if !seen[oid] {
+			seen[oid] = true
+			ids = append(ids, oid)
+		}
+	}
+	out := make(map[uuid.UUID]string, len(rets))
+	if len(ids) == 0 {
+		return out
+	}
+	outlets, err := h.client.Outlet.Query().
+		Where(entoutlet.TenantID(tid), entoutlet.IDIn(ids...)).
+		Select(entoutlet.FieldID, entoutlet.FieldName).
+		All(ctx)
+	if err != nil {
+		return out
+	}
+	names := make(map[uuid.UUID]string, len(outlets))
+	for _, o := range outlets {
+		names[o.ID] = o.Name
+	}
+	for retID, oid := range outletOf {
+		out[retID] = names[oid]
+	}
+	return out
 }
 
 func (h *ReturnHandler) orderNumberFor(ctx context.Context, tid, orderID uuid.UUID) string {
@@ -139,11 +184,13 @@ func (h *ReturnHandler) withOrderNumber(ctx context.Context, tid uuid.UUID, ret 
 	}
 	o, err := h.client.POSOrder.Query().
 		Where(entposorder.ID(ret.OrderID), entposorder.TenantID(tid)).
-		Select(entposorder.FieldOrderNumber, entposorder.FieldCustomerName, entposorder.FieldCustomerPhone).
+		Select(entposorder.FieldOrderNumber, entposorder.FieldCustomerName, entposorder.FieldCustomerPhone, entposorder.FieldOutletID).
 		Only(ctx)
 	if err != nil || o == nil {
+		resp.OutletName = h.returnOutletNames(ctx, tid, []*ent.POSReturn{ret}, nil)[ret.ID]
 		return resp
 	}
+	resp.OutletName = h.returnOutletNames(ctx, tid, []*ent.POSReturn{ret}, map[uuid.UUID]uuid.UUID{o.ID: o.OutletID})[ret.ID]
 	resp.OrderNumber = o.OrderNumber
 	if o.CustomerName != nil {
 		resp.CustomerName = *o.CustomerName
@@ -165,13 +212,15 @@ func (h *ReturnHandler) withOrderNumbers(ctx context.Context, tid uuid.UUID, ret
 		number, custName, custPhone string
 	}
 	infoByID := make(map[uuid.UUID]orderInfo, len(ids))
+	orderOutlet := make(map[uuid.UUID]uuid.UUID, len(ids))
 	if len(ids) > 0 {
 		ords, err := h.client.POSOrder.Query().
 			Where(entposorder.TenantID(tid), entposorder.IDIn(ids...)).
-			Select(entposorder.FieldID, entposorder.FieldOrderNumber, entposorder.FieldCustomerName, entposorder.FieldCustomerPhone).
+			Select(entposorder.FieldID, entposorder.FieldOrderNumber, entposorder.FieldCustomerName, entposorder.FieldCustomerPhone, entposorder.FieldOutletID).
 			All(ctx)
 		if err == nil {
 			for _, o := range ords {
+				orderOutlet[o.ID] = o.OutletID
 				info := orderInfo{number: o.OrderNumber}
 				if o.CustomerName != nil {
 					info.custName = *o.CustomerName
@@ -183,10 +232,11 @@ func (h *ReturnHandler) withOrderNumbers(ctx context.Context, tid uuid.UUID, ret
 			}
 		}
 	}
+	outletNames := h.returnOutletNames(ctx, tid, rets, orderOutlet)
 	out := make([]returnResponse, 0, len(rets))
 	for _, ret := range rets {
 		info := infoByID[ret.OrderID]
-		out = append(out, returnResponse{POSReturn: ret, OrderNumber: info.number, CustomerName: info.custName, CustomerPhone: info.custPhone})
+		out = append(out, returnResponse{POSReturn: ret, OrderNumber: info.number, CustomerName: info.custName, CustomerPhone: info.custPhone, OutletName: outletNames[ret.ID]})
 	}
 	return out
 }
