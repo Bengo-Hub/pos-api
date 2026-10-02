@@ -469,17 +469,15 @@ func (h *ReportPDFHandler) ResetSummary(w http.ResponseWriter, r *http.Request) 
 		voidAmount += o.TotalAmount
 		voidQty++
 	}
-	returns, rerr := h.db.POSReturn.Query().
-		Where(posreturn.TenantID(tid), posreturn.CreatedAtGTE(from), posreturn.CreatedAtLT(to)).
-		All(ctx)
+	// Completed returns of THIS outlet only: the Z report used to add every outlet's returns,
+	// pending and rejected included, into "Returns Refunded".
+	scopeOutlet := uuid.Nil
+	if oid != nil {
+		scopeOutlet = *oid
+	}
+	returnCount, returnAmount, rerr := returnTotals(ctx, h.db, returnPreds(tid, scopeOutlet, from, to, posreturn.StatusCompleted))
 	if rerr != nil {
 		h.log.Warn("reset-summary: returns query failed", zap.Error(rerr))
-	}
-	var returnCount int
-	var returnAmount float64
-	for _, ret := range returns {
-		returnCount++
-		returnAmount += ret.RefundAmount
 	}
 	voidReturnPairs := []docs.KV{
 		{Label: "Voided Orders (qty)", Value: fmtQty(voidQty)},

@@ -485,7 +485,11 @@ func (c *Client) ReverseConsumption(ctx context.Context, tenantID string, req Re
 	if resp.StatusCode >= 400 {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
 		body := strings.TrimSpace(string(msg))
-		if resp.StatusCode == http.StatusUnprocessableEntity && strings.Contains(body, "nothing left to reverse") {
+		// Both texts are inventory-api's sentinel errors (stock.ErrNothingToReverse and
+		// stock.ErrNoConsumptionRecorded). "no consumption recorded" was previously unmatched, so
+		// reversing a service-only sale surfaced as a failed step instead of "nothing to put back".
+		if resp.StatusCode == http.StatusUnprocessableEntity &&
+			(strings.Contains(body, "nothing left to reverse") || strings.Contains(body, "no consumption recorded")) {
 			return nil, fmt.Errorf("inventory.Client.ReverseConsumption: %w: %s", ErrNothingToReverse, body)
 		}
 		return nil, fmt.Errorf("inventory.Client.ReverseConsumption: status %d: %s", resp.StatusCode, body)

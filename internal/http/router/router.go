@@ -927,6 +927,10 @@ func New(
 						// Completion (money-out + inventory restock) is done at the till by a cashier/manager.
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change_own", "pos.orders.change", "pos.orders.manage")).
 							Post("/returns/{returnID}/complete", returns.CompleteReturn)
+						// Re-request inventory restock for completed returns not confirmed restocked
+						// (dry_run lists them first). Restock-only: no money moves, no notification.
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.manage")).
+							Post("/returns/restock/resync", returns.ResyncRestock)
 					}
 
 					// Layaway plans & payments. Gated with the SAME order/payment permission codes

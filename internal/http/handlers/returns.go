@@ -363,6 +363,60 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 	}{h.withOrderNumber(r.Context(), tid, updated), exchange})
 }
 
+type resyncRestockInput struct {
+	ReturnIDs []string `json:"return_ids,omitempty"`
+	From      string   `json:"from,omitempty"`
+	To        string   `json:"to,omitempty"`
+	DryRun    bool     `json:"dry_run"`
+}
+
+// ResyncRestock handles POST /{tenantID}/pos/returns/restock/resync — re-requests inventory
+// restock for completed returns whose restock is not confirmed (or for the given return_ids).
+// dry_run=true only lists what would be sent. Inventory dedupes per return, so a retry can never
+// put the same goods back twice.
+func (h *ReturnHandler) ResyncRestock(w http.ResponseWriter, r *http.Request) {
+	tid, err := parseTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	var input resyncRestockInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	req := returns.ResyncRestockRequest{DryRun: input.DryRun}
+	for _, s := range input.ReturnIDs {
+		id, perr := uuid.Parse(s)
+		if perr != nil {
+			jsonError(w, "invalid return id: "+s, http.StatusBadRequest)
+			return
+		}
+		req.ReturnIDs = append(req.ReturnIDs, id)
+	}
+	if input.From != "" {
+		if t, derr := parseFlexibleDate(input.From); derr == nil {
+			req.From = &t
+		}
+	}
+	if input.To != "" {
+		if t, derr := parseFlexibleDate(input.To); derr == nil {
+			if len(input.To) == len("2006-01-02") {
+				t = t.Add(24*time.Hour - time.Nanosecond) // a bare date includes the whole day
+			}
+			req.To = &t
+		}
+	}
+
+	res, err := h.svc.ResyncRestock(r.Context(), tid, req)
+	if err != nil {
+		h.log.Error("restock resync failed", zap.Error(err))
+		jsonError(w, "failed to resync restock", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, res)
+}
+
 // classifyReturnError maps a returns.Service error message to the HTTP status the old
 // inline handlers used to return for the equivalent condition. The service layer returns
 // plain errors (no status codes — it has no HTTP dependency), so the adapter classifies by

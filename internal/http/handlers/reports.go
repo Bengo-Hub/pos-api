@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/csv"
 	"fmt"
 	sharedcache "github.com/Bengo-Hub/cache"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"math"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1247,7 +1249,10 @@ func (h *ReportsHandler) SalesByCategory(w http.ResponseWriter, r *http.Request)
 }
 
 // StockConsumptionReport handles GET /{tenantID}/pos/reports/stock-consumption
-// Returns per-SKU consumed quantities for completed orders in the requested date range.
+// Per-SKU net quantity that left stock through completed sales in the window: sold minus
+// voided minus returned (completed returns dated in the window put goods back, so they no
+// longer count as consumed). Honors ?outlet_id. Aggregated in SQL; the response keeps
+// "quantity" as the net figure and adds sold/voided/returned beside it.
 func (h *ReportsHandler) StockConsumptionReport(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -1255,17 +1260,39 @@ func (h *ReportsHandler) StockConsumptionReport(w http.ResponseWriter, r *http.R
 		return
 	}
 	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
+	outlet := parseOutletFilter(r)
+	ctx := r.Context()
 
-	lines, err := h.db.POSOrderLine.Query().
-		Where(posorderline.HasOrderWith(
-			posorder.TenantID(tid),
-			posorder.StatusEQ("completed"),
-			effectiveDateGTE(from),
-			effectiveDateLT(to),
-		)).
-		All(r.Context())
-	if err != nil {
+	orderPreds := []predicate.POSOrder{
+		posorder.TenantID(tid),
+		posorder.StatusEQ("completed"),
+		effectiveDateGTE(from),
+		effectiveDateLT(to),
+	}
+	if outlet != uuid.Nil {
+		orderPreds = append(orderPreds, posorder.OutletID(outlet))
+	}
+	var sold []struct {
+		Sku      string          `json:"sku"`
+		Name     string          `json:"name"`
+		Quantity sql.NullFloat64 `json:"quantity"`
+		Voided   sql.NullFloat64 `json:"voided"`
+	}
+	if err := h.db.POSOrderLine.Query().
+		Where(posorderline.HasOrderWith(orderPreds...)).
+		GroupBy(posorderline.FieldSku, posorderline.FieldName).
+		Aggregate(
+			ent.As(ent.Sum(posorderline.FieldQuantity), "quantity"),
+			ent.As(ent.Sum(posorderline.FieldVoidedQty), "voided"),
+		).
+		Scan(ctx, &sold); err != nil {
 		h.log.Error("stock consumption report query failed", zap.Error(err))
+		jsonError(w, "failed to query stock consumption", http.StatusInternalServerError)
+		return
+	}
+	returned, err := returnedQtyBySKU(ctx, h.db, returnPreds(tid, outlet, from, to, posreturn.StatusCompleted))
+	if err != nil {
+		h.log.Error("stock consumption report returns query failed", zap.Error(err))
 		jsonError(w, "failed to query stock consumption", http.StatusInternalServerError)
 		return
 	}
@@ -1274,24 +1301,34 @@ func (h *ReportsHandler) StockConsumptionReport(w http.ResponseWriter, r *http.R
 		SKU      string  `json:"sku"`
 		Name     string  `json:"name"`
 		Quantity float64 `json:"quantity"`
+		Sold     float64 `json:"sold"`
+		Voided   float64 `json:"voided"`
+		Returned float64 `json:"returned"`
 	}
 	bysku := map[string]*skuRow{}
-	for _, l := range lines {
-		if row, ok := bysku[l.Sku]; ok {
-			row.Quantity += l.Quantity
-		} else {
-			bysku[l.Sku] = &skuRow{SKU: l.Sku, Name: l.Name, Quantity: l.Quantity}
+	for _, s := range sold {
+		row, ok := bysku[s.Sku]
+		if !ok {
+			row = &skuRow{SKU: s.Sku, Name: s.Name}
+			bysku[s.Sku] = row
 		}
+		row.Sold += s.Quantity.Float64
+		row.Voided += s.Voided.Float64
 	}
 	rows := make([]*skuRow, 0, len(bysku))
-	for _, r := range bysku {
-		rows = append(rows, r)
+	for sku, row := range bysku {
+		row.Returned = returned[sku]
+		row.Quantity = row.Sold - row.Voided - row.Returned
+		rows = append(rows, row)
 	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Quantity > rows[j].Quantity })
 	jsonOK(w, map[string]any{"data": rows, "from": from, "to": to})
 }
 
 // ReturnsSummary handles GET /{tenantID}/pos/reports/returns
-// Returns a summary of returns in the requested date range grouped by reason.
+// Completed returns in the window grouped by reason, plus a count/value per status. Only
+// completed returns are refunds: pending/approved have moved nothing and rejected never will
+// (all statuses used to be summed as refunded). Honors ?outlet_id. Aggregated in SQL.
 func (h *ReportsHandler) ReturnsSummary(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -1299,50 +1336,72 @@ func (h *ReportsHandler) ReturnsSummary(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
-
-	returns, err := h.db.POSReturn.Query().
-		Where(
-			posreturn.TenantID(tid),
-			posreturn.CreatedAtGTE(from),
-			posreturn.CreatedAtLT(to),
-		).
-		All(r.Context())
-	if err != nil {
-		h.log.Error("returns report query failed", zap.Error(err))
-		jsonError(w, "failed to query returns", http.StatusInternalServerError)
-		return
-	}
+	outlet := parseOutletFilter(r)
+	ctx := r.Context()
 
 	type reasonRow struct {
 		Reason      string  `json:"reason"`
 		Count       int     `json:"count"`
 		TotalRefund float64 `json:"total_refund"`
 	}
+	var grouped []struct {
+		Reason string          `json:"reason"`
+		Count  int             `json:"count"`
+		Refund sql.NullFloat64 `json:"refund"`
+	}
+	if err := h.db.POSReturn.Query().
+		Where(returnPreds(tid, outlet, from, to, posreturn.StatusCompleted)...).
+		GroupBy(posreturn.FieldReason).
+		Aggregate(ent.As(ent.Count(), "count"), ent.As(ent.Sum(posreturn.FieldRefundAmount), "refund")).
+		Scan(ctx, &grouped); err != nil {
+		h.log.Error("returns report query failed", zap.Error(err))
+		jsonError(w, "failed to query returns", http.StatusInternalServerError)
+		return
+	}
 	byReason := map[string]*reasonRow{}
-	totalCount := 0
-	totalRefund := 0.0
-	for _, ret := range returns {
-		totalCount++
-		totalRefund += ret.RefundAmount
-		key := ret.Reason
+	totalCount, totalRefund := 0, 0.0
+	for _, g := range grouped {
+		key := g.Reason
 		if key == "" {
 			key = "other"
 		}
-		if row, ok := byReason[key]; ok {
-			row.Count++
-			row.TotalRefund += ret.RefundAmount
-		} else {
-			byReason[key] = &reasonRow{Reason: key, Count: 1, TotalRefund: ret.RefundAmount}
+		row, ok := byReason[key]
+		if !ok {
+			row = &reasonRow{Reason: key}
+			byReason[key] = row
 		}
+		row.Count += g.Count
+		row.TotalRefund += g.Refund.Float64
+		totalCount += g.Count
+		totalRefund += g.Refund.Float64
 	}
 	rows := make([]*reasonRow, 0, len(byReason))
 	for _, r := range byReason {
 		rows = append(rows, r)
 	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].TotalRefund > rows[j].TotalRefund })
+
+	var statusRows []struct {
+		Status string          `json:"status"`
+		Count  int             `json:"count"`
+		Amount sql.NullFloat64 `json:"amount"`
+	}
+	byStatus := map[string]map[string]any{}
+	if err := h.db.POSReturn.Query().
+		Where(returnPreds(tid, outlet, from, to)...).
+		GroupBy(posreturn.FieldStatus).
+		Aggregate(ent.As(ent.Count(), "count"), ent.As(ent.Sum(posreturn.FieldRefundAmount), "amount")).
+		Scan(ctx, &statusRows); err == nil {
+		for _, s := range statusRows {
+			byStatus[s.Status] = map[string]any{"count": s.Count, "amount": s.Amount.Float64}
+		}
+	}
+
 	jsonOK(w, map[string]any{
 		"data":         rows,
 		"total_count":  totalCount,
 		"total_refund": totalRefund,
+		"by_status":    byStatus,
 		"from":         from,
 		"to":           to,
 	})

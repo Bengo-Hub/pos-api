@@ -128,6 +128,13 @@ func (p *Publisher) PublishReturnCompleted(ctx context.Context, tenantID uuid.UU
 	return p.publish(ctx, tenantID, "return.completed", data)
 }
 
+// PublishReturnRestockRequested publishes pos.return.restock_requested: the same payload as
+// return.completed, consumed only by inventory-api. Used by the restock resync so retrying a
+// return's restock never re-triggers treasury settlement or the customer notification.
+func (p *Publisher) PublishReturnRestockRequested(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
+	return p.publish(ctx, tenantID, "return.restock_requested", data)
+}
+
 // PublishExchangeCompleted publishes a pos.exchange.completed event.
 func (p *Publisher) PublishExchangeCompleted(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "exchange.completed", data)

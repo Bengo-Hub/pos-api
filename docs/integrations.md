@@ -406,7 +406,9 @@ Registered in router under `/{tenantID}/pos/online-orders/`:
 | `pos.kds.waiter.called` | Call waiter triggered | notifications-service (waiter push) |
 | `pos.room.checked_in` | Hotel check-in | notifications-service |
 | `pos.room.checked_out` | Hotel check-out | notifications-service, treasury-api |
-| `pos.return.completed` | Return approved | inventory-api (restock), treasury-api (refund) |
+| `pos.return.completed` | Return completed (refund/store credit) | inventory-api (restock into the warehouse the sale drew from), treasury-api (GL backstop, idempotent with the synchronous refund), notifications-service |
+| `pos.exchange.completed` | Exchange completed | inventory-api (restock the exchanged-away goods) |
+| `pos.return.restock_requested` | Restock resync (`POST /pos/returns/restock/resync`) | inventory-api only, so a retry never re-settles money or re-notifies the customer |
 | `pos.daily_closing.completed` | Daily close run | treasury-api (reconciliation) |
 
 ### Events Consumed (NATS Subscribers)
@@ -415,6 +417,7 @@ Registered in router under `/{tenantID}/pos/online-orders/`:
 |-------|-----------|--------|--------|
 | `inventory.catalog.updated` | inventory-api | Refresh `catalog_items` projection | ❌ Not wired |
 | `inventory.stock.low` | inventory-api | Create stock alert notification | ❌ Not wired |
+| `inventory.return.restocked` | inventory-api | Record the return's restock outcome in `pos_returns.metadata` (`restock_status`, `restock_lines`, `restock_locations`, `restock_skipped`, `restock_error`). Location means the outlet (branch): pos-api resolves the outlet name from the warehouse's `outlet_id`, falling back to the warehouse name for a shared/HQ warehouse. Shown as the "Returned To" column in the Returns list and Returned Items table, and the Stock card on the return detail page | ✅ Wired 2026-10-02 |
 | `treasury.payment.success` | treasury-api | Mark payment succeeded (`pos_payments.status = completed`), complete order | ❌ Not wired — Sprint 6 |
 | `treasury.payment.failed` | treasury-api | Mark payment failed (`pos_payments.status = failed`) | ❌ Not wired — Sprint 6 |
 | `treasury.etims.invoice_transmitted` | treasury-api | Populate `pos_orders.etims_invoice_number` + `etims_qr_code_url` for receipt display | ❌ Not wired — Sprint 12 |

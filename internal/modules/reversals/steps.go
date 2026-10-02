@@ -2,6 +2,7 @@ package reversals
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -378,6 +379,11 @@ func (s *Service) stepInventory(ctx context.Context, rev *ent.POSReversal) (stri
 	stepCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	resp, err := s.inventoryClient.ReverseConsumption(stepCtx, rev.TenantID.String(), req)
+	if errors.Is(err, inventory.ErrNothingToReverse) {
+		// Service-only sale, or the stock was already put back (e.g. by a customer return on
+		// the same lines): nothing left to reverse is a finished step, same as saledelete.
+		return "", "nothing to put back (no stock consumed, or already reversed)", true, nil
+	}
 	if err != nil {
 		return "", "", false, err
 	}

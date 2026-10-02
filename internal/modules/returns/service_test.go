@@ -68,8 +68,8 @@ func seedOrder(t *testing.T, client *ent.Client, tid, outletID uuid.UUID, status
 		SetCatalogItemID(uuid.New()).
 		SetSku("SKU-1").
 		SetName("Sample Item").
-		SetQuantity(1).
-		SetUnitPrice(500).
+		SetQuantity(2).
+		SetUnitPrice(250).
 		SetTotalPrice(500).
 		Save(context.Background())
 	if err != nil {

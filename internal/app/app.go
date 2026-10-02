@@ -687,6 +687,14 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
+	// Subscribe to inventory.return.restocked → record on each completed return whether (and to
+	// which warehouse) inventory put its goods back, shown on the return detail page.
+	if natsConn != nil {
+		if err := returnsSvc.SubscribeRestockOutcomes(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to inventory.return.restocked", zap.Error(err))
+		}
+	}
+
 	// Subscribe to erp.staff_purchase.recovered/reversed → pay down the staff layaway/credit as ERP
 	// payroll recovers the debt (staff fund-from-salary settlement loop).
 	if natsConn != nil {

@@ -84,6 +84,13 @@ func (s *Service) CreateReturn(ctx context.Context, tenantID uuid.UUID, req Crea
 		return nil, fmt.Errorf("load order: %w", err)
 	}
 
+	// A return belongs to the outlet that made the sale. The UI does not send outlet_id and the
+	// X-Outlet-ID fallback is sometimes absent, which stored a nil outlet and lost the location
+	// the goods should go back to.
+	if req.OutletID == uuid.Nil {
+		req.OutletID = order.OutletID
+	}
+
 	if !req.BypassGuards {
 		if outletSetting, settingErr := s.client.OutletSetting.Query().
 			Where(entoutletsetting.OutletID(order.OutletID)).
@@ -93,7 +100,26 @@ func (s *Service) CreateReturn(ctx context.Context, tenantID uuid.UUID, req Crea
 				return nil, fmt.Errorf("return window has expired")
 			}
 		}
+	}
 
+	// Lines are checked against the sale inside a transaction that locks the order row, so two
+	// returns submitted at once cannot both claim the same remaining quantity.
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create return: begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := lockOrder(ctx, tx, order.ID); err != nil {
+		return nil, fmt.Errorf("load order: lock: %w", err)
+	}
+	txSvc := &Service{log: s.log, client: tx.Client()}
+	lines, err := txSvc.resolveReturnLines(ctx, order.ID, req.Lines, req.BypassGuards)
+	if err != nil {
+		return nil, err
+	}
+	req.Lines = lines
+
+	if !req.BypassGuards {
 		skus := make([]string, 0, len(req.Lines))
 		for _, l := range req.Lines {
 			if l.SKU != "" {
@@ -149,7 +175,7 @@ func (s *Service) CreateReturn(ctx context.Context, tenantID uuid.UUID, req Crea
 		md["source"] = "edit_sale"
 	}
 
-	ret, err := s.client.POSReturn.Create().
+	ret, err := tx.POSReturn.Create().
 		SetTenantID(tenantID).
 		SetOutletID(req.OutletID).
 		SetOrderID(req.OrderID).
@@ -168,8 +194,10 @@ func (s *Service) CreateReturn(ctx context.Context, tenantID uuid.UUID, req Crea
 		return nil, fmt.Errorf("create return: %w", err)
 	}
 
+	// Lines are written in the same transaction as the return: a return whose lines failed to
+	// save used to be kept anyway, and completing it then restocked nothing.
 	for _, l := range req.Lines {
-		if _, lerr := s.client.POSReturnLine.Create().
+		if _, lerr := tx.POSReturnLine.Create().
 			SetReturnID(ret.ID).
 			SetOrderLineID(l.OrderLineID).
 			SetSku(l.SKU).
@@ -179,8 +207,11 @@ func (s *Service) CreateReturn(ctx context.Context, tenantID uuid.UUID, req Crea
 			SetTotalPrice(l.TotalPrice).
 			SetReason(l.Reason).
 			Save(ctx); lerr != nil {
-			s.log.Error("create return line failed", zap.Error(lerr))
+			return nil, fmt.Errorf("create return: line %s: %w", l.SKU, lerr)
 		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("create return: commit: %w", err)
 	}
 
 	if s.auditSvc != nil {
@@ -310,9 +341,12 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 		return nil, nil, fmt.Errorf("only an approved return can be completed")
 	}
 
-	lines, _ := s.client.POSReturnLine.Query().
+	lines, err := s.client.POSReturnLine.Query().
 		Where(posreturnline.ReturnID(returnID)).
 		All(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get return: lines: %w", err)
+	}
 
 	update := s.client.POSReturn.UpdateOne(ret).SetStatus(posreturn.StatusCompleted)
 
@@ -431,6 +465,11 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 	if strings.TrimSpace(req.Notes) != "" {
 		md["completion_notes"] = req.Notes
 	}
+	// Inventory confirms the restock (and where the goods went) via inventory.return.restocked;
+	// until then the return reads "restock pending".
+	if s.publisher != nil && len(lines) > 0 {
+		md[mdRestockStatus] = restockPending
+	}
 	update = update.SetMetadata(md)
 
 	updated, err := update.Save(ctx)
@@ -454,35 +493,77 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 		})
 	}
 
-	if s.publisher != nil {
-		linesSummary := make([]map[string]any, 0, len(lines))
-		for _, l := range lines {
-			linesSummary = append(linesSummary, map[string]any{
-				"sku": l.Sku, "name": l.Name, "quantity": l.Quantity, "unit_price": l.UnitPrice,
-			})
+	var exchangeData map[string]any
+	if ret.ReturnType == posreturn.ReturnTypeExchange && exchange != nil {
+		exchangeData = map[string]any{
+			"exchange_order_id": exchange.OrderID,
+			"exchange_credit":   exchange.ExchangeCredit,
+			"amount_payable":    exchange.AmountPayable,
 		}
-		eventData := map[string]any{
-			"return_id":           returnID,
-			"order_id":            ret.OrderID,
-			"outlet_id":           ret.OutletID,
-			"return_type":         string(ret.ReturnType),
-			"refund_amount":       ret.RefundAmount,
-			"treasury_refund_ref": treasuryRefundRef,
-			"lines":               linesSummary,
-		}
-		if ret.ReturnType == posreturn.ReturnTypeExchange {
-			if exchange != nil {
-				eventData["exchange_order_id"] = exchange.OrderID
-				eventData["exchange_credit"] = exchange.ExchangeCredit
-				eventData["amount_payable"] = exchange.AmountPayable
-			}
-			_ = s.publisher.PublishExchangeCompleted(ctx, tenantID, eventData)
-		} else {
-			_ = s.publisher.PublishReturnCompleted(ctx, tenantID, eventData)
-		}
+	}
+	if err := s.publishCompleted(ctx, updated, lines, treasuryRefundRef, exchangeData); err != nil {
+		s.log.Error("return completed but restock event was not written; use restock resync to retry",
+			zap.String("return_id", returnID.String()), zap.Error(err))
 	}
 
 	return updated, exchange, nil
+}
+
+// publishCompleted writes return.completed / exchange.completed, the event inventory restocks
+// from and treasury settles from. Shared by CompleteReturn and the restock resync so both send
+// the identical payload. tenant_id is duplicated into the payload for consumers that read it
+// there; the shared-events envelope carries it too.
+func (s *Service) publishCompleted(ctx context.Context, ret *ent.POSReturn, lines []*ent.POSReturnLine, treasuryRefundRef string, exchangeData map[string]any) error {
+	if s.publisher == nil {
+		return nil
+	}
+	eventData := s.completedPayload(ctx, ret, lines, treasuryRefundRef)
+	if ret.ReturnType == posreturn.ReturnTypeExchange {
+		for k, v := range exchangeData {
+			eventData[k] = v
+		}
+		return s.publisher.PublishExchangeCompleted(ctx, ret.TenantID, eventData)
+	}
+	return s.publisher.PublishReturnCompleted(ctx, ret.TenantID, eventData)
+}
+
+// completedPayload builds the return.completed payload inventory restocks from.
+func (s *Service) completedPayload(ctx context.Context, ret *ent.POSReturn, lines []*ent.POSReturnLine, treasuryRefundRef string) map[string]any {
+	sold := s.soldQtyBySKU(ctx, ret.OrderID)
+	linesSummary := make([]map[string]any, 0, len(lines))
+	for _, l := range lines {
+		linesSummary = append(linesSummary, map[string]any{
+			"order_line_id": l.OrderLineID,
+			"sku":           l.Sku,
+			"name":          l.Name,
+			"quantity":      l.Quantity,
+			"of_quantity":   sold[l.Sku],
+			"unit_price":    l.UnitPrice,
+		})
+	}
+	orderNumber, customerName := "", ""
+	if o, err := s.client.POSOrder.Query().
+		Where(entposorder.ID(ret.OrderID), entposorder.TenantID(ret.TenantID)).
+		Select(entposorder.FieldOrderNumber, entposorder.FieldCustomerName).
+		Only(ctx); err == nil {
+		orderNumber = o.OrderNumber
+		if o.CustomerName != nil {
+			customerName = *o.CustomerName
+		}
+	}
+	return map[string]any{
+		"tenant_id":           ret.TenantID.String(),
+		"return_id":           ret.ID,
+		"return_number":       ret.ReturnNumber,
+		"order_id":            ret.OrderID,
+		"order_number":        orderNumber,
+		"customer_name":       customerName,
+		"outlet_id":           ret.OutletID,
+		"return_type":         string(ret.ReturnType),
+		"refund_amount":       ret.RefundAmount,
+		"treasury_refund_ref": treasuryRefundRef,
+		"lines":               linesSummary,
+	}
 }
 
 // CreateAndAutoComplete runs create → approve → complete back-to-back in one call, for an
