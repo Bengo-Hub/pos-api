@@ -3,8 +3,8 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"net/http"
-	"sync"
 	"time"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
@@ -27,45 +27,28 @@ func isSuperUserOrPlatformOwner(ctx context.Context) bool {
 
 // ── OutletSetting toggle cache ────────────────────────────────────────────────
 
-type settingCacheEntry struct {
-	setting   *ent.OutletSetting
-	fetchedAt time.Time
-}
-
-var (
-	settingCacheMu  sync.RWMutex
-	settingCache    = make(map[uuid.UUID]settingCacheEntry)
-	settingCacheTTL = 5 * time.Minute
-)
+// settingCache is bounded (least recently used outlets drop out) and expiring; writes clear it
+// on every replica through cache_invalidation.go.
+var settingCache = sharedcache.NewLocal[uuid.UUID, *ent.OutletSetting](5000, 5*time.Minute)
 
 func getOutletSetting(ctx context.Context, client *ent.Client, outletID uuid.UUID) *ent.OutletSetting {
-	settingCacheMu.RLock()
-	entry, ok := settingCache[outletID]
-	settingCacheMu.RUnlock()
-	if ok && time.Since(entry.fetchedAt) < settingCacheTTL {
-		return entry.setting
+	if s, ok := settingCache.Get(outletID); ok {
+		return s
 	}
-
 	s, err := client.OutletSetting.Query().
 		Where(entoutletsetting.OutletID(outletID)).
 		Only(ctx)
 	if err != nil {
 		return nil
 	}
-
-	settingCacheMu.Lock()
-	settingCache[outletID] = settingCacheEntry{setting: s, fetchedAt: time.Now()}
-	settingCacheMu.Unlock()
+	settingCache.Set(outletID, s)
 	return s
 }
 
-// InvalidateOutletSetting drops the cached settings row for an outlet so a module toggle or a
-// service-profile change takes effect on this replica immediately. Other replicas pick it up
-// when their entry expires (settingCacheTTL).
+// InvalidateOutletSetting drops the cached settings row for an outlet on every replica, so a
+// module toggle or a service-profile change takes effect immediately everywhere.
 func InvalidateOutletSetting(outletID uuid.UUID) {
-	settingCacheMu.Lock()
-	delete(settingCache, outletID)
-	settingCacheMu.Unlock()
+	invalidate("outlet-setting", outletID, func() { settingCache.Delete(outletID) })
 }
 
 // RequireKDSEnabled gates routes to outlets that have enable_kds=true in their

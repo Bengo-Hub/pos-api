@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	sharedcache "github.com/Bengo-Hub/cache"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"math"
 	"net/http"
 	"strconv"
@@ -32,7 +34,11 @@ type ReportsHandler struct {
 	db        *ent.Client
 	inventory brandResolver
 	rbac      outletmw.PermissionChecker
+	cache     *sharedcache.Aside
 }
+
+// SetCache wires the shared Redis cache used for the dashboard summary (nil disables caching).
+func (h *ReportsHandler) SetCache(c *sharedcache.Aside) { h.cache = c }
 
 // SetRBAC wires the permission checker so GetSummary can scope a cashier's KPI card to their own
 // sales (same ownOrdersScope predicate ListOrders/OrdersSummary already use) instead of always
@@ -143,128 +149,151 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	// WithLines() so the same order fetch can also feed the gross-profit calculation below
 	// (AttributeOrderLines + resolveUnitCostsBySKU — the exact cost/profit machinery
 	// MostProfitableItems/SalesByHour already use) without a second query.
-	queryOrders := func(from, to time.Time) ([]*ent.POSOrder, float64, error) {
-		preds := append([]predicate.POSOrder{
-			posorder.TenantID(tid),
-			posorder.StatusEQ("completed"),
-			effectiveDateGTE(from),
-			effectiveDateLT(to),
-		}, outletFilters...)
-		orders, qErr := h.db.POSOrder.Query().Where(preds...).WithLines().All(r.Context())
-		if qErr != nil {
-			return nil, 0, qErr
+	// The KPI card is opened by every terminal and dashboard, and computing it loads every
+	// completed order (with lines) for two periods. It is cached briefly (stale-while-
+	// revalidate: one refresh at a time fleet-wide). The key carries every dimension the result
+	// depends on: tenant, the outlet filter, the own-sales user when ownOrdersScope applies, and
+	// the requested window (today's date for the default "today so far" view), so a cashier's
+	// own figures are never served to a manager or another outlet.
+	ownKey := "-"
+	if _, scoped := ownOrdersScope(r, h.rbac, h.db); scoped {
+		if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims != nil {
+			ownKey = claims.Subject
 		}
-		var total float64
-		for _, o := range orders {
-			total += o.TotalAmount
-		}
-		return orders, total, nil
 	}
+	window := fromParam + "|" + toParam
+	if fromParam == "" && toParam == "" {
+		window = "today:" + todayStart.Format("2006-01-02")
+	}
+	cacheKey := "pos:report:summary:" + tid.String() + ":" + httpware.GetOutletID(r.Context()) + ":" + ownKey + ":" + window
+	result, err := sharedcache.GetOrSetStale(r.Context(), h.cache, cacheKey, sharedcache.TTLOperational, time.Minute,
+		func(ctx context.Context) (map[string]any, error) {
+			queryOrders := func(from, to time.Time) ([]*ent.POSOrder, float64, error) {
+				preds := append([]predicate.POSOrder{
+					posorder.TenantID(tid),
+					posorder.StatusEQ("completed"),
+					effectiveDateGTE(from),
+					effectiveDateLT(to),
+				}, outletFilters...)
+				orders, qErr := h.db.POSOrder.Query().Where(preds...).WithLines().All(ctx)
+				if qErr != nil {
+					return nil, 0, qErr
+				}
+				var total float64
+				for _, o := range orders {
+					total += o.TotalAmount
+				}
+				return orders, total, nil
+			}
 
-	curOrderList, curRev, err := queryOrders(curFrom, curTo)
+			curOrderList, curRev, err := queryOrders(curFrom, curTo)
+			if err != nil {
+				h.log.Error("summary: current-period revenue query failed", zap.Error(err))
+				return nil, err
+			}
+			curOrders := len(curOrderList)
+
+			prevOrderList, prevRev, err := queryOrders(prevFrom, prevTo)
+			if err != nil {
+				h.log.Error("summary: previous-period revenue query failed", zap.Error(err))
+				return nil, err
+			}
+			prevOrders := len(prevOrderList)
+
+			activeShifts, err := h.db.POSDeviceSession.Query().
+				Where(
+					posdevicesession.TenantID(tid),
+					posdevicesession.SessionStatusEQ("open"),
+				).Count(ctx)
+			if err != nil {
+				h.log.Warn("summary: active sessions query failed", zap.Error(err))
+				activeShifts = 0
+			}
+
+			var avgTicket float64
+			if curOrders > 0 {
+				avgTicket = curRev / float64(curOrders)
+			}
+
+			var revenueGrowth, ordersGrowth *float64
+			if prevRev > 0 {
+				revenueGrowth = growthPct(curRev, prevRev)
+			}
+			if prevOrders > 0 {
+				ordersGrowth = growthPct(float64(curOrders), float64(prevOrders))
+			}
+
+			// Total UNITS sold in the window (outlet-scoped, same completed-order predicate) — a
+			// meaningful, never-misleading retail throughput stat that replaced the old tenant-wide
+			// "items below reorder" card (which counted every catalogue item across all outlets and read
+			// as a scary, meaningless 200). Best-effort: a query hiccup just yields 0.
+			itemsSold, _ := h.db.POSOrderLine.Query().
+				Where(posorderline.HasOrderWith(append([]predicate.POSOrder{
+					posorder.TenantID(tid),
+					posorder.StatusEQ("completed"),
+					effectiveDateGTE(curFrom),
+					effectiveDateLT(curTo),
+				}, outletFilters...)...)).
+				Aggregate(ent.Sum(posorderline.FieldQuantity)).
+				Float64(ctx)
+
+			// Gross profit (revenue - COGS) — the headline "how did this period actually go" number
+			// owners check, replacing the old average-basket-value card that told them nothing about
+			// profitability. Same void-aware attribution + real per-sku cost resolution (GOODS
+			// cost_price vs RECIPE cost_per_portion) as MostProfitableItems/SalesByHour, so this figure
+			// never disagrees with those reports.
+			//
+			// Cost lookup is scoped to only the SKUs actually sold in EITHER window (cheap, in-memory —
+			// both order lists are already loaded via WithLines()) and resolved from the local
+			// POSCatalogOverride cache, not a live inventory-api catalog walk — see resolveUnitCostsBySKU.
+			costBySKU := resolveUnitCostsBySKU(ctx, h.db, tid, collectOrderSKUs(curOrderList, prevOrderList))
+			// Same per-order Currency override pattern as MostProfitableItems/MostProfitablePDF — the
+			// dashboard must label these figures with the tenant's actual currency, not assume KES.
+			currency := "KES"
+			var curLines, prevLines []AttributedLine
+			for _, o := range curOrderList {
+				if o.Currency != "" {
+					currency = o.Currency
+				}
+				curLines = append(curLines, AttributeOrderLines(o)...)
+			}
+			for _, o := range prevOrderList {
+				prevLines = append(prevLines, AttributeOrderLines(o)...)
+			}
+			// SumLineProfits nets VAT out of revenue before subtracting cost (see LineProfit) — the same
+			// centralized formula MostProfitableItems/SalesByHour/SalesSummary/etc. use, so this figure can
+			// never disagree with them, and can never again silently equal revenue just because a sold
+			// SKU's cost never made it into the local cache (SKUsMissingCost surfaces that instead).
+			curTotals := SumLineProfits(curLines, costBySKU)
+			prevTotals := SumLineProfits(prevLines, costBySKU)
+			var grossProfitGrowth *float64
+			if prevTotals.Profit > 0 {
+				grossProfitGrowth = growthPct(curTotals.Profit, prevTotals.Profit)
+			}
+
+			return map[string]any{
+				"total_revenue":       curRev,
+				"total_orders":        curOrders,
+				"avg_ticket":          avgTicket,
+				"active_staff":        activeShifts,
+				"items_sold":          itemsSold,
+				"revenue_growth":      revenueGrowth,
+				"orders_growth":       ordersGrowth,
+				"gross_profit":        curTotals.Profit,
+				"gross_margin_pct":    curTotals.MarginPct,
+				"gross_profit_growth": grossProfitGrowth,
+				"skus_missing_cost":   curTotals.SKUsMissingCost,
+				"currency":            currency,
+				"from":                curFrom.Format(time.RFC3339),
+				"to":                  curTo.Format(time.RFC3339),
+				"as_of":               now.Format(time.RFC3339),
+			}, nil
+		})
 	if err != nil {
-		h.log.Error("summary: current-period revenue query failed", zap.Error(err))
 		jsonError(w, "failed to generate summary", http.StatusInternalServerError)
 		return
 	}
-	curOrders := len(curOrderList)
-
-	prevOrderList, prevRev, err := queryOrders(prevFrom, prevTo)
-	if err != nil {
-		h.log.Error("summary: previous-period revenue query failed", zap.Error(err))
-		jsonError(w, "failed to generate summary", http.StatusInternalServerError)
-		return
-	}
-	prevOrders := len(prevOrderList)
-
-	activeShifts, err := h.db.POSDeviceSession.Query().
-		Where(
-			posdevicesession.TenantID(tid),
-			posdevicesession.SessionStatusEQ("open"),
-		).Count(r.Context())
-	if err != nil {
-		h.log.Warn("summary: active sessions query failed", zap.Error(err))
-		activeShifts = 0
-	}
-
-	var avgTicket float64
-	if curOrders > 0 {
-		avgTicket = curRev / float64(curOrders)
-	}
-
-	var revenueGrowth, ordersGrowth *float64
-	if prevRev > 0 {
-		revenueGrowth = growthPct(curRev, prevRev)
-	}
-	if prevOrders > 0 {
-		ordersGrowth = growthPct(float64(curOrders), float64(prevOrders))
-	}
-
-	// Total UNITS sold in the window (outlet-scoped, same completed-order predicate) — a
-	// meaningful, never-misleading retail throughput stat that replaced the old tenant-wide
-	// "items below reorder" card (which counted every catalogue item across all outlets and read
-	// as a scary, meaningless 200). Best-effort: a query hiccup just yields 0.
-	itemsSold, _ := h.db.POSOrderLine.Query().
-		Where(posorderline.HasOrderWith(append([]predicate.POSOrder{
-			posorder.TenantID(tid),
-			posorder.StatusEQ("completed"),
-			effectiveDateGTE(curFrom),
-			effectiveDateLT(curTo),
-		}, outletFilters...)...)).
-		Aggregate(ent.Sum(posorderline.FieldQuantity)).
-		Float64(r.Context())
-
-	// Gross profit (revenue - COGS) — the headline "how did this period actually go" number
-	// owners check, replacing the old average-basket-value card that told them nothing about
-	// profitability. Same void-aware attribution + real per-sku cost resolution (GOODS
-	// cost_price vs RECIPE cost_per_portion) as MostProfitableItems/SalesByHour, so this figure
-	// never disagrees with those reports.
-	//
-	// Cost lookup is scoped to only the SKUs actually sold in EITHER window (cheap, in-memory —
-	// both order lists are already loaded via WithLines()) and resolved from the local
-	// POSCatalogOverride cache, not a live inventory-api catalog walk — see resolveUnitCostsBySKU.
-	costBySKU := resolveUnitCostsBySKU(r.Context(), h.db, tid, collectOrderSKUs(curOrderList, prevOrderList))
-	// Same per-order Currency override pattern as MostProfitableItems/MostProfitablePDF — the
-	// dashboard must label these figures with the tenant's actual currency, not assume KES.
-	currency := "KES"
-	var curLines, prevLines []AttributedLine
-	for _, o := range curOrderList {
-		if o.Currency != "" {
-			currency = o.Currency
-		}
-		curLines = append(curLines, AttributeOrderLines(o)...)
-	}
-	for _, o := range prevOrderList {
-		prevLines = append(prevLines, AttributeOrderLines(o)...)
-	}
-	// SumLineProfits nets VAT out of revenue before subtracting cost (see LineProfit) — the same
-	// centralized formula MostProfitableItems/SalesByHour/SalesSummary/etc. use, so this figure can
-	// never disagree with them, and can never again silently equal revenue just because a sold
-	// SKU's cost never made it into the local cache (SKUsMissingCost surfaces that instead).
-	curTotals := SumLineProfits(curLines, costBySKU)
-	prevTotals := SumLineProfits(prevLines, costBySKU)
-	var grossProfitGrowth *float64
-	if prevTotals.Profit > 0 {
-		grossProfitGrowth = growthPct(curTotals.Profit, prevTotals.Profit)
-	}
-
-	jsonOK(w, map[string]any{
-		"total_revenue":       curRev,
-		"total_orders":        curOrders,
-		"avg_ticket":          avgTicket,
-		"active_staff":        activeShifts,
-		"items_sold":          itemsSold,
-		"revenue_growth":      revenueGrowth,
-		"orders_growth":       ordersGrowth,
-		"gross_profit":        curTotals.Profit,
-		"gross_margin_pct":    curTotals.MarginPct,
-		"gross_profit_growth": grossProfitGrowth,
-		"skus_missing_cost":   curTotals.SKUsMissingCost,
-		"currency":            currency,
-		"from":                curFrom.Format(time.RFC3339),
-		"to":                  curTo.Format(time.RFC3339),
-		"as_of":               now.Format(time.RFC3339),
-	})
+	jsonOK(w, result)
 }
 
 // SalesSummary handles GET /{tenantID}/pos/reports/sales-summary

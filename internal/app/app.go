@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"net/http"
 	"os"
 	"time"
@@ -145,6 +146,8 @@ func New(ctx context.Context) (*App, error) {
 	var relay *eventslib.Broadcaster
 	if natsConn != nil {
 		relay = eventslib.NewBroadcaster(log, natsConn, "pos")
+		// Outlet-setting and maintenance-window caches clear on every replica on write.
+		outletmw.SetCacheInvalidator(relay)
 		// Drop revoked/rotated API keys from every validator on this pod at once.
 		_ = eventslib.NewBroadcaster(log, natsConn, "auth").Subscribe("apikey.changed", func(m eventslib.BroadcastMessage) {
 			authclient.InvalidateAPIKeyHash(string(m.Data))
@@ -437,6 +440,7 @@ func New(ctx context.Context) (*App, error) {
 
 	// Reports & Analytics (Sprint 11)
 	reportsHandler := handlers.NewReportsHandler(log, entClient)
+	reportsHandler.SetCache(sharedcache.New(redisClient, log))
 	// Wire the inventory S2S client so register-details can group products sold by brand.
 	reportsHandler.SetInventoryClient(inventoryClient)
 

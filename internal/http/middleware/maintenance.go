@@ -3,8 +3,8 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"net/http"
-	"sync"
 	"time"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
@@ -30,42 +30,25 @@ func UnderMaintenance(t *ent.Tenant, now time.Time) bool {
 // lets the admin toggle handler make its own write visible immediately instead of waiting out
 // the TTL.
 
-type maintenanceCacheEntry struct {
-	tenant    *ent.Tenant
-	fetchedAt time.Time
-}
+// maintenanceCache is bounded and expires after 15s; InvalidateMaintenanceCache clears a
+// tenant on every replica (cache_invalidation.go) so activation is visible immediately.
+var maintenanceCache = sharedcache.NewLocal[uuid.UUID, *ent.Tenant](5000, 15*time.Second)
 
-var (
-	maintenanceCacheMu  sync.RWMutex
-	maintenanceCache    = make(map[uuid.UUID]maintenanceCacheEntry)
-	maintenanceCacheTTL = 15 * time.Second
-)
-
-// InvalidateMaintenanceCache evicts a tenant's cached row so the very next request re-reads the
-// DB. Call this right after writing a new maintenance window so activation/cancellation is
-// visible immediately rather than after up to maintenanceCacheTTL.
+// InvalidateMaintenanceCache evicts a tenant's cached row on every replica so the very next
+// request anywhere re-reads the DB. Call it right after writing a new maintenance window.
 func InvalidateMaintenanceCache(tenantID uuid.UUID) {
-	maintenanceCacheMu.Lock()
-	delete(maintenanceCache, tenantID)
-	maintenanceCacheMu.Unlock()
+	invalidate("maintenance", tenantID, func() { maintenanceCache.Delete(tenantID) })
 }
 
 func getTenantForMaintenanceCheck(ctx context.Context, client *ent.Client, tenantID uuid.UUID) *ent.Tenant {
-	maintenanceCacheMu.RLock()
-	entry, ok := maintenanceCache[tenantID]
-	maintenanceCacheMu.RUnlock()
-	if ok && time.Since(entry.fetchedAt) < maintenanceCacheTTL {
-		return entry.tenant
+	if t, ok := maintenanceCache.Get(tenantID); ok {
+		return t
 	}
-
 	t, err := client.Tenant.Get(ctx, tenantID)
 	if err != nil {
 		return nil
 	}
-
-	maintenanceCacheMu.Lock()
-	maintenanceCache[tenantID] = maintenanceCacheEntry{tenant: t, fetchedAt: time.Now()}
-	maintenanceCacheMu.Unlock()
+	maintenanceCache.Set(tenantID, t)
 	return t
 }
 

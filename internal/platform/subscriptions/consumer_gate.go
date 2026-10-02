@@ -2,7 +2,7 @@ package subscriptions
 
 import (
 	"context"
-	"sync"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"time"
 )
 
@@ -11,15 +11,8 @@ import (
 // subscriptions-api, while staying fresh enough that a plan change takes effect quickly.
 const entitlementCacheTTL = 60 * time.Second
 
-type cachedEntitlements struct {
-	ent     *Entitlements
-	fetched time.Time
-}
-
-var (
-	entCacheMu sync.Mutex
-	entCache   = map[string]cachedEntitlements{}
-)
+// entCache is per replica, bounded and expiring (one entry per tenant, entitlementCacheTTL).
+var entCache = sharedcache.NewLocal[string, *Entitlements](10000, entitlementCacheTTL)
 
 // ConsumerHasFeature reports whether a tenant is entitled to featureCode, for use by
 // NATS event consumers that have a tenant_id but no user JWT. It mirrors the HTTP-layer
@@ -51,19 +44,13 @@ func (c *Client) ConsumerHasFeature(ctx context.Context, tenantID, featureCode s
 }
 
 func (c *Client) cachedEntitlements(ctx context.Context, tenantID string) *Entitlements {
-	entCacheMu.Lock()
-	if hit, ok := entCache[tenantID]; ok && time.Since(hit.fetched) < entitlementCacheTTL {
-		entCacheMu.Unlock()
-		return hit.ent
+	if hit, ok := entCache.Get(tenantID); ok {
+		return hit
 	}
-	entCacheMu.Unlock()
-
 	e := c.GetEntitlements(ctx, tenantID)
 	if e == nil {
-		return nil // do not cache failures — retry next event
+		return nil // do not cache failures: retry next event
 	}
-	entCacheMu.Lock()
-	entCache[tenantID] = cachedEntitlements{ent: e, fetched: time.Now()}
-	entCacheMu.Unlock()
+	entCache.Set(tenantID, e)
 	return e
 }
