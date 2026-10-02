@@ -61,6 +61,9 @@ type CompleteReturnRequest struct {
 	RefundChannel string
 	ExchangeLines []LineInput
 	CompletedBy   uuid.UUID
+	// Restock overrides the outlet's restock policy for this return: true puts the goods back
+	// into sellable stock, false writes them off. Nil follows the policy (see restockByPolicy).
+	Restock *bool
 }
 
 // ExchangeResult reports the replacement order + money split back to the caller.

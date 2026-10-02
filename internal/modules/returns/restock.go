@@ -45,7 +45,7 @@ const (
 )
 
 // settledRestockStatuses are final: nothing left for a resync to do.
-var settledRestockStatuses = []any{restockDone, restockAlreadyDone, restockNothing, restockNotEntitled}
+var settledRestockStatuses = []any{restockDone, restockAlreadyDone, restockNothing, restockNotEntitled, restockNotRestocked}
 
 // RestockOutcome is inventory.return.restocked's payload.
 type RestockOutcome struct {
@@ -90,6 +90,10 @@ func (s *Service) ApplyRestockOutcome(ctx context.Context, tenantID, returnID uu
 	md := cloneReturnMetadata(ret.Metadata)
 	current, _ := md[mdRestockStatus].(string)
 	status := out.Status
+	// A written-off return never restocks; any report about it is stale.
+	if current == restockNotRestocked || md[mdRestockDecision] == decisionWriteOff {
+		return nil
+	}
 	if status == restockFailed && (current == restockDone || current == restockAlreadyDone) {
 		return nil
 	}
@@ -271,6 +275,9 @@ func (s *Service) requestRestock(ctx context.Context, ret *ent.POSReturn) error 
 	}
 	if len(ret.Edges.Lines) == 0 {
 		return fmt.Errorf("return has no lines")
+	}
+	if ret.Metadata[mdRestockDecision] == decisionWriteOff {
+		return fmt.Errorf("return was written off (not restocked); nothing to restock")
 	}
 	payload := s.completedPayload(ctx, ret, ret.Edges.Lines, "")
 	if err := s.publisher.PublishReturnRestockRequested(ctx, ret.TenantID, payload); err != nil {

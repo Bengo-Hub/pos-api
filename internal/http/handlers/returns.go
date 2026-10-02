@@ -104,6 +104,8 @@ type completeReturnInput struct {
 	Notes         string            `json:"notes,omitempty"`
 	RefundChannel string            `json:"refund_channel,omitempty"`
 	ExchangeLines []returnLineInput `json:"exchange_lines,omitempty"`
+	// Restock overrides the outlet's restock policy for this return (nil follows the policy).
+	Restock *bool `json:"restock,omitempty"`
 }
 
 // returnResponse decorates a POSReturn with the original order's human-readable number so the UI
@@ -350,7 +352,7 @@ func (h *ReturnHandler) CompleteReturn(w http.ResponseWriter, r *http.Request) {
 	tenantSlug := chi.URLParam(r, "tenantID")
 	updated, exchange, err := h.svc.CompleteReturn(r.Context(), tid, tenantSlug, returnID, returns.CompleteReturnRequest{
 		Notes: input.Notes, RefundChannel: input.RefundChannel, ExchangeLines: toLineInputs(input.ExchangeLines),
-		CompletedBy: requestUserID(r),
+		CompletedBy: requestUserID(r), Restock: input.Restock,
 	})
 	if err != nil {
 		jsonError(w, err.Error(), classifyReturnError(err))

@@ -350,6 +350,13 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 
 	update := s.client.POSReturn.UpdateOne(ret).SetStatus(posreturn.StatusCompleted)
 
+	// Restock or write off: the manager's explicit choice wins, otherwise the outlet's policy
+	// (damaged/defective/expired are written off by default).
+	restock := s.restockByPolicy(ctx, ret.OutletID, ret.ReasonCode)
+	if req.Restock != nil {
+		restock = *req.Restock
+	}
+
 	onAccount := orders.SettledOnAccount(ctx, s.client, tenantID, ret.OrderID)
 	refundChannel := ""
 	if ret.RefundChannel != nil {
@@ -406,6 +413,11 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 		costAmount := s.resolveReturnCost(ctx, tenantID, lines)
 		if ret.ReturnType == posreturn.ReturnTypeExchange && ret.RefundAmount > 0 {
 			taxAmount = taxAmount * (settleAmount / ret.RefundAmount)
+			costAmount = 0
+		}
+		// Written-off goods never come back as an inventory asset, so their cost stays expensed:
+		// no COGS reversal.
+		if !restock {
 			costAmount = 0
 		}
 
@@ -466,9 +478,17 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 		md["completion_notes"] = req.Notes
 	}
 	// Inventory confirms the restock (and where the goods went) via inventory.return.restocked;
-	// until then the return reads "restock pending".
-	if s.publisher != nil && len(lines) > 0 {
-		md[mdRestockStatus] = restockPending
+	// until then the return reads "restock pending". A write-off is final here: nothing goes
+	// back to stock, so there is nothing for inventory to confirm.
+	if restock {
+		md[mdRestockDecision] = decisionRestock
+		if s.publisher != nil && len(lines) > 0 {
+			md[mdRestockStatus] = restockPending
+		}
+	} else {
+		md[mdRestockDecision] = decisionWriteOff
+		md[mdRestockStatus] = restockNotRestocked
+		md[mdRestockUpdatedAt] = time.Now().UTC().Format(time.RFC3339)
 	}
 	update = update.SetMetadata(md)
 
@@ -563,6 +583,9 @@ func (s *Service) completedPayload(ctx context.Context, ret *ent.POSReturn, line
 		"refund_amount":       ret.RefundAmount,
 		"treasury_refund_ref": treasuryRefundRef,
 		"lines":               linesSummary,
+		// restock=false tells inventory to leave stock alone (goods written off). Returns from
+		// before the restock policy carry no decision and restock as before.
+		"restock": ret.Metadata[mdRestockDecision] != decisionWriteOff,
 	}
 }
 

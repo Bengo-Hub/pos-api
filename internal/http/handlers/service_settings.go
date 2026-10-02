@@ -22,6 +22,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/modules/printing/layouts"
+	"github.com/bengobox/pos-service/internal/modules/returns"
 )
 
 // ServiceSettingsHandler manages tenant/outlet POS configuration.
@@ -130,6 +131,10 @@ type settingsResponse struct {
 	// cashiers choose any refund channel for such a return. Freeform-metadata key
 	// (restrict_credit_sale_refund_to_offset), no schema migration.
 	RestrictCreditSaleRefundToOffset bool `json:"restrict_credit_sale_refund_to_offset"`
+	// ReturnNoRestockReasons: return reason codes whose goods are written off instead of going
+	// back into sellable stock. Defaults to damaged/defective/expired; a manager can override
+	// per return at completion. Freeform-metadata key (return_no_restock_reasons).
+	ReturnNoRestockReasons []string `json:"return_no_restock_reasons"`
 	// discount control (exceeding EITHER limit triggers the manager step-up). DiscountLimitType
 	// is the Settings-page UI selector for which field is the ACTIVE one (percent XOR amount —
 	// the page shows a single input at a time); the inactive field is always saved at its
@@ -231,7 +236,8 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		TableMaxOccupationMinutes:        s.TableMaxOccupationMinutes,
 		ReturnWindowDays:                 s.ReturnWindowDays,
 		RestrictCreditSaleRefundToOffset: metaBoolDefault(s.Metadata, "restrict_credit_sale_refund_to_offset", true),
-		MaxDiscountPercent:               s.MaxDiscountPercent,
+		ReturnNoRestockReasons:           returns.NoRestockReasons(s.Metadata),
+		MaxDiscountPercent:              s.MaxDiscountPercent,
 		MaxDiscountAmount:                s.MaxDiscountAmount,
 		DiscountLimitType:                string(s.DiscountLimitType),
 		AllowPriceAboveBase:              s.AllowPriceAboveBase,
@@ -548,7 +554,8 @@ type updateSettingsInput struct {
 	ReturnWindowDays         *int             `json:"return_window_days"`
 	// returns policy
 	RestrictCreditSaleRefundToOffset *bool    `json:"restrict_credit_sale_refund_to_offset"`
-	MaxDiscountPercent               *float64 `json:"max_discount_percent"`
+	ReturnNoRestockReasons           *[]string `json:"return_no_restock_reasons"`
+	MaxDiscountPercent             *float64 `json:"max_discount_percent"`
 	MaxDiscountAmount                *float64 `json:"max_discount_amount"`
 	DiscountLimitType                *string  `json:"discount_limit_type"`
 	// pricing policy
@@ -772,7 +779,7 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	// the OTHER block wrote first (ent's builder keeps only the last SetMetadata call, not a
 	// merge of both). Any FUTURE freeform-metadata setting must be added to THIS block.
 	if input.ShowLogoOnReceipt != nil || input.ShowTenantEmailOnReceipt != nil || input.RestrictCreditSaleRefundToOffset != nil || input.ShowTenantNameOnReceipt != nil ||
-		input.HideDraftDeleteForCashier != nil || input.HideDraftResumeForCashier != nil {
+		input.HideDraftDeleteForCashier != nil || input.HideDraftResumeForCashier != nil || input.ReturnNoRestockReasons != nil {
 		meta := map[string]any{}
 		for k, v := range setting.Metadata {
 			meta[k] = v
@@ -785,6 +792,9 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 		}
 		if input.RestrictCreditSaleRefundToOffset != nil {
 			meta["restrict_credit_sale_refund_to_offset"] = *input.RestrictCreditSaleRefundToOffset
+		}
+		if input.ReturnNoRestockReasons != nil {
+			meta[returns.MetaKeyNoRestockReasons] = returns.SanitizeNoRestockReasons(*input.ReturnNoRestockReasons)
 		}
 		if input.ShowTenantNameOnReceipt != nil {
 			meta["receipt_show_tenant_name"] = *input.ShowTenantNameOnReceipt

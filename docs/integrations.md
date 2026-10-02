@@ -408,6 +408,7 @@ Registered in router under `/{tenantID}/pos/online-orders/`:
 | `pos.room.checked_out` | Hotel check-out | notifications-service, treasury-api |
 | `pos.return.completed` | Return completed (refund/store credit) | inventory-api (restock into the warehouse the sale drew from), treasury-api (GL backstop, idempotent with the synchronous refund), notifications-service |
 | `pos.exchange.completed` | Exchange completed | inventory-api (restock the exchanged-away goods) |
+| (restock policy) | `restock` flag on the return/exchange/resync payloads | `false` means the goods were written off: inventory leaves stock unchanged and the treasury refund carries `cost: 0` (no COGS reversal). Decided at completion from OutletSetting.metadata `return_no_restock_reasons` (default damaged, defective, expired) or the manager's per-return choice |
 | `pos.return.restock_requested` | Restock resync (`POST /pos/returns/restock/resync`) | inventory-api only, so a retry never re-settles money or re-notifies the customer |
 | `pos.daily_closing.completed` | Daily close run | treasury-api (reconciliation) |
 
