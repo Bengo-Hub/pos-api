@@ -411,3 +411,49 @@ func TestCreditSettlementReconciler_SendsPhoneFallbackAlongsideResolvedCrmID(t *
 			"a phone-only balance row (the KELVIN PORT shape) can never be found", (*bodies)[0].CustomerIdentifier, phone)
 	}
 }
+
+// TestCreditSettlementReconciler_StopsAfterReceiptlessSuccess is the regression for urban-loft order
+// 000439 (2026-10-03): treasury's idempotent replay answers success with no receipt_id, the row was
+// never marked done, and the reconciler re-posted it every 2 minutes forever ("retry succeeded"
+// logged each tick). A success without a receipt id must still stop the retries.
+func TestCreditSettlementReconciler_StopsAfterReceiptlessSuccess(t *testing.T) {
+	svc, client := newTestPaymentsService(t)
+	order := seedReconcilerOrder(t, client, "+254700000599", "Receiptless Replay")
+	payment, err := client.POSPayment.Create().
+		SetOrderID(order.ID).SetTenderID(uuid.Nil).SetAmount(2500).SetCurrency("KES").
+		SetStatus(StatusCompleted).
+		SetOccurredAt(time.Now().Add(-10 * time.Minute)).
+		SetPaymentData(map[string]any{"method": "cash", "credit_settlement": true}).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed settlement payment: %v", err)
+	}
+
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"bal","balance_due":"0","settled_amount":"2500.00"}`))
+	}))
+	t.Cleanup(srv.Close)
+	svc.SetTreasuryClient(treasury.NewClient(srv.URL, "test-key", 2*time.Second))
+
+	rec := NewCreditSettlementSyncReconciler(svc, zap.NewNop())
+	rec.runOnce(context.Background())
+	rec.runOnce(context.Background())
+	rec.runOnce(context.Background())
+
+	if got := atomic.LoadInt32(&calls); got != 1 {
+		t.Fatalf("treasury called %d times, want 1 (the replay must stop the retries)", got)
+	}
+	reloaded, err := client.POSPayment.Get(context.Background(), payment.ID)
+	if err != nil {
+		t.Fatalf("reload payment: %v", err)
+	}
+	if reloaded.PaymentData[treasurySyncedAtKey] == nil {
+		t.Errorf("expected %s on the synced payment, got %v", treasurySyncedAtKey, reloaded.PaymentData)
+	}
+	if reloaded.PaymentData["treasury_receipt_id"] != nil {
+		t.Errorf("no receipt id was returned, none should be stored: %v", reloaded.PaymentData)
+	}
+}

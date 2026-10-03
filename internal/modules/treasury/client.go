@@ -846,21 +846,28 @@ type PublicGatewaysResponse struct {
 	PayHeroCard    bool `json:"payhero_card"`
 	PayHeroBank    bool `json:"payhero_bank"`
 	PayHeroOffline bool `json:"payhero_offline"`
+	// MPesaProvider is the account behind MPesa: "daraja" or "payhero" (empty when M-Pesa is off).
+	MPesaProvider string `json:"mpesa_provider,omitempty"`
+	// MPesaC2B is true only when Daraja backs M-Pesa: matching a customer's direct till payment
+	// reads Daraja C2B confirmations, which a PayHero-only tenant never receives.
+	MPesaC2B bool `json:"mpesa_c2b"`
 }
 
 // treasuryGatewaysWire is treasury's ACTUAL response shape for GET /api/v1/pay/{tenant}/gateways:
 // the active gateways come back as a STRING ARRAY ({"gateways":["paystack","mpesa","cod"]}). The flat
 // boolean fields are kept too so we still work if treasury ever switches to returning booleans.
 type treasuryGatewaysWire struct {
-	Gateways      []string `json:"gateways"`
-	MPesa         bool     `json:"mpesa"`
-	Paystack      bool     `json:"paystack"`
-	Wallet        bool     `json:"wallet"`
-	COD           bool     `json:"cod"`
-	Complimentary bool     `json:"complimentary"`
-	MTNMoMo       bool     `json:"mtn_momo"`
-	AirtelMoney   bool     `json:"airtel_money"`
-	BankTransfer  bool     `json:"bank_transfer"`
+	Gateways []string `json:"gateways"`
+	// Providers names the account behind a method, e.g. {"mpesa":"payhero"} (treasury 2026-10-03).
+	Providers     map[string]string `json:"providers"`
+	MPesa         bool              `json:"mpesa"`
+	Paystack      bool              `json:"paystack"`
+	Wallet        bool              `json:"wallet"`
+	COD           bool              `json:"cod"`
+	Complimentary bool              `json:"complimentary"`
+	MTNMoMo       bool              `json:"mtn_momo"`
+	AirtelMoney   bool              `json:"airtel_money"`
+	BankTransfer  bool              `json:"bank_transfer"`
 }
 
 // GetPublicGateways fetches the active payment gateways for a tenant from the treasury public endpoint
@@ -913,6 +920,14 @@ func (c *Client) GetPublicGateways(ctx context.Context, tenantSlug, currency str
 		case "payhero_offline":
 			out.PayHeroOffline = true
 		}
+	}
+	if out.MPesa {
+		// No hint (an older treasury): assume Daraja, the behaviour before the hint existed.
+		out.MPesaProvider = strings.ToLower(strings.TrimSpace(wire.Providers["mpesa"]))
+		if out.MPesaProvider == "" {
+			out.MPesaProvider = "daraja"
+		}
+		out.MPesaC2B = out.MPesaProvider == "daraja"
 	}
 	return out, nil
 }

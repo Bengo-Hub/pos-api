@@ -330,21 +330,26 @@ func (s *Service) syncCreditSettlementReceipt(ctx context.Context, tenantID uuid
 			zap.String("order", order.OrderNumber), zap.Error(terr))
 		return false, 0, terr
 	}
-	if arResp == nil {
-		return true, 0, nil
+	if arResp != nil {
+		surplusToStoreCredit, _ = strconv.ParseFloat(arResp.SurplusAmount, 64)
 	}
-	surplusToStoreCredit, _ = strconv.ParseFloat(arResp.SurplusAmount, 64)
-	// Stash the treasury receipt id + key onto the local row so a mis-settled credit sale can be
-	// corrected via VoidPayment later (which needs both to call treasury's VoidARReceipt), and so
-	// CreditSettlementSyncReconciler knows this row is done and stops retrying it.
-	if arResp.ReceiptID != "" {
-		pd := paymentData
+	// Mark the row synced so CreditSettlementSyncReconciler stops retrying it, and stash the
+	// receipt id + key when treasury returns one so VoidPayment can call VoidARReceipt later.
+	// Treasury's idempotent replay answers success with no receipt id; before treasury_synced_at
+	// such a row stayed a candidate and was re-posted every 2 minutes forever.
+	pd := paymentData
+	if pd == nil {
+		pd = map[string]any{}
+	}
+	pd[treasurySyncedAtKey] = time.Now().UTC().Format(time.RFC3339)
+	pd["treasury_customer_key"] = key
+	if arResp != nil && arResp.ReceiptID != "" {
 		pd["treasury_receipt_id"] = arResp.ReceiptID
-		pd["treasury_customer_key"] = key
-		if _, uerr := s.client.POSPayment.UpdateOneID(paymentID).SetPaymentData(pd).Save(ctx); uerr != nil {
-			s.log.Warn("credit settlement: failed to stash treasury receipt id (void will fall back to refund)",
-				zap.String("order", order.OrderNumber), zap.Error(uerr))
-		}
+	}
+	delete(pd, "last_sync_attempt_at")
+	if _, uerr := s.client.POSPayment.UpdateOneID(paymentID).SetPaymentData(pd).Save(ctx); uerr != nil {
+		s.log.Warn("credit settlement: failed to mark treasury sync on the payment",
+			zap.String("order", order.OrderNumber), zap.Error(uerr))
 	}
 	return true, surplusToStoreCredit, nil
 }

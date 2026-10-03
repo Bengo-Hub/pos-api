@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -528,7 +529,7 @@ func resolveTenantSlugForRequest(r *http.Request, client *ent.Client) string {
 // GetGateways handles GET /{tenantID}/pos/gateways
 // Proxies the treasury public gateway availability response so the POS UI can
 // conditionally show only the payment methods the tenant has enabled.
-// Fails open: if treasury is unreachable all gateways are returned as enabled.
+// When treasury is unreachable it serves the last answer, else no gateways (fails closed).
 func (h *PaymentHandler) GetGateways(w http.ResponseWriter, r *http.Request) {
 	tenantSlug := resolveTenantSlugForRequest(r, h.client)
 	// payg (pay-as-you-go / service_charge billing): the platform earns only a per-sale
@@ -540,38 +541,44 @@ func (h *PaymentHandler) GetGateways(w http.ResponseWriter, r *http.Request) {
 		payg = claims.BillingMode == "service_charge"
 	}
 
-	// Online-only default for PAYG; full set otherwise. Used both on the no-treasury
-	// path and the fail-open path so PAYG restriction holds even when treasury is down.
-	// "complimentary" and the new Uganda/Kenya rails (mtn_momo/airtel_money/bank_transfer)
-	// deliberately fail CLOSED (unlike mpesa/paystack) — they're opt-in gateways/tenders most
-	// tenants have NOT configured, so they must never silently appear just because treasury is
-	// unreachable (unlike mpesa/paystack, which are the long-standing default expectation).
-	openDefault := map[string]any{
-		"mpesa": true, "paystack": true, "wallet": !payg, "cod": !payg, "complimentary": false,
-		"mtn_momo": false, "airtel_money": false, "bank_transfer": false,
-		"mobile_money": false, "payhero_card": false, "payhero_bank": false, "payhero_offline": false,
+	// Treasury is the only source of which gateways a tenant enabled. When it cannot answer, the
+	// last answer this pod saw for the tenant stands; with none, every gateway is off (cash, PDQ
+	// and credit sale need no gateway and always show). This used to fail OPEN with M-Pesa and
+	// Paystack on, so a blip showed tenders the tenant never enabled.
+	cacheKey := tenantSlug + "|" + strings.ToUpper(r.URL.Query().Get("currency"))
+	respond := func(g *treasury.PublicGatewaysResponse) {
+		out := *g
+		if payg {
+			// Strip offline / on-account rails the platform can't auto-charge.
+			out.Wallet = false
+			out.COD = false
+		}
+		jsonOK(w, out)
 	}
 
 	if tenantSlug == "" || h.treasuryClient == nil {
-		jsonOK(w, openDefault)
+		respond(&treasury.PublicGatewaysResponse{})
 		return
 	}
 
 	gateways, err := h.treasuryClient.GetPublicGateways(r.Context(), tenantSlug, r.URL.Query().Get("currency"))
 	if err != nil {
-		h.log.Warn("get public gateways failed — failing open", zap.String("tenant", tenantSlug), zap.Error(err))
-		jsonOK(w, openDefault)
+		if last, ok := lastGoodGateways.Load(cacheKey); ok {
+			h.log.Warn("get public gateways failed; serving the last answer", zap.String("tenant", tenantSlug), zap.Error(err))
+			respond(last.(*treasury.PublicGatewaysResponse))
+			return
+		}
+		h.log.Warn("get public gateways failed; no gateways offered", zap.String("tenant", tenantSlug), zap.Error(err))
+		respond(&treasury.PublicGatewaysResponse{})
 		return
 	}
-
-	if payg {
-		// Strip offline / on-account rails the platform can't auto-charge.
-		gateways.Wallet = false
-		gateways.COD = false
-	}
-
-	jsonOK(w, gateways)
+	lastGoodGateways.Store(cacheKey, gateways)
+	respond(gateways)
 }
+
+// lastGoodGateways holds the last treasury answer per tenant and currency, served while treasury
+// is unreachable. Bounded by tenants x outlet currencies, so it never needs eviction.
+var lastGoodGateways sync.Map
 
 // GetSupportedCurrencies handles GET /{tenantID}/pos/currency/currencies — proxies treasury's
 // canonical ISO 4217 currency list (with per-currency decimal places) so the outlet-currency

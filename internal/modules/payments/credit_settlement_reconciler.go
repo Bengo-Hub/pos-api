@@ -30,6 +30,10 @@ import (
 // case this reconciler exists for (see its own doc comment, MRS MERCY BUSIA incident).
 const creditSettlementRetryBackoff = 15 * time.Minute
 
+// treasurySyncedAtKey marks a credit-settlement payment as synced to treasury, set on every
+// successful sync whether or not treasury returned a receipt id (its idempotent replay does not).
+const treasurySyncedAtKey = "treasury_synced_at"
+
 // CreditSettlementSyncReconciler periodically retries a credit-settlement's treasury AR receipt
 // when the original attempt (SettleCreditPayment, credit_settlement.go) failed — the PRIMARY
 // defense against "payment on a sale doesn't reflect on treasury" (see
@@ -111,7 +115,10 @@ func (r *CreditSettlementSyncReconciler) runOnce(ctx context.Context) {
 				sel.Where(sqljson.ValueEQ(pospayment.FieldPaymentData, true, sqljson.Path("credit_settlement")))
 			}),
 			predicate.POSPayment(func(sel *sql.Selector) {
-				sel.Where(sql.Not(sqljson.HasKey(pospayment.FieldPaymentData, sqljson.Path("treasury_receipt_id"))))
+				sel.Where(sql.And(
+					sql.Not(sqljson.HasKey(pospayment.FieldPaymentData, sqljson.Path("treasury_receipt_id"))),
+					sql.Not(sqljson.HasKey(pospayment.FieldPaymentData, sqljson.Path(treasurySyncedAtKey))),
+				))
 			}),
 		).
 		All(ctx)
