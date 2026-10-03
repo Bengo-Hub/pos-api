@@ -195,9 +195,24 @@ gateway" pattern as `payment_method: "mpesa"|"paystack"` above:
   `pending_confirmation` immediately and settles once staff confirms the transfer was received.
 
 All three are **dormant** (hidden from the payment modal) until a tenant/platform configures the
-corresponding gateway credentials in treasury — `GET /{tenant}/pos/gateways` (see
-`internal/modules/treasury/client.go GetPublicGateways`) fails **closed** for these (unlike
-mpesa/paystack, which fail open) since they're new opt-in rails most tenants haven't set up.
+corresponding gateway credentials in treasury.
+
+### Which gateway tenders the till shows (2026-10-03)
+
+`GET /{tenant}/pos/gateways` (`internal/modules/treasury/client.go GetPublicGateways`) maps
+treasury's public pay-page list to flags. Every gateway fails **closed**: when treasury cannot
+answer, the handler serves the last answer that pod saw for the tenant and currency, else
+nothing. pos-ui's `usePOSGateways` also starts with everything off. Cash, Card (PDQ), Credit Sale
+and Multiple Pay need no gateway and always show.
+
+- `mpesa` is on when Daraja (paybill or till) or a ready PayHero account backs M-Pesa.
+- `mpesa_provider` is `daraja` or `payhero`, from treasury's `providers.mpesa` hint.
+- `mpesa_c2b` is true only for Daraja. C2B till matching reads Daraja confirmations, so a
+  PayHero-only tenant sees STK Push and, when enabled, the offline Paybill, but never C2B.
+- Treasury offers nothing from PayHero until the tenant's Team (vendor id) exists, because every
+  PayHero charge needs it.
+- The Room tender and its rooms fetch need the plan's `hotel_module` as well as a hospitality
+  outlet; otherwise the rooms call is a 403 that pops "Subscription limit reached".
 
 `OutletSetting.mtn_momo_number`/`airtel_money_number` (display-only merchant numbers, printed on
 receipts when `show_payment_info_on_receipt` is on) are separate from the treasury gateway
