@@ -66,8 +66,21 @@ DO UPDATE SET
   duration_minutes           = COALESCE(EXCLUDED.duration_minutes, pos_catalog_overrides.duration_minutes),
   requires_age_verification  = EXCLUDED.requires_age_verification,
   is_controlled_substance    = EXCLUDED.is_controlled_substance,
-  is_available                = EXCLUDED.is_available,
-  metadata                    = pos_catalog_overrides.metadata || EXCLUDED.metadata,
+  -- Availability is staff-owned. Deactivating the inventory item still forces it off and marks
+  -- the row ("availability_hold":"inactive") so reactivation restores exactly what deactivation
+  -- turned off; an ordinary item edit never overwrites a manual unavailable toggle.
+  is_available                = CASE
+                                  WHEN NOT EXCLUDED.is_available THEN false
+                                  WHEN pos_catalog_overrides.metadata->>'availability_hold' = 'inactive' THEN true
+                                  ELSE pos_catalog_overrides.is_available
+                                END,
+  metadata                    = CASE
+                                  WHEN NOT EXCLUDED.is_available
+                                       AND (pos_catalog_overrides.is_available
+                                            OR pos_catalog_overrides.metadata->>'availability_hold' = 'inactive')
+                                    THEN (pos_catalog_overrides.metadata || EXCLUDED.metadata) || '{"availability_hold":"inactive"}'::jsonb
+                                  ELSE (pos_catalog_overrides.metadata || EXCLUDED.metadata) - 'availability_hold'
+                                END,
   updated_at                  = now()`
 
 	_, err = db.ExecContext(ctx, q,

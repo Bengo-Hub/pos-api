@@ -214,7 +214,17 @@ func (s *StockSubscriber) setSkuAvailability(ctx context.Context, tenantID uuid.
 		Save(ctx)
 }
 
-// handleStockOut marks POSCatalogOverride.is_available = false for the depleted SKU.
+// affectsAvailability reports whether a stock.out/stock.in event may change is_available.
+// inventory-api sets it from the tenant's auto_hide_on_stock_out policy (off by default:
+// availability is manual-only, the event is an alert and the item keeps selling into negative
+// stock). A missing field means an event published before the policy existed (true).
+func affectsAvailability(payload map[string]interface{}) bool {
+	v, ok := payload["affects_availability"].(bool)
+	return !ok || v
+}
+
+// handleStockOut marks POSCatalogOverride.is_available = false for the depleted SKU, only for
+// tenants whose inventory policy auto-hides on stock-out.
 func (s *StockSubscriber) handleStockOut(ctx context.Context, evt *sharedevents.Event) error {
 	if s.client == nil {
 		return nil
@@ -231,6 +241,9 @@ func (s *StockSubscriber) handleStockOut(ctx context.Context, evt *sharedevents.
 		s.log.Debug("stock.out: tenant lacks basic_inventory_access — skipping POS catalog sync",
 			zap.String("tenant_id", tenantID.String()))
 		return nil
+	}
+	if !affectsAvailability(evt.Payload) {
+		return nil // alert only: availability is manual for this tenant
 	}
 	outletRaw, _ := evt.Payload["outlet_id"].(string)
 	count, err := s.setSkuAvailability(ctx, tenantID, outletRaw, sku, false)
@@ -261,6 +274,9 @@ func (s *StockSubscriber) handleStockIn(ctx context.Context, evt *sharedevents.E
 		s.log.Debug("stock.in: tenant lacks basic_inventory_access — skipping POS catalog sync",
 			zap.String("tenant_id", tenantID.String()))
 		return nil
+	}
+	if !affectsAvailability(evt.Payload) {
+		return nil // manual availability: a restock must never undo a staff toggle
 	}
 	outletRaw, _ := evt.Payload["outlet_id"].(string)
 	count, err := s.setSkuAvailability(ctx, tenantID, outletRaw, sku, true)
