@@ -251,9 +251,9 @@ type createOrderInput struct {
 	// current session (UserID) — used only by the resume-and-modify supersede flow (Add Sale),
 	// which creates a NEW order for the edited draft and needs the original drafter's attribution
 	// to survive instead of resetting to whoever finalizes it. Blank/invalid = fall back to UserID.
-	ServedByUserID string             `json:"served_by_user_id,omitempty"`
-	DiscountAmount float64            `json:"discount_amount,omitempty"`  // order-level discount (e.g. loyalty redemption)
-	DiscountReason string             `json:"discount_reason,omitempty"`  // free-text reason for a manual discount
+	ServedByUserID string  `json:"served_by_user_id,omitempty"`
+	DiscountAmount float64 `json:"discount_amount,omitempty"` // order-level discount (e.g. loyalty redemption)
+	DiscountReason string  `json:"discount_reason,omitempty"` // free-text reason for a manual discount
 	// PromotionID identifies which Promotion produced DiscountAmount, when it came from a real
 	// promo code / auto-applied deal (as opposed to a discretionary manager override, which has
 	// no promotion behind it) — set by pos-ui whenever it applied a discount via
@@ -1002,26 +1002,6 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "active subscription required", http.StatusPaymentRequired)
 			return
 		}
-
-		// Metered limit: count this sale against max_orders_per_day. Over limit with no
-		// overage opt-in → 402 with the structured limit body so pos-ui opens the extra-usage
-		// modal. Exempt tokens and infra errors fail open (ReportUsage returns Allowed=true).
-		exempt := false
-		if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
-			exempt = claims.IsGatingExempt()
-		}
-		if !exempt {
-			if dec := h.subsClient.ReportUsage(r.Context(), tenantID, subscriptions.MetricOrders, "pos-api", 1); !dec.Allowed {
-				status := dec.Status
-				if status == 0 {
-					status = http.StatusPaymentRequired
-				}
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(status)
-				_ = json.NewEncoder(w).Encode(dec.Body)
-				return
-			}
-		}
 	}
 
 	var input createOrderInput
@@ -1321,6 +1301,13 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	servedByUserID, _ := uuid.Parse(input.ServedByUserID) // zero value on blank/invalid = fall back to userID
 
+	// Metered order limit (max_orders_per_month): a new sale is refused once the tenant is at
+	// its limit. Nothing is counted here; subscriptions-api counts the order when the sale
+	// completes (pos.sale.finalized), so drafts and open orders never use up the allowance.
+	if h.orderLimitReached(w, r, tid, input) {
+		return
+	}
+
 	if promoID, perr := uuid.Parse(input.PromotionID); perr == nil && h.promoSvc != nil {
 		if rejectReason := h.reserveOrderPromotion(r.Context(), tid, promoID, input, lines); rejectReason != "" {
 			respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
@@ -1371,6 +1358,39 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(order)
+}
+
+// orderLimitReached refuses a new sale when the tenant is at its metered order limit, writing
+// the 402 limit-reached body pos-ui turns into the extra-usage modal. Platform owners,
+// gating-exempt tokens and an offline re-sync of an order that already exists are never
+// refused; subscriptions-api errors fail open.
+func (h *POSOrderHandler) orderLimitReached(w http.ResponseWriter, r *http.Request, tid uuid.UUID, input createOrderInput) bool {
+	if h.subsClient == nil || httpware.IsPlatformOwner(r.Context()) {
+		return false
+	}
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims.IsGatingExempt() {
+		return false
+	}
+	if input.ClientReference != "" {
+		exists, err := h.client.POSOrder.Query().
+			Where(posorder.TenantID(tid), posorder.ClientReference(input.ClientReference)).
+			Exist(r.Context())
+		if err == nil && exists {
+			return false // replayed sync: CreateOrder returns the existing order
+		}
+	}
+	dec := h.subsClient.CheckUsage(r.Context(), tid.String(), subscriptions.MetricOrders, 1)
+	if dec.Allowed {
+		return false
+	}
+	status := dec.Status
+	if status == 0 {
+		status = http.StatusPaymentRequired
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(dec.Body)
+	return true
 }
 
 // autoAssignFacilityBookingsForOrder is the "ring up + auto-assign" side effect of a completed

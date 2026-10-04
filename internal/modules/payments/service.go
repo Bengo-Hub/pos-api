@@ -1826,6 +1826,7 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 	data := map[string]any{
 		"order_id":     order.ID.String(),
 		"order_number": order.OrderNumber,
+		"source":       order.Source,
 		"tenant_id":    order.TenantID.String(),
 		"tenant_slug":  outletSlug,
 		"outlet_id":    order.OutletID.String(),

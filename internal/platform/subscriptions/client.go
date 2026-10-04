@@ -40,7 +40,7 @@ func (s *SubscriptionStatus) IsActive() bool {
 type Client struct {
 	cfg Config
 	sc  *serviceclient.Client
-	// httpc is used only by ReportUsage: subscriptions-api's usage-report endpoint returns a
+	// httpc is used only by CheckUsage: subscriptions-api's usage-check endpoint returns a
 	// meaningful 429 as part of its usage-DECISION contract (distinct from a generic upstream
 	// rate-limit), but shared-service-client's transport always treats HTTP 429 as a retryable
 	// transport error and never surfaces it as a normal Response — which would silently turn a
@@ -116,9 +116,9 @@ type Entitlements struct {
 	// ActiveProducts mirrors treasury-api's Entitlements field of the same name — the
 	// per-product self-activation list. pos-api doesn't currently gate on it, but decoding it
 	// keeps this struct the full canonical shape rather than a partial subset.
-	ActiveProducts    []string       `json:"active_products"`
-	Limits            map[string]int `json:"limits"`
-	PlanCode          string         `json:"plan_code"`
+	ActiveProducts []string       `json:"active_products"`
+	Limits         map[string]int `json:"limits"`
+	PlanCode       string         `json:"plan_code"`
 	// TierOrder/AllowOverage/CurrentPeriodEnd/IsPerpetual/Exempt mirror the fields auth-api's
 	// EnrichTokenWithSubscription maps onto an SSO JWT (sub_tier/sub_allow_overage/sub_expires/
 	// sub_exempt). Without these a terminal (PIN) session can't be told apart from a lower-tier
@@ -197,22 +197,23 @@ type UsageDecision struct {
 	Body map[string]any
 }
 
-// ReportUsage records a metered usage event (e.g. metric="orders", "transactions") and
-// returns the limit decision. subscriptions-api atomically increments the tenant's counter
-// and either allows the event (within limit or opted-in overage) or returns 402 with the
-// structured limit body. Fails OPEN (Allowed=true) on any network/parse error so a
-// subscriptions-api outage never blocks core POS operations. Tenant is resolved by
-// subscriptions-api from the X-Tenant-ID header under API-key auth.
-func (c *Client) ReportUsage(ctx context.Context, tenantID, metric, serviceName string, value float64) UsageDecision {
+// CheckUsage asks subscriptions-api whether one more unit of a metered metric is allowed,
+// WITHOUT counting it. pos-api calls it before creating a sale; the sale is counted only when it
+// completes (subscriptions-api meters pos.sale.finalized, deduplicated per order), so drafts,
+// open tabs, failed requests and offline re-syncs never use up the allowance. Returns
+// Allowed=false with the structured limit body (402) when the tenant is at its limit and has not
+// opted in to extra usage. Fails OPEN on any network/parse error so a subscriptions-api outage
+// never blocks core POS operations. Tenant is resolved from the X-Tenant-ID header under
+// API-key auth.
+func (c *Client) CheckUsage(ctx context.Context, tenantID, metric string, value float64) UsageDecision {
 	if c.cfg.ServiceURL == "" || c.cfg.APIKey == "" {
 		return UsageDecision{Allowed: true}
 	}
 	payload, _ := json.Marshal(map[string]any{
-		"metric_type":  metric,
-		"service_name": serviceName,
-		"value":        value,
+		"metric_type": metric,
+		"value":       value,
 	})
-	url := fmt.Sprintf("%s/api/v1/usage/report", strings.TrimRight(c.cfg.ServiceURL, "/"))
+	url := fmt.Sprintf("%s/api/v1/usage/check", strings.TrimRight(c.cfg.ServiceURL, "/"))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
 		return UsageDecision{Allowed: true}
