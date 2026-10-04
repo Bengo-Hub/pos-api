@@ -10,7 +10,6 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
-	"github.com/bengobox/pos-service/internal/payref"
 )
 
 // TreasuryIntentReconciler periodically finds completed cash/manual POSPayment rows with no
@@ -97,7 +96,7 @@ func (r *TreasuryIntentReconciler) runOnce(ctx context.Context) error {
 
 		intentReq := treasury.CreateIntentRequest{
 			SourceService: "pos",
-			ReferenceID:   payref.Build("POS", outlet.TenantSlug, order.TenantID, order.ID),
+			ReferenceID:   r.svc.intentReference(ctx, outlet.TenantSlug, order.TenantID, order.ID, payment.ID, payment.OccurredAt),
 			ReferenceType: "pos_order",
 			Amount:        payment.Amount,
 			Currency:      payment.Currency,

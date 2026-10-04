@@ -19,6 +19,14 @@ func Build(svc, tenantSlug string, tenantID, entityID uuid.UUID) string {
 	return strings.ToUpper(svc) + "-" + slugSeg(tenantSlug, tenantID) + "-" + entitySeg(entityID)
 }
 
+// Portion returns the reference for a second or later payment on the same entity, e.g.
+// "POS-URBANL-B2B592518E5D-P1A2B3C4D". Treasury keeps one intent per (tenant, reference), so a
+// split sale's later tenders need their own reference or they collapse into the first one.
+// Deterministic in paymentID, so a retried portion still dedups.
+func Portion(base string, paymentID uuid.UUID) string {
+	return base + "-P" + entitySeg(paymentID)[:8]
+}
+
 func slugSeg(slug string, tenantID uuid.UUID) string {
 	s := keepAlnum(strings.ToUpper(slug))
 	if s == "" {

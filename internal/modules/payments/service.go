@@ -390,6 +390,9 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	}
 
 	if !cash {
+		// The intent is created before the local row, so the row's id is chosen up front.
+		paymentID := uuid.New()
+		intentReq.ReferenceID = s.intentReference(ctx, req.TenantSlug, req.TenantID, req.OrderID, paymentID, time.Now())
 		intent, err := s.treasuryClient.CreateIntent(ctx, req.TenantSlug, req.OrderID.String(), intentReq)
 		if err != nil {
 			return nil, fmt.Errorf("payments: create treasury intent: %w", err)
@@ -409,6 +412,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 
 		// Record local payment as pending — will be completed by treasury NATS subscriber
 		_, err = s.client.POSPayment.Create().
+			SetID(paymentID).
 			SetOrderID(req.OrderID).
 			SetTenderID(req.TenderID).
 			SetAmount(req.Amount).
@@ -515,6 +519,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 
 	s.completeOrderIfFullyPaid(ctx, order)
 	// Off the request path: create the treasury intent now that the till already shows "paid".
+	intentReq.ReferenceID = s.intentReference(ctx, req.TenantSlug, req.TenantID, req.OrderID, payment.ID, payment.OccurredAt)
 	s.dispatchTreasuryIntent(payment.ID, req.TenantSlug, req.OrderID, intentReq)
 	return &CreateIntentResult{IsCash: true}, nil
 }
@@ -1174,6 +1179,34 @@ func (s *Service) dispatchPostFinalize(order *ent.POSOrder) {
 		defer cancel()
 		s.runPostFinalize(ctx, order)
 	}()
+}
+
+// intentReference is the treasury reference for one payment on a POS order. The first payment keeps
+// the order reference (single-tender sales and their retries are unchanged); a later tender of a
+// split sale gets its own payref.Portion reference. Treasury keeps one intent per reference, so
+// before this every split portion after the first was answered with the first portion's intent:
+// treasury recorded only part of the money, and a digital portion was handed an intent that had
+// already succeeded. A payment is "later" when another pending or completed payment on the order
+// occurred before it, which the live path and the reconciler both evaluate the same way.
+func (s *Service) intentReference(ctx context.Context, tenantSlug string, tenantID, orderID, paymentID uuid.UUID, at time.Time) string {
+	base := payref.Build("POS", tenantSlug, tenantID, orderID)
+	earlier, err := s.client.POSPayment.Query().
+		Where(
+			pospayment.OrderID(orderID),
+			pospayment.IDNEQ(paymentID),
+			pospayment.StatusIn(StatusPending, StatusCompleted),
+			pospayment.OccurredAtLT(at),
+		).
+		Exist(ctx)
+	if err != nil {
+		s.log.Warn("payments: split-portion check failed, using the order reference",
+			zap.String("order_id", orderID.String()), zap.Error(err))
+		return base
+	}
+	if earlier {
+		return payref.Portion(base, paymentID)
+	}
+	return base
 }
 
 // dispatchTreasuryIntent creates the treasury payment intent for a cash/manual tender OFF the

@@ -21,6 +21,20 @@ func TestBuild_POSFormatDeterministic(t *testing.T) {
 	}
 }
 
+func TestPortion_DistinctPerPaymentAndDeterministic(t *testing.T) {
+	base := "POS-URBANL-B2B592518E5D"
+	pay := uuid.MustParse("1a2b3c4d-0000-4000-8000-000000000000")
+	if got := Portion(base, pay); got != "POS-URBANL-B2B592518E5D-P1A2B3C4D" {
+		t.Fatalf("unexpected portion reference: %s", got)
+	}
+	if Portion(base, pay) != Portion(base, pay) {
+		t.Fatal("not deterministic")
+	}
+	if Portion(base, uuid.New()) == Portion(base, uuid.New()) || Portion(base, pay) == base {
+		t.Fatal("split portions must not share a reference")
+	}
+}
+
 func TestBuild_SlugFallbackAndUniqueEntity(t *testing.T) {
 	tenant := uuid.New()
 	// Empty slug → tenant UUID hex fallback.
