@@ -19,7 +19,9 @@ import (
 	entloyaltytransaction "github.com/bengobox/pos-service/internal/ent/loyaltytransaction"
 	entorderlink "github.com/bengobox/pos-service/internal/ent/orderlink"
 	entordervoidcode "github.com/bengobox/pos-service/internal/ent/ordervoidcode"
+	entposlinemodifier "github.com/bengobox/pos-service/internal/ent/poslinemodifier"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
+	entposorderevent "github.com/bengobox/pos-service/internal/ent/posorderevent"
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
 	entpospayment "github.com/bengobox/pos-service/internal/ent/pospayment"
 	entpossaleshred "github.com/bengobox/pos-service/internal/ent/possaleshred"
@@ -299,7 +301,23 @@ func (s *Service) hardDeleteOrder(ctx context.Context, tenantID, orderID uuid.UU
 		return err
 	})
 
-	// Required — these must succeed or the whole delete rolls back.
+	// Required — these must succeed or the whole delete rolls back. Line modifiers and order
+	// events reference the lines and the order, so they go first (as in the draft delete).
+	lineIDs, err := tx.POSOrderLine.Query().Where(entposorderline.OrderID(orderID)).IDs(ctx)
+	if err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("query lines: %w", err)
+	}
+	if len(lineIDs) > 0 {
+		if _, err := tx.POSLineModifier.Delete().Where(entposlinemodifier.LineIDIn(lineIDs...)).Exec(ctx); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("delete line modifiers: %w", err)
+		}
+	}
+	if _, err := tx.POSOrderEvent.Delete().Where(entposorderevent.OrderID(orderID)).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("delete order events: %w", err)
+	}
 	if _, err := tx.POSPayment.Delete().Where(entpospayment.OrderID(orderID)).Exec(ctx); err != nil {
 		_ = tx.Rollback()
 		return fmt.Errorf("delete payments: %w", err)

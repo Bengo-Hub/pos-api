@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/httpware"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -58,6 +59,8 @@ func (h *SaleDeleteHandler) DeleteSale(w http.ResponseWriter, r *http.Request) {
 		Reason:      input.Reason,
 		RequestedBy: requestedBy,
 		TenantSlug:  chi.URLParam(r, "tenantID"),
+		// Platform owners also clear unpaid open sales (their own test sales on a tenant).
+		AllowUnpaidOpen: httpware.IsPlatformOwner(r.Context()),
 	})
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusUnprocessableEntity)

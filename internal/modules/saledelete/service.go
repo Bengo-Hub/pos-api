@@ -62,6 +62,9 @@ type Request struct {
 	Reason      string
 	RequestedBy uuid.UUID
 	TenantSlug  string // forwarded to treasury S2S calls
+	// AllowUnpaidOpen lets a platform owner delete an open sale nothing has been paid on (test
+	// sales rung up while checking a tenant's setup). Tenant staff void open sales instead.
+	AllowUnpaidOpen bool
 }
 
 // Service orchestrates the Delete-Sale tool.
@@ -91,6 +94,25 @@ func (s *Service) SetAuditService(a *audit.Service) { s.auditSvc = a }
 // finalizedStatuses mirrors reversals.finalizedStatuses — only a settled sale can be deleted.
 var finalizedStatuses = map[string]bool{"completed": true, "paid": true, "closed": true}
 
+// unpaidOpenStatuses are the open sale states a platform owner may delete when nothing was paid.
+// Such a sale was never fiscalised (that happens at completion), so it takes the hard-delete
+// branch: any fired stock is put back, its pending intents go with the ledger shred.
+var unpaidOpenStatuses = map[string]bool{"open": true, "pending_payment": true}
+
+// deletable reports whether the order's state allows Delete for this request.
+func deletable(order *ent.POSOrder, req Request) error {
+	if finalizedStatuses[order.Status] {
+		return nil
+	}
+	if req.AllowUnpaidOpen && unpaidOpenStatuses[order.Status] {
+		if order.PaidTotal > 0.009 {
+			return fmt.Errorf("this open sale has payments on it; refund them or complete and delete the sale")
+		}
+		return nil
+	}
+	return fmt.Errorf("only a finalized sale (completed/paid/closed) can be deleted — this order is %q", order.Status)
+}
+
 // Delete validates and executes a sale deletion, branching on fiscal status.
 func (s *Service) Delete(ctx context.Context, tenantID uuid.UUID, req Request) (*Result, error) {
 	if req.Reason == "" {
@@ -106,8 +128,8 @@ func (s *Service) Delete(ctx context.Context, tenantID uuid.UUID, req Request) (
 	if order.DeletedAt != nil {
 		return nil, fmt.Errorf("sale already deleted")
 	}
-	if !finalizedStatuses[order.Status] {
-		return nil, fmt.Errorf("only a finalized sale (completed/paid/closed) can be deleted — this order is %q", order.Status)
+	if err := deletable(order, req); err != nil {
+		return nil, err
 	}
 
 	// Refuse a sale that already has return/refund/reversal history — Delete is for a plain,
