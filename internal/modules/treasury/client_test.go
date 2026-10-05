@@ -4,18 +4,19 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 )
 
-// The POS shows what treasury's pay page lists for the tenant, including the PayHero rails for the
-// outlet's currency (asked with ?currency=).
-func TestGetPublicGatewaysMapsPayHeroMethods(t *testing.T) {
+// PayHero is its own gateway: the POS gets one payhero flag with the rails treasury lists for the
+// outlet's currency (asked with ?currency=), and M-Pesa stays off unless Daraja is on.
+func TestGetPublicGatewaysMapsPayHero(t *testing.T) {
 	var gotQuery string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotQuery = r.URL.RawQuery
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"gateways":["mpesa","mtn_momo","airtel_money","payhero_momo","payhero_card","payhero_bank","payhero_offline"]}`))
+		_, _ = w.Write([]byte(`{"gateways":["payhero","cod"],"payhero_methods":["mtn_momo","airtel_money","payhero_card"]}`))
 	}))
 	defer srv.Close()
 
@@ -27,25 +28,24 @@ func TestGetPublicGatewaysMapsPayHeroMethods(t *testing.T) {
 	if gotQuery != "currency=UGX" {
 		t.Fatalf("query = %q, want currency=UGX", gotQuery)
 	}
-	if !gw.MPesa || !gw.MTNMoMo || !gw.AirtelMoney || !gw.MobileMoney || !gw.PayHeroCard || !gw.PayHeroBank || !gw.PayHeroOffline {
-		t.Fatalf("flags = %+v, want every listed rail on", gw)
+	if !gw.PayHero || !gw.COD || !slices.Equal(gw.PayHeroMethods, []string{"mtn_momo", "airtel_money", "payhero_card"}) {
+		t.Fatalf("flags = %+v, want payhero with its rails and cod", gw)
 	}
-	if gw.Paystack || gw.BankTransfer {
-		t.Fatalf("flags = %+v: rails treasury did not list must stay off", gw)
+	if gw.MPesa || gw.MPesaC2B || gw.Paystack {
+		t.Fatalf("flags = %+v: gateways treasury did not list must stay off", gw)
 	}
 }
 
-// M-Pesa backed by PayHero must not light up the Daraja-only C2B till matcher; Daraja (or an older
-// treasury that sends no hint) keeps it.
-func TestGetPublicGatewaysMpesaProvider(t *testing.T) {
+// M-Pesa is Daraja only, so it brings the C2B till matcher with it; PayHero alone never does.
+func TestGetPublicGatewaysMpesaIsDaraja(t *testing.T) {
 	cases := []struct {
-		name, body, provider string
-		c2b                  bool
+		name, body string
+		mpesa      bool
 	}{
-		{"payhero", `{"gateways":["mpesa","payhero_offline"],"providers":{"mpesa":"payhero"}}`, "payhero", false},
-		{"daraja", `{"gateways":["mpesa"],"providers":{"mpesa":"daraja"}}`, "daraja", true},
-		{"no hint", `{"gateways":["mpesa"]}`, "daraja", true},
-		{"no mpesa", `{"gateways":["cod","complimentary"],"providers":{}}`, "", false},
+		{"payhero only", `{"gateways":["payhero"],"payhero_methods":["mpesa"]}`, false},
+		{"daraja", `{"gateways":["mpesa"],"providers":{"mpesa":"daraja"}}`, true},
+		{"both", `{"gateways":["payhero","mpesa"],"payhero_methods":["mpesa"]}`, true},
+		{"none", `{"gateways":["cod","complimentary"]}`, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -58,8 +58,8 @@ func TestGetPublicGatewaysMpesaProvider(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if gw.MPesaProvider != tc.provider || gw.MPesaC2B != tc.c2b {
-				t.Fatalf("provider=%q c2b=%v, want %q %v", gw.MPesaProvider, gw.MPesaC2B, tc.provider, tc.c2b)
+			if gw.MPesa != tc.mpesa || gw.MPesaC2B != tc.mpesa {
+				t.Fatalf("mpesa=%v c2b=%v, want %v", gw.MPesa, gw.MPesaC2B, tc.mpesa)
 			}
 		})
 	}

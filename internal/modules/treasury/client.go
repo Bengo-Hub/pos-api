@@ -833,23 +833,13 @@ type PublicGatewaysResponse struct {
 	Wallet        bool `json:"wallet"`
 	COD           bool `json:"cod"`
 	Complimentary bool `json:"complimentary"`
-	// MTNMoMo/AirtelMoney/BankTransfer are Uganda/Kenya/Tanzania payment methods — dormant
-	// (false) until the tenant/platform configures real credentials for the corresponding
-	// treasury gateway (mtn_momo/airtel_money/bank_transfer), same activation model as the rest.
-	MTNMoMo      bool `json:"mtn_momo"`
-	AirtelMoney  bool `json:"airtel_money"`
-	BankTransfer bool `json:"bank_transfer"`
-	// PayHero rails (treasury 2026-10-02), offered when the tenant's PayHero account can take them
-	// in the sale's currency: other mobile money networks, card hosted checkout, bank deposit, and
-	// the offline paybill for a customer who cannot take a phone prompt.
-	MobileMoney    bool `json:"mobile_money"`
-	PayHeroCard    bool `json:"payhero_card"`
-	PayHeroBank    bool `json:"payhero_bank"`
-	PayHeroOffline bool `json:"payhero_offline"`
-	// MPesaProvider is the account behind MPesa: "daraja" or "payhero" (empty when M-Pesa is off).
-	MPesaProvider string `json:"mpesa_provider,omitempty"`
-	// MPesaC2B is true only when Daraja backs M-Pesa: matching a customer's direct till payment
-	// reads Daraja C2B confirmations, which a PayHero-only tenant never receives.
+	// PayHero is its own gateway (treasury 2026-10-05), like Paystack: one tender that opens the
+	// PayHero modal on the pay page. PayHeroMethods are its rails in the sale's currency
+	// (mpesa, payhero_offline, airtel_money, mtn_momo, payhero_momo, payhero_card, payhero_bank).
+	PayHero        bool     `json:"payhero"`
+	PayHeroMethods []string `json:"payhero_methods"`
+	// MPesaC2B: Daraja backs M-Pesa, so a customer's direct till payment can be matched. MPesa is
+	// Daraja only now, so this equals MPesa; kept for older terminals.
 	MPesaC2B bool `json:"mpesa_c2b"`
 }
 
@@ -858,16 +848,13 @@ type PublicGatewaysResponse struct {
 // boolean fields are kept too so we still work if treasury ever switches to returning booleans.
 type treasuryGatewaysWire struct {
 	Gateways []string `json:"gateways"`
-	// Providers names the account behind a method, e.g. {"mpesa":"payhero"} (treasury 2026-10-03).
-	Providers     map[string]string `json:"providers"`
-	MPesa         bool              `json:"mpesa"`
-	Paystack      bool              `json:"paystack"`
-	Wallet        bool              `json:"wallet"`
-	COD           bool              `json:"cod"`
-	Complimentary bool              `json:"complimentary"`
-	MTNMoMo       bool              `json:"mtn_momo"`
-	AirtelMoney   bool              `json:"airtel_money"`
-	BankTransfer  bool              `json:"bank_transfer"`
+	// PayHeroMethods are the rails of the "payhero" gateway (treasury 2026-10-05).
+	PayHeroMethods []string `json:"payhero_methods"`
+	MPesa          bool     `json:"mpesa"`
+	Paystack       bool     `json:"paystack"`
+	Wallet         bool     `json:"wallet"`
+	COD            bool     `json:"cod"`
+	Complimentary  bool     `json:"complimentary"`
 }
 
 // GetPublicGateways fetches the active payment gateways for a tenant from the treasury public endpoint
@@ -891,12 +878,11 @@ func (c *Client) GetPublicGateways(ctx context.Context, tenantSlug, currency str
 	}
 	out := &PublicGatewaysResponse{
 		MPesa: wire.MPesa, Paystack: wire.Paystack, Wallet: wire.Wallet, COD: wire.COD, Complimentary: wire.Complimentary,
-		MTNMoMo: wire.MTNMoMo, AirtelMoney: wire.AirtelMoney, BankTransfer: wire.BankTransfer,
 	}
 	for _, g := range wire.Gateways {
 		switch strings.ToLower(strings.TrimSpace(g)) {
 		case "mpesa", "mpesa_paybill", "mpesa_till":
-			out.MPesa = true
+			out.MPesa = true // Daraja: PayHero's M-Pesa comes back under payhero
 		case "paystack", "card":
 			out.Paystack = true
 		case "wallet":
@@ -905,30 +891,14 @@ func (c *Client) GetPublicGateways(ctx context.Context, tenantSlug, currency str
 			out.COD = true
 		case "complimentary":
 			out.Complimentary = true
-		case "mtn_momo", "mtn":
-			out.MTNMoMo = true
-		case "airtel_money", "airtel":
-			out.AirtelMoney = true
-		case "bank_transfer", "bank":
-			out.BankTransfer = true
-		case "payhero_momo", "mobile_money":
-			out.MobileMoney = true
-		case "payhero_card":
-			out.PayHeroCard = true
-		case "payhero_bank":
-			out.PayHeroBank = true
-		case "payhero_offline":
-			out.PayHeroOffline = true
+		case "payhero":
+			out.PayHero = true
 		}
 	}
-	if out.MPesa {
-		// No hint (an older treasury): assume Daraja, the behaviour before the hint existed.
-		out.MPesaProvider = strings.ToLower(strings.TrimSpace(wire.Providers["mpesa"]))
-		if out.MPesaProvider == "" {
-			out.MPesaProvider = "daraja"
-		}
-		out.MPesaC2B = out.MPesaProvider == "daraja"
+	if out.PayHero {
+		out.PayHeroMethods = wire.PayHeroMethods
 	}
+	out.MPesaC2B = out.MPesa
 	return out, nil
 }
 
