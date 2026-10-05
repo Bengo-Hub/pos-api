@@ -393,8 +393,8 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Resolve subscription entitlements + bypass flags so the terminal JWT gates exactly
-	// like an SSO session (and exempts demo / platform-owner tenants).
-	subEnt := h.resolveTerminalEntitlements(r.Context(), tid)
+	// like an SSO session (and exempts demo / platform-owner tenants and platform admins).
+	subEnt := h.sessionEntitlements(r.Context(), tid, member)
 
 	// Issue a short-lived terminal JWT (4 hours)
 	token, permissions, err := issueTerminalJWT(member, tid, sessionOutletID, h.jwtSecret, h.client, r.Context(), subEnt)
@@ -604,6 +604,51 @@ func (h *PINAuthHandler) AuthMe(w http.ResponseWriter, r *http.Request) {
 // fetchEmailVerification returns auth-api's computed email-verification block for the user
 // (opaque JSON, forwarded verbatim to the UI). Best-effort: returns nil on any error so
 // /auth/me never fails because of it.
+// sessionEntitlements is resolveTerminalEntitlements plus the person: a platform admin signing in
+// with a staff PIN at a tenant is a platform owner there, exactly as auth marks their SSO token
+// (auth-api IsPlatformOwner: admin or superuser in the platform tenant). Without it a PIN session
+// never carried that, so platform-owner-only actions (deleting test sales, approval overrides)
+// were missing for platform admins on the till. Asked only for admin-level staff; any failure
+// leaves it false.
+func (h *PINAuthHandler) sessionEntitlements(ctx context.Context, tid uuid.UUID, member *ent.StaffMember) terminalEntitlements {
+	subEnt := h.resolveTerminalEntitlements(ctx, tid)
+	if !subEnt.IsPlatformOwner && posrole.IsAdminLevel(member.Role) && h.isPlatformOwnerUser(ctx, member.UserID) {
+		subEnt.IsPlatformOwner = true
+	}
+	return subEnt
+}
+
+// isPlatformOwnerUser asks auth-api (S2S) whether the user is a platform owner.
+func (h *PINAuthHandler) isPlatformOwnerUser(ctx context.Context, userID uuid.UUID) bool {
+	if h.authURL == "" || h.internalKey == "" || userID == uuid.Nil {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	url := strings.TrimRight(h.authURL, "/") + "/api/v1/s2s/users/" + userID.String() + "/platform-owner"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("X-API-Key", h.internalKey)
+	resp, err := h.http.Do(req)
+	if err != nil {
+		h.log.Warn("platform owner lookup failed", zap.Error(err))
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+	var out struct {
+		IsPlatformOwner bool `json:"is_platform_owner"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return false
+	}
+	return out.IsPlatformOwner
+}
+
 func (h *PINAuthHandler) fetchEmailVerification(ctx context.Context, userID uuid.UUID) json.RawMessage {
 	if h.authURL == "" || h.internalKey == "" {
 		return nil
@@ -814,7 +859,7 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 		Exec(r.Context())
 
 	// Issue terminal JWT — same shape as Login (carry subscription entitlements + bypass).
-	subEnt := h.resolveTerminalEntitlements(r.Context(), tid)
+	subEnt := h.sessionEntitlements(r.Context(), tid, member)
 	token, permissions, err := issueTerminalJWT(member, tid, outletID, h.jwtSecret, h.client, r.Context(), subEnt)
 	if err != nil {
 		h.log.Error("failed to issue terminal JWT", zap.Error(err))
@@ -853,8 +898,9 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 			"is_hq_user":      isHQ,
 			// Server-authoritative permission set so pos-ui never falls back to the hardcoded
 			// client role map (see the Login handler + issueTerminalJWT for the full rationale).
-			"permissions": permissions,
-			"pin_hash":    pinHash,
+			"permissions":       permissions,
+			"pin_hash":          pinHash,
+			"is_platform_owner": subEnt.IsPlatformOwner,
 		},
 	})
 }
