@@ -184,35 +184,40 @@ For non-cash tenders, pos-api creates a payment intent in treasury-api before re
 
 > **Publisher note (2026-05-09):** The current `internal/platform/events/publisher.go` only defines three methods: `PublishOrderCreated`, `PublishOrderStatusChanged`, `PublishPaymentRecorded`. The `pos.sale.finalized` and `pos.drawer.closed` events described in the Event Catalog are **planned but not yet published** — they must be added to `publisher.go` in Sprint 6.
 
-### 2.1a Uganda/Kenya/Tanzania Payment Methods (2026-08-07)
+### 2.1a Uganda/Kenya/Tanzania Payment Methods
 
-Three new tender methods, following the exact same "pos-api is a thin client, treasury owns the
-gateway" pattern as `payment_method: "mpesa"|"paystack"` above:
+Superseded. The direct MTN, Airtel and manual bank-transfer gateways (2026-08-07) were removed
+from treasury; MTN, Airtel, other mobile money networks, card and bank deposits all run on
+PayHero (2026-10-02) and, since 2026-10-05, are offered inside the PayHero tender below rather
+than as tenders of their own.
 
-- `mtn_momo` — MTN Mobile Money (OAuth2 + request-to-pay push, same UX as M-Pesa STK). Routed
-  through `handleDigital('mtn_momo')` in pos-ui, dispatched exactly like `mpesa`/`card` above.
-- `airtel_money` — Airtel Money (same push-prompt shape).
-- `bank_transfer` — manual bank transfer (covers Equity Bank Uganda and any other bank a tenant
-  configures). No live gateway API — treasury's `BankTransferGateway` mirrors COD: it returns
-  `pending_confirmation` immediately and settles once staff confirms the transfer was received.
-
-All three are **dormant** (hidden from the payment modal) until a tenant/platform configures the
-corresponding gateway credentials in treasury.
-
-### Which gateway tenders the till shows (2026-10-03)
+### Which gateway tenders the till shows (2026-10-05)
 
 `GET /{tenant}/pos/gateways` (`internal/modules/treasury/client.go GetPublicGateways`) maps
-treasury's public pay-page list to flags. Every gateway fails **closed**: when treasury cannot
-answer, the handler serves the last answer that pod saw for the tenant and currency, else
-nothing. pos-ui's `usePOSGateways` also starts with everything off. Cash, Card (PDQ), Credit Sale
-and Multiple Pay need no gateway and always show.
+treasury's public pay-page list (`gateways` plus `payhero_methods`) to:
 
-- `mpesa` is on when Daraja (paybill or till) or a ready PayHero account backs M-Pesa.
-- `mpesa_provider` is `daraja` or `payhero`, from treasury's `providers.mpesa` hint.
-- `mpesa_c2b` is true only for Daraja. C2B till matching reads Daraja confirmations, so a
-  PayHero-only tenant sees STK Push and, when enabled, the offline Paybill, but never C2B.
+```json
+{"mpesa":false,"paystack":false,"wallet":false,"cod":true,"complimentary":true,
+ "payhero":true,"payhero_methods":["mpesa","airtel_money"],"mpesa_c2b":false}
+```
+
+Every gateway fails **closed**: when treasury cannot answer, the handler serves the last answer
+that pod saw for the tenant and currency, else nothing. pos-ui's `usePOSGateways` also starts with
+everything off. Cash, Card (PDQ), Credit Sale and Multiple Pay need no gateway and always show.
+
+- `mpesa` means Daraja only (the tenant's own paybill or till): it drives the STK Push tender.
+  `mpesa_c2b` equals it, since C2B till matching reads Daraja confirmations.
+- `payhero` is its own gateway, like Paystack: one PayHero tender (PayHero's logo, a sublabel of
+  its rails) whose tender method is `payhero`. It opens treasury's pay page on the PayHero modal,
+  where the customer picks M-Pesa, Airtel, MTN, card or another rail for the outlet's currency;
+  every rail is initiated with `gateway: "payhero"`, so it never falls back to Daraja.
+- Before 2026-10-05 PayHero's rails were flattened into `mpesa` (with `mpesa_provider=payhero`),
+  `mobile_money`, `payhero_card`, `payhero_bank` and `payhero_offline`, so a PayHero-only tenant
+  showed STK Push, Paybill, Mobile Money, Card and Bank Deposit tenders that looked like Daraja,
+  and most of them never opened the payment page.
 - Treasury offers nothing from PayHero until the tenant's Team (vendor id) exists, because every
-  PayHero charge needs it.
+  PayHero charge needs it. PayHero's offline paybill appears only after the platform marks it
+  verified (treasury `payhero.offline_paybill_verified`).
 - The Room tender and its rooms fetch need the plan's `hotel_module` as well as a hospitality
   outlet; otherwise the rooms call is a 403 that pops "Subscription limit reached".
 
