@@ -12,9 +12,14 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 )
 
-// orderReleaser opens an accepted, held online order (KDS tickets + kitchen chits).
+// orderReleaser is the slice of the orders service the online-orders queue drives: opening an
+// accepted, held order (KDS tickets + kitchen chits) and closing an order's open KDS tickets when it
+// is handed over (served) or rejected (voided). Closing goes through the service so every live board
+// on the outlet is told, the same as any other ticket change.
 type orderReleaser interface {
 	ReleaseHeldOrder(ctx context.Context, tenantID, orderID uuid.UUID) bool
+	AutoClearKDSTicketsForOrder(ctx context.Context, tenantID, orderID uuid.UUID)
+	VoidKDSTicketsForOrder(ctx context.Context, tenantID, orderID uuid.UUID)
 }
 
 // SetOrderReleaser wires the order service used when an order is accepted.

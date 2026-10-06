@@ -64,7 +64,11 @@ type KDSStationBreakdownRow struct {
 // order's active gross value — so every tax/discount/charges/round-off cent lands on a station
 // too, and the per-station rows sum EXACTLY to the same total Sales-by-Staff reports. Staff
 // totals (order.total_amount) were always the accurate figure; this makes KDS-station agree.
-func computeKDSStationBreakdown(ctx context.Context, db *ent.Client, tid uuid.UUID, oid *uuid.UUID, from, to time.Time) ([]KDSStationBreakdownRow, error) {
+//
+// Orders are read in keyset pages of kdsBreakdownPage so a long date range on a busy tenant never
+// loads the whole period (with every line) into memory at once. The report currency comes from the
+// same pass, so the document export does not read the period a second time.
+func computeKDSStationBreakdown(ctx context.Context, db *ent.Client, tid uuid.UUID, oid *uuid.UUID, from, to time.Time) ([]KDSStationBreakdownRow, string, error) {
 	preds := []predicate.POSOrder{
 		posorder.TenantID(tid),
 		posorder.StatusEQ("completed"),
@@ -74,9 +78,24 @@ func computeKDSStationBreakdown(ctx context.Context, db *ent.Client, tid uuid.UU
 	if oid != nil {
 		preds = append(preds, posorder.OutletID(*oid))
 	}
-	ordersList, err := db.POSOrder.Query().Where(preds...).WithLines().All(ctx)
+
+	// Every station of the tenant, active or not, in one query: lines stamped with a station that
+	// was later switched off still report under its real name. Only active stations take part in
+	// resolving legacy lines that carry no station, matching how tickets are routed today.
+	allStations, err := db.KDSStation.Query().Where(entkdsstation.TenantID(tid)).All(ctx)
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+	stationNameByID := make(map[uuid.UUID]*ent.KDSStation, len(allStations))
+	stationsByOutlet := make(map[uuid.UUID][]*ent.KDSStation)
+	for _, st := range allStations {
+		stationNameByID[st.ID] = st
+		if st.IsActive {
+			stationsByOutlet[st.OutletID] = append(stationsByOutlet[st.OutletID], st)
+		}
+	}
+	for _, list := range stationsByOutlet {
+		sort.SliceStable(list, func(i, j int) bool { return list[i].SortOrder < list[j].SortOrder })
 	}
 
 	type bucket struct {
@@ -86,59 +105,67 @@ func computeKDSStationBreakdown(ctx context.Context, db *ent.Client, tid uuid.UU
 	}
 	byStation := make(map[uuid.UUID]*bucket)
 	unassigned := &bucket{name: "Unassigned", stype: "", orderIDs: map[uuid.UUID]struct{}{}}
+	currency := "KES"
 
-	stationsByOutlet := make(map[uuid.UUID][]*ent.KDSStation)
-	stationNameByID := make(map[uuid.UUID]*ent.KDSStation)
-
-	for _, o := range ordersList {
-		stations, ok := stationsByOutlet[o.OutletID]
-		if !ok {
-			stations, _ = db.KDSStation.Query().
-				Where(entkdsstation.TenantID(tid), entkdsstation.OutletID(o.OutletID), entkdsstation.IsActive(true)).
-				All(ctx)
-			stationsByOutlet[o.OutletID] = stations
-			for _, st := range stations {
-				stationNameByID[st.ID] = st
-			}
+	var after *uuid.UUID
+	for {
+		q := db.POSOrder.Query().Where(preds...)
+		if after != nil {
+			q = q.Where(posorder.IDGT(*after))
 		}
-
-		// Attributed lines carry each line's void-adjusted quantity and its prorated share of
-		// the order's actual net total_amount (see AttributeOrderLines) — NOT raw
-		// quantity/total_price, which is what previously made this report disagree with
-		// Sales-by-Staff whenever an order had a void or a discount.
-		attributed := AttributeOrderLines(o)
-		for i, l := range o.Edges.Lines {
-			al := attributed[i]
-			stationID := l.KdsStationID
-			if stationID == nil {
-				stationID = orders.ResolveStationForLineOrFallback(l.Name, l.Category, nil, stations)
+		page, err := q.Order(ent.Asc(posorder.FieldID)).Limit(kdsBreakdownPage).WithLines().All(ctx)
+		if err != nil {
+			return nil, "", err
+		}
+		for _, o := range page {
+			if o.Currency != "" {
+				currency = o.Currency
 			}
-			if stationID == nil {
-				// A fully-voided line (activeQty 0) shouldn't count this order as having
-				// touched "Unassigned" — nothing active actually landed there.
+			stations := stationsByOutlet[o.OutletID]
+
+			// Attributed lines carry each line's void-adjusted quantity and its prorated share of
+			// the order's actual net total_amount (see AttributeOrderLines), not raw
+			// quantity/total_price, which made this report disagree with Sales-by-Staff whenever
+			// an order had a void or a discount.
+			attributed := AttributeOrderLines(o)
+			for i, l := range o.Edges.Lines {
+				al := attributed[i]
+				stationID := l.KdsStationID
+				if stationID == nil {
+					stationID = orders.ResolveStationForLineOrFallback(l.Name, l.Category, nil, stations)
+				}
+				if stationID == nil {
+					// A fully-voided line (activeQty 0) shouldn't count this order as having
+					// touched "Unassigned": nothing active actually landed there.
+					if al.Quantity > 0 {
+						unassigned.orderIDs[o.ID] = struct{}{}
+					}
+					unassigned.itemCount += al.Quantity
+					unassigned.revenue += al.Revenue
+					continue
+				}
+				b, ok := byStation[*stationID]
+				if !ok {
+					name, stype := "Unassigned", ""
+					if st := stationNameByID[*stationID]; st != nil {
+						name, stype = st.Name, string(st.StationType)
+					}
+					b = &bucket{name: name, stype: stype, orderIDs: map[uuid.UUID]struct{}{}}
+					byStation[*stationID] = b
+				}
+				// Same guard: a fully-voided line shouldn't inflate this station's order count.
 				if al.Quantity > 0 {
-					unassigned.orderIDs[o.ID] = struct{}{}
+					b.orderIDs[o.ID] = struct{}{}
 				}
-				unassigned.itemCount += al.Quantity
-				unassigned.revenue += al.Revenue
-				continue
+				b.itemCount += al.Quantity
+				b.revenue += al.Revenue
 			}
-			b, ok := byStation[*stationID]
-			if !ok {
-				name, stype := "Unassigned", ""
-				if st := stationNameByID[*stationID]; st != nil {
-					name, stype = st.Name, string(st.StationType)
-				}
-				b = &bucket{name: name, stype: stype, orderIDs: map[uuid.UUID]struct{}{}}
-				byStation[*stationID] = b
-			}
-			// Same guard: a fully-voided line shouldn't inflate this station's order count.
-			if al.Quantity > 0 {
-				b.orderIDs[o.ID] = struct{}{}
-			}
-			b.itemCount += al.Quantity
-			b.revenue += al.Revenue
 		}
+		if len(page) < kdsBreakdownPage {
+			break
+		}
+		last := page[len(page)-1].ID
+		after = &last
 	}
 
 	rows := make([]KDSStationBreakdownRow, 0, len(byStation)+1)
@@ -163,8 +190,11 @@ func computeKDSStationBreakdown(ctx context.Context, db *ent.Client, tid uuid.UU
 		})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Revenue > rows[j].Revenue })
-	return rows, nil
+	return rows, currency, nil
 }
+
+// kdsBreakdownPage is how many orders (with their lines) the station breakdown reads per page.
+const kdsBreakdownPage = 500
 
 // SalesByKDSStation handles GET /{tenantID}/pos/reports/sales/by-kds-station
 // Returns revenue, item count and order count grouped by KDS station (kitchen, bar, etc.) — the
@@ -179,7 +209,7 @@ func (h *ReportsHandler) SalesByKDSStation(w http.ResponseWriter, r *http.Reques
 	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 	oid := reportOutletScope(r)
 
-	rows, err := computeKDSStationBreakdown(r.Context(), h.db, tid, oid, from, to)
+	rows, _, err := computeKDSStationBreakdown(r.Context(), h.db, tid, oid, from, to)
 	if err != nil {
 		h.log.Error("by-kds-station query failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -201,24 +231,11 @@ func (h *ReportPDFHandler) SalesByKDSStationDoc(w http.ResponseWriter, r *http.R
 	oid := h.outletScope(r)
 	from, to := parseReportRange(r, requestTenantLocation(r, h.db))
 
-	rows, err := computeKDSStationBreakdown(ctx, h.db, tid, oid, from, to)
+	rows, currency, err := computeKDSStationBreakdown(ctx, h.db, tid, oid, from, to)
 	if err != nil {
 		h.log.Error("sales-by-kds-station: query failed", zap.Error(err))
 		jsonError(w, "failed to generate sales by KDS station", http.StatusInternalServerError)
 		return
-	}
-
-	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
-	// generated for one tenant's orders, which may not be KES. computeKDSStationBreakdown doesn't
-	// surface Currency on its aggregated rows, so resolve it from a lightweight second pass over
-	// the same tenant/outlet/date-range orders it queries internally.
-	currency := "KES"
-	if ordersForCurrency, cerr := h.completedOrders(ctx, tid, oid, from, to, false); cerr == nil {
-		for _, o := range ordersForCurrency {
-			if o.Currency != "" {
-				currency = o.Currency
-			}
-		}
 	}
 
 	var grandRevenue float64

@@ -120,96 +120,6 @@ func (h *KDSHandler) ListStations(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]any{"data": stations, "total": len(stations)})
 }
 
-// GetKitchenQueue handles GET /{tenantID}/pos/kds/kitchen
-// Returns pending/in_progress/ready tickets for kitchen stations.
-func (h *KDSHandler) GetKitchenQueue(w http.ResponseWriter, r *http.Request) {
-	h.getQueue(w, r, "kitchen")
-}
-
-// GetBarQueue handles GET /{tenantID}/pos/kds/bar
-// Returns pending/in_progress/ready tickets for bar stations.
-func (h *KDSHandler) GetBarQueue(w http.ResponseWriter, r *http.Request) {
-	h.getQueue(w, r, "bar")
-}
-
-func (h *KDSHandler) getQueue(w http.ResponseWriter, r *http.Request, stationType string) {
-	tid, err := parseTenantUUID(r)
-	if err != nil {
-		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
-		return
-	}
-
-	// Resolve which station_types are relevant for this queue endpoint.
-	// "kitchen" queue → kitchen + expo/all stations (expo sees everything)
-	// "bar" queue → bar + expo/all stations
-	targetTypes := []entkdsstation.StationType{
-		entkdsstation.StationType(stationType),
-		entkdsstation.StationTypeExpo,
-		entkdsstation.StationTypeAll,
-	}
-
-	stationQuery := h.client.KDSStation.Query().
-		Where(
-			entkdsstation.TenantID(tid),
-			entkdsstation.IsActive(true),
-			entkdsstation.StationTypeIn(targetTypes...),
-		)
-	// Scope to the active outlet so e.g. a quick-service KDS never sees a hospitality
-	// outlet's stations/tickets. Outlet comes from the X-Outlet-ID header.
-	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
-		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
-			stationQuery = stationQuery.Where(entkdsstation.OutletID(oid))
-		}
-	}
-	stations, err := stationQuery.All(r.Context())
-	if err != nil {
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	stationIDs := make([]uuid.UUID, 0, len(stations))
-	for _, s := range stations {
-		stationIDs = append(stationIDs, s.ID)
-	}
-
-	// No stations for this outlet/queue → no tickets. Returning early avoids leaking
-	// every tenant ticket when the station filter would otherwise be omitted.
-	if len(stationIDs) == 0 {
-		jsonOK(w, map[string]any{"data": []any{}, "total": 0})
-		return
-	}
-
-	activeStatuses := []entkdsticket.Status{
-		entkdsticket.StatusPending,
-		entkdsticket.StatusInProgress,
-		entkdsticket.StatusReady,
-	}
-
-	q := h.client.KDSTicket.Query().
-		Where(
-			entkdsticket.TenantID(tid),
-			entkdsticket.StatusIn(activeStatuses...),
-			entkdsticket.StationIDIn(stationIDs...),
-		).
-		WithStation().
-		Order(ent.Asc(entkdsticket.FieldPriority), ent.Asc(entkdsticket.FieldReceivedAt))
-
-	// Only show recent tickets so a board never fills up with stale ones that were never bumped
-	// (e.g. a printer-only kitchen with no device to serve them). Window is configurable via
-	// ?since_hours (default 24; 0 = no limit).
-	if cutoff, ok := kdsRecentCutoff(r); ok {
-		q = q.Where(entkdsticket.ReceivedAtGTE(cutoff))
-	}
-
-	tickets, err := q.All(r.Context())
-	if err != nil {
-		h.log.Error("get queue failed", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	jsonOK(w, map[string]any{"data": h.withOrderSource(r.Context(), tickets), "total": len(tickets)})
-}
-
 // kdsRecentCutoff returns the received-at cutoff for the KDS board. Defaults to the last 24h so
 // stale tickets don't accumulate forever; ?since_hours=N overrides it, and ?since_hours=0 disables
 // the window (show all). Returns (cutoff, apply).
@@ -227,7 +137,8 @@ func kdsRecentCutoff(r *http.Request) (time.Time, bool) {
 }
 
 // ListTickets handles GET /{tenantID}/pos/kds/tickets
-// Supports query params: station_id, status
+// Supports query params: station_id, status, since_hours. The board filters by channel and station
+// on the client from this one list, so every count it shows comes from the same rows.
 func (h *KDSHandler) ListTickets(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -237,7 +148,6 @@ func (h *KDSHandler) ListTickets(w http.ResponseWriter, r *http.Request) {
 
 	q := h.client.KDSTicket.Query().
 		Where(entkdsticket.TenantID(tid)).
-		WithStation().
 		Order(ent.Asc(entkdsticket.FieldPriority), ent.Asc(entkdsticket.FieldReceivedAt))
 
 	// Scope to the active outlet via the ticket's station (tickets have no outlet_id of
@@ -277,16 +187,6 @@ func (h *KDSHandler) ListTickets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	views := h.withOrderSource(r.Context(), tickets)
-	// ?order_source=online|pos narrows the board to one channel (the KDS "Online Orders" filter).
-	if src := r.URL.Query().Get("order_source"); src == "online" || src == "pos" {
-		filtered := views[:0]
-		for _, v := range views {
-			if v.OrderSource == src {
-				filtered = append(filtered, v)
-			}
-		}
-		views = filtered
-	}
 	jsonOK(w, map[string]any{"data": views, "total": len(views)})
 }
 

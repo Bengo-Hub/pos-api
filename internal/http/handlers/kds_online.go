@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"context"
-	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -11,18 +11,23 @@ import (
 	entkdsticket "github.com/bengobox/pos-service/internal/ent/kdsticket"
 	entorderlink "github.com/bengobox/pos-service/internal/ent/orderlink"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/modules/orderchannel"
 	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 )
 
 // kdsTicketView is a KDS ticket as the board renders it: the stored ticket plus where the order
-// came from ("pos" or "online") and a short label the kitchen reads at a glance ("Online pickup",
-// "Online delivery for Fri 18:30"). The ticket itself carries neither, so they are derived from the
-// order's online link and metadata in one batched lookup per list request.
+// came from ("pos" or "online"), its channel (dine_in, takeaway, delivery, room_service, bar_tab,
+// online_pickup, online_delivery, service_job) and a short label the kitchen reads at a glance
+// ("Table 5", "Online delivery for Fri 18:30"). The ticket carries none of these, so they are derived
+// from the order (orderchannel) in one batched lookup per list request. The board groups and filters
+// on channel only, so every count it shows comes from the same classification.
 type kdsTicketView struct {
 	*ent.KDSTicket
-	OrderSource string `json:"order_source"`
-	OrderLabel  string `json:"order_label,omitempty"`
-	OrderNotes  string `json:"order_notes,omitempty"`
+	OrderSource  string `json:"order_source"`
+	Channel      string `json:"channel"`
+	OrderLabel   string `json:"order_label,omitempty"`
+	OrderNotes   string `json:"order_notes,omitempty"`
+	CustomerName string `json:"customer_name,omitempty"`
 	// Job is set for services job orders (printing, garage, laundry): the production board shows
 	// the customer, due date, current stage, brief, attachments and payment position from it.
 	Job *kdsJobView `json:"job,omitempty"`
@@ -51,62 +56,94 @@ func (h *KDSHandler) withOrderSource(ctx context.Context, tickets []*ent.KDSTick
 			ids = append(ids, t.OrderID)
 		}
 	}
-	online := map[uuid.UUID]*ent.POSOrder{}
-	if links, err := h.client.OrderLink.Query().Where(entorderlink.OrderIDIn(ids...)).All(ctx); err == nil && len(links) > 0 {
-		linked := make([]uuid.UUID, 0, len(links))
-		for _, l := range links {
-			linked = append(linked, l.OrderID)
+	// One query for every order on the board, only the columns the view needs.
+	orders := map[uuid.UUID]*ent.POSOrder{}
+	if rows, err := h.client.POSOrder.Query().
+		Where(entposorder.IDIn(ids...)).
+		Select(
+			entposorder.FieldID, entposorder.FieldOrderSubtype, entposorder.FieldMetadata,
+			entposorder.FieldCustomerName, entposorder.FieldCustomerPhone,
+			entposorder.FieldTotalAmount, entposorder.FieldPaidTotal,
+		).
+		All(ctx); err == nil {
+		for _, o := range rows {
+			orders[o.ID] = o
 		}
-		if orders, oerr := h.client.POSOrder.Query().Where(entposorder.IDIn(linked...)).All(ctx); oerr == nil {
-			for _, o := range orders {
-				online[o.ID] = o
-			}
-		}
-	}
-	// Services job headers: one batched query restricted to service_job orders, so a kitchen
-	// board pays nothing extra.
-	jobs := map[uuid.UUID]*kdsJobView{}
-	if jobOrders, jerr := h.client.POSOrder.Query().
-		Where(entposorder.IDIn(ids...), entposorder.OrderSubtypeEQ(entposorder.OrderSubtypeServiceJob)).
-		All(ctx); jerr == nil {
-		for _, o := range jobOrders {
-			jv := &kdsJobView{TotalAmount: o.TotalAmount, PaidTotal: o.PaidTotal}
-			if o.CustomerName != nil {
-				jv.CustomerName = *o.CustomerName
-			}
-			if o.CustomerPhone != nil {
-				jv.CustomerPhone = *o.CustomerPhone
-			}
-			if d, ok := o.Metadata["job"].(map[string]any); ok {
-				jv.Details = d
-			}
-			jobs[o.ID] = jv
-		}
+	} else {
+		h.log.Warn("kds: order lookup for ticket view failed", zap.Error(err))
 	}
 	for _, t := range tickets {
-		v := kdsTicketView{KDSTicket: t, OrderSource: "pos", Job: jobs[t.OrderID]}
-		if o, ok := online[t.OrderID]; ok {
-			v.OrderSource = "online"
-			v.OrderLabel = onlineOrderLabel(o)
-			if n, _ := o.Metadata["order_notes"].(string); n != "" {
-				v.OrderNotes = n
-			}
-		}
-		out = append(out, v)
+		out = append(out, ticketView(t, orders[t.OrderID]))
 	}
 	return out
 }
 
-// onlineOrderLabel is the one-line channel label shown on an online ticket.
-func onlineOrderLabel(o *ent.POSOrder) string {
-	label := "Online pickup"
-	if ft, _ := o.Metadata["fulfillment_type"].(string); ft == "delivery" {
-		label = "Online delivery"
+// ticketView decorates one ticket from its order. A ticket whose order is gone still renders, from
+// the subtype stored on the ticket itself.
+func ticketView(t *ent.KDSTicket, o *ent.POSOrder) kdsTicketView {
+	subtype := t.OrderSubtype
+	var meta map[string]any
+	if o != nil {
+		subtype = string(o.OrderSubtype)
+		meta = o.Metadata
 	}
-	if at, _ := o.Metadata["scheduled_for_label"].(string); at != "" {
-		label = fmt.Sprintf("%s for %s", label, at)
+	channel := orderchannel.Of(subtype, meta)
+	v := kdsTicketView{
+		KDSTicket:   t,
+		OrderSource: orderchannel.Source(meta),
+		Channel:     string(channel),
+		OrderLabel:  ticketLabel(channel, t.TableReference, subtype, meta),
 	}
-	return label
+	if o == nil {
+		return v
+	}
+	if n, _ := meta["order_notes"].(string); n != "" {
+		v.OrderNotes = n
+	}
+	// The counter calls takeaway and online orders by name.
+	if channel.IsCounterHandover() && o.CustomerName != nil {
+		v.CustomerName = *o.CustomerName
+	}
+	// Services job orders: the production board shows customer, stage, due date and payment.
+	if channel == orderchannel.ServiceJob {
+		jv := &kdsJobView{TotalAmount: o.TotalAmount, PaidTotal: o.PaidTotal}
+		if o.CustomerName != nil {
+			jv.CustomerName = *o.CustomerName
+		}
+		if o.CustomerPhone != nil {
+			jv.CustomerPhone = *o.CustomerPhone
+		}
+		if d, ok := meta["job"].(map[string]any); ok {
+			jv.Details = d
+		}
+		v.Job = jv
+	}
+	return v
+}
+
+// ticketLabel is the one-line route label on a ticket: the online channel and promised time for
+// an online order, otherwise the table or room it goes to.
+func ticketLabel(channel orderchannel.Channel, tableRef, subtype string, meta map[string]any) string {
+	if label := orderchannel.OnlineLabel(subtype, meta); label != "" {
+		return label
+	}
+	ref := strings.TrimSpace(tableRef)
+	if ref == "" {
+		return ""
+	}
+	switch channel {
+	case orderchannel.DineIn, orderchannel.BarTab:
+		if strings.HasPrefix(strings.ToLower(ref), "table") {
+			return ref
+		}
+		return "Table " + ref
+	case orderchannel.RoomService:
+		if strings.HasPrefix(strings.ToLower(ref), "room") {
+			return ref
+		}
+		return "Room " + ref
+	}
+	return ref
 }
 
 // externalOrderID returns the online (ordering-backend) order id linked to a POS order, or "".

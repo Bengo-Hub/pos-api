@@ -943,6 +943,14 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{KdsTicketsColumns[2]},
 			},
+			{
+				Name:    "kdsticket_live_board",
+				Unique:  false,
+				Columns: []*schema.Column{KdsTicketsColumns[1], KdsTicketsColumns[8]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "status IN ('pending', 'in_progress', 'ready')",
+				},
+			},
 		},
 	}
 	// LayawayPaymentsColumns holds the columns for the "layaway_payments" table.

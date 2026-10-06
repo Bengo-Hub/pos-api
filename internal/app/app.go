@@ -587,18 +587,10 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
-	// Legacy ordering.order.for_pickup consumer — retained but now a no-op whenever an
-	// OrderLink already exists (the confirmed consumer is authoritative). Kept subscribed
-	// for backward compatibility with any still-publishing ordering-backend version.
-	pickupConsumer := ordermodule.NewPickupConsumer(entClient, orderSvc, log)
-	if natsConn != nil {
-		if eventPub := orderSvc.GetPublisher(); eventPub != nil {
-			pickupConsumer.SetPublisher(eventPub)
-		}
-		if err := pickupConsumer.SubscribeToPickupOrders(natsConn); err != nil {
-			log.Warn("app: failed to subscribe to ordering click-and-collect events", zap.Error(err))
-		}
-	}
+	// ordering.order.for_pickup is NOT consumed here: ordering publishes it when a pickup order
+	// is ready (it drives the customer's "ready for pickup" message), long after the confirmed
+	// consumer above created the POS record. Ingesting it again created a stripped duplicate
+	// order (no tax, dine-in subtype, no tickets) whenever the confirmed ingestion had failed.
 
 	// Wire KDS hub into order service and ordering subscriber so new tickets
 	// broadcast immediately to connected KDS WebSocket clients.

@@ -26,6 +26,7 @@ import (
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/bengobox/pos-service/internal/modules/documents"
 	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
+	"github.com/bengobox/pos-service/internal/modules/orderchannel"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/shorttoken"
@@ -1452,28 +1453,10 @@ func isHotBeverage(name, category string) bool {
 	return false
 }
 
-// createKDSTicketsForOrder creates per-station KDS tickets with only the items
-// relevant to each station. Items are routed via kds_station_id on the order line
-// (resolved from POSCatalogOverride at order creation) with a category_filter
-// keyword fallback. Expo/all stations receive every item as a secondary copy.
+// createKDSTicketsForOrder creates the order's first round of KDS tickets: one per station that has
+// items, never twice for the same order and station (acceptance, a status change to open and order
+// creation can all reach here for the same order).
 func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder) error {
-	// Printer-only kitchen: when the outlet has NO Kitchen Display System (enable_kds=false), do
-	// not create persistent KDS tickets. There's no screen/device to bump them, so they would pile
-	// up forever — the classic single-terminal + kitchen-printer setup. The kitchen works off the
-	// printed chit (auto_print_kitchen) and the order is served/settled from the POS terminal.
-	// (A missing settings row keeps the previous behaviour — create tickets.)
-	if setting, sErr := s.client.OutletSetting.Query().
-		Where(entoutletsetting.OutletID(order.OutletID)).Only(ctx); sErr == nil && !setting.EnableKds {
-		return nil
-	}
-
-	stations, err := s.client.KDSStation.Query().
-		Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
-		All(ctx)
-	if err != nil || len(stations) == 0 {
-		return nil
-	}
-
 	lines, err := s.client.POSOrderLine.Query().
 		Where(posorderline.OrderID(order.ID)).
 		WithModifiers().
@@ -1481,60 +1464,109 @@ func (s *Service) createKDSTicketsForOrder(ctx context.Context, tenantID uuid.UU
 	if err != nil {
 		return err
 	}
+	return s.issueKDSTickets(ctx, tenantID, order, lines, kdsIssue{firstRound: true})
+}
+
+// kdsIssue says which round of tickets is being issued for an order.
+type kdsIssue struct {
+	// firstRound tickets are deduplicated per order and station. Later rounds (items added to
+	// the bill, a fired course) always create new tickets so the station sees only the delta.
+	firstRound bool
+	// course is set when a held course is fired, so screens can label it.
+	course int
+}
+
+// kdsEnabledForOutlet reports whether the outlet runs a kitchen display. A printer-only kitchen
+// (enable_kds=false) gets no persistent tickets: there is no screen to bump them, so they would
+// pile up forever; the kitchen works off the printed chit and the order is settled at the till.
+// A missing settings row keeps tickets on.
+func (s *Service) kdsEnabledForOutlet(ctx context.Context, outletID uuid.UUID) bool {
+	setting, err := s.client.OutletSetting.Query().Where(entoutletsetting.OutletID(outletID)).Only(ctx)
+	return err != nil || setting.EnableKds
+}
+
+// issueKDSTickets is the single place KDS tickets are created. It routes the given lines to the
+// outlet's active stations (routeLinesToStations), stores one ticket per station that received
+// items, and pushes each new ticket to the outlet's live boards with the same payload whichever
+// path issued it (new order, items added to the bill, fired course).
+func (s *Service) issueKDSTickets(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, lines []*ent.POSOrderLine, opt kdsIssue) error {
+	if len(lines) == 0 || !s.kdsEnabledForOutlet(ctx, order.OutletID) {
+		return nil
+	}
+	stations, err := s.client.KDSStation.Query().
+		Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
+		Order(ent.Asc(kdsstation.FieldSortOrder)).
+		All(ctx)
+	if err != nil || len(stations) == 0 {
+		return err
+	}
 
 	stationItems := routeLinesToStations(lines, stations)
 	tableRef := parseTableRef(order)
-	orderSource := "pos"
-	if id, _ := order.Metadata["online_order_id"].(string); id != "" {
-		orderSource = "online"
+	subtype := string(order.OrderSubtype)
+	source := orderchannel.Source(order.Metadata)
+	channel := orderchannel.Of(subtype, order.Metadata)
+
+	// One round trip for the stations that already hold a ticket for this order.
+	ticketed := map[uuid.UUID]bool{}
+	if opt.firstRound {
+		existing, qErr := s.client.KDSTicket.Query().
+			Where(kdsticket.OrderID(order.ID)).
+			Select(kdsticket.FieldStationID).
+			Strings(ctx)
+		if qErr == nil {
+			for _, id := range existing {
+				if sid, pErr := uuid.Parse(id); pErr == nil {
+					ticketed[sid] = true
+				}
+			}
+		}
 	}
 
 	for _, station := range stations {
 		items := stationItems[station.ID]
-		if len(items) == 0 {
-			continue // no items for this station — skip
-		}
-		exists, _ := s.client.KDSTicket.Query().
-			Where(kdsticket.OrderID(order.ID), kdsticket.StationID(station.ID)).
-			Exist(ctx)
-		if exists {
+		if len(items) == 0 || ticketed[station.ID] {
 			continue
 		}
-		cc := s.client.KDSTicket.Create().
+		create := s.client.KDSTicket.Create().
 			SetTenantID(tenantID).
 			SetStationID(station.ID).
 			SetOrderID(order.ID).
 			SetOrderNumber(order.OrderNumber).
 			SetStatus(kdsticket.StatusPending).
-			SetOrderSubtype(string(order.OrderSubtype)).
+			SetOrderSubtype(subtype).
 			SetItems(items)
 		if tableRef != "" {
-			cc = cc.SetTableReference(tableRef)
+			create = create.SetTableReference(tableRef)
 		}
-		ticket, err := cc.Save(ctx)
-		if err != nil {
-			s.log.Warn("kds: failed to create ticket for pos order",
+		ticket, cErr := create.Save(ctx)
+		if cErr != nil {
+			s.log.Warn("kds: ticket creation failed",
 				zap.String("order_id", order.ID.String()),
 				zap.String("station_id", station.ID.String()),
-				zap.Error(err))
+				zap.Int("course", opt.course),
+				zap.Error(cErr))
 			continue
 		}
-		if s.kdsHub != nil {
-			s.kdsHub.BroadcastToOutlet(order.TenantID, order.OutletID, kdsmod.Message{
-				Type: "ticket_created",
-				Payload: map[string]any{
-					"ticket_id":       ticket.ID,
-					"order_id":        order.ID,
-					"order_number":    order.OrderNumber,
-					"station_id":      station.ID,
-					"table_reference": tableRef,
-					"status":          string(kdsticket.StatusPending),
-					"items":           items,
-					"order_subtype":   string(order.OrderSubtype),
-					"order_source":    orderSource,
-				},
-			})
+		if s.kdsHub == nil {
+			continue
 		}
+		payload := map[string]any{
+			"ticket_id":       ticket.ID,
+			"order_id":        order.ID,
+			"order_number":    order.OrderNumber,
+			"station_id":      station.ID,
+			"table_reference": tableRef,
+			"status":          string(kdsticket.StatusPending),
+			"items":           items,
+			"order_subtype":   subtype,
+			"order_source":    source,
+			"channel":         string(channel),
+		}
+		if opt.course > 0 {
+			payload["course"] = opt.course
+		}
+		s.kdsHub.BroadcastToOutlet(tenantID, order.OutletID, kdsmod.Message{Type: "ticket_created", Payload: payload})
 	}
 	return nil
 }
@@ -2601,53 +2633,7 @@ func (s *Service) UpdateSaleInfo(ctx context.Context, tenantID, orderID uuid.UUI
 // createKDSTicketsForNewLines creates KDS tickets for a specific subset of lines
 // (used when adding items to an existing bill — always creates new tickets, never deduplicates).
 func (s *Service) createKDSTicketsForNewLines(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, newLines []*ent.POSOrderLine) error {
-	stations, err := s.client.KDSStation.Query().
-		Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
-		All(ctx)
-	if err != nil || len(stations) == 0 {
-		return nil
-	}
-
-	stationItems := routeLinesToStations(newLines, stations)
-	tableRef := parseTableRef(order)
-
-	for _, station := range stations {
-		items := stationItems[station.ID]
-		if len(items) == 0 {
-			continue
-		}
-		ticket, tErr := s.client.KDSTicket.Create().
-			SetTenantID(tenantID).
-			SetStationID(station.ID).
-			SetOrderID(order.ID).
-			SetOrderNumber(order.OrderNumber).
-			SetStatus(kdsticket.StatusPending).
-			SetOrderSubtype(string(order.OrderSubtype)).
-			SetItems(items).
-			SetTableReference(tableRef).
-			Save(ctx)
-		if tErr != nil {
-			s.log.Warn("kds: add-lines ticket creation failed",
-				zap.String("order_id", order.ID.String()),
-				zap.Error(tErr))
-			continue
-		}
-		if s.kdsHub != nil {
-			s.kdsHub.BroadcastToOutlet(tenantID, order.OutletID, kdsmod.Message{
-				Type: "ticket_created",
-				Payload: map[string]any{
-					"ticket_id":       ticket.ID,
-					"order_id":        order.ID,
-					"order_number":    order.OrderNumber,
-					"station_id":      station.ID,
-					"table_reference": tableRef,
-					"status":          string(kdsticket.StatusPending),
-					"items":           items,
-				},
-			})
-		}
-	}
-	return nil
+	return s.issueKDSTickets(ctx, tenantID, order, newLines, kdsIssue{})
 }
 
 // FireCourseKDS creates KDS tickets for order lines with course_number == course,
@@ -2664,53 +2650,8 @@ func (s *Service) FireCourseKDS(ctx context.Context, tenantID uuid.UUID, order *
 		return nil
 	}
 
-	stations, err := s.client.KDSStation.Query().
-		Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
-		All(ctx)
-	if err != nil || len(stations) == 0 {
+	if err := s.issueKDSTickets(ctx, tenantID, order, courseLines, kdsIssue{course: course}); err != nil {
 		return err
-	}
-
-	stationItems := routeLinesToStations(courseLines, stations)
-	tableRef := parseTableRef(order)
-
-	for _, station := range stations {
-		items := stationItems[station.ID]
-		if len(items) == 0 {
-			continue
-		}
-		ticket, err := s.client.KDSTicket.Create().
-			SetTenantID(tenantID).
-			SetStationID(station.ID).
-			SetOrderID(order.ID).
-			SetOrderNumber(order.OrderNumber).
-			SetStatus(kdsticket.StatusPending).
-			SetOrderSubtype(string(order.OrderSubtype)).
-			SetItems(items).
-			SetTableReference(tableRef).
-			Save(ctx)
-		if err != nil {
-			s.log.Warn("kds: fire-course ticket creation failed",
-				zap.String("order_id", order.ID.String()),
-				zap.Int("course", course),
-				zap.Error(err))
-			continue
-		}
-		if s.kdsHub != nil {
-			s.kdsHub.BroadcastToOutlet(tenantID, order.OutletID, kdsmod.Message{
-				Type: "ticket_created",
-				Payload: map[string]any{
-					"ticket_id":       ticket.ID,
-					"order_id":        order.ID,
-					"order_number":    order.OrderNumber,
-					"station_id":      station.ID,
-					"table_reference": tableRef,
-					"course":          course,
-					"status":          string(kdsticket.StatusPending),
-					"items":           items,
-				},
-			})
-		}
 	}
 	// Printer-only stations get the fired course as a delta chit too (same gap as
 	// add-to-bill: KDS screens got the ticket, paper kitchens got nothing). A re-fire

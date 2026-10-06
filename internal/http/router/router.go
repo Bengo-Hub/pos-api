@@ -874,8 +874,6 @@ func New(
 							k.Put("/kds/stations/{id}", kds.UpdateStation)
 							k.Delete("/kds/stations/{id}", kds.DeleteStation)
 							k.Get("/kds/stream", kds.StreamKDS)
-							k.Get("/kds/kitchen", kds.GetKitchenQueue)
-							k.Get("/kds/bar", kds.GetBarQueue)
 							k.Get("/kds/tickets", kds.ListTickets)
 							k.Post("/kds/tickets/{id}/start", kds.StartTicket)
 							k.Post("/kds/tickets/{id}/ready", kds.ReadyTicket)

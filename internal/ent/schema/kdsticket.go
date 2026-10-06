@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
@@ -46,5 +47,11 @@ func (KDSTicket) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id", "station_id", "status"),
 		index.Fields("order_id"),
+		// The live board (polled every few seconds by each screen) reads only active tickets for a
+		// tenant inside a recency window. Served and voided tickets are kept for reports, so a
+		// partial index keeps that read the size of the live board, not the ticket history.
+		index.Fields("tenant_id", "received_at").
+			StorageKey("kdsticket_live_board").
+			Annotations(entsql.IndexWhere("status IN ('pending', 'in_progress', 'ready')")),
 	}
 }

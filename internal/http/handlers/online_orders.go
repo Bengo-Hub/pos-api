@@ -17,7 +17,6 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 
 	"github.com/bengobox/pos-service/internal/ent"
-	entkdsticket "github.com/bengobox/pos-service/internal/ent/kdsticket"
 	entorderlink "github.com/bengobox/pos-service/internal/ent/orderlink"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	entpospayment "github.com/bengobox/pos-service/internal/ent/pospayment"
@@ -311,6 +310,12 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 	if meta == nil {
 		meta = map[string]any{}
 	}
+	// A double tap or a retried request must not hand the order over twice: that would publish a
+	// second collected/delivered event and could record the same cash again.
+	if collected, _ := meta["collected"].(bool); collected {
+		jsonOK(w, order)
+		return
+	}
 	external := h.externalOrderID(r, oid)
 	isOnline := external != ""
 	isDelivery := string(order.OrderSubtype) == "delivery"
@@ -381,22 +386,9 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Serve any still-active KDS tickets so they drop off the kitchen display.
-	now := time.Now()
-	if _, terr := h.db.KDSTicket.Update().
-		Where(
-			entkdsticket.TenantID(tid),
-			entkdsticket.OrderID(oid),
-			entkdsticket.StatusIn(
-				entkdsticket.StatusPending,
-				entkdsticket.StatusInProgress,
-				entkdsticket.StatusReady,
-			),
-		).
-		SetStatus(entkdsticket.StatusServed).
-		SetCompletedAt(now).
-		Save(r.Context()); terr != nil {
-		h.log.Warn("mark-collected: failed to serve KDS tickets", zap.Error(terr), zap.Stringer("order_id", oid))
+	// Serve any still-active KDS tickets so they drop off every kitchen display on the outlet.
+	if h.releaser != nil {
+		h.releaser.AutoClearKDSTicketsForOrder(r.Context(), tid, oid)
 	}
 
 	if isOnline && h.publisher != nil {
@@ -520,16 +512,8 @@ func (h *OnlineOrderHandler) Reject(w http.ResponseWriter, r *http.Request) {
 		jsonOK(w, map[string]any{"status": "cancelled", "order_id": oid.String()})
 		return
 	}
-	if _, terr := h.db.KDSTicket.Update().
-		Where(
-			entkdsticket.TenantID(tid),
-			entkdsticket.OrderID(oid),
-			entkdsticket.StatusIn(entkdsticket.StatusPending, entkdsticket.StatusInProgress, entkdsticket.StatusReady),
-		).
-		SetStatus(entkdsticket.StatusVoided).
-		SetCompletedAt(time.Now()).
-		Save(r.Context()); terr != nil {
-		h.log.Warn("reject online order: failed to void KDS tickets", zap.Error(terr))
+	if h.releaser != nil {
+		h.releaser.VoidKDSTicketsForOrder(r.Context(), tid, oid)
 	}
 	jsonOK(w, updated)
 }

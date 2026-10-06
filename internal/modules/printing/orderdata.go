@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/modules/orderchannel"
 )
 
 // receiptLocation resolves the outlet's display timezone for receipt timestamps (schema default
@@ -135,12 +136,14 @@ func OnlineOrderBanner(order *ent.POSOrder) string {
 	if order == nil || order.Metadata == nil {
 		return ""
 	}
-	if id, _ := order.Metadata["online_order_id"].(string); id == "" {
-		return ""
-	}
-	label := "ONLINE PICKUP"
-	if ft, _ := order.Metadata["fulfillment_type"].(string); ft == "delivery" {
+	var label string
+	switch orderchannel.Of(string(order.OrderSubtype), order.Metadata) {
+	case orderchannel.OnlinePickup:
+		label = "ONLINE PICKUP"
+	case orderchannel.OnlineDelivery:
 		label = "ONLINE DELIVERY"
+	default:
+		return ""
 	}
 	if at, _ := order.Metadata["scheduled_for_label"].(string); at != "" {
 		label += " FOR " + at
