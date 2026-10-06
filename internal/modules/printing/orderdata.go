@@ -90,16 +90,51 @@ func StationTicketData(order *ent.POSOrder, stationLabel string, items []map[str
 		tableRef = v
 	}
 
+	orderType, details := StationOrderLabel(order)
 	return ReceiptData{
-		Type:        "kitchen_ticket",
-		OutletName:  stationLabel,
-		OrderNumber: order.OrderNumber,
-		TableRef:    tableRef,
-		DateTime:    order.CreatedAt,
-		Header:      stationLabel,
-		Items:       ri,
-		Banner:      OnlineOrderBanner(order),
+		Type:          "kitchen_ticket",
+		OutletName:    stationLabel,
+		OrderNumber:   order.OrderNumber,
+		TableRef:      tableRef,
+		DateTime:      order.CreatedAt,
+		Header:        stationLabel,
+		Items:         ri,
+		OrderType:     orderType,
+		TicketDetails: details,
 	}
+}
+
+// StationOrderLabel is what a kitchen/bar chit says about the order beyond its items: the route in
+// capitals ("DINE-IN", "TAKEAWAY", "DELIVERY", "ONLINE PICKUP", "ONLINE DELIVERY") and detail lines
+// for the source (POS till or online store with its number), the customer to call for a counter
+// handover, a promised time and the order note. It uses orderchannel, the same classification as the
+// KDS board, so the screen and the paper always agree.
+func StationOrderLabel(order *ent.POSOrder) (string, []string) {
+	if order == nil {
+		return "", nil
+	}
+	meta := order.Metadata
+	channel := orderchannel.Of(string(order.OrderSubtype), meta)
+	details := []string{}
+	if orderchannel.IsOnline(meta) {
+		src := "Source:  Online store"
+		if no, _ := meta["online_order_no"].(string); strings.TrimSpace(no) != "" {
+			src += " #" + strings.TrimSpace(no)
+		}
+		details = append(details, src)
+	} else {
+		details = append(details, "Source:  POS")
+	}
+	if channel.IsCounterHandover() && order.CustomerName != nil && strings.TrimSpace(*order.CustomerName) != "" {
+		details = append(details, "For:     "+strings.TrimSpace(*order.CustomerName))
+	}
+	if at, _ := meta["scheduled_for_label"].(string); strings.TrimSpace(at) != "" {
+		details = append(details, "Ready by: "+strings.TrimSpace(at))
+	}
+	if notes, _ := meta["order_notes"].(string); strings.TrimSpace(notes) != "" {
+		details = append(details, "Note:    "+strings.TrimSpace(notes))
+	}
+	return strings.ToUpper(channel.Label()), details
 }
 
 // stationItemNotes flattens a station item's modifiers and notes into the single "*" line the
@@ -128,35 +163,9 @@ func stationItemNotes(it map[string]any) string {
 	return strings.Join(parts, " | ")
 }
 
-// OnlineOrderBanner is the attention line for an order that came from the online store, so the
-// kitchen packs it for collection or a rider rather than plating it for a table:
-// "ONLINE PICKUP", "ONLINE DELIVERY", plus the promised time for a scheduled order and the
-// customer's order notes. Empty for POS-native orders.
-func OnlineOrderBanner(order *ent.POSOrder) string {
-	if order == nil || order.Metadata == nil {
-		return ""
-	}
-	var label string
-	switch orderchannel.Of(string(order.OrderSubtype), order.Metadata) {
-	case orderchannel.OnlinePickup:
-		label = "ONLINE PICKUP"
-	case orderchannel.OnlineDelivery:
-		label = "ONLINE DELIVERY"
-	default:
-		return ""
-	}
-	if at, _ := order.Metadata["scheduled_for_label"].(string); at != "" {
-		label += " FOR " + at
-	}
-	if notes, _ := order.Metadata["order_notes"].(string); strings.TrimSpace(notes) != "" {
-		label += " | " + strings.TrimSpace(notes)
-	}
-	return "*** " + label + " ***"
-}
-
 // StationTicketDataWithBanner is StationTicketData plus an attention banner (e.g.
-// "*** ADDITIONAL ITEMS ***") for delta chits — items added to an already-fired
-// order — so the station never re-prepares the whole bill.
+// "*** ADDITIONAL ITEMS ***") for delta chits, items added to an already-fired order, so the
+// station never re-prepares the whole bill. The order-type line still prints above it.
 func StationTicketDataWithBanner(order *ent.POSOrder, stationLabel string, items []map[string]any, banner string) ReceiptData {
 	d := StationTicketData(order, stationLabel, items)
 	if banner != "" {

@@ -73,6 +73,26 @@ func (c Channel) IsCounterHandover() bool {
 	return false
 }
 
+var labels = map[Channel]string{
+	DineIn:         "Dine-in",
+	Takeaway:       "Takeaway",
+	Delivery:       "Delivery",
+	RoomService:    "Room service",
+	BarTab:         "Bar tab",
+	Retail:         "Retail",
+	ServiceJob:     "Job",
+	OnlinePickup:   "Online pickup",
+	OnlineDelivery: "Online delivery",
+}
+
+// Label is the channel's display name; pos-ui's KDS chips (lib/kds/board.ts) use the same words.
+func (c Channel) Label() string {
+	if l, ok := labels[c]; ok {
+		return l
+	}
+	return string(c)
+}
+
 // OnlineLabel is the short line a kitchen reads on an online order ("Online pickup", "Online
 // delivery for Fri 18:30"). Empty for orders that did not come from the online store.
 func OnlineLabel(subtype string, meta map[string]any) string {

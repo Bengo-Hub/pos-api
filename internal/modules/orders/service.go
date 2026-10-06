@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	entmodifier "github.com/bengobox/pos-service/internal/ent/modifier"
 	entmodifiergroup "github.com/bengobox/pos-service/internal/ent/modifiergroup"
+	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
@@ -27,6 +28,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/documents"
 	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
 	"github.com/bengobox/pos-service/internal/modules/orderchannel"
+	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/shorttoken"
@@ -623,6 +625,35 @@ func (s *Service) outletCurrency(ctx context.Context, outletID uuid.UUID) string
 	return s.defaultCurrency
 }
 
+// outletUseCase returns the outlet's raw use case ("" when unknown, which outletpolicy treats as
+// retail).
+func (s *Service) outletUseCase(ctx context.Context, outletID uuid.UUID) string {
+	o, err := s.client.Outlet.Query().Where(entoutlet.ID(outletID)).Select(entoutlet.FieldUseCase).Only(ctx)
+	if err != nil || o.UseCase == nil {
+		return ""
+	}
+	return *o.UseCase
+}
+
+// orderWorkflow is the single per-use-case decision of where an order goes when it is placed or
+// released (kitchen, production board, pickup or delivery queue); see outletpolicy.WorkflowFor.
+func (s *Service) orderWorkflow(ctx context.Context, outletID uuid.UUID, subtype string) outletpolicy.OrderWorkflow {
+	return outletpolicy.WorkflowFor(s.outletUseCase(ctx, outletID), subtype)
+}
+
+// routeNewOrder sends an order that just went live to its boards and printers, per its workflow:
+// kitchen orders get KDS tickets and kitchen/bar chits, services jobs get production tickets,
+// and pickup/delivery orders at a shop go straight to the counter queue (the customer bill still
+// prints when the outlet auto-prints orders, as the pick list).
+func (s *Service) routeNewOrder(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, wf outletpolicy.OrderWorkflow) {
+	if wf.Kitchen || wf.Production {
+		_ = s.createKDSTicketsForOrder(ctx, tenantID, order)
+	}
+	if wf.OpenOnCreate {
+		s.enqueueAutoPrintJobs(ctx, tenantID, order, wf.Kitchen || wf.Production)
+	}
+}
+
 // calculateTotalsWithTaxes computes order totals from per-line tax resolutions, mirroring the
 // till's cart math exactly (pos-ui src/lib/pos/cart-tax.ts): subtotal is the gross rung-up
 // amount; TaxTotal is only the tax ADDED on top (exclusive lines, including the ones that only
@@ -680,21 +711,6 @@ func (s *Service) GenerateOrderNumberCtx(ctx context.Context, tenantID uuid.UUID
 // DefaultCurrency returns the configured default currency.
 func (s *Service) DefaultCurrency() string {
 	return s.defaultCurrency
-}
-
-// isTicketedSubtype reports whether an order subtype is routed to a board (a kitchen/bar KDS
-// ticket, or a production-board ticket for a services job) the instant it's placed, as opposed to
-// plain retail. CreateOrder uses this to decide the
-// initial status (open vs. draft); AddOrderLines uses it to decide whether a still-draft order
-// gets re-opened when items are added — a retail order must stay "draft" until actually checked
-// out (see CreateOrder's own comment), since "open" is treated as a committed, reportable sale
-// everywhere else (NonCommittedStatus, All-Sales due/outstanding totals).
-func isTicketedSubtype(subtype string) bool {
-	switch subtype {
-	case "dine_in", "takeaway", "room_service", "bar_tab", "delivery", "service_job":
-		return true
-	}
-	return false
 }
 
 // CreateOrder creates a new POS order with proper tax/discount calculation.
@@ -803,10 +819,11 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	// the Save-as-Draft flows send it here, so normalize it to retail (retail orders start
 	// in draft status anyway, see initialStatus below). Anything else outside the enum is a
 	// client error, surfaced as ErrInvalidOrderSubtype instead of a 500 from Ent validation.
+	useCase := s.outletUseCase(ctx, req.OutletID)
 	subtype := strings.ToLower(strings.TrimSpace(req.OrderSubtype))
 	switch {
 	case subtype == "":
-		subtype = "dine_in"
+		subtype = outletpolicy.DefaultOrderSubtype(useCase)
 	case subtype == "draft":
 		subtype = "retail"
 	default:
@@ -867,13 +884,12 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		}
 	}()
 
-	// Kitchen-routed subtypes are opened immediately so the kitchen receives a KDS ticket as
-	// soon as the order is placed. This includes DELIVERY and TAKEAWAY: both need the kitchen to
-	// prepare the food (delivery is then dispatched to a rider, takeaway is packed for pickup).
-	// Only "retail" (non-prepared goods) stays a draft until paid.
+	// The outlet's use case and the subtype decide where the order goes (outletpolicy.WorkflowFor):
+	// kitchen orders and services jobs open at once onto their boards, shop collect/delivery orders
+	// open straight into the counter queue, and a plain counter sale stays a draft until paid.
 	initialStatus := StatusDraft
-	isHospitalityOrder := isTicketedSubtype(subtype)
-	if isHospitalityOrder {
+	workflow := outletpolicy.WorkflowFor(useCase, subtype)
+	if workflow.OpenOnCreate {
 		initialStatus = StatusOpen
 	}
 	if req.HoldForAcceptance {
@@ -1085,13 +1101,11 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		})
 	}
 
-	// For hospitality orders that were auto-opened, create KDS tickets immediately. An order held
-	// for acceptance gets them when it is accepted (ReleaseHeldOrder).
-	if isHospitalityOrder && !req.HoldForAcceptance {
-		_ = s.createKDSTicketsForOrder(ctx, req.TenantID, result)
-		// Background printing (AccuPOS model): enqueue kitchen/bar tickets + customer bill for the
-		// outlet's Local Print Agent so the till never blocks on (or re-does) printing.
-		s.enqueueAutoPrintJobs(ctx, req.TenantID, result)
+	// A live order goes to its boards and printers now; an order held for acceptance goes when it
+	// is accepted (ReleaseHeldOrder). Printing is queued for the outlet's Local Print Agent so the
+	// till never blocks on it.
+	if !req.HoldForAcceptance {
+		s.routeNewOrder(ctx, req.TenantID, result, workflow)
 	}
 
 	return result, nil
@@ -1113,10 +1127,7 @@ func (s *Service) ReleaseHeldOrder(ctx context.Context, tenantID, orderID uuid.U
 	if err != nil {
 		return true
 	}
-	if isTicketedSubtype(string(order.OrderSubtype)) {
-		_ = s.createKDSTicketsForOrder(ctx, tenantID, order)
-		s.enqueueAutoPrintJobs(ctx, tenantID, order)
-	}
+	s.routeNewOrder(ctx, tenantID, order, s.orderWorkflow(ctx, order.OutletID, string(order.OrderSubtype)))
 	s.log.Info("held online order accepted and released to the kitchen",
 		zap.String("order_id", orderID.String()), zap.String("order_number", order.OrderNumber))
 	return true
@@ -1491,6 +1502,11 @@ func (s *Service) kdsEnabledForOutlet(ctx context.Context, outletID uuid.UUID) b
 // path issued it (new order, items added to the bill, fired course).
 func (s *Service) issueKDSTickets(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, lines []*ent.POSOrderLine, opt kdsIssue) error {
 	if len(lines) == 0 || !s.kdsEnabledForOutlet(ctx, order.OutletID) {
+		return nil
+	}
+	// Only kitchen orders and services jobs have a board; a shop's collect or delivery order is
+	// handed over from the counter queue, whatever path tried to ticket it.
+	if wf := s.orderWorkflow(ctx, order.OutletID, string(order.OrderSubtype)); !wf.Kitchen && !wf.Production {
 		return nil
 	}
 	stations, err := s.client.KDSStation.Query().
@@ -2143,7 +2159,8 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 	// outstanding sale (confirmed live: order 000278, a still-uncompleted retail cart, showed
 	// "Outstanding: 215,000" and offered Record Payment, which correctly rejected it since no
 	// credit sale was ever actually finalized).
-	if order.Status == StatusPendingPayment || (order.Status == StatusDraft && isTicketedSubtype(string(order.OrderSubtype))) {
+	if order.Status == StatusPendingPayment ||
+		(order.Status == StatusDraft && s.orderWorkflow(ctx, order.OutletID, string(order.OrderSubtype)).OpenOnCreate) {
 		upd = upd.SetStatus(StatusOpen)
 	}
 	if _, err = upd.Save(ctx); err != nil {

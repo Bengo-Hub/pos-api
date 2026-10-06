@@ -80,6 +80,12 @@ type ReceiptData struct {
 	// "*** ADDITIONAL ITEMS ***" on a delta kitchen chit fired when a waiter adds
 	// to an open bill, so the kitchen never mistakes it for a brand-new order.
 	Banner         string
+	// OrderType is the station chit's route line ("TAKEAWAY", "ONLINE DELIVERY", "DINE-IN"),
+	// printed large on every kitchen/bar chit so the pass knows how to pack it.
+	OrderType string
+	// TicketDetails are extra kitchen-chit lines under the order meta: where the order came from,
+	// who to call for a counter handover, a promised time and the customer's order note.
+	TicketDetails  []string
 	ProviderFooter ProviderFooter // platform-owner (Codevertex) advertisement, customer receipts only
 	// ShowProviderFooter gates whether ProviderFooter prints at all — platform default (ON) with
 	// an optional per-tenant override (see modules/providerfooter.Resolve).
@@ -154,6 +160,11 @@ func BuildReceipt(d ReceiptData) []byte {
 		write(escCenter)
 		write(escBold)
 		writeln("** KITCHEN **")
+		if d.OrderType != "" {
+			write(escDoubleHW)
+			writeln(d.OrderType)
+			write(escSizeReset)
+		}
 		if d.Banner != "" {
 			// Double-size so a delta chit ("ADDITIONAL ITEMS") is unmissable at the pass.
 			write(escDoubleHW)
@@ -188,6 +199,11 @@ func BuildReceipt(d ReceiptData) []byte {
 	writeln(fmt.Sprintf("Time:    %s", d.DateTime.Format("02 Jan 2006 15:04")))
 	if d.ServedBy != "" && d.Type != "kitchen_ticket" {
 		writeln(fmt.Sprintf("Server:  %s", d.ServedBy))
+	}
+	if d.Type == "kitchen_ticket" {
+		for _, line := range d.TicketDetails {
+			writeln(line)
+		}
 	}
 	separator()
 

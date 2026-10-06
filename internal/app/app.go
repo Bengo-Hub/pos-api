@@ -606,6 +606,7 @@ func New(ctx context.Context) (*App, error) {
 
 	kdsOrderingSubscriber := ordermodule.NewKDSOrderingSubscriber(entClient, log)
 	kdsOrderingSubscriber.SetKDSHub(kdsHandler.Hub())
+	kdsOrderingSubscriber.SetOrderService(orderSvc)
 	kdsOrderingSubscriber.SetFeatureGate(consumerFeatureGate)
 	if natsConn != nil {
 		if eventPub := orderSvc.GetPublisher(); eventPub != nil {

@@ -27,7 +27,10 @@ import (
 //
 // Dedupe keys make this idempotent per (order, ticket, printer) so a retried create/replayed
 // offline sale never double-prints.
-func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder) {
+//
+// stationChits is false for orders that never go to a kitchen (a shop's collect or delivery
+// order): only the customer bill prints, as the counter's pick list.
+func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, stationChits bool) {
 	if s.printQueue == nil || order == nil {
 		return
 	}
@@ -44,7 +47,8 @@ func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, 
 	if err != nil || setting == nil {
 		return
 	}
-	if !setting.AutoPrintKitchen && !setting.AutoPrintOrder {
+	printChits := stationChits && setting.AutoPrintKitchen
+	if !printChits && !setting.AutoPrintOrder {
 		return
 	}
 
@@ -58,7 +62,7 @@ func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, 
 	}
 
 	// Kitchen/bar station tickets — same routing as KDS tickets.
-	if setting.AutoPrintKitchen {
+	if printChits {
 		s.enqueueStationTickets(ctx, tenantID, order, profiles, lines, "", "")
 	}
 
@@ -131,6 +135,9 @@ func (s *Service) enqueueStationTicketsForLines(ctx context.Context, tenantID uu
 		return
 	}
 	if !s.printQueue.AgentOnline(ctx, tenantID, order.OutletID) {
+		return
+	}
+	if wf := s.orderWorkflow(ctx, order.OutletID, string(order.OrderSubtype)); !wf.Kitchen && !wf.Production {
 		return
 	}
 	setting, err := s.client.OutletSetting.Query().

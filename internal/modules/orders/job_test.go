@@ -20,13 +20,13 @@ func printingProfile(t *testing.T) *outletpolicy.ServiceProfile {
 }
 
 func TestServiceJobIsTicketedAndValid(t *testing.T) {
-	if !isTicketedSubtype(SubtypeServiceJob) {
+	if wf := outletpolicy.WorkflowFor(outletpolicy.UseCaseServices, SubtypeServiceJob); !wf.OpenOnCreate || !wf.Production {
 		t.Fatal("service_job must open with production tickets")
 	}
 	if _, ok := validOrderSubtypes[SubtypeServiceJob]; !ok {
 		t.Fatal("service_job must be an accepted order subtype")
 	}
-	if isTicketedSubtype("retail") {
+	if outletpolicy.WorkflowFor(outletpolicy.UseCaseServices, "retail").OpenOnCreate {
 		t.Fatal("retail must stay a draft until paid")
 	}
 }
