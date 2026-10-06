@@ -305,6 +305,20 @@ The full cross-service flow is in shared-docs `docs/architecture/online-order-fu
 - **Progress back to ordering.** First KDS Start publishes `pos.online_order.preparing`; all tickets ready, or the queue's Ready, publishes `pos.kds.order.ready`; handover publishes `pos.online_order.collected` (pickup) or `pos.online_order.delivered` (own-staff delivery).
 - **Lifecycle from ordering.** Cancellations, out for delivery and delivered/completed are mirrored onto the POS copy (`ordering_lifecycle.go`) and close its open tickets.
 
+**Workflow per use case.** `outletpolicy.WorkflowFor(useCase, subtype)` decides where an order goes, for till and online orders alike:
+
+| Outlet use case | Order | Goes to |
+|---|---|---|
+| hospitality, quick service | dine-in, takeaway, delivery, room service, bar tab | opens at once; KDS tickets on the routed stations and kitchen/bar chits; takeaway and delivery then wait in the pickup or delivery queue |
+| retail, services (goods) | takeaway (collect), delivery | opens at once straight into the pickup or delivery queue; no kitchen ticket or chit; the customer bill prints as the pick list when the outlet auto-prints orders |
+| any | counter sale (`retail`) | stays a draft until paid |
+| services | `service_job` | opens onto the production board |
+| services | online booking | an appointment, never a POS order |
+
+Ticket issuing, held-order release, add-to-draft, delta chits and the ordering status subscriber all go through it, so a shop order cannot reach a kitchen by any path.
+
+**Chit labels.** Every kitchen/bar chit (print agent and till alike) prints the order type large (DINE-IN, TAKEAWAY, DELIVERY, ROOM SERVICE, BAR TAB, ONLINE PICKUP, ONLINE DELIVERY) and the source (POS, or the online store with its order number), the customer to call for a counter handover, a promised time and the order note. Added-items and course chits keep the order type under their banner. Server: `printing.StationOrderLabel`; till: `chitLabelFor` in pos-ui `src/lib/kds/board.ts`.
+
 ### 3.3 Till deliveries and logistics
 
 A delivery order rung up at the till is dispatched from the POS queue (`assign-rider`, `dispatch-delivery`) straight to logistics-api with `source_service = pos`, the POS order id as `external_reference`, the outlet as pickup point and the unpaid balance as `metadata.cash_on_delivery`. `LogisticsDeliverySubscriber` (`logistics_delivery.go`) consumes `logistics.task.*` and stores the rider's progress in `metadata.dispatch_status` (`dispatched`, `rider_assigned`, `rider_arriving`, `out_for_delivery`, `delivered`, `delivery_failed`, `dispatch_cancelled`) with the rider's name and phone. Progress never moves backwards; a failed or cancelled dispatch clears `logistics_task_id` so the order can be sent again. A delivered order closes only when the till already holds full payment; otherwise it waits on the queue with the cash the rider collected (`cod_*` metadata) until the cashier settles it.
