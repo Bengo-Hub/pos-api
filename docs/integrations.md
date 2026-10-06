@@ -295,34 +295,21 @@ ordering-backend subscribes and updates its storefront projection.
 
 **Status:** ✅ Event published on catalog write operations.
 
-### 3.2 Online Order → KDS Ticket Creation (CRITICAL GAP)
+### 3.2 Online orders into POS and the KDS
 
-**Background:** Hospitality businesses (restaurant, bar, hotel dining) receive online orders via ordering-backend. When a dine-in or pickup order reaches `confirmed` or `preparing` status, the kitchen must see a KDS ticket in pos-api. Currently, this link does not exist.
+The full cross-service flow is in shared-docs `docs/architecture/online-order-fulfilment.md`. On the pos-api side:
 
-**Current state (ordering-backend side):**
-- On order status change → ordering-backend publishes `ordering.order.status.changed` to NATS JetStream
-- For `ready` status, also publishes `ordering.order.ready` (logistics) and `ordering.order.for_pickup` (POS pickup handoff)
-- **No KDS ticket creation anywhere in the ordering-backend codebase**
+- **Ingestion.** `ConfirmedOrderConsumer` (`internal/modules/orders/confirmed_consumer.go`) is the only path. `ordering.order.awaiting_acceptance` creates the POS record on hold (no tickets); `ordering.order.confirmed` creates it live or releases the held one. Pickup becomes a `takeaway` order numbered `CC-`, delivery a `delivery` order numbered `DL-`; both go through `Service.CreateOrder`, so station routing, modifiers, tickets and chits match a till order. Service bookings become appointments. `ordering.order.for_pickup` is not consumed: ordering sends it when a pickup is ready, for the customer message.
+- **Tickets.** `Service.issueKDSTickets` is the single creation path (new order, items added to a bill, fired course). It respects the outlet's `enable_kds` switch (printer-only kitchens get chits, no tickets) and pushes `ticket_created` with `order_subtype`, `order_source` and `channel`.
+- **Channel.** `internal/modules/orderchannel` classifies every order once: `dine_in`, `takeaway`, `delivery`, `room_service`, `bar_tab`, `retail`, `service_job`, `online_pickup`, `online_delivery`. An order is online when `metadata.online_order_id` is set. The KDS list (`GET /kds/tickets`) returns `channel`, `order_source`, a route label (table, room or online channel with promised time) and the customer name for counter handovers. pos-ui groups and counts the board on `channel` only.
+- **Progress back to ordering.** First KDS Start publishes `pos.online_order.preparing`; all tickets ready, or the queue's Ready, publishes `pos.kds.order.ready`; handover publishes `pos.online_order.collected` (pickup) or `pos.online_order.delivered` (own-staff delivery).
+- **Lifecycle from ordering.** Cancellations, out for delivery and delivered/completed are mirrored onto the POS copy (`ordering_lifecycle.go`) and close its open tickets.
 
-**Required integration (pos-api side — Sprint 13):**
-- pos-api subscribes to `ordering.order.status.changed`
-- Filters for: `new_status IN (confirmed, preparing)` AND `fulfillment_type IN (dine_in, pickup)`
-- Creates `KDSTicket` entries per line item, routed to station by item category (`kitchen`, `bar`, `grill`)
-- Marks order lines `kds_status = sent`
+### 3.3 Till deliveries and logistics
 
-**Completion callback:**
-- When kitchen marks KDS ticket complete (`kds_status = ready`), pos-api publishes `pos.kds.ticket.ready`
-- ordering-backend may optionally subscribe to update order status to `ready` for same-table orders
+A delivery order rung up at the till is dispatched from the POS queue (`assign-rider`, `dispatch-delivery`) straight to logistics-api with `source_service = pos`, the POS order id as `external_reference`, the outlet as pickup point and the unpaid balance as `metadata.cash_on_delivery`. `LogisticsDeliverySubscriber` (`logistics_delivery.go`) consumes `logistics.task.*` and stores the rider's progress in `metadata.dispatch_status` (`dispatched`, `rider_assigned`, `rider_arriving`, `out_for_delivery`, `delivered`, `delivery_failed`, `dispatch_cancelled`) with the rider's name and phone. Progress never moves backwards; a failed or cancelled dispatch clears `logistics_task_id` so the order can be sent again. A delivered order closes only when the till already holds full payment; otherwise it waits on the queue with the cash the rider collected (`cod_*` metadata) until the cashier settles it.
 
-**NATS Subject:** `ordering.order.status.changed`  
-**Filter fields:** `new_status`, `fulfillment_type`, `tenant_id`, `outlet_id`  
-**Status:** ❌ Not implemented — see [Sprint 13](sprints/sprint-13-ordering-kds-integration.md)
-
-### 3.3 Pickup Order Handoff (existing)
-
-For `fulfillment_type = pickup`, ordering-backend publishes `ordering.order.for_pickup`. pos-api creates a POS order for cashier settlement.
-
-**Status:** ✅ Event consumed. Pickup orders appear in pos-api with `order_source = online`.
+The pickup and delivery queues share one live-queue rule: not cancelled, voided, refunded or a parked draft, not yet collected, and a till order already paid at the till drops off after 24 hours. A till order cannot be handed over before it is paid.
 
 ---
 
