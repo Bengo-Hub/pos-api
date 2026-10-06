@@ -1605,7 +1605,14 @@ func (s *Service) VoidKDSTicketsForOrder(ctx context.Context, tenantID, orderID 
 // closeKDSTicketsForOrder transitions every still-open (pending/in_progress/ready) ticket of an
 // order to the given terminal status and broadcasts the update to the outlet's live KDS boards.
 func (s *Service) closeKDSTicketsForOrder(ctx context.Context, tenantID, orderID uuid.UUID, to kdsticket.Status) {
-	tickets, err := s.client.KDSTicket.Query().
+	closeOrderKDSTickets(ctx, s.client, s.kdsHub, s.log, tenantID, orderID, to)
+}
+
+// closeOrderKDSTickets is the one implementation behind every "close this order's open tickets"
+// path (settled, voided, handed over, mirrored from ordering): one update for all open tickets,
+// then a ticket_updated push per ticket to the outlet's live boards.
+func closeOrderKDSTickets(ctx context.Context, client *ent.Client, hub *kdsmod.Hub, log *zap.Logger, tenantID, orderID uuid.UUID, to kdsticket.Status) {
+	tickets, err := client.KDSTicket.Query().
 		Where(
 			kdsticket.TenantID(tenantID),
 			kdsticket.OrderID(orderID),
@@ -1622,24 +1629,24 @@ func (s *Service) closeKDSTicketsForOrder(ctx context.Context, tenantID, orderID
 	for _, t := range tickets {
 		ids = append(ids, t.ID)
 	}
-	if _, err := s.client.KDSTicket.Update().
+	if _, err := client.KDSTicket.Update().
 		Where(kdsticket.IDIn(ids...)).
 		SetStatus(to).
 		SetCompletedAt(now).
 		Save(ctx); err != nil {
-		s.log.Warn("orders: close kds tickets failed",
+		log.Warn("orders: close kds tickets failed",
 			zap.String("order_id", orderID.String()), zap.String("to", string(to)), zap.Error(err))
 		return
 	}
 
-	if s.kdsHub == nil {
+	if hub == nil {
 		return
 	}
 	for _, t := range tickets {
 		if t.Edges.Station == nil {
 			continue
 		}
-		s.kdsHub.BroadcastToOutlet(tenantID, t.Edges.Station.OutletID, kdsmod.Message{
+		hub.BroadcastToOutlet(tenantID, t.Edges.Station.OutletID, kdsmod.Message{
 			Type: "ticket_updated",
 			Payload: map[string]any{
 				"ticket_id":    t.ID,

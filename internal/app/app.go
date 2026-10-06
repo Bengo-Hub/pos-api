@@ -619,6 +619,11 @@ func New(ctx context.Context) (*App, error) {
 		if err := kdsOrderingSubscriber.SubscribeToOnlineCancellations(natsConn); err != nil {
 			log.Warn("app: failed to subscribe to online order cancellations", zap.Error(err))
 		}
+		// Till delivery orders dispatched straight to logistics follow the rider's progress here
+		// (online deliveries follow ordering's lifecycle events above).
+		if err := ordermodule.NewLogisticsDeliverySubscriber(entClient, orderSvc, log).Subscribe(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to logistics task events", zap.Error(err))
+		}
 	}
 
 	// Subscribe to treasury events: payment.success/failed → complete/fail local payment; etims → store invoice data

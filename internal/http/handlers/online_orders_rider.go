@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -182,7 +185,7 @@ func (h *OnlineOrderHandler) AssignRider(w http.ResponseWriter, r *http.Request)
 		taskID, _ = uuid.Parse(s)
 	}
 	if taskID == uuid.Nil {
-		task, cErr := h.rider.logistics.CreateDeliveryTask(r.Context(), tid, buildDeliveryTaskRequest(order))
+		task, cErr := h.rider.logistics.CreateDeliveryTask(r.Context(), tid, buildDeliveryTaskRequest(order, h.outletName(r.Context(), order.OutletID)))
 		if cErr != nil {
 			h.log.Error("assign-rider: create logistics task failed", zap.Error(cErr), zap.String("order_id", oid.String()))
 			jsonError(w, "failed to create delivery task", http.StatusBadGateway)
@@ -263,7 +266,7 @@ func (h *OnlineOrderHandler) DispatchShipment(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	task, cErr := h.rider.logistics.CreateDeliveryTask(r.Context(), tid, buildDeliveryTaskRequest(order))
+	task, cErr := h.rider.logistics.CreateDeliveryTask(r.Context(), tid, buildDeliveryTaskRequest(order, h.outletName(r.Context(), order.OutletID)))
 	if cErr != nil {
 		h.log.Error("dispatch-delivery: create logistics task failed", zap.Error(cErr), zap.String("order_id", oid.String()))
 		jsonError(w, "failed to create delivery task", http.StatusBadGateway)
@@ -294,7 +297,7 @@ func (h *OnlineOrderHandler) DispatchShipment(w http.ResponseWriter, r *http.Req
 // buildDeliveryTaskRequest maps a POS delivery order onto a logistics delivery task. Customer
 // name/phone come from the order; the dropoff address + coords + notes come from order metadata
 // (delivery_address / delivery_lat / delivery_lng / delivery_notes), captured at order time.
-func buildDeliveryTaskRequest(order *ent.POSOrder) logistics.CreateTaskRequest {
+func buildDeliveryTaskRequest(order *ent.POSOrder, pickupName string) logistics.CreateTaskRequest {
 	meta := order.Metadata
 	str := func(k string) string {
 		if meta == nil {
@@ -333,11 +336,23 @@ func buildDeliveryTaskRequest(order *ent.POSOrder) logistics.CreateTaskRequest {
 	if contact == "" {
 		contact = deref(order.CustomerName)
 	}
+	taskMeta := map[string]any{
+		"order_number": order.OrderNumber,
+		"outlet_id":    order.OutletID.String(),
+		"pos_order_id": order.ID.String(),
+	}
+	// What the rider must collect at the door: the unpaid balance. logistics stores it in the task's
+	// cash_on_delivery column, checks it at proof of delivery and books it on the rider's cash ledger.
+	if due := order.TotalAmount - order.PaidTotal; due > 0.005 {
+		taskMeta["cash_on_delivery"] = math.Round(due*100) / 100
+	}
 	return logistics.CreateTaskRequest{
 		ExternalReference: order.ID.String(),
 		SourceService:     "pos",
 		TaskType:          "delivery",
 		Priority:          1,
+		PickupAddress:     pickupName,
+		PickupContact:     pickupName,
 		DropoffAddress:    dropoff,
 		DropoffLat:        num("delivery_lat"),
 		DropoffLng:        num("delivery_lng"),
@@ -345,12 +360,17 @@ func buildDeliveryTaskRequest(order *ent.POSOrder) logistics.CreateTaskRequest {
 		CustomerName:      deref(order.CustomerName),
 		CustomerPhone:     deref(order.CustomerPhone),
 		Instructions:      instructions,
-		Metadata: map[string]any{
-			"order_number": order.OrderNumber,
-			"outlet_id":    order.OutletID.String(),
-			"pos_order_id": order.ID.String(),
-		},
+		Metadata:          taskMeta,
 	}
+}
+
+// outletName is the outlet's display name, used as the rider's pickup point.
+func (h *OnlineOrderHandler) outletName(ctx context.Context, outletID uuid.UUID) string {
+	o, err := h.db.Outlet.Get(ctx, outletID)
+	if err != nil {
+		return ""
+	}
+	return o.Name
 }
 
 // ListDeliveryDispatch handles GET /{tenantID}/pos/online-orders/dispatch
@@ -366,15 +386,12 @@ func (h *OnlineOrderHandler) ListDeliveryDispatch(w http.ResponseWriter, r *http
 	q := h.db.POSOrder.Query().Where(
 		posorder.TenantID(tid),
 		posorder.OrderSubtypeEQ(posorder.OrderSubtypeDelivery),
-		posorder.StatusNotIn("cancelled", "voided"),
-		notCollectedFilter(), // drop delivered/collected orders to History
-	)
-	if outletID := r.Header.Get("X-Outlet-ID"); outletID != "" {
-		if oid, perr := uuid.Parse(outletID); perr == nil {
-			q = q.Where(posorder.OutletID(oid))
-		}
+	).Where(liveHandoverQueue(time.Now())...) // delivered/collected orders drop to History
+	if outletID, ok := requestOutletID(r); ok {
+		q = q.Where(posorder.OutletID(outletID))
 	}
-	orders, err := q.WithLines().Order(ent.Desc(posorder.FieldCreatedAt)).Limit(100).All(r.Context())
+	// Oldest first, like the pickup queue: the order waiting longest goes out first.
+	orders, err := q.WithLines().Order(ent.Asc(posorder.FieldCreatedAt)).Limit(100).All(r.Context())
 	if err != nil {
 		h.log.Error("list delivery dispatch failed", zap.Error(err))
 		jsonError(w, "failed to list delivery orders", http.StatusInternalServerError)

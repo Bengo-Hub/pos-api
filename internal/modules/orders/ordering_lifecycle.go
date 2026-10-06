@@ -15,7 +15,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/kdsticket"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
-	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
 )
 
 // Online-order lifecycle mirroring. ordering-backend owns an online order; the POS record is the
@@ -149,53 +148,10 @@ func (s *KDSOrderingSubscriber) mirrorStatus(ctx context.Context, order *ent.POS
 	if status == "cancelled" || status == "refunded" {
 		to = kdsticket.StatusVoided
 	}
-	s.closeOpenTickets(ctx, order, to)
+	closeOrderKDSTickets(ctx, s.client, s.kdsHub, s.logger, order.TenantID, order.ID, to)
 	s.logger.Info("online order lifecycle mirrored onto POS",
 		zap.String("pos_order_id", order.ID.String()), zap.String("status", status))
 	return nil
-}
-
-// closeOpenTickets moves an order's still-open KDS tickets to a terminal status and pushes the
-// change to the outlet's live boards.
-func (s *KDSOrderingSubscriber) closeOpenTickets(ctx context.Context, order *ent.POSOrder, to kdsticket.Status) {
-	tickets, err := s.client.KDSTicket.Query().
-		Where(
-			kdsticket.OrderID(order.ID),
-			kdsticket.StatusIn(kdsticket.StatusPending, kdsticket.StatusInProgress, kdsticket.StatusReady),
-		).
-		All(ctx)
-	if err != nil || len(tickets) == 0 {
-		return
-	}
-	now := time.Now()
-	ids := make([]uuid.UUID, 0, len(tickets))
-	for _, t := range tickets {
-		ids = append(ids, t.ID)
-	}
-	if _, err := s.client.KDSTicket.Update().
-		Where(kdsticket.IDIn(ids...)).
-		SetStatus(to).
-		SetCompletedAt(now).
-		Save(ctx); err != nil {
-		s.logger.Warn("online lifecycle: failed to close KDS tickets", zap.Error(err))
-		return
-	}
-	if s.kdsHub == nil {
-		return
-	}
-	for _, t := range tickets {
-		s.kdsHub.BroadcastToOutlet(order.TenantID, order.OutletID, kdsmod.Message{
-			Type: "ticket_updated",
-			Payload: map[string]any{
-				"ticket_id":    t.ID,
-				"order_id":     order.ID,
-				"order_number": order.OrderNumber,
-				"station_id":   t.StationID,
-				"status":       string(to),
-				"completed_at": now,
-			},
-		})
-	}
 }
 
 // kitchenAlreadyStarted reports whether the outlet itself already started any ticket of the

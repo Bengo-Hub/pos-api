@@ -56,6 +56,41 @@ func pickupSourceFilter() predicate.POSOrder {
 	})
 }
 
+// onlineOrderFilter matches orders ingested from the online store (metadata.online_order_id set).
+func onlineOrderFilter() predicate.POSOrder {
+	return predicate.POSOrder(func(s *sql.Selector) {
+		s.Where(sql.P(func(b *sql.Builder) {
+			b.WriteString("(")
+			b.WriteString(s.C("metadata"))
+			b.WriteString("->>'online_order_id' IS NOT NULL)")
+		}))
+	})
+}
+
+// paidAtTillHandoverWindow is how long a POS-native takeaway or delivery order that the till has
+// already settled stays on the handover queue without anyone tapping "collected". Counter staff
+// usually hand a paid takeaway over on the spot, so without a bound every such sale stayed on
+// "Ready at the counter" forever. Online orders are never aged out: they must be handed over.
+const paidAtTillHandoverWindow = 24 * time.Hour
+
+// liveHandoverQueue is the shared "still to hand over" predicate of the pickup and delivery queues:
+// not cancelled/voided (the same terms as the posorder_pickup_queue partial index, so it is used),
+// not a parked draft or a refund, not yet collected, and a POS-native order settled at the till
+// only within paidAtTillHandoverWindow.
+func liveHandoverQueue(now time.Time) []predicate.POSOrder {
+	return []predicate.POSOrder{
+		posorder.StatusNotIn("cancelled", "voided"),
+		posorder.StatusNEQ(ordersmod.StatusDraft),
+		posorder.StatusNEQ(ordersmod.StatusRefunded),
+		notCollectedFilter(),
+		posorder.Or(
+			posorder.StatusNEQ(ordersmod.StatusCompleted),
+			onlineOrderFilter(),
+			posorder.CreatedAtGTE(now.Add(-paidAtTillHandoverWindow)),
+		),
+	}
+}
+
 // notCollectedFilter matches orders NOT yet marked collected (metadata.collected is absent/false).
 func notCollectedFilter() predicate.POSOrder {
 	return predicate.POSOrder(func(s *sql.Selector) {
@@ -90,9 +125,9 @@ func (h *OnlineOrderHandler) ListPickup(w http.ResponseWriter, r *http.Request) 
 	if status := r.URL.Query().Get("status"); status != "" {
 		filters = append(filters, posorder.Status(status))
 	} else {
-		// Active queue = not cancelled/voided AND not yet collected. A paid (completed) order stays
-		// here as "Ready for collection" until it's marked collected — then it moves to History.
-		filters = append(filters, posorder.StatusNotIn("cancelled", "voided"), notCollectedFilter())
+		// Active queue: a paid order stays as "Ready for collection" until it is marked collected,
+		// then it moves to History (see liveHandoverQueue for the exact terms).
+		filters = append(filters, liveHandoverQueue(time.Now())...)
 	}
 	// Outlet scoping so a multi-outlet tenant's counter only sees its own pickups: an explicit
 	// ?outlet_id wins, otherwise the terminal's active outlet (X-Outlet-ID).
@@ -319,6 +354,13 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 	external := h.externalOrderID(r, oid)
 	isOnline := external != ""
 	isDelivery := string(order.OrderSubtype) == "delivery"
+
+	// A till order is paid at the till. Handing it over unpaid used to complete it with no payment
+	// at all (a lost sale, and a completed order with an open balance).
+	if !isOnline && order.TotalAmount > 0 && !paidAtTerminal(order.TotalAmount, order.PaidTotal) {
+		jsonError(w, fmt.Sprintf("settle the bill (%.2f due) before handing the order over", order.TotalAmount-order.PaidTotal), http.StatusConflict)
+		return
+	}
 
 	// Pickup: hand the bag to the person holding the collection code. Without it the counter must
 	// say how they checked the customer, which is kept on the order.
