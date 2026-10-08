@@ -5,8 +5,8 @@ package inventory
 import (
 	"bytes"
 	"context"
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -565,6 +565,52 @@ func (c *Client) fetchRecipeCostPage(ctx context.Context, tenantID string, limit
 		return nil, fmt.Errorf("inventory.Client.ListRecipeCosts: decode: %w", err)
 	}
 	return page.Data, nil
+}
+
+// Category is one inventory category node with its parent link (GET /inventory/categories).
+type Category struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	ParentID string `json:"parent_id,omitempty"`
+	IsActive bool   `json:"is_active"`
+}
+
+// ListCategories returns every category of the tenant with its parent link, the input for
+// KDS routing's category tree (a sub-category inherits its parent's station). Tolerates both the
+// wrapped {"data":[...]} and the bare-array response forms.
+func (c *Client) ListCategories(ctx context.Context, tenantID string) ([]Category, error) {
+	if c == nil || c.baseURL == "" {
+		return nil, errors.New("inventory.Client.ListCategories: client not configured")
+	}
+	reqURL := fmt.Sprintf("%s/v1/%s/inventory/categories", c.baseURL, tenantID)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.ListCategories: build request: %w", err)
+	}
+	httpReq.Header.Set("X-API-Key", c.apiKey)
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.ListCategories: http: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("inventory.Client.ListCategories: status %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	if err != nil {
+		return nil, fmt.Errorf("inventory.Client.ListCategories: read: %w", err)
+	}
+	var wrapped struct {
+		Data []Category `json:"data"`
+	}
+	if err := json.Unmarshal(body, &wrapped); err == nil && wrapped.Data != nil {
+		return wrapped.Data, nil
+	}
+	var bare []Category
+	if err := json.Unmarshal(body, &bare); err != nil {
+		return nil, fmt.Errorf("inventory.Client.ListCategories: decode: %w", err)
+	}
+	return bare, nil
 }
 
 // CatalogItemCost is one sellable item's SKU/cost/manufacturer/category — the subset the pos-api

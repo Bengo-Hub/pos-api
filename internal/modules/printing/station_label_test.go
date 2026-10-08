@@ -2,7 +2,9 @@ package printing
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
@@ -75,7 +77,7 @@ func TestStationTicketDataPrintsModifiersNotesAndOrderType(t *testing.T) {
 	d := StationTicketData(order, "Kitchen", []map[string]any{
 		{"name": "Burger", "quantity": 2.0, "modifiers": []string{"No onions", "Extra cheese"}, "notes": "well done"},
 		{"name": "Chips", "quantity": 1.0},
-	})
+	}, nil)
 	if d.OrderType != "ONLINE PICKUP" || d.Banner != "" {
 		t.Fatalf("type = %q banner = %q", d.OrderType, d.Banner)
 	}
@@ -86,7 +88,7 @@ func TestStationTicketDataPrintsModifiersNotesAndOrderType(t *testing.T) {
 		t.Fatalf("plain item must have no notes: %+v", d.Items[1])
 	}
 	// A delta chit keeps the order type and adds its own banner.
-	dd := StationTicketDataWithBanner(order, "Kitchen", nil, "*** ADDITIONAL ITEMS ***")
+	dd := StationTicketDataWithBanner(order, "Kitchen", nil, "*** ADDITIONAL ITEMS ***", nil)
 	if dd.Banner != "*** ADDITIONAL ITEMS ***" || dd.OrderType != "ONLINE PICKUP" {
 		t.Fatalf("delta chit lost a label: type=%q banner=%q", dd.OrderType, dd.Banner)
 	}
@@ -95,5 +97,27 @@ func TestStationTicketDataPrintsModifiersNotesAndOrderType(t *testing.T) {
 		if !bytes.Contains(out, []byte(want)) {
 			t.Errorf("printed chit is missing %q", want)
 		}
+	}
+}
+
+// A chit prints the order time in the outlet's timezone, not the pod's UTC clock (urban-loft
+// kitchen tickets read three hours behind before this).
+func TestStationTicketPrintsOutletLocalTime(t *testing.T) {
+	created := time.Date(2026, 10, 8, 7, 43, 0, 0, time.UTC) // 10:43 in Nairobi
+	order := &ent.POSOrder{OrderNumber: "001900", CreatedAt: created}
+	nairobi, err := time.LoadLocation("Africa/Nairobi")
+	if err != nil {
+		t.Skip("tzdata unavailable")
+	}
+	for label, loc := range map[string]*time.Location{"explicit outlet zone": nairobi, "default zone": nil} {
+		out := BuildReceipt(StationTicketData(order, "Bar", []map[string]any{{"name": "Latte", "quantity": 1.0}}, loc))
+		if !bytes.Contains(out, []byte("08 Oct 2026 10:43")) {
+			t.Errorf("%s: chit time not in Nairobi time:\n%s", label, out)
+		}
+	}
+	// The JSON receipt_data the browser renders must not carry the location.
+	b, _ := json.Marshal(StationTicketData(order, "Bar", nil, nairobi))
+	if bytes.Contains(b, []byte("Location")) {
+		t.Errorf("Location leaked into receipt JSON: %s", b)
 	}
 }

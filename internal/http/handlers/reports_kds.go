@@ -17,7 +17,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/modules/docs"
-	"github.com/bengobox/pos-service/internal/modules/orders"
+	"github.com/bengobox/pos-service/internal/modules/kdsroute"
 )
 
 // KDSStationBreakdownRow is one station's slice of a sales-by-KDS-station report — the same
@@ -87,16 +87,10 @@ func computeKDSStationBreakdown(ctx context.Context, db *ent.Client, tid uuid.UU
 		return nil, "", err
 	}
 	stationNameByID := make(map[uuid.UUID]*ent.KDSStation, len(allStations))
-	stationsByOutlet := make(map[uuid.UUID][]*ent.KDSStation)
 	for _, st := range allStations {
 		stationNameByID[st.ID] = st
-		if st.IsActive {
-			stationsByOutlet[st.OutletID] = append(stationsByOutlet[st.OutletID], st)
-		}
 	}
-	for _, list := range stationsByOutlet {
-		sort.SliceStable(list, func(i, j int) bool { return list[i].SortOrder < list[j].SortOrder })
-	}
+	routerFor := outletRouters(allStations)
 
 	type bucket struct {
 		name, stype        string
@@ -121,7 +115,7 @@ func computeKDSStationBreakdown(ctx context.Context, db *ent.Client, tid uuid.UU
 			if o.Currency != "" {
 				currency = o.Currency
 			}
-			stations := stationsByOutlet[o.OutletID]
+			router := routerFor(o.OutletID)
 
 			// Attributed lines carry each line's void-adjusted quantity and its prorated share of
 			// the order's actual net total_amount (see AttributeOrderLines), not raw
@@ -132,7 +126,7 @@ func computeKDSStationBreakdown(ctx context.Context, db *ent.Client, tid uuid.UU
 				al := attributed[i]
 				stationID := l.KdsStationID
 				if stationID == nil {
-					stationID = orders.ResolveStationForLineOrFallback(l.Name, l.Category, nil, stations)
+					stationID = router.OwnerOrFallback(l.Name, l.Category, nil)
 				}
 				if stationID == nil {
 					// A fully-voided line (activeQty 0) shouldn't count this order as having
@@ -191,6 +185,25 @@ func computeKDSStationBreakdown(ctx context.Context, db *ent.Client, tid uuid.UU
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Revenue > rows[j].Revenue })
 	return rows, currency, nil
+}
+
+// outletRouters returns a lazy per-outlet KDS router over the given stations (inactive ones are
+// ignored by kdsroute). Reports only use it for legacy lines with no stamped kds_station_id, so it
+// matches flat on each line's category without the inventory tree (no S2S call per report run).
+func outletRouters(stations []*ent.KDSStation) func(uuid.UUID) *kdsroute.Router {
+	byOutlet := make(map[uuid.UUID][]*ent.KDSStation)
+	for _, st := range stations {
+		byOutlet[st.OutletID] = append(byOutlet[st.OutletID], st)
+	}
+	built := make(map[uuid.UUID]*kdsroute.Router, len(byOutlet))
+	return func(outletID uuid.UUID) *kdsroute.Router {
+		if r, ok := built[outletID]; ok {
+			return r
+		}
+		r := kdsroute.New(byOutlet[outletID], nil)
+		built[outletID] = r
+		return r
+	}
 }
 
 // kdsBreakdownPage is how many orders (with their lines) the station breakdown reads per page.

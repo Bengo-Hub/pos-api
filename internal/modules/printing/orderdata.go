@@ -9,15 +9,18 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/orderchannel"
 )
 
-// receiptLocation resolves the outlet's display timezone for receipt timestamps (schema default
-// Africa/Nairobi), falling back to that on any missing/invalid value so a line's add-time is shown
-// in the same wall-clock the rest of the receipt uses.
-func receiptLocation(outlet *ent.Outlet) *time.Location {
+// OutletLocation resolves the outlet's display timezone for every printed timestamp (schema
+// default Africa/Nairobi), falling back to that on a missing or invalid value. The pods run on
+// UTC, so a thermal ticket formatted without it reads three hours behind the wall clock.
+func OutletLocation(outlet *ent.Outlet) *time.Location {
 	tz := "Africa/Nairobi"
 	if outlet != nil && outlet.Timezone != "" {
 		tz = outlet.Timezone
 	}
 	if loc, err := time.LoadLocation(tz); err == nil {
+		return loc
+	}
+	if loc, err := time.LoadLocation("Africa/Nairobi"); err == nil {
 		return loc
 	}
 	return time.UTC
@@ -45,7 +48,7 @@ func OrderReceiptData(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 // show Amount Paid / payment date / balance due like the browser one.
 func OrderReceiptDataOpts(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *ent.Outlet, setting *ent.OutletSetting, opts ReceiptViewOpts) ReceiptData {
 	view := BuildReceiptView(order, lines, outlet, setting, opts)
-	d := receiptDataFromView(view, receiptLocation(outlet))
+	d := receiptDataFromView(view, OutletLocation(outlet))
 	d.QRRaster = qrRasterFromSetting(setting)
 	return d
 }
@@ -72,7 +75,8 @@ func qrRasterFromSetting(setting *ent.OutletSetting) bool {
 // StationTicketData assembles the kitchen/bar chit for one station's routed items
 // (the map shape produced by orders.routeLinesToStations: {sku,name,quantity}).
 // Station tickets intentionally carry no prices/payment info — only routing + prep detail.
-func StationTicketData(order *ent.POSOrder, stationLabel string, items []map[string]any) ReceiptData {
+// loc is the outlet's timezone (OutletLocation) the order time prints in.
+func StationTicketData(order *ent.POSOrder, stationLabel string, items []map[string]any, loc *time.Location) ReceiptData {
 	ri := make([]ReceiptItem, 0, len(items))
 	for _, it := range items {
 		name, _ := it["name"].(string)
@@ -97,6 +101,7 @@ func StationTicketData(order *ent.POSOrder, stationLabel string, items []map[str
 		OrderNumber:   order.OrderNumber,
 		TableRef:      tableRef,
 		DateTime:      order.CreatedAt,
+		Location:      loc,
 		Header:        stationLabel,
 		Items:         ri,
 		OrderType:     orderType,
@@ -166,8 +171,8 @@ func stationItemNotes(it map[string]any) string {
 // StationTicketDataWithBanner is StationTicketData plus an attention banner (e.g.
 // "*** ADDITIONAL ITEMS ***") for delta chits, items added to an already-fired order, so the
 // station never re-prepares the whole bill. The order-type line still prints above it.
-func StationTicketDataWithBanner(order *ent.POSOrder, stationLabel string, items []map[string]any, banner string) ReceiptData {
-	d := StationTicketData(order, stationLabel, items)
+func StationTicketDataWithBanner(order *ent.POSOrder, stationLabel string, items []map[string]any, banner string, loc *time.Location) ReceiptData {
+	d := StationTicketData(order, stationLabel, items, loc)
 	if banner != "" {
 		d.Banner = banner
 	}
@@ -218,6 +223,7 @@ func receiptDataFromView(v ReceiptView, loc *time.Location) ReceiptData {
 		ServedBy:                    v.ServedBy,
 		TableRef:                    v.TableRef,
 		DateTime:                    v.DisplayDate,
+		Location:                    loc,
 		Header:                      v.ReceiptHeader,
 		Footer:                      v.ReceiptFooter,
 		Items:                       items,

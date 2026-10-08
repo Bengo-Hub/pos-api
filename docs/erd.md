@@ -116,7 +116,7 @@ Schemas exist since March 2026. HTTP endpoints added in Sprint 4. Sprint 13 addi
 
 | Table | Key Columns | Description |
 |-------|-------------|-------------|
-| `kds_stations` | `id`, `tenant_id`, `outlet_id`, `name`, `category_filter` (JSON string array), `sort_order`, `is_active`, `created_at`, `updated_at` | KDS display stations — kitchen, bar, grill, etc. Each station receives tickets for items matching its category filter. |
+| `kds_stations` | `id`, `tenant_id`, `outlet_id`, `name`, `category_filter` (JSON string array), `sort_order`, `is_active`, `created_at`, `updated_at` | KDS display stations — kitchen, bar, grill, etc. Each station receives tickets for items whose category, or a parent section of it, is in its category filter (kdsroute; names compared normalised). |
 | `kds_tickets` | `id`, `tenant_id`, `station_id` (FK → kds_stations), `order_id`, `order_number`, `status` (pending\|in_progress\|ready\|served\|voided), `items` (JSON: `[{line_id, sku, name, qty, kds_status}]`), `received_at`, `started_at`, `completed_at`, `priority`, `table_reference` (nullable string — raw table label from online order event, e.g. "Table 7") | One ticket per station per order. Created when order transitions to `open`. Items track individual item-level status. `table_reference` added Sprint 13 for online order context. |
 | `kds_sync_failures` | `id`, `tenant_id`, `external_order_id`, `error_message`, `raw_payload` (JSON), `retry_count`, `resolved_at` (nullable), `created_at` | Dead-letter queue for NATS KDS sync events that fail after max retries. Added Sprint 13. `internal/ent/schema/kdssyncfailure.go`. |
 

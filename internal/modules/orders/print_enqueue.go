@@ -3,12 +3,12 @@ package orders
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
-	"github.com/bengobox/pos-service/internal/ent/kdsstation"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
@@ -91,17 +91,14 @@ func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, 
 // add-to-bill on the same order still prints while a replay of the SAME batch dedupes.
 // banner is stamped on the chit ("*** ADDITIONAL ITEMS ***" / "*** COURSE N FIRED ***").
 func (s *Service) enqueueStationTickets(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, profiles []printing.PrinterProfile, lines []*ent.POSOrderLine, batchTag, banner string) {
-	stations, _ := s.client.KDSStation.Query().
-		Where(
-			kdsstation.TenantID(tenantID),
-			kdsstation.OutletID(order.OutletID),
-			kdsstation.IsActive(true),
-		).
-		All(ctx)
+	router := s.kdsRouter(ctx, tenantID, order.OutletID)
+	stations := router.Stations()
 	if len(stations) == 0 {
 		return
 	}
-	stationItems := routeLinesToStations(lines, stations)
+	stationItems := routeLinesToStations(lines, router)
+	// Chits print the order time in the outlet's own timezone, the same as receipts.
+	loc := s.outletLocation(ctx, order.OutletID)
 	for _, station := range stations {
 		items := stationItems[station.ID]
 		if len(items) == 0 {
@@ -115,7 +112,7 @@ func (s *Service) enqueueStationTickets(ctx context.Context, tenantID uuid.UUID,
 		if station.StationType == "bar" {
 			jobType = "bar"
 		}
-		payload := printing.BuildReceipt(printing.StationTicketDataWithBanner(order, station.Name, items, banner))
+		payload := printing.BuildReceipt(printing.StationTicketDataWithBanner(order, station.Name, items, banner, loc))
 		dedupe := fmt.Sprintf("%s:%s:%s", order.ID, jobType, station.ID)
 		if batchTag != "" {
 			dedupe += ":" + batchTag
@@ -147,6 +144,13 @@ func (s *Service) enqueueStationTicketsForLines(ctx context.Context, tenantID uu
 		return
 	}
 	s.enqueueStationTickets(ctx, tenantID, order, printing.ProfilesFromRaw(setting.PrinterProfiles), lines, batchTag, banner)
+}
+
+// outletLocation is the outlet's display timezone for printed chits (printing.OutletLocation:
+// outlet timezone, default Africa/Nairobi).
+func (s *Service) outletLocation(ctx context.Context, outletID uuid.UUID) *time.Location {
+	outlet, _ := s.client.Outlet.Query().Where(entoutlet.ID(outletID)).Only(ctx)
+	return printing.OutletLocation(outlet)
 }
 
 // enqueueJob enqueues one job, logging (never propagating) failures.

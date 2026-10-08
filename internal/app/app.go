@@ -36,6 +36,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/identity"
 	inventorymodule "github.com/bengobox/pos-service/internal/modules/inventory"
 	kdsmodule "github.com/bengobox/pos-service/internal/modules/kds"
+	"github.com/bengobox/pos-service/internal/modules/kdsroute"
 	notifmodule "github.com/bengobox/pos-service/internal/modules/notifications"
 	ordermodule "github.com/bengobox/pos-service/internal/modules/orders"
 	paymentmodule "github.com/bengobox/pos-service/internal/modules/payments"
@@ -284,6 +285,21 @@ func New(ctx context.Context) (*App, error) {
 	}
 	inventoryClient := inventorymodule.NewClient(inventoryAPIURL, cfg.Treasury.InternalServiceKey, 15*time.Second)
 
+	// One cached inventory category tree per tenant for KDS routing (a sub-category inherits its
+	// section's station), shared by order stamping, ticket/chit routing and the station screen.
+	kdsCategorySource := kdsroute.NewSource(func(ctx context.Context, tenantID uuid.UUID) ([]kdsroute.Category, error) {
+		cats, err := inventoryClient.ListCategories(ctx, tenantID.String())
+		if err != nil {
+			return nil, err
+		}
+		out := make([]kdsroute.Category, len(cats))
+		for i, c := range cats {
+			out[i] = kdsroute.Category{ID: c.ID, Name: c.Name, ParentID: c.ParentID, IsActive: c.IsActive}
+		}
+		return out, nil
+	}, log)
+	orderSvc.SetKDSCategorySource(kdsCategorySource)
+
 	paymentSvc := paymentmodule.NewService(entClient, orderSvc, cfg.App.DefaultCurrency, log)
 	paymentSvc.SetTreasuryClient(treasuryClient)
 	paymentSvc.SetInventoryClient(inventoryClient)
@@ -375,6 +391,7 @@ func New(ctx context.Context) (*App, error) {
 	hotelHandler.SetInventoryClient(inventoryClient)
 	hotelHandler.SetSubscriptionsClient(subsClient)
 	kdsHandler := handlers.NewKDSHandler(log, entClient)
+	kdsHandler.SetKDSCategorySource(kdsCategorySource)
 	kdsHandler.Hub().SetRelay(relay)
 	kdsHub := kdsHandler.Hub()
 	deviceHandler := handlers.NewDeviceHandler(log, entClient)

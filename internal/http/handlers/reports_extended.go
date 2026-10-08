@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"sort"
 
 	"go.uber.org/zap"
 
@@ -9,7 +10,6 @@ import (
 	entkdsstation "github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
-	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/google/uuid"
 )
 
@@ -128,18 +128,6 @@ func (h *ReportsHandler) ProductMix(w http.ResponseWriter, r *http.Request) {
 		orderPredicates = append(orderPredicates, posorder.OutletID(outletFilter))
 	}
 
-	// Orders-with-lines (not lines-with-order) so AttributeOrderLines can prorate each order's
-	// net total_amount across its own lines — matches computeKDSStationBreakdown/SalesByCategory.
-	mixOrders, err := h.db.POSOrder.Query().
-		Where(orderPredicates...).
-		WithLines().
-		All(r.Context())
-	if err != nil {
-		h.log.Error("product-mix query failed", zap.Error(err))
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
 	type mixRow struct {
 		Label       string  `json:"label"`
 		Quantity    float64 `json:"quantity"`
@@ -148,34 +136,47 @@ func (h *ReportsHandler) ProductMix(w http.ResponseWriter, r *http.Request) {
 		Category    string  `json:"category,omitempty"`
 		StationName string  `json:"station_name,omitempty"`
 		StationType string  `json:"station_type,omitempty"`
+		// lastOrder lets OrderCount count distinct orders without a per-row set of order ids:
+		// orders are scanned one at a time, so a row counts an order the first time it sees it.
+		lastOrder uuid.UUID
 	}
 	bySubtype := make(map[string]*mixRow)
 	byItem := make(map[string]*mixRow)
 	byCategory := make(map[string]*mixRow)
 	byStation := make(map[string]*mixRow)
-	subtypeOrders := make(map[string]map[uuid.UUID]struct{})
-	itemOrders := make(map[string]map[uuid.UUID]struct{})
-	categoryOrders := make(map[string]map[uuid.UUID]struct{})
-	stationOrders := make(map[string]map[uuid.UUID]struct{})
-
-	// KDS station lookup, same per-outlet cache pattern as computeKDSStationBreakdown — a
-	// multi-outlet report can mix outlets with different station configs.
-	stationsByOutlet := make(map[uuid.UUID][]*ent.KDSStation)
-	stationByID := make(map[uuid.UUID]*ent.KDSStation)
-	resolveStation := func(o *ent.POSOrder, l *ent.POSOrderLine) (name, stype string) {
-		stations, ok := stationsByOutlet[o.OutletID]
+	add := func(m map[string]*mixRow, key string, seed mixRow, orderID uuid.UUID, qty, revenue float64) {
+		row, ok := m[key]
 		if !ok {
-			stations, _ = h.db.KDSStation.Query().
-				Where(entkdsstation.TenantID(tid), entkdsstation.OutletID(o.OutletID), entkdsstation.IsActive(true)).
-				All(r.Context())
-			stationsByOutlet[o.OutletID] = stations
-			for _, st := range stations {
-				stationByID[st.ID] = st
-			}
+			s := seed
+			row = &s
+			m[key] = row
 		}
+		if row.lastOrder != orderID {
+			row.lastOrder = orderID
+			row.OrderCount++
+		}
+		row.Quantity += qty
+		row.Revenue += revenue
+	}
+
+	// Every station of the tenant in one query (same as computeKDSStationBreakdown): lines stamped
+	// with a station that was later switched off still report under its real name, and a
+	// multi-outlet report resolves each outlet's legacy unstamped lines against its own stations.
+	allStations, err := h.db.KDSStation.Query().Where(entkdsstation.TenantID(tid)).All(r.Context())
+	if err != nil {
+		h.log.Error("product-mix stations query failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	stationByID := make(map[uuid.UUID]*ent.KDSStation, len(allStations))
+	for _, st := range allStations {
+		stationByID[st.ID] = st
+	}
+	routerFor := outletRouters(allStations)
+	resolveStation := func(o *ent.POSOrder, l *ent.POSOrderLine) (name, stype string) {
 		stationID := l.KdsStationID
 		if stationID == nil {
-			stationID = orders.ResolveStationForLineOrFallback(l.Name, l.Category, nil, stations)
+			stationID = routerFor(o.OutletID).OwnerOrFallback(l.Name, l.Category, nil)
 		}
 		if stationID == nil {
 			return "", ""
@@ -186,89 +187,58 @@ func (h *ReportsHandler) ProductMix(w http.ResponseWriter, r *http.Request) {
 		return "", ""
 	}
 
-	for _, o := range mixOrders {
-		// AttributeOrderLines fixes the same two bugs found in KDS-station/category: a
-		// partially/fully voided line no longer contributes its pre-void gross, and revenue is
-		// each line's prorated share of order.TotalAmount (net of discount/tax/charges/round-off)
-		// rather than raw total_price — so every sub-breakdown here now agrees with Sales-by-Staff.
-		attributed := AttributeOrderLines(o)
-		for i, l := range o.Edges.Lines {
-			al := attributed[i]
-			// A fully-voided line contributes nothing active — skip it entirely rather than
-			// still crediting its (zero) order-count membership across every dimension.
-			if al.Quantity <= 0 && al.Revenue <= 0 {
-				continue
-			}
-
-			subtype := string(o.OrderSubtype)
-			if _, ok := bySubtype[subtype]; !ok {
-				bySubtype[subtype] = &mixRow{Label: subtype}
-			}
-			if _, ok := subtypeOrders[subtype]; !ok {
-				subtypeOrders[subtype] = map[uuid.UUID]struct{}{}
-			}
-			subtypeOrders[subtype][o.ID] = struct{}{}
-			bySubtype[subtype].Revenue += al.Revenue
-			bySubtype[subtype].Quantity += al.Quantity
-
-			stationName, stationType := resolveStation(o, l)
-			category := l.Category
-			if category == "" {
-				category = "Uncategorised"
-			}
-			stationLabel := stationName
-			if stationLabel == "" {
-				stationLabel = "Unassigned"
-			}
-
-			row, ok := byItem[l.Name]
-			if !ok {
-				row = &mixRow{Label: l.Name, Category: category, StationName: stationName, StationType: stationType}
-				byItem[l.Name] = row
-			}
-			if _, ok := itemOrders[l.Name]; !ok {
-				itemOrders[l.Name] = map[uuid.UUID]struct{}{}
-			}
-			itemOrders[l.Name][o.ID] = struct{}{}
-			row.Quantity += al.Quantity
-			row.Revenue += al.Revenue
-
-			catRow, ok := byCategory[category]
-			if !ok {
-				catRow = &mixRow{Label: category}
-				byCategory[category] = catRow
-			}
-			if _, ok := categoryOrders[category]; !ok {
-				categoryOrders[category] = map[uuid.UUID]struct{}{}
-			}
-			categoryOrders[category][o.ID] = struct{}{}
-			catRow.Quantity += al.Quantity
-			catRow.Revenue += al.Revenue
-
-			stRow, ok := byStation[stationLabel]
-			if !ok {
-				stRow = &mixRow{Label: stationLabel, StationName: stationName, StationType: stationType}
-				byStation[stationLabel] = stRow
-			}
-			if _, ok := stationOrders[stationLabel]; !ok {
-				stationOrders[stationLabel] = map[uuid.UUID]struct{}{}
-			}
-			stationOrders[stationLabel][o.ID] = struct{}{}
-			stRow.Quantity += al.Quantity
-			stRow.Revenue += al.Revenue
+	// Orders-with-lines (not lines-with-order) so AttributeOrderLines can prorate each order's
+	// net total_amount across its own lines, matching computeKDSStationBreakdown/SalesByCategory.
+	// Read in keyset pages so a long range on a busy tenant never loads every order at once.
+	var after *uuid.UUID
+	for {
+		q := h.db.POSOrder.Query().Where(orderPredicates...)
+		if after != nil {
+			q = q.Where(posorder.IDGT(*after))
 		}
-	}
-	for subtype, ids := range subtypeOrders {
-		bySubtype[subtype].OrderCount = len(ids)
-	}
-	for name, ids := range itemOrders {
-		byItem[name].OrderCount = len(ids)
-	}
-	for cat, ids := range categoryOrders {
-		byCategory[cat].OrderCount = len(ids)
-	}
-	for st, ids := range stationOrders {
-		byStation[st].OrderCount = len(ids)
+		mixOrders, err := q.Order(ent.Asc(posorder.FieldID)).Limit(kdsBreakdownPage).WithLines().All(r.Context())
+		if err != nil {
+			h.log.Error("product-mix query failed", zap.Error(err))
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		for _, o := range mixOrders {
+			// AttributeOrderLines fixes the same two bugs found in KDS-station/category: a
+			// partially/fully voided line no longer contributes its pre-void gross, and revenue is
+			// each line's prorated share of order.TotalAmount (net of discount/tax/charges/round-off)
+			// rather than raw total_price — so every sub-breakdown here now agrees with Sales-by-Staff.
+			attributed := AttributeOrderLines(o)
+			for i, l := range o.Edges.Lines {
+				al := attributed[i]
+				// A fully-voided line contributes nothing active — skip it entirely rather than
+				// still crediting its (zero) order-count membership across every dimension.
+				if al.Quantity <= 0 && al.Revenue <= 0 {
+					continue
+				}
+
+				subtype := string(o.OrderSubtype)
+				add(bySubtype, subtype, mixRow{Label: subtype}, o.ID, al.Quantity, al.Revenue)
+
+				stationName, stationType := resolveStation(o, l)
+				category := l.Category
+				if category == "" {
+					category = "Uncategorised"
+				}
+				stationLabel := stationName
+				if stationLabel == "" {
+					stationLabel = "Unassigned"
+				}
+
+				add(byItem, l.Name, mixRow{Label: l.Name, Category: category, StationName: stationName, StationType: stationType}, o.ID, al.Quantity, al.Revenue)
+				add(byCategory, category, mixRow{Label: category}, o.ID, al.Quantity, al.Revenue)
+				add(byStation, stationLabel, mixRow{Label: stationLabel, StationName: stationName, StationType: stationType}, o.ID, al.Quantity, al.Revenue)
+			}
+		}
+		if len(mixOrders) < kdsBreakdownPage {
+			break
+		}
+		last := mixOrders[len(mixOrders)-1].ID
+		after = &last
 	}
 
 	toSlice := func(m map[string]*mixRow) []*mixRow {
@@ -276,13 +246,7 @@ func (h *ReportsHandler) ProductMix(w http.ResponseWriter, r *http.Request) {
 		for _, v := range m {
 			s = append(s, v)
 		}
-		for i := 0; i < len(s)-1; i++ {
-			for j := i + 1; j < len(s); j++ {
-				if s[j].Revenue > s[i].Revenue {
-					s[i], s[j] = s[j], s[i]
-				}
-			}
-		}
+		sort.Slice(s, func(i, j int) bool { return s[i].Revenue > s[j].Revenue })
 		return s
 	}
 

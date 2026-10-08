@@ -140,7 +140,8 @@ func (h *PrintJobsHandler) EnqueueJob(w http.ResponseWriter, r *http.Request) {
 		if label == "" {
 			label = profile.Label
 		}
-		payload = printing.BuildTestTicket(label, profile.Paper(), time.Now())
+		outlet, _ := h.client.Outlet.Query().Where(entoutlet.ID(outletID)).Only(ctx)
+		payload = printing.BuildTestTicket(label, profile.Paper(), time.Now(), printing.OutletLocation(outlet))
 	case "drawer":
 		payload = drawerKickBytes(setting)
 	default:

@@ -20,6 +20,7 @@ import (
 	entorderlink "github.com/bengobox/pos-service/internal/ent/orderlink"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
+	"github.com/bengobox/pos-service/internal/modules/kdsroute"
 	notifmod "github.com/bengobox/pos-service/internal/modules/notifications"
 	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -32,6 +33,13 @@ type KDSHandler struct {
 	publisher *events.Publisher
 	hub       *kdsmod.Hub
 	notifHub  *notifmod.Hub
+	kdsTrees  *kdsroute.Source
+}
+
+// SetKDSCategorySource wires the cached inventory category tree (shared with the orders
+// service) used to report each station's effective category coverage.
+func (h *KDSHandler) SetKDSCategorySource(src *kdsroute.Source) {
+	h.kdsTrees = src
 }
 
 func NewKDSHandler(log *zap.Logger, client *ent.Client) *KDSHandler {
@@ -108,7 +116,8 @@ func (h *KDSHandler) ListStations(w http.ResponseWriter, r *http.Request) {
 			q = q.Where(entkdsstation.OutletID(oid))
 		}
 	}
-	if r.URL.Query().Get("all") != "true" {
+	manage := r.URL.Query().Get("all") == "true"
+	if !manage {
 		q = q.Where(entkdsstation.IsActive(true))
 	}
 	stations, err := q.Order(ent.Asc(entkdsstation.FieldSortOrder)).All(r.Context())
@@ -117,7 +126,81 @@ func (h *KDSHandler) ListStations(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"data": stations, "total": len(stations)})
+
+	// Each station carries the categories it effectively owns (its filter plus inherited
+	// sub-categories, from kdsroute), so the till's offline print router and the settings
+	// screen route exactly like the server. The settings screen (?all=true) reloads the tree
+	// so a category rename shows at once.
+	var tree *kdsroute.Tree
+	if len(stations) > 0 {
+		if manage {
+			tree = h.kdsTrees.Refresh(r.Context(), tid)
+		} else {
+			tree = h.kdsTrees.Tree(r.Context(), tid)
+		}
+	}
+	views, routing := stationViews(stations, tree)
+	jsonOK(w, map[string]any{"data": views, "total": len(views), "routing": routing})
+}
+
+// kdsStationView is a station plus its effective routing coverage.
+type kdsStationView struct {
+	*ent.KDSStation
+	// CategoryRoutes are the category names this station owns: its filter entries plus every
+	// sub-category that inherits from them (closest claim wins). Empty for an inactive station.
+	CategoryRoutes []string `json:"category_routes"`
+	// StaleFilters are filter entries that match no current inventory category (renamed or
+	// deleted). They route nothing and should be replaced.
+	StaleFilters []string `json:"stale_filters,omitempty"`
+}
+
+// kdsRoutingSummary describes, per outlet, what no station claims and where it falls.
+type kdsRoutingSummary struct {
+	OutletID            uuid.UUID `json:"outlet_id"`
+	UnclaimedCategories []string  `json:"unclaimed_categories"`
+	FallbackStationID   string    `json:"fallback_station_id,omitempty"`
+	TreeLoaded          bool      `json:"tree_loaded"`
+}
+
+func stationViews(stations []*ent.KDSStation, tree *kdsroute.Tree) ([]kdsStationView, []kdsRoutingSummary) {
+	byOutlet := make(map[uuid.UUID][]*ent.KDSStation)
+	var outlets []uuid.UUID
+	for _, st := range stations {
+		if _, seen := byOutlet[st.OutletID]; !seen {
+			outlets = append(outlets, st.OutletID)
+		}
+		byOutlet[st.OutletID] = append(byOutlet[st.OutletID], st)
+	}
+	owned := make(map[uuid.UUID][]string, len(stations))
+	stale := make(map[uuid.UUID][]string, len(stations))
+	summaries := make([]kdsRoutingSummary, 0, len(outlets))
+	for _, oid := range outlets {
+		router := kdsroute.New(byOutlet[oid], tree)
+		cov, unclaimed := router.Coverage()
+		for id, cats := range cov {
+			owned[id] = cats
+		}
+		for _, st := range byOutlet[oid] {
+			stale[st.ID] = router.StaleFilters(st)
+		}
+		sum := kdsRoutingSummary{OutletID: oid, UnclaimedCategories: unclaimed, TreeLoaded: tree != nil}
+		if sum.UnclaimedCategories == nil {
+			sum.UnclaimedCategories = []string{}
+		}
+		if fb := router.OwnerOrFallback("", "", nil); fb != nil {
+			sum.FallbackStationID = fb.String()
+		}
+		summaries = append(summaries, sum)
+	}
+	views := make([]kdsStationView, 0, len(stations))
+	for _, st := range stations {
+		routes := owned[st.ID]
+		if routes == nil {
+			routes = []string{}
+		}
+		views = append(views, kdsStationView{KDSStation: st, CategoryRoutes: routes, StaleFilters: stale[st.ID]})
+	}
+	return views, summaries
 }
 
 // kdsRecentCutoff returns the received-at cutoff for the KDS board. Defaults to the last 24h so
@@ -475,11 +558,11 @@ func (h *KDSHandler) CallWaiter(w http.ResponseWriter, r *http.Request) {
 		// Publish outbox event for future notifications-service integration.
 		if h.publisher != nil {
 			_ = h.publisher.PublishKDSWaiterCalled(r.Context(), tid, map[string]any{
-				"ticket_id":    ticket.ID.String(),
-				"order_id":     ticket.OrderID.String(),
-				"order_number": ticket.OrderNumber,
+				"ticket_id":      ticket.ID.String(),
+				"order_id":       ticket.OrderID.String(),
+				"order_number":   ticket.OrderNumber,
 				"waiter_user_id": order.UserID.String(),
-				"outlet_id":    order.OutletID.String(),
+				"outlet_id":      order.OutletID.String(),
 			})
 		}
 	}
@@ -532,6 +615,7 @@ func (h *KDSHandler) CreateStation(w http.ResponseWriter, r *http.Request) {
 	if stationType == "" {
 		stationType = entkdsstation.StationTypeKitchen
 	}
+	input.CategoryFilter = kdsroute.CleanFilter(input.CategoryFilter)
 
 	// A category may be routed to exactly one station. Reject any filter already claimed
 	// by another station in this outlet so tickets never fan out to duplicate destinations.
@@ -581,8 +665,10 @@ func (h *KDSHandler) UpdateStation(w http.ResponseWriter, r *http.Request) {
 		Name           string   `json:"name"`
 		StationType    string   `json:"station_type"`
 		CategoryFilter []string `json:"category_filter"`
-		SortOrder      int      `json:"sort_order"`
-		IsActive       *bool    `json:"is_active"`
+		// Pointer so an update that omits sort_order keeps it, while an explicit 0 is honoured
+		// (the edit form always sends it; it used to be decoded and then dropped).
+		SortOrder *int  `json:"sort_order"`
+		IsActive  *bool `json:"is_active"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
@@ -598,6 +684,7 @@ func (h *KDSHandler) UpdateStation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if input.CategoryFilter != nil {
+		input.CategoryFilter = kdsroute.CleanFilter(input.CategoryFilter)
 		conflicts, cErr := h.conflictingCategories(r.Context(), tid, station.OutletID, input.CategoryFilter, stationID)
 		if cErr != nil {
 			h.log.Error("check category conflicts failed", zap.Error(cErr))
@@ -619,6 +706,9 @@ func (h *KDSHandler) UpdateStation(w http.ResponseWriter, r *http.Request) {
 	}
 	if input.CategoryFilter != nil {
 		upd = upd.SetCategoryFilter(input.CategoryFilter)
+	}
+	if input.SortOrder != nil {
+		upd = upd.SetSortOrder(*input.SortOrder)
 	}
 	if input.IsActive != nil {
 		upd = upd.SetIsActive(*input.IsActive)
@@ -665,9 +755,9 @@ func (h *KDSHandler) DeleteStation(w http.ResponseWriter, r *http.Request) {
 }
 
 // conflictingCategories returns the categories in `wanted` that are already claimed by another
-// station in the same outlet (case-insensitive). excludeID is skipped so a station never conflicts
-// with itself on update. This enforces the invariant that each category routes to exactly one
-// station, keeping ticket routing unambiguous.
+// station in the same outlet, compared by kdsroute.Key (so "Coffee" and "Coffees" clash).
+// excludeID is skipped so a station never conflicts with itself on update. This enforces the
+// invariant that each category routes to exactly one station, keeping ticket routing unambiguous.
 func (h *KDSHandler) conflictingCategories(ctx context.Context, tid, outletID uuid.UUID, wanted []string, excludeID uuid.UUID) ([]string, error) {
 	if len(wanted) == 0 {
 		return nil, nil
@@ -682,30 +772,5 @@ func (h *KDSHandler) conflictingCategories(ctx context.Context, tid, outletID uu
 	if err != nil {
 		return nil, err
 	}
-
-	taken := make(map[string]struct{})
-	for _, st := range others {
-		for _, c := range st.CategoryFilter {
-			if k := strings.ToLower(strings.TrimSpace(c)); k != "" {
-				taken[k] = struct{}{}
-			}
-		}
-	}
-
-	var conflicts []string
-	seen := make(map[string]struct{})
-	for _, c := range wanted {
-		k := strings.ToLower(strings.TrimSpace(c))
-		if k == "" {
-			continue
-		}
-		if _, dup := seen[k]; dup {
-			continue
-		}
-		if _, ok := taken[k]; ok {
-			conflicts = append(conflicts, strings.TrimSpace(c))
-			seen[k] = struct{}{}
-		}
-	}
-	return conflicts, nil
+	return kdsroute.Conflicts(others, wanted), nil
 }

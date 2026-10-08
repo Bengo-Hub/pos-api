@@ -15,7 +15,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/modules/docs"
-	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 )
 
 // This file adds branded PDF/CSV document endpoints (via ReportPDFHandler.write, which already
@@ -283,16 +282,6 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	}
 	// Orders-with-lines (not lines-with-order) so AttributeOrderLines can prorate each order's
 	// net total_amount across its own lines — matches reports_extended.go's ProductMix.
-	mixOrders, err := h.db.POSOrder.Query().
-		Where(orderPreds...).
-		WithLines().
-		All(ctx)
-	if err != nil {
-		h.log.Error("product-mix-document: query failed", zap.Error(err))
-		jsonError(w, "failed to generate product mix report", http.StatusInternalServerError)
-		return
-	}
-
 	type mixBucket struct {
 		qty, revenue float64
 	}
@@ -312,24 +301,23 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	itemsByCategory := make(map[string]map[string]*mixBucket)
 	itemsByStation := make(map[string]map[string]*mixBucket)
 
-	// KDS station lookup, same per-outlet cache pattern as reports_extended.go's ProductMix — a
-	// multi-outlet report can mix outlets with different station configs.
-	stationsByOutlet := make(map[uuid.UUID][]*ent.KDSStation)
-	stationByID := make(map[uuid.UUID]*ent.KDSStation)
+	// KDS station lookup, same as reports_extended.go's ProductMix: every tenant station in one
+	// query (inactive ones keep their name), legacy unstamped lines resolved per outlet.
+	allStations, err := h.db.KDSStation.Query().Where(entkdsstation.TenantID(tid)).All(ctx)
+	if err != nil {
+		h.log.Error("product-mix-document: stations query failed", zap.Error(err))
+		jsonError(w, "failed to generate product mix report", http.StatusInternalServerError)
+		return
+	}
+	stationByID := make(map[uuid.UUID]*ent.KDSStation, len(allStations))
+	for _, st := range allStations {
+		stationByID[st.ID] = st
+	}
+	routerFor := outletRouters(allStations)
 	resolveStation := func(o *ent.POSOrder, l *ent.POSOrderLine) string {
-		stations, ok := stationsByOutlet[o.OutletID]
-		if !ok {
-			stations, _ = h.db.KDSStation.Query().
-				Where(entkdsstation.TenantID(tid), entkdsstation.OutletID(o.OutletID), entkdsstation.IsActive(true)).
-				All(ctx)
-			stationsByOutlet[o.OutletID] = stations
-			for _, st := range stations {
-				stationByID[st.ID] = st
-			}
-		}
 		stationID := l.KdsStationID
 		if stationID == nil {
-			stationID = ordersmod.ResolveStationForLineOrFallback(l.Name, l.Category, nil, stations)
+			stationID = routerFor(o.OutletID).OwnerOrFallback(l.Name, l.Category, nil)
 		}
 		if stationID == nil {
 			return ""
@@ -344,48 +332,67 @@ func (h *ReportPDFHandler) ProductMixDoc(w http.ResponseWriter, r *http.Request)
 	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
 	// generated for one tenant's orders, which may not be KES.
 	currency := "KES"
-	for _, o := range mixOrders {
-		if o.Currency != "" {
-			currency = o.Currency
+	// Keyset pages so a long range never loads every order with its lines at once.
+	var after *uuid.UUID
+	for {
+		q := h.db.POSOrder.Query().Where(orderPreds...)
+		if after != nil {
+			q = q.Where(posorder.IDGT(*after))
 		}
-		// AttributeOrderLines (see report_attribution.go) fixes the same two bugs found across
-		// every line-level report: a voided line no longer contributes its pre-void gross, and
-		// revenue is each line's prorated share of order.TotalAmount, not raw total_price — so
-		// this exported document now agrees with the JSON endpoint and Sales-by-Staff.
-		for i, al := range AttributeOrderLines(o) {
-			l := o.Edges.Lines[i]
-			if al.Quantity <= 0 && al.Revenue <= 0 {
-				continue // fully voided — nothing active to attribute
+		mixOrders, err := q.Order(ent.Asc(posorder.FieldID)).Limit(kdsBreakdownPage).WithLines().All(ctx)
+		if err != nil {
+			h.log.Error("product-mix-document: query failed", zap.Error(err))
+			jsonError(w, "failed to generate product mix report", http.StatusInternalServerError)
+			return
+		}
+		for _, o := range mixOrders {
+			if o.Currency != "" {
+				currency = o.Currency
 			}
-			category := l.Category
-			if category == "" {
-				category = "Uncategorised"
-			}
-			station := resolveStation(o, l)
-			if station == "" {
-				station = "Unassigned"
-			}
-			if len(catFilter) > 0 && !catFilter[category] {
-				continue
-			}
-			if len(stationFilter) > 0 && !stationFilter[station] {
-				continue
-			}
+			// AttributeOrderLines (see report_attribution.go) fixes the same two bugs found across
+			// every line-level report: a voided line no longer contributes its pre-void gross, and
+			// revenue is each line's prorated share of order.TotalAmount, not raw total_price — so
+			// this exported document now agrees with the JSON endpoint and Sales-by-Staff.
+			for i, al := range AttributeOrderLines(o) {
+				l := o.Edges.Lines[i]
+				if al.Quantity <= 0 && al.Revenue <= 0 {
+					continue // fully voided — nothing active to attribute
+				}
+				category := l.Category
+				if category == "" {
+					category = "Uncategorised"
+				}
+				station := resolveStation(o, l)
+				if station == "" {
+					station = "Unassigned"
+				}
+				if len(catFilter) > 0 && !catFilter[category] {
+					continue
+				}
+				if len(stationFilter) > 0 && !stationFilter[station] {
+					continue
+				}
 
-			accumulate(byItem, l.Name, al.Quantity, al.Revenue)
-			accumulate(byCategory, category, al.Quantity, al.Revenue)
-			accumulate(byStation, station, al.Quantity, al.Revenue)
-			if itemsByCategory[category] == nil {
-				itemsByCategory[category] = make(map[string]*mixBucket)
+				accumulate(byItem, l.Name, al.Quantity, al.Revenue)
+				accumulate(byCategory, category, al.Quantity, al.Revenue)
+				accumulate(byStation, station, al.Quantity, al.Revenue)
+				if itemsByCategory[category] == nil {
+					itemsByCategory[category] = make(map[string]*mixBucket)
+				}
+				accumulate(itemsByCategory[category], l.Name, al.Quantity, al.Revenue)
+				if itemsByStation[station] == nil {
+					itemsByStation[station] = make(map[string]*mixBucket)
+				}
+				accumulate(itemsByStation[station], l.Name, al.Quantity, al.Revenue)
+				totalRevenue += al.Revenue
+				totalQty += al.Quantity
 			}
-			accumulate(itemsByCategory[category], l.Name, al.Quantity, al.Revenue)
-			if itemsByStation[station] == nil {
-				itemsByStation[station] = make(map[string]*mixBucket)
-			}
-			accumulate(itemsByStation[station], l.Name, al.Quantity, al.Revenue)
-			totalRevenue += al.Revenue
-			totalQty += al.Quantity
 		}
+		if len(mixOrders) < kdsBreakdownPage {
+			break
+		}
+		last := mixOrders[len(mixOrders)-1].ID
+		after = &last
 	}
 
 	type mixRow struct {

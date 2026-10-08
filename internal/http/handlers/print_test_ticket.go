@@ -26,6 +26,7 @@ func TestTicket(w http.ResponseWriter, r *http.Request) {
 	if r.Body != nil {
 		_ = json.NewDecoder(r.Body).Decode(&in) // body is optional; ignore decode errors
 	}
-	raw := printing.BuildTestTicket(in.Station, in.Paper, time.Now())
+	// No outlet context on this route: the ticket prints in the platform default zone.
+	raw := printing.BuildTestTicket(in.Station, in.Paper, time.Now(), nil)
 	jsonOK(w, map[string]any{"method": "escpos", "escpos_hex": hex.EncodeToString(raw)})
 }

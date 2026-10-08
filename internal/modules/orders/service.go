@@ -27,6 +27,7 @@ import (
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/bengobox/pos-service/internal/modules/documents"
 	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
+	"github.com/bengobox/pos-service/internal/modules/kdsroute"
 	"github.com/bengobox/pos-service/internal/modules/orderchannel"
 	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
 	"github.com/bengobox/pos-service/internal/modules/printing"
@@ -92,24 +93,24 @@ var validOrderSubtypes = map[string]struct{}{
 // validTransitions defines allowed status transitions.
 var validTransitions = map[string][]string{
 	// draft → completed is required for retail orders that skip the "open" stage.
-	StatusDraft:          {StatusOpen, StatusPendingPayment, StatusCompleted, StatusCancelled, StatusVoided},
-	StatusOpen:           {StatusPendingPayment, StatusCompleted, StatusCancelled, StatusVoided},
+	StatusDraft: {StatusOpen, StatusPendingPayment, StatusCompleted, StatusCancelled, StatusVoided},
+	StatusOpen:  {StatusPendingPayment, StatusCompleted, StatusCancelled, StatusVoided},
 	// A held online order is either accepted (opened) or rejected/cancelled.
 	StatusAwaitingAcceptance: {StatusOpen, StatusCancelled, StatusVoided},
-	StatusPendingPayment: {StatusCompleted, StatusCancelled, StatusVoided},
-	StatusCompleted:      {StatusRefunded},
-	StatusCancelled:      {},
-	StatusRefunded:       {},
-	StatusVoided:         {},
+	StatusPendingPayment:     {StatusCompleted, StatusCancelled, StatusVoided},
+	StatusCompleted:          {StatusRefunded},
+	StatusCancelled:          {},
+	StatusRefunded:           {},
+	StatusVoided:             {},
 }
 
 // CreateOrderRequest holds the input for creating a POS order.
 type CreateOrderRequest struct {
-	TenantID    uuid.UUID
-	TenantSlug  string // used for treasury S2S tax lookups
-	OutletID    uuid.UUID
-	DeviceID    uuid.UUID
-	UserID      uuid.UUID
+	TenantID   uuid.UUID
+	TenantSlug string // used for treasury S2S tax lookups
+	OutletID   uuid.UUID
+	DeviceID   uuid.UUID
+	UserID     uuid.UUID
 	// ServedByUserID is who is credited with SERVING this sale — distinct from UserID (who
 	// created this DB row). Defaults to UserID when zero (the historical behavior for every
 	// normal order). Callers set it explicitly when finalizing a resumed-and-modified draft as a
@@ -284,6 +285,9 @@ type Service struct {
 	// just a friendlier customer-facing domain (see internal/shorttoken + receipt_short.go). Falls
 	// back to publicAPIBase's long form if unset, so this is purely additive/optional.
 	shortLinkBase string
+	// kdsTrees serves each tenant's cached inventory category tree for KDS routing (nil-safe:
+	// routing then matches flat on the line's own category).
+	kdsTrees *kdsroute.Source
 }
 
 // WithPublicAPIBase wires pos-api's own public base URL so RequestSaleNotification can build a
@@ -984,9 +988,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	// Every line is stamped with its resolved station (not just override-derived ones) so
 	// sales-by-station reporting and the daily-close breakdown can aggregate directly off
 	// pos_order_lines without recomputing routing after the fact.
-	kdsStations, _ := s.client.KDSStation.Query().
-		Where(kdsstation.TenantID(req.TenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
-		All(ctx)
+	kdsRouter := s.kdsRouter(ctx, req.TenantID, order.OutletID)
 
 	for li, line := range req.Lines {
 		lineTotal := decimal.NewFromFloat(line.TotalPrice)
@@ -1056,7 +1058,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 		if stationID, ok := kdsOverrideBySKU[line.SKU]; ok {
 			overrideID = &stationID
 		}
-		if stationID := ResolveStationForLineOrFallback(line.Name, line.Category, overrideID, kdsStations); stationID != nil {
+		if stationID := kdsRouter.OwnerOrFallback(line.Name, line.Category, overrideID); stationID != nil {
 			lineCreate = lineCreate.SetKdsStationID(*stationID)
 		}
 
@@ -1312,44 +1314,44 @@ func parseTableRef(order *ent.POSOrder) string {
 	return ""
 }
 
-// routeLinesToStations groups order lines into per-station item buckets.
-//
-// Routing priority (highest to lowest):
-//  1. line.KdsStationID — explicit station set at order creation from POSCatalogOverride
-//  2. Station category_filter — strict exact match of the item's category (name substring only
-//     when the item has no category)
-//  3. Expo / "all" stations — receive every item as a secondary copy for the expediter
-//
-// A station with station_type="expo" or "all" always receives EVERY item.
-// Items with no explicit station and no matching category_filter go to expo/all stations;
-// if no such station exists they go to the first active station.
-func routeLinesToStations(lines []*ent.POSOrderLine, stations []*ent.KDSStation) map[uuid.UUID][]map[string]any {
-	stationItems := make(map[uuid.UUID][]map[string]any, len(stations))
-
-	// Identify expo/all upfront — they only fan out unresolved items (priority 3 below).
-	var expoIDs []uuid.UUID
-	for _, st := range stations {
-		if st.StationType == "expo" || st.StationType == "all" {
-			expoIDs = append(expoIDs, st.ID)
-		}
+// kdsRouter builds the KDS station router for one outlet: its active stations plus the tenant's
+// cached inventory category tree (see kdsroute). Every routing decision in this package goes
+// through it, so stamping a line, issuing its ticket and printing its chit always agree.
+func (s *Service) kdsRouter(ctx context.Context, tenantID, outletID uuid.UUID) *kdsroute.Router {
+	stations, _ := s.client.KDSStation.Query().
+		Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(outletID), kdsstation.IsActive(true)).
+		Order(ent.Asc(kdsstation.FieldSortOrder)).
+		All(ctx)
+	var tree *kdsroute.Tree
+	if len(stations) > 0 {
+		tree = s.kdsTrees.Tree(ctx, tenantID)
 	}
+	return kdsroute.New(stations, tree)
+}
+
+// SetKDSCategorySource wires the cached inventory category tree used for KDS routing, so a
+// sub-category inherits its parent section's station.
+func (s *Service) SetKDSCategorySource(src *kdsroute.Source) {
+	s.kdsTrees = src
+}
+
+// routeLinesToStations groups order lines into per-station ticket items. A line goes to the
+// station that owns it (kdsroute.Router.Owner: its stamped kds_station_id first, then its
+// category). A line nothing owns goes to every expo/all station as a secondary copy, or to the
+// first station when the outlet has none.
+func routeLinesToStations(lines []*ent.POSOrderLine, router *kdsroute.Router) map[uuid.UUID][]map[string]any {
+	stations := router.Stations()
+	stationItems := make(map[uuid.UUID][]map[string]any, len(stations))
+	copies := router.CopyStations()
 
 	for _, l := range lines {
 		item := kdsTicketItem(l)
-
-		// Priorities 1–2 (explicit override, hot-beverage guard, category_filter match) live in
-		// resolveStationForLine — the SAME function used to stamp kds_station_id on the line at
-		// order-create time, so ticket routing and the persisted line never drift apart.
-		if target := resolveStationForLine(l.Name, l.Category, l.KdsStationID, stations); target != nil {
+		if target := router.Owner(l.Name, l.Category, l.KdsStationID); target != nil {
 			stationItems[*target] = append(stationItems[*target], item)
 			continue
 		}
-
-		// Priority 3: no specific station matched — route to expo/all as the catch-all,
-		// or fall back to the first active station. Expo only receives items that are
-		// genuinely unresolved (no kitchen, bar, or other station matched them).
-		if len(expoIDs) > 0 {
-			for _, eid := range expoIDs {
+		if len(copies) > 0 {
+			for _, eid := range copies {
 				stationItems[eid] = append(stationItems[eid], item)
 			}
 		} else if len(stations) > 0 {
@@ -1358,110 +1360,6 @@ func routeLinesToStations(lines []*ent.POSOrderLine, stations []*ent.KDSStation)
 	}
 
 	return stationItems
-}
-
-// resolveStationForLine returns the single station a line's ticket is PRIMARILY filed under —
-// priorities 1–2 of routeLinesToStations (explicit override → category_filter match →
-// hot-beverage-to-kitchen guess) — or nil when none match. It deliberately excludes the expo/all
-// catch-all fan-out: that's a secondary-copy concern for ticket printing, not a single "owning"
-// station, so callers that need exactly one station (line persistence, reporting) use
-// ResolveStationForLineOrFallback instead.
-func resolveStationForLine(name, category string, overrideStationID *uuid.UUID, stations []*ent.KDSStation) *uuid.UUID {
-	// Priority 1: explicit station on the order line (set from catalog override) — manager wins.
-	if overrideStationID != nil {
-		return overrideStationID
-	}
-
-	// Priority 2: strict category_filter match. The item's CATEGORY (stamped from the live
-	// inventory catalog at sale time) must EXACTLY equal one of the station's category filters
-	// (case-insensitive, trimmed). Because each category is claimed by exactly one station
-	// (enforced on station create/update), this routes every ticket to a single, correct
-	// destination — the TENANT'S OWN configuration always wins here, even for hot beverages: a
-	// café's "Bar" station commonly owns Coffees/Teas (a barista/espresso bar), so a station that
-	// explicitly claims those categories must never be second-guessed by a generic "hot drinks
-	// belong in the kitchen" assumption (2026-08 urban-loft bug — Mixed Tea/Mocha/Cafe Latte/Hot
-	// Water Lemon were all being force-routed to Kitchen despite Bar's category_filter explicitly
-	// listing Coffees/Teas/Milkshakes). Only when the line carries no category (legacy/
-	// uncategorized item) do we fall back to a substring match on the item name.
-	itemCat := strings.ToLower(strings.TrimSpace(category))
-	itemName := strings.ToLower(name)
-	for _, st := range stations {
-		if st.StationType == "expo" || st.StationType == "all" {
-			continue // handled by the caller's catch-all fan-out
-		}
-		for _, cat := range st.CategoryFilter {
-			needle := strings.ToLower(strings.TrimSpace(cat))
-			if needle == "" {
-				continue
-			}
-			matched := itemCat != "" && itemCat == needle ||
-				itemCat == "" && strings.Contains(itemName, needle)
-			if matched {
-				id := st.ID
-				return &id
-			}
-		}
-	}
-
-	// Priority 3: nothing claimed this item's category (or it has none) — fall back to a
-	// hot-beverage name guess (coffee/tea/etc. → kitchen) as a last resort for genuinely
-	// unconfigured tenants. This NEVER overrides a station that explicitly claimed the item's
-	// real category above — only reached when priority 2 found no match at all.
-	if isHotBeverage(name, category) {
-		for _, st := range stations {
-			if st.StationType == "kitchen" {
-				id := st.ID
-				return &id
-			}
-		}
-	}
-	return nil
-}
-
-// ResolveStationForLineOrFallback is resolveStationForLine plus the SAME priority-3 fallback
-// routeLinesToStations applies (first expo/all station, else the first active station) collapsed
-// to a single value — used wherever a line needs exactly ONE owning station (persisting
-// kds_station_id on create, revenue-by-station reporting), as opposed to routeLinesToStations'
-// ticket fan-out where expo/all receive a secondary COPY of every unresolved item.
-func ResolveStationForLineOrFallback(name, category string, overrideStationID *uuid.UUID, stations []*ent.KDSStation) *uuid.UUID {
-	if target := resolveStationForLine(name, category, overrideStationID, stations); target != nil {
-		return target
-	}
-	for _, st := range stations {
-		if st.StationType == "expo" || st.StationType == "all" {
-			id := st.ID
-			return &id
-		}
-	}
-	if len(stations) > 0 {
-		id := stations[0].ID
-		return &id
-	}
-	return nil
-}
-
-// hotBeverageKeywords are matched (case-insensitive substring) against an item's name and category
-// to keep coffee/tea-type drinks on the kitchen station rather than the bar.
-var hotBeverageKeywords = []string{
-	"coffee", "tea", "espresso", "cappuccino", "latte", "americano", "macchiato",
-	"mocha", "hot chocolate", "chai", "flat white", "cortado", "affogato",
-	"hot beverage", "hot drink",
-}
-
-// isHotBeverage reports whether an item (by name or category) is a hot beverage that should be
-// prepared in the kitchen, not the bar.
-func isHotBeverage(name, category string) bool {
-	hay := strings.ToLower(name + " " + category)
-	for _, kw := range hotBeverageKeywords {
-		if strings.Contains(hay, kw) {
-			// Guard against false positives like "iced tea"/"iced coffee" which are bar/cold drinks.
-			if (kw == "coffee" || kw == "tea") && (strings.Contains(hay, "iced "+kw) || strings.Contains(hay, "ice "+kw)) {
-				continue
-			}
-			return true
-		}
-	}
-	return false
 }
 
 // createKDSTicketsForOrder creates the order's first round of KDS tickets: one per station that has
@@ -1509,15 +1407,13 @@ func (s *Service) issueKDSTickets(ctx context.Context, tenantID uuid.UUID, order
 	if wf := s.orderWorkflow(ctx, order.OutletID, string(order.OrderSubtype)); !wf.Kitchen && !wf.Production {
 		return nil
 	}
-	stations, err := s.client.KDSStation.Query().
-		Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
-		Order(ent.Asc(kdsstation.FieldSortOrder)).
-		All(ctx)
-	if err != nil || len(stations) == 0 {
-		return err
+	router := s.kdsRouter(ctx, tenantID, order.OutletID)
+	stations := router.Stations()
+	if len(stations) == 0 {
+		return nil
 	}
 
-	stationItems := routeLinesToStations(lines, stations)
+	stationItems := routeLinesToStations(lines, router)
 	tableRef := parseTableRef(order)
 	subtype := string(order.OrderSubtype)
 	source := orderchannel.Source(order.Metadata)
@@ -2009,9 +1905,7 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 	}
 	// Every line is stamped with its resolved station (see CreateOrder) so reporting never
 	// depends on re-deriving routing for add-to-bill lines after the fact.
-	kdsStations, _ := s.client.KDSStation.Query().
-		Where(kdsstation.TenantID(tenantID), kdsstation.OutletID(order.OutletID), kdsstation.IsActive(true)).
-		All(ctx)
+	kdsRouter := s.kdsRouter(ctx, tenantID, order.OutletID)
 
 	// Resolve tax for the new lines the same way CreateOrder does, so add-to-bill lines carry
 	// their VAT and the recomputed header stays consistent with the till — including the outlet's
@@ -2070,7 +1964,7 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 		if stationID, ok := kdsOverrideBySKU[l.SKU]; ok {
 			overrideID = &stationID
 		}
-		if stationID := ResolveStationForLineOrFallback(l.Name, l.Category, overrideID, kdsStations); stationID != nil {
+		if stationID := kdsRouter.OwnerOrFallback(l.Name, l.Category, overrideID); stationID != nil {
 			lc = lc.SetKdsStationID(*stationID)
 		}
 		saved, saveErr := lc.Save(ctx)

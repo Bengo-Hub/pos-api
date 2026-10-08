@@ -52,6 +52,42 @@ Printing has two cooperating layers:
   outlet_id?, profile_id?}`: Print Bill / Print Receipt buttons and Test print. Enqueues nothing and
   returns `agent_online:false` when no agent is polling (caller falls back to client transports).
 
+### KDS station routing (kitchen vs bar)
+
+One rule decides which station owns an order line: `internal/modules/kdsroute` (`Router.Owner` and
+`OwnerOrFallback`). It stamps `pos_order_lines.kds_station_id` at order create and add-to-bill
+(till and online orders alike, both go through `orders.CreateOrder`), routes KDS tickets and the
+agent-printed chits (`routeLinesToStations`), and resolves legacy unstamped lines in the
+sales-by-station, product-mix and daily-close reports. Priority:
+
+1. A per-item pin (`pos_catalog_overrides.kds_station_id`), honoured only while it names an active
+   station of the selling outlet. Pins are tenant-wide, so another outlet's or a deactivated
+   station's pin is ignored rather than filing the line under a screen nobody watches.
+2. The line's category claimed by a station's `category_filter`, walking up the inventory category
+   tree so a sub-category inherits its section's station ("Red Wines" follows a Bar that claims
+   "Wines"). The closest claim wins. Names compare by `kdsroute.Key` (case, spacing, punctuation,
+   "&" as "and", one simple plural), so "Coffee" matches a filter saved as "Coffees".
+3. A line with no category: a filter name contained in the item name.
+4. Unclaimed: a hot-drink name guess goes to the kitchen station.
+5. `OwnerOrFallback` only: the first expo/all station, else the first station by `sort_order`.
+
+The category tree comes from inventory-api (`GET /inventory/categories`, `parent_id`) through
+`kdsroute.Source`: a per-pod cache, fresh for 5 minutes, with the last good tree served for 24 hours
+and a 30 second back-off when inventory is slow, so order creation never waits on it (3 second
+budget). Without a tree, routing matches flat on the line's own category.
+
+`GET /pos/kds/stations` returns each station's `category_routes` (every category it owns, inherited
+ones included), `stale_filters` (filter names no inventory category has any more) and a per-outlet
+`routing` summary (unclaimed categories and the fallback station). `?all=true` (the settings
+screen) reloads the tree. pos-ui's own chit router (`src/lib/kds/routing.ts`, used when no print
+agent is online) applies the same priorities on `category_routes`, so the till's paper chit and the
+KDS screen agree. Station create/update cleans the filter and rejects a name another station
+claims under the same key.
+
+Chits print the order time in the outlet's timezone (`printing.OutletLocation`, default
+Africa/Nairobi): `ReceiptData.Location` is applied to every printed timestamp, since the pods run on
+UTC. It is excluded from the JSON `receipt_data` the browser renders in its own zone.
+
 ### Agent pairing + polling API
 
 - `POST /{tenant}/pos/printing/agents` (JWT, `pos.config.change`) → `{id, key}` — plaintext key

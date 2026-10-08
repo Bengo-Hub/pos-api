@@ -40,8 +40,13 @@ type ReceiptData struct {
 	ServedBy      string
 	TableRef      string
 	DateTime      time.Time
-	Header        string // custom header text from OutletSetting
-	Footer        string // custom footer text from OutletSetting
+	// Location is the outlet's timezone (OutletLocation) every printed time is shown in. Times
+	// are stored in UTC and the pods run on UTC, so without it a ticket reads hours behind the
+	// local clock. nil prints in Africa/Nairobi. Not part of the JSON receipt_data the browser
+	// renders (the browser formats DateTime in its own zone).
+	Location      *time.Location `json:"-"`
+	Header        string         // custom header text from OutletSetting
+	Footer        string         // custom footer text from OutletSetting
 	Items         []ReceiptItem
 	Subtotal      float64
 	TaxTotal      float64
@@ -63,8 +68,8 @@ type ReceiptData struct {
 	Currency                    string
 	EtimsInvoiceNumber          string
 	// Fiscal identity ("KRA TIMS Details" block, mirroring paper ETR receipts).
-	EtimsKraPin   string // printed in the business header as "KRA PIN: …"
-	EtimsScuID    string // "SCU ID" line
+	EtimsKraPin       string // printed in the business header as "KRA PIN: …"
+	EtimsScuID        string // "SCU ID" line
 	EtimsCuInvNo      string // "CU Inv No." line — {SCU ID}/{receipt no}
 	EtimsRcptSign     string
 	EtimsInternalData string // KRA control-unit internal data (intrlData) — printed dash-chunked
@@ -79,7 +84,7 @@ type ReceiptData struct {
 	// Banner is an attention line under the ticket-type heading — e.g.
 	// "*** ADDITIONAL ITEMS ***" on a delta kitchen chit fired when a waiter adds
 	// to an open bill, so the kitchen never mistakes it for a brand-new order.
-	Banner         string
+	Banner string
 	// OrderType is the station chit's route line ("TAKEAWAY", "ONLINE DELIVERY", "DINE-IN"),
 	// printed large on every kitchen/bar chit so the pass knows how to pack it.
 	OrderType string
@@ -98,6 +103,16 @@ type ReceiptData struct {
 	// Computed once by ReceiptView.FiscalBarcodeValue so ESC/POS never diverges from the
 	// server HTML/PDF/client barcode. Empty = no barcode.
 	BarcodeValue string
+}
+
+// localTime converts a stored timestamp into the ticket's outlet timezone (default
+// Africa/Nairobi) so every printed time matches the wall clock at the outlet.
+func (d ReceiptData) localTime(t time.Time) time.Time {
+	loc := d.Location
+	if loc == nil {
+		loc = OutletLocation(nil)
+	}
+	return t.In(loc)
 }
 
 // ReceiptItem is a single line on the receipt.
@@ -196,7 +211,7 @@ func BuildReceipt(d ReceiptData) []byte {
 	if d.TableRef != "" {
 		writeln(fmt.Sprintf("Table:   %s", d.TableRef))
 	}
-	writeln(fmt.Sprintf("Time:    %s", d.DateTime.Format("02 Jan 2006 15:04")))
+	writeln(fmt.Sprintf("Time:    %s", d.localTime(d.DateTime).Format("02 Jan 2006 15:04")))
 	if d.ServedBy != "" && d.Type != "kitchen_ticket" {
 		writeln(fmt.Sprintf("Server:  %s", d.ServedBy))
 	}
@@ -282,7 +297,7 @@ func BuildReceipt(d ReceiptData) []byte {
 			// Retail prints the settle date beside the method — "Payment  Cash (14-07-2026)".
 			method := d.PaymentMethod
 			if d.UseCase == "retail" && d.PaymentDate != nil {
-				method = fmt.Sprintf("%s (%s)", method, d.PaymentDate.Format("02-01-2006"))
+				method = fmt.Sprintf("%s (%s)", method, d.localTime(*d.PaymentDate).Format("02-01-2006"))
 			}
 			writeln(formatLine("Payment", method))
 		}
@@ -431,7 +446,8 @@ func BuildReceipt(d ReceiptData) []byte {
 // "Test print" button. It carries no order — just enough to confirm the printer is wired,
 // cutting correctly and reachable — so it can be dispatched silently (via the local agent or
 // QZ) without opening the browser print dialog.
-func BuildTestTicket(stationLabel, paper string, when time.Time) []byte {
+// loc is the outlet's timezone (OutletLocation); nil prints in Africa/Nairobi.
+func BuildTestTicket(stationLabel, paper string, when time.Time, loc *time.Location) []byte {
 	if when.IsZero() {
 		when = time.Now()
 	}
@@ -453,7 +469,7 @@ func BuildTestTicket(stationLabel, paper string, when time.Time) []byte {
 	if paper != "" {
 		writeln(formatLine("Paper", paper))
 	}
-	writeln(formatLine("Time", when.Format("02 Jan 2006 15:04")))
+	writeln(formatLine("Time", ReceiptData{Location: loc}.localTime(when).Format("02 Jan 2006 15:04")))
 	separator()
 	write(escCenter)
 	writeln("If you can read this, the")

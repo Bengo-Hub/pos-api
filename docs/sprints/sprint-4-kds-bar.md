@@ -37,7 +37,7 @@ The `hotel-pos-v8.jsx` design shows KDS with:
 ## KDS Ticket Creation (Wire to Order Flow)
 
 When `POST /{tenant}/pos/orders/{id}/status` transitions order to `open`:
-1. For each order line, determine destination station (via `catalog_item.kds_station` or `category → station` mapping from `KDSStation.category_filter`)
+1. For each order line, determine destination station (the stamped `kds_station_id`, decided by `internal/modules/kdsroute`: per-item pin, then the category or its nearest parent section claimed by a `KDSStation.category_filter`; see `docs/printing.md`, KDS station routing)
 2. Group lines by station
 3. Create one `KDSTicket` per station with the grouped line items
 
