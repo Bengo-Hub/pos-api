@@ -19,7 +19,8 @@ import (
 
 // enqueueAutoPrintJobs pushes the order's kitchen/bar station tickets and (optionally) the
 // customer bill onto the background print queue for the outlet's Local Print Agent, honouring the
-// outlet's auto_print_kitchen / auto_print_order settings.
+// outlet's auto_print_kitchen / auto_print_order switches and each printer card's own Auto-print
+// toggle (printing.AutoBillProfile / AutoStationProfile).
 //
 // It enqueues ONLY when a paired agent is currently online — otherwise the till's client-side
 // silent transports (QZ / loopback agent relay) keep working exactly as before, and we avoid
@@ -47,12 +48,15 @@ func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, 
 	if err != nil || setting == nil {
 		return
 	}
+	profiles := printing.ProfilesFromRaw(setting.PrinterProfiles)
 	printChits := stationChits && setting.AutoPrintKitchen
-	if !printChits && !setting.AutoPrintOrder {
+	// The posted bill follows the same gate as the paid receipt: outlet auto_print_order AND the
+	// bill printer's own Auto-print toggle (it used to ignore the toggle).
+	billProfile := printing.AutoBillProfile(setting.AutoPrintOrder, profiles)
+	if !printChits && billProfile == nil {
 		return
 	}
 
-	profiles := printing.ProfilesFromRaw(setting.PrinterProfiles)
 	lines, err := s.client.POSOrderLine.Query().
 		Where(posorderline.OrderID(order.ID)).
 		WithModifiers().
@@ -67,20 +71,18 @@ func (s *Service) enqueueAutoPrintJobs(ctx context.Context, tenantID uuid.UUID, 
 	}
 
 	// Customer bill (dine-in pro-forma) — owned here so the till can log the waiter out instantly.
-	if setting.AutoPrintOrder {
-		if profile := printing.ResolveBillProfile(profiles); profile != nil {
-			outlet, _ := s.client.Outlet.Query().Where(entoutlet.ID(order.OutletID)).Only(ctx)
-			servedBy := printing.ServedByFromContext(ctx)
-			tenantName := ""
-			if t, terr := s.client.Tenant.Query().Where(enttenant.ID(tenantID)).Only(ctx); terr == nil {
-				tenantName = t.Name
-			}
-			rdata := printing.OrderReceiptData(order, lines, outlet, setting, "customer", "", servedBy, "", tenantName)
-			rdata.ShowProviderFooter = providerfooter.Resolve(ctx, s.client, tenantID)
-			payload := printing.BuildReceipt(rdata)
-			s.enqueueJob(ctx, tenantID, order, "bill", profile, payload,
-				fmt.Sprintf("%s:bill:%s", order.ID, profile.ID))
+	if billProfile != nil {
+		outlet, _ := s.client.Outlet.Query().Where(entoutlet.ID(order.OutletID)).Only(ctx)
+		servedBy := printing.ServedByFromContext(ctx)
+		tenantName := ""
+		if t, terr := s.client.Tenant.Query().Where(enttenant.ID(tenantID)).Only(ctx); terr == nil {
+			tenantName = t.Name
 		}
+		rdata := printing.OrderReceiptData(order, lines, outlet, setting, "customer", "", servedBy, "", tenantName)
+		rdata.ShowProviderFooter = providerfooter.Resolve(ctx, s.client, tenantID)
+		payload := printing.BuildReceipt(rdata)
+		s.enqueueJob(ctx, tenantID, order, "bill", billProfile, payload,
+			fmt.Sprintf("%s:bill:%s", order.ID, billProfile.ID))
 	}
 }
 
@@ -104,9 +106,11 @@ func (s *Service) enqueueStationTickets(ctx context.Context, tenantID uuid.UUID,
 		if len(items) == 0 {
 			continue
 		}
-		profile := printing.ProfileForStation(profiles, station.ID.String())
+		// Real printer with its card's Auto-print toggle on (the till's own chit path already
+		// skipped a station whose toggle is off; this server path did not).
+		profile := printing.AutoStationProfile(profiles, station.ID.String())
 		if profile == nil {
-			continue // station has no real printer assigned — KDS screen (or client path) covers it
+			continue // no real printer, or auto-print off for this station: the KDS screen covers it
 		}
 		jobType := "kitchen"
 		if station.StationType == "bar" {

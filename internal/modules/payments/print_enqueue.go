@@ -21,8 +21,9 @@ import (
 )
 
 // enqueueReceiptPrint pushes the FINAL customer receipt (with payment method) onto the background
-// print queue once the order is fully paid, when the outlet auto-prints and a Local Print Agent is
-// online. Deduped per order+printer, so replayed confirmations never double-print. Never fatal.
+// print queue once the order is fully paid, when the outlet auto-prints, the bill printer's own
+// Auto-print toggle is on and a Local Print Agent is online. Deduped per order+printer, so replayed
+// confirmations never double-print. Never fatal.
 func (s *Service) enqueueReceiptPrint(ctx context.Context, order *ent.POSOrder) {
 	if s.printQueue == nil || order == nil {
 		return
@@ -36,12 +37,13 @@ func (s *Service) enqueueReceiptPrint(ctx context.Context, order *ent.POSOrder) 
 	setting, err := s.client.OutletSetting.Query().
 		Where(outletsettingpredicate.OutletID(order.OutletID)).
 		Only(ctx)
-	if err != nil || setting == nil || !setting.AutoPrintOrder {
+	if err != nil || setting == nil {
 		return
 	}
-
-	profiles := printing.ProfilesFromRaw(setting.PrinterProfiles)
-	profile := printing.ResolveBillProfile(profiles)
+	// Outlet auto_print_order AND the bill printer's own Auto-print toggle (printing.AutoBillProfile).
+	// It used to check only the outlet switch, so a customer copy printed on every payment even with
+	// the Bill / Customer Receipt card's Auto-print turned off.
+	profile := printing.AutoBillProfile(setting.AutoPrintOrder, printing.ProfilesFromRaw(setting.PrinterProfiles))
 	if profile == nil {
 		return
 	}

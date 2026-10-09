@@ -23,6 +23,7 @@ Printing has two cooperating layers:
   order→ReceiptData mappers (shared by `/print` handler and the queue — never duplicate).
 - `internal/modules/printing/profiles.go` — `ProfilesFromRaw` (single decoder for
   `OutletSetting.printer_profiles`), `ResolveBillProfile` (customer → waiter → any real),
+  `AutoBillProfile` and `AutoStationProfile` (outlet and per-printer automatic-print gates),
   `ProfileForStation`, `HasRealPrinter` (mirrors pos-ui `printer-stations.ts`).
 - `internal/modules/printing/queue.go` — `Queue`: `Enqueue` (dedupe key per (tenant, key)),
   `ClaimNext` (long-poll; lease `claim_expires_at` 60s; job TTL 15 min; ≤3 attempts), `Ack`,
@@ -43,11 +44,13 @@ Printing has two cooperating layers:
 
 - **Order create** (`orders/service.go` → `print_enqueue.go`): for hospitality orders, when a
   paired agent is ONLINE — `auto_print_kitchen` → per-station kitchen/bar tickets (same
-  `routeLinesToStations` routing as KDS tickets), `auto_print_order` → customer bill via
-  `ResolveBillProfile`. Dedupe `orderID:jobType:stationID` / `orderID:bill:profileID`.
+  `routeLinesToStations` routing as KDS tickets), with each station printer's `auto_print` enabled;
+  `auto_print_order` plus the selected bill printer's `auto_print` → customer bill. A missing
+  per-printer `auto_print` field is treated as enabled for profiles saved before that toggle existed.
+  Dedupe `orderID:jobType:stationID` / `orderID:bill:profileID`.
 - **Payment finalization** (`payments/print_enqueue.go`): full payment + `auto_print_order` +
-  agent online → final receipt (tender names joined as the payment method). Dedupe
-  `orderID:receipt:profileID`.
+  selected bill printer's `auto_print` + agent online → final receipt (tender names joined as the
+  payment method). Dedupe `orderID:receipt:profileID`.
 - **Explicit** — `POST /{tenant}/pos/printing/jobs` `{job_type: bill|receipt|test|drawer, order_id?,
   outlet_id?, profile_id?}`: Print Bill / Print Receipt buttons and Test print. Enqueues nothing and
   returns `agent_online:false` when no agent is polling (caller falls back to client transports).
