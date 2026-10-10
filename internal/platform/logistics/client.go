@@ -90,6 +90,96 @@ func (c *Client) AssignTask(ctx context.Context, tenantID, taskID uuid.UUID, fle
 	return c.post(ctx, url, body, nil)
 }
 
+// Quote is the subset of logistics-api's delivery quote pos-api uses. Fee is authoritative:
+// callers charge it as-is and never recompute it.
+type Quote struct {
+	Serviceable bool    `json:"serviceable"`
+	Reason      string  `json:"reason,omitempty"`
+	Method      string  `json:"method,omitempty"`
+	Fee         float64 `json:"fee"`
+	Free        bool    `json:"free"`
+	Currency    string  `json:"currency"`
+	DistanceKm  float64 `json:"distance_km,omitempty"`
+	MinOrder    float64 `json:"min_order,omitempty"`
+	Zone        *struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"zone,omitempty"`
+}
+
+// QuoteDelivery prices a delivery to (lat, lng) from the outlet through logistics' central
+// delivery areas and policy, the same quote online checkout uses.
+func (c *Client) QuoteDelivery(ctx context.Context, tenantID uuid.UUID, outletID uuid.UUID, lat, lng, orderTotal float64) (*Quote, error) {
+	if !c.Enabled() {
+		return nil, fmt.Errorf("logistics client not configured")
+	}
+	body := map[string]any{"lat": lat, "lng": lng, "order_total": orderTotal}
+	if outletID != uuid.Nil {
+		body["outlet_id"] = outletID.String()
+	}
+	url := fmt.Sprintf("%s/api/v1/s2s/zones/%s/quote", c.baseURL, tenantID.String())
+	var out Quote
+	if err := c.post(ctx, url, body, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// DeliveryArea is one named delivery area from logistics coverage, without its outline.
+type DeliveryArea struct {
+	ID      string   `json:"id"`
+	Name    string   `json:"name"`
+	Fee     float64  `json:"fee"`
+	Free    bool     `json:"free"`
+	Aliases []string `json:"aliases,omitempty"`
+	Center  *struct {
+		Lat float64 `json:"lat"`
+		Lng float64 `json:"lng"`
+	} `json:"center,omitempty"`
+}
+
+// DeliveryAreas lists the tenant's active delivery areas (for the till's area picker).
+func (c *Client) DeliveryAreas(ctx context.Context, tenantID, outletID uuid.UUID) ([]DeliveryArea, error) {
+	if !c.Enabled() {
+		return nil, fmt.Errorf("logistics client not configured")
+	}
+	url := fmt.Sprintf("%s/api/v1/s2s/zones/%s/coverage", c.baseURL, tenantID.String())
+	if outletID != uuid.Nil {
+		url += "?outlet_id=" + outletID.String()
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-API-Key", c.apiKey)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, fmt.Errorf("logistics GET %s returned HTTP %d: %s", url, resp.StatusCode, string(snippet))
+	}
+	var out struct {
+		Zones []struct {
+			DeliveryArea
+			Type string `json:"zone_type"`
+		} `json:"zones"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("decode logistics coverage: %w", err)
+	}
+	areas := make([]DeliveryArea, 0, len(out.Zones))
+	for _, z := range out.Zones {
+		if z.Type == "exclusion" {
+			continue
+		}
+		areas = append(areas, z.DeliveryArea)
+	}
+	return areas, nil
+}
+
 func (c *Client) post(ctx context.Context, url string, body any, out any) error {
 	buf, err := json.Marshal(body)
 	if err != nil {

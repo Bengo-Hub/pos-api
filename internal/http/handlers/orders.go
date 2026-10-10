@@ -46,6 +46,8 @@ type POSOrderHandler struct {
 	rbac outletmw.PermissionChecker
 	// terminalSecret verifies manager-PIN step-up approval tokens for sensitive actions.
 	terminalSecret []byte
+	// deliveryQuoter prices till deliveries from logistics' delivery areas. Optional.
+	deliveryQuoter DeliveryQuoter
 	// inventoryClient propagates order-line price corrections to the inventory catalog
 	// (EditOrderLine's update_catalog_price option). Optional — nil skips propagation.
 	inventoryClient *inventory.Client
@@ -166,6 +168,10 @@ func (h *POSOrderHandler) ownOrdersPredicate(r *http.Request) (predicate.POSOrde
 
 // SetTerminalSecret wires the HMAC secret used to verify manager step-up tokens.
 func (h *POSOrderHandler) SetTerminalSecret(s []byte) { h.terminalSecret = s }
+
+// SetDeliveryQuoter wires logistics' delivery quote for till delivery orders. Optional: nil
+// leaves the shipping charge to the cashier (a manager adjustment).
+func (h *POSOrderHandler) SetDeliveryQuoter(q DeliveryQuoter) { h.deliveryQuoter = q }
 
 // createOrderLineInput is a single line in the order create request body.
 type createOrderLineInput struct {
@@ -1122,12 +1128,20 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// A delivery with a dropoff pin is priced by logistics' delivery areas, the same quote
+	// online checkout uses. The quoted fee replaces any typed shipping charge and is not a
+	// manager adjustment, so it skips the approval gate below.
+	quotedShipping, ok := h.applyDeliveryQuote(w, r, tid, outletID, &input)
+	if !ok {
+		return
+	}
+
 	// Order-adjustment gate: order-level tax edits and additional charges (packaging/service/
 	// shipping) are a manager/admin quick-edit. Non-managers need a manager step-up token
 	// (order.adjustment), mirroring the discount gate; adjustments are audited.
 	chargesSum := 0.0
-	for _, v := range input.Charges {
-		if v > 0 {
+	for k, v := range input.Charges {
+		if v > 0 && !(k == "shipping" && quotedShipping) {
 			chargesSum += v
 		}
 	}

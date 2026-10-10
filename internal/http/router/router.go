@@ -439,6 +439,8 @@ func New(
 						pos.With(orderWrite).Patch("/orders/{orderID}/status", orders.UpdateStatus)
 						// All-Sales "Edit Shipping": update shipping status/address/charges (metadata).
 						pos.Patch("/orders/{orderID}/shipping", orders.UpdateShipping)
+						pos.Get("/delivery-quote", orders.DeliveryQuote)
+						pos.Get("/delivery-areas", orders.DeliveryAreas)
 						// All-Sales "New Sale Notification": (re)send the customer their receipt/invoice.
 						pos.Post("/orders/{orderID}/notify", orders.NotifySale)
 						// "Share via WhatsApp" wa.me quick action: resolves the durable public receipt
