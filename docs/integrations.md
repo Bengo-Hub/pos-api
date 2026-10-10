@@ -327,6 +327,10 @@ The pickup and delivery queues share one live-queue rule: not cancelled, voided,
 
 ---
 
+### 3.4 Till delivery pricing (2026-10-10)
+
+The till prices deliveries with logistics' delivery areas, the same quote online checkout uses; pos-api keeps no fee tables. The terminal's delivery panel lists the tenant's areas (`GET /pos/delivery-areas`, from logistics `GET /s2s/zones/{tenant}/coverage`), and the chosen area's pin is previewed with `GET /pos/delivery-quote`. On `POST /pos/orders` with `order_subtype = delivery` and `metadata.delivery_lat/lng`, `applyDeliveryQuote` re-quotes through `POST /s2s/zones/{tenant}/quote`, sets `charges.shipping` to the fee (a typed charge is replaced) and stores `metadata.delivery_quote` (fee, zone, distance, time). The quoted fee is not a manager adjustment, so it skips the `order.adjustment` approval. A pin outside the areas returns 422 `delivery_not_serviceable`. If logistics is unreachable the cashier's typed charge stays and needs approval as before.
+
 ## 4. Auth Service Integration
 
 ### 4.1 JWT Validation (SSO Login)
