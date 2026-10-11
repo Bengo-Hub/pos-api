@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -178,6 +179,12 @@ func (c *Client) DeliveryAreas(ctx context.Context, tenantID, outletID uuid.UUID
 		areas = append(areas, z.DeliveryArea)
 	}
 	return areas, nil
+}
+
+// IsNoActiveFleet reports whether logistics refused a task because the tenant has no active
+// riders (HTTP 409, code no_active_fleet).
+func IsNoActiveFleet(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "no_active_fleet")
 }
 
 func (c *Client) post(ctx context.Context, url string, body any, out any) error {

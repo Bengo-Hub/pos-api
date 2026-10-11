@@ -186,6 +186,10 @@ func (h *OnlineOrderHandler) AssignRider(w http.ResponseWriter, r *http.Request)
 	}
 	if taskID == uuid.Nil {
 		task, cErr := h.rider.logistics.CreateDeliveryTask(r.Context(), tid, buildDeliveryTaskRequest(order, h.outletName(r.Context(), order.OutletID)))
+		if logistics.IsNoActiveFleet(cErr) {
+			jsonError(w, "No riders are set up in Logistics for this business yet. Add a rider there first.", http.StatusConflict)
+			return
+		}
 		if cErr != nil {
 			h.log.Error("assign-rider: create logistics task failed", zap.Error(cErr), zap.String("order_id", oid.String()))
 			jsonError(w, "failed to create delivery task", http.StatusBadGateway)
@@ -267,6 +271,10 @@ func (h *OnlineOrderHandler) DispatchShipment(w http.ResponseWriter, r *http.Req
 	}
 
 	task, cErr := h.rider.logistics.CreateDeliveryTask(r.Context(), tid, buildDeliveryTaskRequest(order, h.outletName(r.Context(), order.OutletID)))
+	if logistics.IsNoActiveFleet(cErr) {
+		jsonError(w, "No riders are set up in Logistics for this business yet. Add a rider there, or deliver this order yourself.", http.StatusConflict)
+		return
+	}
 	if cErr != nil {
 		h.log.Error("dispatch-delivery: create logistics task failed", zap.Error(cErr), zap.String("order_id", oid.String()))
 		jsonError(w, "failed to create delivery task", http.StatusBadGateway)
