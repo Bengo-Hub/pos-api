@@ -181,10 +181,11 @@ func (c *Client) DeliveryAreas(ctx context.Context, tenantID, outletID uuid.UUID
 	return areas, nil
 }
 
-// IsNoActiveFleet reports whether logistics refused a task because the tenant has no active
-// riders (HTTP 409, code no_active_fleet).
+// IsNoActiveFleet reports whether logistics refused a task because the tenant does not
+// dispatch through it: no active riders (no_active_fleet) or no logistics in the plan
+// (logistics_not_in_plan). Both are HTTP 409.
 func IsNoActiveFleet(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "no_active_fleet")
+	return err != nil && (strings.Contains(err.Error(), "no_active_fleet") || strings.Contains(err.Error(), "logistics_not_in_plan"))
 }
 
 func (c *Client) post(ctx context.Context, url string, body any, out any) error {

@@ -272,7 +272,7 @@ func (h *OnlineOrderHandler) DispatchShipment(w http.ResponseWriter, r *http.Req
 
 	task, cErr := h.rider.logistics.CreateDeliveryTask(r.Context(), tid, buildDeliveryTaskRequest(order, h.outletName(r.Context(), order.OutletID)))
 	if logistics.IsNoActiveFleet(cErr) {
-		jsonError(w, "No riders are set up in Logistics for this business yet. Add a rider there, or deliver this order yourself.", http.StatusConflict)
+		jsonError(w, "This business does not dispatch through Logistics yet (no riders, or Logistics is not in the plan). Deliver this order yourself or add riders in Logistics.", http.StatusConflict)
 		return
 	}
 	if cErr != nil {
