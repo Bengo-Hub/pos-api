@@ -865,16 +865,26 @@ func New(
 					// KDS board: kitchen/bar display for hospitality and quick_service, production board for services jobs. Outlet must have enable_kds=true.
 					if kds != nil {
 						pos.Group(func(k chi.Router) {
-							// The "kds" plan feature gates the food display only; a services production
-							// board (printing, garage, laundry jobs) runs on the enable_kds toggle its
-							// job profile switches on.
+							k.Use(outletmw.RequireUseCase("hospitality", "quick_service", "services"))
+							k.Use(outletmw.RequireKDSEnabled(entClient))
+							// Stations are the routing table for every ticket and chit (kitchen vs bar) and
+							// ticket creation runs on every plan, so reading and configuring them is NOT
+							// behind the "kds" plan feature. A Starter tenant locked out of /kds/stations
+							// could not route bar items away from the kitchen.
+							k.Get("/kds/stations", kds.ListStations)
+							// Writes follow the settings UI, which shows the tab to config permission holders.
+							stationWrite := outletmw.RequireServicePermission(rbacSvc, "pos.config.change", "pos.config.manage")
+							k.With(stationWrite).Post("/kds/stations", kds.CreateStation)
+							k.With(stationWrite).Put("/kds/stations/{id}", kds.UpdateStation)
+							k.With(stationWrite).Delete("/kds/stations/{id}", kds.DeleteStation)
+						})
+						pos.Group(func(k chi.Router) {
+							// Live display routes: the "kds" plan feature gates the food display only (not the
+							// stations above); a services production board (printing, garage, laundry jobs)
+							// runs on the enable_kds toggle its job profile switches on.
 							k.Use(outletmw.RequireUseCase("hospitality", "quick_service", "services"))
 							k.Use(outletmw.RequireKDSEnabled(entClient))
 							k.Use(outletmw.GateUnlessUseCase(subscriptions.RequireFeature(subscriptions.FeatureKDS), "services"))
-							k.Get("/kds/stations", kds.ListStations)
-							k.Post("/kds/stations", kds.CreateStation)
-							k.Put("/kds/stations/{id}", kds.UpdateStation)
-							k.Delete("/kds/stations/{id}", kds.DeleteStation)
 							k.Get("/kds/stream", kds.StreamKDS)
 							k.Get("/kds/tickets", kds.ListTickets)
 							k.Post("/kds/tickets/{id}/start", kds.StartTicket)

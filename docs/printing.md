@@ -87,6 +87,14 @@ agent is online) applies the same priorities on `category_routes`, so the till's
 KDS screen agree. Station create/update cleans the filter and rejects a name another station
 claims under the same key.
 
+Plan gating (2026-10-16): station list and configuration (`/pos/kds/stations`, writes need
+`pos.config.change` or `pos.config.manage`) sit behind the use case and the outlet's `enable_kds`
+toggle only, so they work on every plan including tier 1. Only the live display (`/kds/stream`,
+`/kds/tickets*`) needs the `kds` plan feature (tier 2, services outlets exempt). Stations are the
+routing table for every chit, so gating them made a Starter tenant (sofain-limited) get 403s, no
+station list on the till, and every printed line grouped under the kitchen. Never pass
+`hasFeature('kds')` to `useKDSStations`.
+
 Chits print the order time in the outlet's timezone (`printing.OutletLocation`, default
 Africa/Nairobi): `ReceiptData.Location` is applied to every printed timestamp, since the pods run on
 UTC. It is excluded from the JSON `receipt_data` the browser renders in its own zone.
