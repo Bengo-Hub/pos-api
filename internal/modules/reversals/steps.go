@@ -543,24 +543,71 @@ func (s *Service) cashNettedForReversal(ctx context.Context, rev *ent.POSReversa
 	return total
 }
 
-// stepEtimsCreditNote raises the VAT-reversal credit note against the original sale's tax
-// invoice when one exists in treasury (fiscalised sales). Sales that were never invoiced /
-// transmitted (most cash POS sales) are SKIPPED — there is nothing to reverse at KRA.
+// stepEtimsCreditNote raises the credit note for the reversed lines of a fiscalised sale, so the
+// reversal reaches KRA as a refund of exactly those lines on the sale's own branch. Sales that were
+// never transmitted to KRA (most cash POS sales) are skipped, there is nothing to reverse there.
+// Treasury keys the credit note on the reversal id, so re-running this step (the Retry endpoint)
+// returns the same document.
 func (s *Service) stepEtimsCreditNote(ctx context.Context, rev *ent.POSReversal, tenantSlug string) (string, string, bool, error) {
 	if s.treasuryClient == nil {
 		return "", "treasury client not configured", true, nil
 	}
 	stepCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	fiscalized, invoiceID, _ := orders.IsFiscalized(stepCtx, s.treasuryClient, tenantSlug, rev.OrderID)
+	fiscalized, _, _ := orders.IsFiscalized(stepCtx, s.treasuryClient, tenantSlug, rev.OrderID)
 	if !fiscalized {
-		return "", "sale has no treasury tax invoice — no eTIMS credit note needed", true, nil
+		return "", "sale was not transmitted to KRA, no eTIMS credit note needed", true, nil
 	}
-	cn, err := s.treasuryClient.CreateCreditNote(stepCtx, tenantSlug, invoiceID)
+	order, err := s.client.POSOrder.Query().
+		Where(entposorder.ID(rev.OrderID), entposorder.TenantID(rev.TenantID)).
+		Only(stepCtx)
+	if err != nil {
+		return "", "", false, fmt.Errorf("load order: %w", err)
+	}
+	orderLines, err := s.client.POSOrderLine.Query().Where(entposorderline.OrderID(rev.OrderID)).All(stepCtx)
+	if err != nil {
+		return "", "", false, fmt.Errorf("load order lines: %w", err)
+	}
+	lines := orders.BuildRefundLines(orders.OrderDiscountRatio(order.TotalAmount, orderLines), reversalRefundInputs(rev.Lines, orderLines))
+	if len(lines) == 0 {
+		return "", "reversal has no priced lines to credit", true, nil
+	}
+	currency := order.Currency
+	if currency == "" {
+		currency = "KES"
+	}
+	crmContactID, customerName, customerIdentifier := orders.ResolveOrderCustomer(stepCtx, s.client, rev.TenantID, rev.OrderID)
+	cn, err := s.treasuryClient.RaiseReturnCreditNote(stepCtx, tenantSlug, treasury.ReturnCreditNoteRequest{
+		ReferenceID: rev.ID.String(), Reference: rev.ReversalNumber, OriginalOrderID: rev.OrderID.String(),
+		OutletID: order.OutletID.String(), CustomerName: customerName, CustomerPhone: customerIdentifier,
+		CrmContactID: crmContactID, Currency: currency, Reason: rev.Reason, Lines: lines,
+	})
 	if err != nil {
 		return "", "", false, err
 	}
-	return cn.Number, "credit note raised against invoice " + invoiceID, false, nil
+	return cn.Number, "credit note raised for the reversed lines of " + rev.OrderNumber, false, nil
+}
+
+// reversalRefundInputs prices the reversed lines the way the sale was sent to KRA. A reversal line's
+// amount is the gross of the reduced quantity (tax added on top for tax exclusive lines), while the
+// sale was sent from the line's total price, so the added tax is taken back off for those lines.
+func reversalRefundInputs(revLines []entschema.ReversalLineJSON, orderLines []*ent.POSOrderLine) []orders.RefundLineInput {
+	byID := make(map[uuid.UUID]*ent.POSOrderLine, len(orderLines))
+	for _, ol := range orderLines {
+		byID[ol.ID] = ol
+	}
+	out := make([]orders.RefundLineInput, 0, len(revLines))
+	for _, rl := range revLines {
+		in := orders.RefundLineInput{SKU: rl.SKU, Name: rl.Name, Quantity: rl.Quantity, Gross: rl.Amount, Tax: rl.TaxAmount}
+		if ol, ok := byID[rl.LineID]; ok {
+			in.TaxCode = ol.TaxCodeID
+			if !ol.PriceIncludesTax {
+				in.Gross = rl.Amount - rl.TaxAmount
+			}
+		}
+		out = append(out, in)
+	}
+	return out
 }
 
 // stepLoyaltyCommission claws back loyalty points and voids staff commission earned on the

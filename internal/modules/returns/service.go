@@ -402,6 +402,10 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 			settleAmount = exchange.Leftover
 		}
 	}
+	// A return of a fiscalised sale must reach KRA as a refund of the returned lines. The lines go
+	// with the refund below when money is settled; otherwise the credit note is raised on its own.
+	fiscal := s.fiscalRefundFor(ctx, tenantSlug, ret, lines)
+	refundSent := false
 	var treasuryRefundRef string
 	if settleAmount > 0.009 && s.treasuryClient != nil {
 		if ret.ReturnType == posreturn.ReturnTypeStoreCredit && !onAccount {
@@ -443,6 +447,9 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 			CrmContactID:       crmContactID,
 			CustomerIdentifier: customerIdentifier,
 			CustomerName:       customerName,
+			OutletID:           fiscal.outletID,
+			OriginalOrderID:    fiscal.orderID,
+			Lines:              fiscal.lines,
 		})
 		if refundErr != nil {
 			s.log.Error("treasury refund call failed (non-fatal; refund can be retried)",
@@ -452,21 +459,12 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 		} else {
 			treasuryRefundRef = refundResp.ID
 			update = update.SetTreasuryRefundRef(treasuryRefundRef)
+			refundSent = true
 		}
 	}
 
-	// eTIMS credit note: a returned, tax-invoiced sale needs a VAT-reversal credit note in
-	// treasury — including an EXCHANGE (the exchanged-away item's original sale is just as
-	// fiscally reversed as a refund's). Best-effort + non-fatal.
-	if s.treasuryClient != nil &&
-		(ret.ReturnType == posreturn.ReturnTypeRefund || ret.ReturnType == posreturn.ReturnTypeStoreCredit || ret.ReturnType == posreturn.ReturnTypeExchange) {
-		if fiscalized, invoiceID, _ := orders.IsFiscalized(ctx, s.treasuryClient, tenantSlug, ret.OrderID); fiscalized {
-			if cn, cnErr := s.treasuryClient.CreateCreditNote(ctx, tenantSlug, invoiceID); cnErr != nil {
-				s.log.Warn("eTIMS credit-note creation failed (non-fatal)", zap.Error(cnErr), zap.String("return_id", returnID.String()))
-			} else {
-				s.log.Info("eTIMS credit-note issued for return", zap.String("return_id", returnID.String()), zap.String("credit_note", cn.Number))
-			}
-		}
+	if len(fiscal.lines) > 0 && !refundSent && s.treasuryClient != nil {
+		s.raiseFiscalCreditNote(ctx, tenantSlug, ret, fiscal)
 	}
 
 	md := cloneReturnMetadata(ret.Metadata)

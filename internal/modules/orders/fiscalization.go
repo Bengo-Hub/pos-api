@@ -33,9 +33,10 @@ import (
 // invoice, CU number present) always read as "not fiscalized." GetEtimsFiscal reads the
 // transmission record eTIMS transmission itself actually writes, so it stays correct
 // regardless of whether a companion Invoice document exists. Returns the invoice's KRA CU
-// number in the second slot for logging/display; callers that need to raise a credit note
-// must go through returns.Service (EnsureCreditNoteForReturn, self-sufficient — it does not
-// require a pre-existing Invoice row), not treasury.Client.CreateCreditNote (which does).
+// number in the second slot for logging/display only: it is NOT an invoice id. Callers that
+// need to raise a credit note send the returned lines and the order id to treasury (the
+// refund call, or treasury.Client.RaiseReturnCreditNote), which links the credit note to
+// this sale's KRA record.
 func IsFiscalized(ctx context.Context, treasuryClient *treasury.Client, tenantSlug string, orderID uuid.UUID) (bool, string, error) {
 	if treasuryClient == nil {
 		return false, "", nil

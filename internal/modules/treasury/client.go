@@ -303,6 +303,23 @@ type RefundRequest struct {
 	CustomerIdentifier string  `json:"customer_identifier,omitempty"` // phone fallback so store-credit nets a phone-keyed AR row
 	CustomerName       string  `json:"customer_name,omitempty"`
 	CustomerEmail      string  `json:"customer_email,omitempty"`
+	// OutletID, OriginalOrderID and Lines let treasury raise the credit note for a fiscalised sale
+	// and send it to KRA as a refund on the original branch. Leave them empty for a sale that was
+	// never fiscalised: the credit note then stays a record only document.
+	OutletID        string       `json:"outlet_id,omitempty"`
+	OriginalOrderID string       `json:"original_order_id,omitempty"`
+	Lines           []RefundLine `json:"lines,omitempty"`
+}
+
+// RefundLine is one returned or reversed line. UnitPrice is the price before tax.
+type RefundLine struct {
+	ItemSKU     string  `json:"item_sku,omitempty"`
+	Description string  `json:"description"`
+	Unit        string  `json:"unit,omitempty"`
+	Quantity    float64 `json:"quantity"`
+	UnitPrice   float64 `json:"unit_price"`
+	TaxCode     string  `json:"tax_code,omitempty"`
+	TaxRate     float64 `json:"tax_rate"`
 }
 
 // RefundResponse is the response from POST /api/v1/s2s/{tenant}/refunds
@@ -710,7 +727,7 @@ type ShredLedgerResponse struct {
 // pos-api itself has already confirmed (via GetInvoiceByReference) that this sale carries no tax
 // invoice. Treasury re-verifies the same thing server-side and refuses (409) if it disagrees —
 // never trust the caller alone for a physically irreversible operation. Unlike
-// CreateRefund/CreateCreditNote, this leaves no contra entry; it is the genuine deletion the
+// CreateRefund/RaiseReturnCreditNote, this leaves no contra entry; it is the genuine deletion the
 // "shred" tool provides.
 func (c *Client) ShredLedger(ctx context.Context, tenantSlug, orderID string) (*ShredLedgerResponse, error) {
 	url := fmt.Sprintf("%s/api/v1/s2s/%s/pos/orders/%s/shred-ledger", c.baseURL, tenantSlug, orderID)
@@ -724,11 +741,27 @@ type CreditNoteResponse struct {
 	Status string `json:"status"`
 }
 
-// CreateCreditNote issues a VAT-reversal sales credit note for an invoice (no body — treasury copies
-// the invoice lines and reverses VAT, CN- series). Used when a tax-invoiced sale is returned.
-func (c *Client) CreateCreditNote(ctx context.Context, tenantSlug, invoiceID string) (*CreditNoteResponse, error) {
-	url := fmt.Sprintf("%s/api/v1/s2s/%s/invoices/%s/create-credit-note", c.baseURL, tenantSlug, invoiceID)
-	return doRequest[CreditNoteResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, nil)
+// ReturnCreditNoteRequest raises the credit note for a returned or reversed POS sale without any
+// refund settlement. ReferenceID is the return or reversal id and keys it idempotently.
+type ReturnCreditNoteRequest struct {
+	ReferenceID     string       `json:"reference_id"`
+	Reference       string       `json:"reference,omitempty"`
+	OriginalOrderID string       `json:"original_order_id"`
+	OutletID        string       `json:"outlet_id,omitempty"`
+	CustomerName    string       `json:"customer_name,omitempty"`
+	CustomerPhone   string       `json:"customer_phone,omitempty"`
+	CrmContactID    string       `json:"crm_contact_id,omitempty"`
+	Currency        string       `json:"currency,omitempty"`
+	Reason          string       `json:"reason,omitempty"`
+	Lines           []RefundLine `json:"lines"`
+}
+
+// RaiseReturnCreditNote creates the credit note for the returned lines of a fiscalised POS sale and
+// queues it for eTIMS (POST /api/v1/s2s/{tenant}/pos/returns/credit-note). Idempotent on
+// ReferenceID. A refund that settles money carries the same lines on CreateRefund instead.
+func (c *Client) RaiseReturnCreditNote(ctx context.Context, tenantSlug string, req ReturnCreditNoteRequest) (*CreditNoteResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/s2s/%s/pos/returns/credit-note", c.baseURL, tenantSlug)
+	return doRequest[CreditNoteResponse](ctx, c.httpClient, http.MethodPost, url, c.apiKey, req)
 }
 
 // CreateIntent calls POST /api/v1/s2s/{tenantSlug}/payments/intents on treasury-api.

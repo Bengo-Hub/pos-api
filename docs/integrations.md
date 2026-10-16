@@ -44,9 +44,13 @@ The POS service is the **source of truth for sales catalogs (menus)**. While `in
 - pos-api does NOT store the raw KRA API credentials (ETIMS_URL, ETIMS_CU_SERIAL, ETIMS_API_KEY).
 - pos-api does NOT own an EtimsInvoice entity — treasury-api owns that (table: `etims_invoices`).
 - pos-api does NOT own quotations or sales credit-notes either — treasury owns ALL financial documents
-  (invoices, quotations, proforma, sales credit-notes). A pos sales return that needs a VAT-reversal
-  credit note calls treasury S2S `POST /api/v1/s2s/{tenant}/invoices/{invoiceID}/create-credit-note`
-  (reuses `invoicing.CreateCreditNote`); a pos "Save as Quotation" calls a treasury quotation S2S create.
+  (invoices, quotations, proforma, sales credit-notes). A POS sale has no invoice row, so a return or
+  reversal of a sale that was transmitted to KRA sends the returned lines, the outlet and the original
+  order id to treasury, which raises the credit note and sends it to KRA as a refund. With a refund to
+  settle they ride on `POST /api/v1/s2s/{tenant}/refunds`; otherwise pos-api calls
+  `POST /api/v1/s2s/{tenant}/pos/returns/credit-note` (`treasury.Client.RaiseReturnCreditNote`). Lines are
+  built by `orders.BuildRefundLines`, priced the way the sale was sent. A pos "Save as Quotation" calls a
+  treasury quotation S2S create.
   A standalone pos `CreditNote` entity was built once and DISCARDED — do not reintroduce it. pos-ui LINKS
   to treasury-ui for these documents (never duplicates the pages); only the create-from-pos action lives here.
 
@@ -116,8 +120,10 @@ integrated service, each step tracked on the `pos_reversals` row (steps JSON) an
 3. `treasury_gl` — reuses the returns settlement `POST /api/v1/s2s/{tenant}/refunds`
    (revenue+VAT reversal, catalog-source COGS reversal, AR netting, auto credit-note doc);
    idempotent on the reversal id.
-4. `etims_credit_note` — `GetInvoiceByReference("pos_order", orderID)` + `CreateCreditNote`
-   when the sale has a treasury tax invoice; SKIPPED otherwise.
+4. `etims_credit_note` — when the sale was transmitted to KRA (`orders.IsFiscalized`), calls
+   `RaiseReturnCreditNote` with the reversed lines, the sale's outlet and the order id; treasury keys the
+   credit note on the reversal id, so a retry returns the same document. SKIPPED when the sale was never
+   transmitted.
 
 **Modules:** `internal/modules/reversals` (orchestrator), `handlers/reversals.go`,
 `ent/schema/posreversal.go`. Distinct from POSReturn (customer returns lifecycle).
