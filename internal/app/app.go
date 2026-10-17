@@ -22,6 +22,8 @@ import (
 	"go.uber.org/zap"
 
 	sharedcache "github.com/Bengo-Hub/cache"
+	"github.com/Bengo-Hub/httpware"
+	"github.com/Bengo-Hub/httpware/objectstore"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	eventslib "github.com/Bengo-Hub/shared-events"
 	"github.com/bengobox/pos-service/internal/audit"
@@ -497,16 +499,18 @@ func New(ctx context.Context) (*App, error) {
 	// Tenant/outlet POS settings (receipt, printer, module toggles, outlet switch)
 	serviceSettingsHandler := handlers.NewServiceSettingsHandler(log, entClient)
 
-	// Managed screensaver media (Settings → Display): uploads to the media volume,
-	// urls stored in outlet-settings metadata, files served publicly at /media/*.
-	mediaRoot := os.Getenv("MEDIA_ROOT")
-	if mediaRoot == "" {
-		mediaRoot = "./media"
+	// Shared platform object storage (httpware/objectstore): screensavers and job attachments
+	// (public), damage evidence and found-item photos (private, signed links). Local development
+	// (no OBJECT_STORAGE_*) keeps files under MEDIA_ROOT, served at /media with signed links.
+	handlers.RegisterMediaTypes()
+	mediaStore, err := objectstore.New("pos", objectstore.FromEnv(),
+		objectstore.WithLocalSigner(httpware.NewMediaSigner(cfg.Treasury.InternalServiceKey, 0)))
+	if err != nil {
+		return nil, fmt.Errorf("object storage: %w", err)
 	}
-	screensaverMediaHandler := handlers.NewScreensaverMediaHandler(log, serviceSettingsHandler, mediaRoot)
-	// Damage-evidence photo uploads (hotel module) share the same media volume.
-	hotelHandler.SetMediaRoot(mediaRoot)
-	orderHandler.SetMediaRoot(mediaRoot)
+	screensaverMediaHandler := handlers.NewScreensaverMediaHandler(log, serviceSettingsHandler, mediaStore)
+	hotelHandler.SetMediaStore(mediaStore)
+	orderHandler.SetMediaStore(mediaStore)
 
 	// ERP: daily closings + returns
 	closingHandler := handlers.NewDailyClosingHandler(log, entClient)
@@ -840,7 +844,7 @@ func New(ctx context.Context) (*App, error) {
 	// Repair Mode) — see internal/http/middleware/maintenance.go for the gate it feeds.
 	maintenanceWindowHandler := handlers.NewMaintenanceWindowHandler(entClient, log)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, reversalHandler, saleDeleteHandler, saleEditHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, docSequenceHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler, screensaverMediaHandler, mediaRoot, recipeCOGSBackfillHandler, catalogCostBackfillHandler, maintenanceWindowHandler)
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, reversalHandler, saleDeleteHandler, saleEditHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, docSequenceHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler, screensaverMediaHandler, mediaStore.MediaHandler(), recipeCOGSBackfillHandler, catalogCostBackfillHandler, maintenanceWindowHandler)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),

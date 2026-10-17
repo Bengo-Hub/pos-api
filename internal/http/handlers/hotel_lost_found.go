@@ -14,11 +14,6 @@ import (
 	entlostfounditem "github.com/bengobox/pos-service/internal/ent/lostfounditem"
 )
 
-// Lost & found photo storage reuses the same local media volume convention as damage-evidence
-// uploads (hotel_damage_reports.go) and the screensaver uploader (media.go) — one storage
-// mechanism, three subfolders.
-const lostFoundPhotoSubfolder = "lost-found"
-
 type lostFoundItemDTO struct {
 	ID              string     `json:"id"`
 	OutletID        string     `json:"outlet_id"`
@@ -43,11 +38,12 @@ type lostFoundItemDTO struct {
 	CreatedAt       time.Time  `json:"created_at"`
 }
 
-func toLostFoundItemDTO(it *ent.LostFoundItem) lostFoundItemDTO {
+// toLostFoundItemDTO maps an item; stored photo keys become short-lived signed links.
+func (h *HotelHandler) toLostFoundItemDTO(it *ent.LostFoundItem) lostFoundItemDTO {
 	dto := lostFoundItemDTO{
 		ID: it.ID.String(), OutletID: it.OutletID.String(), Description: it.Description,
 		Category: string(it.Category), LocationFound: it.LocationFound, StorageLocation: it.StorageLocation,
-		PhotoURLs: it.PhotoUrls, Status: string(it.Status), FoundBy: it.FoundBy.String(), FoundAt: it.FoundAt,
+		PhotoURLs: mediaLinks(h.media, it.PhotoUrls), Status: string(it.Status), FoundBy: it.FoundBy.String(), FoundAt: it.FoundAt,
 		GuestName: it.GuestName, GuestPhone: it.GuestPhone, GuestEmail: it.GuestEmail,
 		ClaimedByName: it.ClaimedByName, ClaimedNotes: it.ClaimedNotes, ClaimedAt: it.ClaimedAt,
 		DisposalReason: it.DisposalReason, DisposedAt: it.DisposedAt, CreatedAt: it.CreatedAt,
@@ -121,7 +117,7 @@ func (h *HotelHandler) CreateLostFoundItem(w http.ResponseWriter, r *http.Reques
 		create = create.SetStorageLocation(input.StorageLocation)
 	}
 	if len(input.PhotoURLs) > 0 {
-		create = create.SetPhotoUrls(input.PhotoURLs)
+		create = create.SetPhotoUrls(mediaKeys(h.media, input.PhotoURLs))
 	}
 	if input.GuestName != "" {
 		create = create.SetGuestName(input.GuestName)
@@ -168,7 +164,7 @@ func (h *HotelHandler) CreateLostFoundItem(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	jsonOK(w, toLostFoundItemDTO(item))
+	jsonOK(w, h.toLostFoundItemDTO(item))
 }
 
 // ListLostFoundItems handles GET /{tenantID}/hotel/lost-found?status=&category=&room_id=
@@ -203,7 +199,7 @@ func (h *HotelHandler) ListLostFoundItems(w http.ResponseWriter, r *http.Request
 	}
 	out := make([]lostFoundItemDTO, 0, len(items))
 	for _, it := range items {
-		out = append(out, toLostFoundItemDTO(it))
+		out = append(out, h.toLostFoundItemDTO(it))
 	}
 	jsonOK(w, map[string]any{"data": out, "total": len(out)})
 }
@@ -226,7 +222,7 @@ func (h *HotelHandler) GetLostFoundItem(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, "item not found", http.StatusNotFound)
 		return
 	}
-	jsonOK(w, toLostFoundItemDTO(item))
+	jsonOK(w, h.toLostFoundItemDTO(item))
 }
 
 // ClaimLostFoundItem handles POST /{tenantID}/hotel/lost-found/{id}/claim
@@ -284,7 +280,7 @@ func (h *HotelHandler) ClaimLostFoundItem(w http.ResponseWriter, r *http.Request
 			"lost_found_item_id": updated.ID, "claimed_by_name": updated.ClaimedByName,
 		})
 	}
-	jsonOK(w, toLostFoundItemDTO(updated))
+	jsonOK(w, h.toLostFoundItemDTO(updated))
 }
 
 // DisposeLostFoundItem handles POST /{tenantID}/hotel/lost-found/{id}/dispose — status becomes
@@ -338,19 +334,16 @@ func (h *HotelHandler) DisposeLostFoundItem(w http.ResponseWriter, r *http.Reque
 		jsonError(w, "failed to record disposal", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, toLostFoundItemDTO(updated))
+	jsonOK(w, h.toLostFoundItemDTO(updated))
 }
 
 // UploadLostFoundPhoto handles POST /{tenantID}/hotel/lost-found/upload (multipart field
-// "file") — same storage convention as UploadDamageEvidence, different subfolder.
+// "file"): stored privately like UploadDamageEvidence; photo_urls sent back store the key.
 func (h *HotelHandler) UploadLostFoundPhoto(w http.ResponseWriter, r *http.Request) {
-	rel, _, ok := storeTenantMedia(w, r, h.log, h.mediaRoot, mediaUploadSpec{
-		Subfolder: lostFoundPhotoSubfolder, MaxBytes: maxDamageEvidenceBytes, SizeLabel: "8MB",
-		ExtByMIME: damageEvidenceExtByMIME, TypesLabel: "PNG, JPEG or WebP",
-	})
+	key, ok := storeTenantMedia(w, r, h.log, h.media, mediaTypeEvidence, "lost-found")
 	if !ok {
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	jsonOK(w, map[string]any{"url": rel})
+	jsonOK(w, map[string]any{"url": h.media.URL(key), "key": key})
 }

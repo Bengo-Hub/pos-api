@@ -15,29 +15,6 @@ import (
 	entroomguest "github.com/bengobox/pos-service/internal/ent/roomguest"
 )
 
-// Damage-evidence photo storage reuses pos-api's existing local media volume (same
-// {MEDIA_ROOT}/{tenant-slug}/{subfolder}/ convention as the screensaver uploader in
-// media.go) rather than inventing a second storage mechanism.
-const (
-	damageEvidenceSubfolder = "damage-evidence"
-	maxDamageEvidenceBytes  = 8 << 20 // 8MB per photo, same cap as screensaver uploads
-)
-
-var damageEvidenceExtByMIME = map[string]string{
-	"image/png":  ".png",
-	"image/jpeg": ".jpg",
-	"image/webp": ".webp",
-}
-
-// SetMediaRoot injects the local media volume root (MEDIA_ROOT) so damage-evidence photo
-// uploads can be stored/served the same way the platform's other admin-uploaded media is.
-func (h *HotelHandler) SetMediaRoot(root string) {
-	if root == "" {
-		root = "./media"
-	}
-	h.mediaRoot = root
-}
-
 type damageReportDTO struct {
 	ID           string     `json:"id"`
 	RoomID       string     `json:"room_id"`
@@ -55,10 +32,11 @@ type damageReportDTO struct {
 	CreatedAt    time.Time  `json:"created_at"`
 }
 
-func toDamageReportDTO(r *ent.RoomDamageReport) damageReportDTO {
+// toDamageReportDTO maps a report; stored evidence keys become short-lived signed links.
+func (h *HotelHandler) toDamageReportDTO(r *ent.RoomDamageReport) damageReportDTO {
 	dto := damageReportDTO{
 		ID: r.ID.String(), RoomID: r.RoomID.String(), Description: r.Description,
-		Amount: r.Amount, Currency: r.Currency, EvidenceURLs: r.EvidenceUrls,
+		Amount: r.Amount, Currency: r.Currency, EvidenceURLs: mediaLinks(h.media, r.EvidenceUrls),
 		Status: string(r.Status), ReportedBy: r.ReportedBy.String(),
 		ReviewNotes: r.ReviewNotes, ReviewedAt: r.ReviewedAt, CreatedAt: r.CreatedAt,
 	}
@@ -127,7 +105,7 @@ func (h *HotelHandler) CreateDamageReport(w http.ResponseWriter, r *http.Request
 		SetCurrency(currency).
 		SetReportedBy(reportedBy)
 	if len(input.EvidenceURLs) > 0 {
-		create = create.SetEvidenceUrls(input.EvidenceURLs)
+		create = create.SetEvidenceUrls(mediaKeys(h.media, input.EvidenceURLs))
 	}
 
 	// Attach the currently active guest, if any — a damage report can also be logged after
@@ -153,7 +131,7 @@ func (h *HotelHandler) CreateDamageReport(w http.ResponseWriter, r *http.Request
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	jsonOK(w, toDamageReportDTO(report))
+	jsonOK(w, h.toDamageReportDTO(report))
 }
 
 // ListDamageReports handles GET /{tenantID}/hotel/damage-reports?status=&room_id=
@@ -180,7 +158,7 @@ func (h *HotelHandler) ListDamageReports(w http.ResponseWriter, r *http.Request)
 	}
 	out := make([]damageReportDTO, 0, len(reports))
 	for _, rep := range reports {
-		out = append(out, toDamageReportDTO(rep))
+		out = append(out, h.toDamageReportDTO(rep))
 	}
 	jsonOK(w, map[string]any{"data": out, "total": len(out)})
 }
@@ -203,7 +181,7 @@ func (h *HotelHandler) GetDamageReport(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "damage report not found", http.StatusNotFound)
 		return
 	}
-	jsonOK(w, toDamageReportDTO(report))
+	jsonOK(w, h.toDamageReportDTO(report))
 }
 
 // ApproveDamageReport handles POST /{tenantID}/hotel/damage-reports/{id}/approve — manager-only
@@ -287,7 +265,7 @@ func (h *HotelHandler) ApproveDamageReport(w http.ResponseWriter, r *http.Reques
 		})
 	}
 
-	jsonOK(w, map[string]any{"report": toDamageReportDTO(updated), "folio_posted": folioPosted})
+	jsonOK(w, map[string]any{"report": h.toDamageReportDTO(updated), "folio_posted": folioPosted})
 }
 
 // RejectDamageReport handles POST /{tenantID}/hotel/damage-reports/{id}/reject — manager-only.
@@ -346,22 +324,19 @@ func (h *HotelHandler) RejectDamageReport(w http.ResponseWriter, r *http.Request
 		})
 	}
 
-	jsonOK(w, toDamageReportDTO(updated))
+	jsonOK(w, h.toDamageReportDTO(updated))
 }
 
 // UploadDamageEvidence handles POST /{tenantID}/hotel/damage-evidence/upload (multipart field
-// "file") — stores one photo on the local media volume and returns its relative /media/... URL,
-// mirroring ScreensaverMediaHandler.Upload's storage convention exactly (same MEDIA_ROOT, same
-// content-type sniffing). The caller collects one or more returned URLs client-side and passes
-// them as evidence_urls on CreateDamageReport — this endpoint does not itself touch the report.
+// "file"): stores one photo privately on the shared object storage and returns a signed link to
+// it. The caller collects one or more returned URLs client-side and passes them as evidence_urls
+// on CreateDamageReport, which stores their keys; this endpoint does not itself touch the report.
 func (h *HotelHandler) UploadDamageEvidence(w http.ResponseWriter, r *http.Request) {
-	rel, _, ok := storeTenantMedia(w, r, h.log, h.mediaRoot, mediaUploadSpec{
-		Subfolder: damageEvidenceSubfolder, MaxBytes: maxDamageEvidenceBytes, SizeLabel: "8MB",
-		ExtByMIME: damageEvidenceExtByMIME, TypesLabel: "PNG, JPEG or WebP",
-	})
+	key, ok := storeTenantMedia(w, r, h.log, h.media, mediaTypeEvidence, "damage")
 	if !ok {
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	jsonOK(w, map[string]any{"url": rel})
+	// A signed link to show the photo now; sending it back as an evidence url stores the key.
+	jsonOK(w, map[string]any{"url": h.media.URL(key), "key": key})
 }

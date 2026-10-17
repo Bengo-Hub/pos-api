@@ -81,10 +81,12 @@ ticket items.
 ### Attachments
 
 `POST /{tenant}/pos/orders/job-attachments` stores one PNG, JPEG, WebP or PDF of at most 512 KB on
-the pos-api media volume (`{MEDIA_ROOT}/{tenant}/job-attachments/`) and returns its `/media/...`
-URL. The type is sniffed from the file bytes. The terminal checks size and count before
-uploading; anything bigger is shared as a link. The same storage helper (`storeTenantMedia`)
-serves screensaver, damage evidence and lost-and-found uploads.
+the shared object storage (public bucket, `pos/<tenant>/job-attachments/jobs/<uuid>.<ext>`, since
+2026-10-17) and returns its permanent public link, which the job keeps (order metadata is
+returned as stored). The type is sniffed from the file bytes and images are re-encoded. The
+terminal checks size and count before uploading; anything bigger is shared as a link. The same
+helper (`storeTenantMedia`, `media_store.go`) serves screensavers (public) and damage evidence and
+lost-and-found photos (private: rows keep keys, responses carry short-lived signed links).
 
 ### Dashboard and queries
 

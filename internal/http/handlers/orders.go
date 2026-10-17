@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Bengo-Hub/httpware"
+	"github.com/Bengo-Hub/httpware/objectstore"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
@@ -51,8 +52,8 @@ type POSOrderHandler struct {
 	// inventoryClient propagates order-line price corrections to the inventory catalog
 	// (EditOrderLine's update_catalog_price option). Optional — nil skips propagation.
 	inventoryClient *inventory.Client
-	// mediaRoot is the local media volume root (MEDIA_ROOT) for services job attachments.
-	mediaRoot string
+	// media is the shared object storage for services job attachments.
+	media *objectstore.Store
 	// treasuryClient is used ONLY to check whether a specific order actually has a KRA
 	// eTIMS-signed invoice before a void-refusal message mentions eTIMS at all — many
 	// tenants are not eTIMS-integrated, and an unconditional "KRA" mention scared them

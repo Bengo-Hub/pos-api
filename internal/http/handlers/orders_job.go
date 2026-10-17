@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/Bengo-Hub/httpware/objectstore"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
@@ -94,32 +95,18 @@ func (h *POSOrderHandler) UpdateJob(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]any{"order_id": orderID, "job": job})
 }
 
-// Job attachment storage: reference media a customer brings to reception (a logo, a photo of a
-// dashboard warning light, a sample design, a PDF brief). Small by design; anything bigger is
-// shared as a link (Google Drive, YouTube) on the job instead.
-const (
-	jobAttachmentSubfolder = "job-attachments"
-	maxJobAttachmentBytes  = 512 << 10
-)
+// Job attachments are reference media a customer brings to reception (a logo, a photo of a
+// dashboard warning light, a sample design, a PDF brief), stored as mediaTypeJobAttachments.
+// Small by design; anything bigger is shared as a link (Google Drive, YouTube) on the job instead.
 
-var jobAttachmentExtByMIME = map[string]string{
-	"image/png":       ".png",
-	"image/jpeg":      ".jpg",
-	"image/webp":      ".webp",
-	"application/pdf": ".pdf",
-}
-
-// SetMediaRoot injects the local media volume root (MEDIA_ROOT) for job attachment uploads.
-func (h *POSOrderHandler) SetMediaRoot(root string) {
-	if root == "" {
-		root = "./media"
-	}
-	h.mediaRoot = root
-}
+// SetMediaStore wires the shared object storage for job attachment uploads.
+func (h *POSOrderHandler) SetMediaStore(m *objectstore.Store) { h.media = m }
 
 // UploadJobAttachment handles POST /{tenantID}/pos/orders/job-attachments (multipart field
 // "file"). Stores one file of at most 512 KB and returns {url, label}; the terminal adds it to
-// the job's attachments (at most orders.MaxJobFileAttachments files per job).
+// the job's attachments (at most orders.MaxJobFileAttachments files per job). The url is the
+// file's permanent public link: job attachments live in order metadata, which is returned as
+// stored, so the link (not the key) is what the job keeps.
 //
 // @Summary Upload a job attachment (512 KB image or PDF)
 // @Tags orders
@@ -131,10 +118,7 @@ func (h *POSOrderHandler) SetMediaRoot(root string) {
 // @Failure 415 {object} map[string]string
 // @Router /{tenantID}/pos/orders/job-attachments [post]
 func (h *POSOrderHandler) UploadJobAttachment(w http.ResponseWriter, r *http.Request) {
-	rel, _, ok := storeTenantMedia(w, r, h.log, h.mediaRoot, mediaUploadSpec{
-		Subfolder: jobAttachmentSubfolder, MaxBytes: maxJobAttachmentBytes, SizeLabel: "512 KB",
-		ExtByMIME: jobAttachmentExtByMIME, TypesLabel: "PNG, JPEG, WebP or PDF",
-	})
+	key, ok := storeTenantMedia(w, r, h.log, h.media, mediaTypeJobAttachments, "jobs")
 	if !ok {
 		return
 	}
@@ -148,7 +132,7 @@ func (h *POSOrderHandler) UploadJobAttachment(w http.ResponseWriter, r *http.Req
 		}
 	}
 	w.WriteHeader(http.StatusCreated)
-	jsonOK(w, map[string]any{"url": rel, "label": label})
+	jsonOK(w, map[string]any{"url": h.media.URL(key), "label": label})
 }
 
 // JobSummary handles GET /{tenantID}/pos/jobs/summary: the services jobs dashboard counts for the

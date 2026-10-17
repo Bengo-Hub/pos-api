@@ -89,7 +89,7 @@ func New(
 	backups *handlers.BackupHandler,
 	backupDest *handlers.BackupDestinationHandler,
 	screensaverMedia *handlers.ScreensaverMediaHandler,
-	mediaRoot string,
+	mediaFiles http.Handler,
 	recipeCOGSBackfill *handlers.RecipeCOGSBackfillHandler,
 	catalogCostBackfill *handlers.CatalogCostBackfillHandler,
 	maintenanceWindow *handlers.MaintenanceWindowHandler,
@@ -141,10 +141,10 @@ func New(
 	r.Get("/metrics", health.Metrics)
 	r.Get("/v1/docs/*", handlers.SwaggerUI)
 
-	// Public read-only media (managed screensavers). Files are admin-uploaded display
-	// assets rendered on the pre-auth PIN screen, so no auth; traversal-guarded.
-	if mediaRoot != "" {
-		r.Get("/media/*", handlers.ServeMedia(mediaRoot))
+	// /media: files of local development; with object storage, public keys redirect to the media
+	// domain and private ones answer 404 (objectstore.MediaHandler).
+	if mediaFiles != nil {
+		r.Handle("/media/*", http.StripPrefix("/media", mediaFiles))
 	}
 
 	r.Route("/api/v1", func(api chi.Router) {

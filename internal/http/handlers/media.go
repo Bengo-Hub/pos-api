@@ -4,50 +4,34 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"path"
-	"path/filepath"
 	"strings"
 
+	"github.com/Bengo-Hub/httpware/objectstore"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
-	"github.com/Bengo-Hub/httpware"
 	"github.com/bengobox/pos-service/internal/ent"
 )
 
 // ScreensaverMediaHandler manages the up-to-3 admin-uploaded POS screensaver images/videos
-// (Settings → Display) following the platform media convention: files live on the service's
-// media volume under {MEDIA_ROOT}/{tenant-slug}/screensaver/, the DB stores a RELATIVE
-// `/media/...` URL (outlet settings metadata `screensaver_urls`), and the client resolves it
-// against the API base at read time. Replacing media is explicit: the delete endpoint removes
-// BOTH the URL from settings and the file from disk before a new upload is accepted.
+// (Settings → Display). Files live on the shared object storage (public type screensavers) and
+// outlet settings metadata `screensaver_urls` keeps their permanent public links (settings are
+// returned as stored, to the pre-auth PIN screen too). Replacing media is explicit: the delete
+// endpoint removes the link from settings and the file from storage before a new upload is
+// accepted, so storage only holds screensavers in use.
 type ScreensaverMediaHandler struct {
 	log      *zap.Logger
 	settings *ServiceSettingsHandler
-	root     string
+	store    *objectstore.Store
 }
 
 const (
-	maxScreensavers      = 3
-	maxScreensaverBytes  = 8 << 20 // 8 MB per file (router body cap is 10 MB)
-	screensaverMetaKey   = "screensaver_urls"
-	mediaURLPrefix       = "/media/"
-	screensaverSubfolder = "screensaver"
+	maxScreensavers    = 3
+	screensaverMetaKey = "screensaver_urls"
 )
 
-var screensaverExtByMIME = map[string]string{
-	"image/png":  ".png",
-	"image/jpeg": ".jpg",
-	"image/webp": ".webp",
-	"video/mp4":  ".mp4",
-}
-
-func NewScreensaverMediaHandler(log *zap.Logger, settings *ServiceSettingsHandler, root string) *ScreensaverMediaHandler {
-	if root == "" {
-		root = "./media"
-	}
-	return &ScreensaverMediaHandler{log: log, settings: settings, root: root}
+func NewScreensaverMediaHandler(log *zap.Logger, settings *ServiceSettingsHandler, store *objectstore.Store) *ScreensaverMediaHandler {
+	return &ScreensaverMediaHandler{log: log, settings: settings, store: store}
 }
 
 // RegisterRoutes mounts the tenant-scoped management endpoints on the /pos router.
@@ -58,15 +42,7 @@ func (h *ScreensaverMediaHandler) RegisterRoutes(r chi.Router) {
 	r.Delete("/settings/screensavers", h.Delete)
 }
 
-// tenantSlugFrom returns the tenant slug for media paths (context is set by TenantV2).
-func tenantSlugFrom(r *http.Request) string {
-	if slug := httpware.GetTenantSlug(r.Context()); slug != "" {
-		return slug
-	}
-	return httpware.GetTenantID(r.Context())
-}
-
-// currentURLs reads the stored relative screensaver URLs from outlet-settings metadata.
+// currentURLs reads the stored screensaver links from outlet-settings metadata.
 func (h *ScreensaverMediaHandler) currentURLs(r *http.Request) ([]string, *settingsCtx, error) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -88,7 +64,7 @@ type settingsCtx struct {
 	setting *ent.OutletSetting
 }
 
-// List returns the managed screensaver URLs (relative /media/... paths).
+// List returns the managed screensaver links.
 func (h *ScreensaverMediaHandler) List(w http.ResponseWriter, r *http.Request) {
 	if !requireConfigPermission(w, r, false) {
 		return
@@ -101,9 +77,9 @@ func (h *ScreensaverMediaHandler) List(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]any{"screensaver_urls": urls, "max": maxScreensavers})
 }
 
-// Upload handles POST /pos/settings/screensavers (multipart field "file").
-// Rejects the upload when 3 screensavers already exist — the admin must delete one first
-// (per product decision: replace = delete existing media file + URL, then add the new one).
+// Upload handles POST /pos/settings/screensavers (multipart field "file": PNG, JPEG, WebP or MP4,
+// up to 8 MB). Rejects the upload when 3 screensavers already exist; the admin must delete one
+// first (per product decision: replace = delete the existing file and link, then add the new one).
 func (h *ScreensaverMediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	if !requireConfigPermission(w, r, false) {
 		return
@@ -118,25 +94,23 @@ func (h *ScreensaverMediaHandler) Upload(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	rel, dst, ok := storeTenantMedia(w, r, h.log, h.root, mediaUploadSpec{
-		Subfolder: screensaverSubfolder, MaxBytes: maxScreensaverBytes, SizeLabel: "8MB",
-		ExtByMIME: screensaverExtByMIME, TypesLabel: "PNG, JPEG, WebP or MP4",
-	})
+	key, ok := storeTenantMedia(w, r, h.log, h.store, mediaTypeScreensavers, "display")
 	if !ok {
 		return
 	}
-	updated := append(urls, rel)
+	link := h.store.URL(key)
+	updated := append(urls, link)
 	if err := h.saveURLs(r, sctx, updated); err != nil {
-		_ = os.Remove(dst)
+		_ = h.store.Delete(r.Context(), key)
 		h.log.Error("screensaver save settings", zap.Error(err))
 		jsonError(w, "failed to save settings", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"screensaver_urls": updated, "uploaded": rel})
+	jsonOK(w, map[string]any{"screensaver_urls": updated, "uploaded": link})
 }
 
-// Delete handles DELETE /pos/settings/screensavers?url=/media/... — removes the URL from
-// settings AND the backing file from the media volume (path-traversal guarded).
+// Delete handles DELETE /pos/settings/screensavers?url=... and removes the link from settings
+// and the file from storage (only this service's own files; an external link is just dropped).
 func (h *ScreensaverMediaHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if !requireConfigPermission(w, r, false) {
 		return
@@ -179,14 +153,11 @@ func (h *ScreensaverMediaHandler) Delete(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Best-effort file removal — only within THIS tenant's screensaver folder.
-	slug := tenantSlugFrom(r)
-	prefix := path.Join(mediaURLPrefix, slug, screensaverSubfolder) + "/"
-	if strings.HasPrefix(target, prefix) {
-		name := filepath.Base(path.Clean(target))
-		full := filepath.Join(h.root, slug, screensaverSubfolder, name)
-		if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
-			h.log.Warn("screensaver file remove", zap.String("path", full), zap.Error(err))
+	// Only a file under this tenant's own screensaver keys is deleted.
+	tid, _ := parseTenantUUID(r)
+	if h.store.Owned(target) && strings.HasPrefix(h.store.Normalize(target), "pos/"+tid.String()+"/"+mediaTypeScreensavers+"/") {
+		if err := h.store.Delete(r.Context(), target); err != nil {
+			h.log.Warn("screensaver file remove", zap.String("url", target), zap.Error(err))
 		}
 	}
 	jsonOK(w, map[string]any{"screensaver_urls": remaining, "deleted": target})
@@ -201,13 +172,4 @@ func (h *ScreensaverMediaHandler) saveURLs(r *http.Request, sctx *settingsCtx, u
 	meta[screensaverMetaKey] = dedupeStrings(urls)
 	_, err := sctx.setting.Update().SetMetadata(meta).Save(r.Context())
 	return err
-}
-
-// ServeMedia mounts the read-only public file server for GET /media/* at the router root.
-// Public by design (screensaver images render on the pre-auth PIN screen); the media tree
-// contains only admin-uploaded display assets, never documents. httpware.StaticMedia refuses
-// directory listings, dotfiles and path escapes, and marks the UUID-named uploads immutable so
-// browsers, service workers and the CDN keep them.
-func ServeMedia(root string) http.HandlerFunc {
-	return http.StripPrefix(strings.TrimSuffix(mediaURLPrefix, "/"), httpware.StaticMedia(root, httpware.MediaOptions{})).ServeHTTP
 }

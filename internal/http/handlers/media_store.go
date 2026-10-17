@@ -1,92 +1,98 @@
 package handlers
 
 import (
-	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"path"
-	"path/filepath"
 
+	"github.com/Bengo-Hub/httpware/objectstore"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
-// mediaUploadSpec describes one kind of file pos-api stores on its local media volume. Every
-// upload follows the same convention: {MEDIA_ROOT}/{tenant-slug}/{Subfolder}/{uuid}{ext} on disk,
-// a relative /media/... URL in the database, and ServeMedia serving it back.
-type mediaUploadSpec struct {
-	Subfolder string
-	MaxBytes  int64
-	// SizeLabel is the human cap shown in errors ("8MB", "512 KB").
-	SizeLabel string
-	// ExtByMIME maps each accepted sniffed content type to the stored extension.
-	ExtByMIME map[string]string
-	// TypesLabel lists the accepted types for the unsupported-type error.
-	TypesLabel string
+// pos-api's media types on the shared object storage (httpware/objectstore). Keys are
+// pos/<tenant_id>/<type>/<group>/<uuid><ext>.
+//
+//   - screensavers: public display images and videos of the PIN screen (8 MB).
+//   - evidence: private photos of room damage and found items, only reachable through short-lived
+//     signed links (8 MB).
+//   - job-attachments: public reference files of a services job (512 KB), unguessable names.
+const (
+	mediaTypeScreensavers   = "screensavers"
+	mediaTypeEvidence       = "evidence"
+	mediaTypeJobAttachments = "job-attachments"
+)
+
+// RegisterMediaTypes adds pos-api's media types to the shared registry. Call once at startup.
+func RegisterMediaTypes() {
+	objectstore.Register(objectstore.MediaType{
+		Name: mediaTypeScreensavers, Public: true, MaxBytes: 8 << 20, Image: true,
+		Allowed: []string{"image/png", "image/jpeg", "image/webp", "video/mp4"},
+	})
+	objectstore.Register(objectstore.MediaType{
+		Name: mediaTypeEvidence, MaxBytes: 8 << 20, Image: true,
+		Allowed: []string{"image/png", "image/jpeg", "image/webp"},
+	})
+	objectstore.Register(objectstore.MediaType{
+		Name: mediaTypeJobAttachments, Public: true, MaxBytes: 512 << 10, Image: true,
+		Allowed: []string{"image/png", "image/jpeg", "image/webp", "application/pdf"},
+	})
 }
 
-// storeTenantMedia reads the multipart "file" field, checks its size and sniffed type against
-// spec, and writes it to the tenant's subfolder. On success it returns the relative URL and the
-// absolute path (so a caller that fails a later step can remove the file). On failure it has
-// already written the error response and returns ok=false.
-func storeTenantMedia(w http.ResponseWriter, r *http.Request, log *zap.Logger, root string, spec mediaUploadSpec) (rel, dst string, ok bool) {
-	if root == "" {
+// storeTenantMedia reads the multipart "file", checks it against the media type (size and real
+// content type, JPEG and PNG re-encoded), stores it under the request's tenant and answers the key.
+// On failure it has already written the error response.
+func storeTenantMedia(w http.ResponseWriter, r *http.Request, log *zap.Logger, store *objectstore.Store, mediaType, group string) (string, bool) {
+	if !store.Enabled() {
 		jsonError(w, "media storage not configured", http.StatusServiceUnavailable)
-		return "", "", false
+		return "", false
 	}
-	// Cap the body before parsing so an oversized upload is cut off early (multipart framing
-	// adds a little on top of the file itself).
-	r.Body = http.MaxBytesReader(w, r.Body, spec.MaxBytes+64<<10)
-	if err := r.ParseMultipartForm(spec.MaxBytes); err != nil {
-		jsonError(w, fmt.Sprintf("file too large or invalid form (max %s)", spec.SizeLabel), http.StatusRequestEntityTooLarge)
-		return "", "", false
-	}
-	file, header, err := r.FormFile("file")
+	tid, err := parseTenantUUID(r)
 	if err != nil {
-		jsonError(w, "missing file field", http.StatusBadRequest)
-		return "", "", false
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return "", false
 	}
-	defer file.Close()
-	if header.Size > spec.MaxBytes {
-		jsonError(w, fmt.Sprintf("file too large (max %s)", spec.SizeLabel), http.StatusRequestEntityTooLarge)
-		return "", "", false
-	}
-
-	// Sniff the real content type; never trust the extension or the client's Content-Type.
-	head := make([]byte, 512)
-	n, _ := io.ReadFull(file, head)
-	ext, allowed := spec.ExtByMIME[http.DetectContentType(head[:n])]
-	if !allowed {
-		jsonError(w, "unsupported media type, use "+spec.TypesLabel, http.StatusUnsupportedMediaType)
-		return "", "", false
-	}
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
+	up, err := objectstore.ReadUpload(w, r, "file", mediaType)
+	if err != nil {
+		if objectstore.IsUploadError(err) {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return "", false
+		}
 		jsonError(w, "failed to read upload", http.StatusInternalServerError)
-		return "", "", false
+		return "", false
 	}
-
-	slug := tenantSlugFrom(r)
-	dir := filepath.Join(root, slug, spec.Subfolder)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		log.Error("media mkdir", zap.String("subfolder", spec.Subfolder), zap.Error(err))
-		jsonError(w, "media storage unavailable", http.StatusInternalServerError)
-		return "", "", false
-	}
-	name := uuid.NewString() + ext
-	dst = filepath.Join(dir, name)
-	out, err := os.Create(dst)
+	key, err := store.Key(objectstore.Owner{TenantID: tid.String()}, mediaType, group, uuid.NewString()+up.Ext)
 	if err != nil {
-		log.Error("media create", zap.String("subfolder", spec.Subfolder), zap.Error(err))
-		jsonError(w, "media storage unavailable", http.StatusInternalServerError)
-		return "", "", false
+		jsonError(w, "failed to name the file", http.StatusInternalServerError)
+		return "", false
 	}
-	if _, err := io.Copy(out, io.LimitReader(file, spec.MaxBytes)); err != nil {
-		out.Close()
-		_ = os.Remove(dst)
-		jsonError(w, "failed to store upload", http.StatusInternalServerError)
-		return "", "", false
+	if err := store.Put(r.Context(), key, up.Data, up.ContentType); err != nil {
+		log.Error("media store", zap.String("type", mediaType), zap.Error(err))
+		jsonError(w, "media storage unavailable", http.StatusBadGateway)
+		return "", false
 	}
-	out.Close()
-	return path.Join(mediaURLPrefix, slug, spec.Subfolder, name), dst, true
+	return key, true
+}
+
+// mediaLinks turns stored values into links (a private key gets a signed link valid for the
+// configured presign time); values that are already links pass through.
+func mediaLinks(store *objectstore.Store, refs []string) []string {
+	if len(refs) == 0 {
+		return refs
+	}
+	out := make([]string, len(refs))
+	for i, ref := range refs {
+		out[i] = store.URL(ref)
+	}
+	return out
+}
+
+// mediaKeys turns values a client sends back (links this service handed out) into what is stored.
+func mediaKeys(store *objectstore.Store, refs []string) []string {
+	if len(refs) == 0 {
+		return refs
+	}
+	out := make([]string, len(refs))
+	for i, ref := range refs {
+		out[i] = store.Normalize(ref)
+	}
+	return out
 }

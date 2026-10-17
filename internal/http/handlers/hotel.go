@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Bengo-Hub/httpware"
+	"github.com/Bengo-Hub/httpware/objectstore"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -33,10 +34,12 @@ type HotelHandler struct {
 	treasuryClient  *treasury.Client
 	inventoryClient *inventory.Client
 	subsClient      *subscriptions.Client
-	// mediaRoot is the local media volume root (MEDIA_ROOT) used for damage-evidence photo
-	// uploads — see SetMediaRoot / hotel_damage_reports.go.
-	mediaRoot string
+	// media is the shared object storage holding damage and found-item photos (private keys).
+	media *objectstore.Store
 }
+
+// SetMediaStore wires the shared object storage for damage evidence and found-item photos.
+func (h *HotelHandler) SetMediaStore(m *objectstore.Store) { h.media = m }
 
 func NewHotelHandler(log *zap.Logger, client *ent.Client, publisher *events.Publisher) *HotelHandler {
 	return &HotelHandler{log: log, client: client, publisher: publisher}
