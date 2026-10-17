@@ -1,7 +1,7 @@
 package orders
 
 import (
-	"math"
+	"github.com/Bengo-Hub/httpware/money"
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
@@ -52,17 +52,12 @@ func BuildRefundLines(discRatio float64, in []RefundLineInput) []treasury.Refund
 		net := eff - tax
 		rate := 0.0
 		if net > 0 {
-			rate = roundTo(tax/net*100, 4)
+			rate = money.Round(tax/net*100, 4)
 		}
 		out = append(out, treasury.RefundLine{
 			ItemSKU: l.SKU, Description: l.Name, Quantity: l.Quantity,
-			UnitPrice: roundTo(net/l.Quantity, 6), TaxCode: l.TaxCode, TaxRate: rate,
+			UnitPrice: money.Round(net/l.Quantity, 6), TaxCode: l.TaxCode, TaxRate: rate,
 		})
 	}
 	return out
-}
-
-func roundTo(v float64, places int) float64 {
-	p := math.Pow(10, float64(places))
-	return math.Round(v*p) / p
 }

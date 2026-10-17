@@ -14,8 +14,9 @@ package reversals
 import (
 	"context"
 	"fmt"
-	"math"
 	"time"
+
+	"github.com/Bengo-Hub/httpware/money"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -181,9 +182,9 @@ func (s *Service) Execute(ctx context.Context, tenantID uuid.UUID, req CreateReq
 		SetReason(req.Reason).
 		SetRefundChannel(s.resolveRefundChannel(ctx, tenantID, order.ID, req.RefundChannel)).
 		SetLines(revLines).
-		SetAmount(round2(amount)).
-		SetTaxAmount(round2(tax)).
-		SetCostAmount(round2(cost)).
+		SetAmount(money.Round2(amount)).
+		SetTaxAmount(money.Round2(tax)).
+		SetCostAmount(money.Round2(cost)).
 		SetSteps(steps).
 		SetRequestedBy(req.RequestedBy)
 	if req.IdempotencyKey != "" {
@@ -253,8 +254,8 @@ func (s *Service) resolveLines(order *ent.POSOrder, lines []*ent.POSOrderLine, r
 			Name:       l.Name,
 			Quantity:   qty,
 			OfQuantity: l.Quantity,
-			Amount:     round2(grossAmt),
-			TaxAmount:  round2(taxAmt),
+			Amount:     money.Round2(grossAmt),
+			TaxAmount:  money.Round2(taxAmt),
 		}
 	}
 
@@ -369,5 +370,3 @@ func (s *Service) resolveRefundChannel(ctx context.Context, tenantID, orderID uu
 	}
 	return "cash"
 }
-
-func round2(v float64) float64 { return math.Round(v*100) / 100 }

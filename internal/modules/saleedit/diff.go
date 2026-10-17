@@ -1,6 +1,7 @@
 package saleedit
 
 import (
+	"github.com/Bengo-Hub/httpware/money"
 	"github.com/google/uuid"
 
 	"github.com/bengobox/pos-service/internal/ent"
@@ -26,11 +27,11 @@ type EditLine struct {
 // desired line set (not a pre-diffed reductions/increases split); the orchestrator loads the
 // live order and computes the diff itself.
 type EditSaleRequest struct {
-	OrderID     uuid.UUID
-	Reason      string
-	RequestedBy uuid.UUID
-	TenantSlug  string
-	Lines       []EditLine
+	OrderID            uuid.UUID
+	Reason             string
+	RequestedBy        uuid.UUID
+	TenantSlug         string
+	Lines              []EditLine
 	CrmContactID       *uuid.UUID
 	CustomerIdentifier string
 	CustomerName       string
@@ -71,10 +72,10 @@ type EditSaleResult struct {
 // lineDiff is the server-computed diff between an order's live lines and the caller's
 // desired final state.
 type lineDiff struct {
-	removed  []*ent.POSOrderLine // whole line removed
-	reduced  []reducedLine       // qty decreased
-	increased []increasedLine    // qty increased on an EXISTING line
-	added    []EditLine          // brand-new lines
+	removed          []*ent.POSOrderLine // whole line removed
+	reduced          []reducedLine       // qty decreased
+	increased        []increasedLine     // qty increased on an EXISTING line
+	added            []EditLine          // brand-new lines
 	priceOnlySkipped []uuid.UUID
 }
 
@@ -123,9 +124,9 @@ func diffLines(liveLines []*ent.POSOrderLine, requested []EditLine, returnedQty 
 		remaining := effectiveRemainingQty(live, returnedQty)
 		switch {
 		case req.Quantity < remaining-0.009:
-			d.reduced = append(d.reduced, reducedLine{Line: live, ByQty: round2(remaining - req.Quantity)})
+			d.reduced = append(d.reduced, reducedLine{Line: live, ByQty: money.Round2(remaining - req.Quantity)})
 		case req.Quantity > remaining+0.009:
-			d.increased = append(d.increased, increasedLine{Line: live, ByQty: round2(req.Quantity - remaining), Req: req})
+			d.increased = append(d.increased, increasedLine{Line: live, ByQty: money.Round2(req.Quantity - remaining), Req: req})
 		case req.UnitPrice > 0 && absFloat(req.UnitPrice-live.UnitPrice) > 0.004:
 			d.priceOnlySkipped = append(d.priceOnlySkipped, live.ID)
 		}
@@ -162,10 +163,6 @@ func absFloat(v float64) float64 {
 		return -v
 	}
 	return v
-}
-
-func round2(v float64) float64 {
-	return float64(int64(v*100+0.5)) / 100
 }
 
 // classifyKind labels the diff for POSSaleEdit.Kind.

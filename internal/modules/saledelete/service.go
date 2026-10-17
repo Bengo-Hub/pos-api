@@ -37,9 +37,9 @@ import (
 
 // Step names, mirroring the reversals package's tracked-step convention.
 const (
-	StepFiscalCheck   = "fiscal_check"
-	StepReversal      = "reversal"       // fiscalised branch: delegates to reversals.Service
-	StepInventory     = "inventory_restore"
+	StepFiscalCheck    = "fiscal_check"
+	StepReversal       = "reversal" // fiscalised branch: delegates to reversals.Service
+	StepInventory      = "inventory_restore"
 	StepTreasuryLedger = "treasury_ledger_shred"
 	// StepARWriteoff reduces the customer's outstanding AR when the deleted sale was settled on
 	// account — a real gap fixed 2026: previously deleteNonFiscalized only shredded GL journal
@@ -154,14 +154,10 @@ func (s *Service) Delete(ctx context.Context, tenantID uuid.UUID, req Request) (
 
 // Result is what the handler returns to the caller.
 type Result struct {
-	Branch  string                        `json:"branch"` // "fiscalized" | "non_fiscalized"
-	OrderID uuid.UUID                     `json:"order_id"`
-	Steps   []entschema.ReversalStepJSON  `json:"steps"`
-	ShredID *uuid.UUID                    `json:"shred_id,omitempty"`
-}
-
-func round2(v float64) float64 {
-	return float64(int64(v*100+0.5)) / 100
+	Branch  string                       `json:"branch"` // "fiscalized" | "non_fiscalized"
+	OrderID uuid.UUID                    `json:"order_id"`
+	Steps   []entschema.ReversalStepJSON `json:"steps"`
+	ShredID *uuid.UUID                   `json:"shred_id,omitempty"`
 }
 
 func nowStep(step, service, status, detail, ref string) entschema.ReversalStepJSON {

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Bengo-Hub/httpware/money"
+
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
@@ -36,10 +38,10 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 	// exactly like the real check below, before even resolving the customer.
 	var dryRunAmount float64
 	for _, a := range diff.added {
-		dryRunAmount += round2(a.UnitPrice * a.Quantity)
+		dryRunAmount += money.Round2(a.UnitPrice * a.Quantity)
 	}
 	for _, inc := range diff.increased {
-		dryRunAmount += round2(inc.Req.UnitPrice * inc.ByQty)
+		dryRunAmount += money.Round2(inc.Req.UnitPrice * inc.ByQty)
 	}
 	if dryRunAmount <= 0.009 {
 		return nil
@@ -138,7 +140,7 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 	}
 
 	for i, a := range diff.added {
-		total := round2(a.UnitPrice * a.Quantity)
+		total := money.Round2(a.UnitPrice * a.Quantity)
 		var lt resolvedAddedLineTax
 		if i < len(addedTaxes) {
 			lt = addedTaxes[i]
@@ -188,23 +190,23 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 			consumptionItems = append(consumptionItems, inventory.ConsumptionItem{
 				SKU: a.SKU, Quantity: a.Quantity, UOM: catalogBySKU[a.SKU].UOM,
 			})
-			incrementalCost += round2(catalogBySKU[a.SKU].CostPrice * a.Quantity)
+			incrementalCost += money.Round2(catalogBySKU[a.SKU].CostPrice * a.Quantity)
 		}
 	}
 
 	for _, inc := range diff.increased {
-		deltaTotal := round2(inc.Req.UnitPrice * inc.ByQty)
-		newQty := round2(inc.Line.Quantity + inc.ByQty)
-		newTotal := round2(inc.Line.TotalPrice + deltaTotal)
+		deltaTotal := money.Round2(inc.Req.UnitPrice * inc.ByQty)
+		newQty := money.Round2(inc.Line.Quantity + inc.ByQty)
+		newTotal := money.Round2(inc.Line.TotalPrice + deltaTotal)
 		upd := inc.Line.Update().SetQuantity(newQty).SetTotalPrice(newTotal)
 		if inc.Line.TaxAmount != nil && !inc.Line.PriceIncludesTax && inc.Line.Quantity > 0 {
 			// Prorate the line's own existing tax rate onto the incremental quantity, and — so a
 			// LATER edit's own totals-recompute-from-lines still sees the right figure — persist
 			// the bumped line's own TaxAmount too, not just this edit's incrementalTax.
 			perUnitTax := *inc.Line.TaxAmount / inc.Line.Quantity
-			deltaTax := round2(perUnitTax * inc.ByQty)
+			deltaTax := money.Round2(perUnitTax * inc.ByQty)
 			incrementalTax += deltaTax
-			upd = upd.SetTaxAmount(round2(*inc.Line.TaxAmount + deltaTax))
+			upd = upd.SetTaxAmount(money.Round2(*inc.Line.TaxAmount + deltaTax))
 		}
 		if _, err := upd.Save(ctx); err != nil {
 			return fmt.Errorf("bump line %s: %w", inc.Line.ID, err)
@@ -214,7 +216,7 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 			consumptionItems = append(consumptionItems, inventory.ConsumptionItem{
 				SKU: inc.Line.Sku, Quantity: inc.ByQty, UOM: catalogBySKU[inc.Line.Sku].UOM,
 			})
-			incrementalCost += round2(catalogBySKU[inc.Line.Sku].CostPrice * inc.ByQty)
+			incrementalCost += money.Round2(catalogBySKU[inc.Line.Sku].CostPrice * inc.ByQty)
 		}
 	}
 
@@ -509,7 +511,7 @@ func lineTaxAmount(total float64, priceIncludesTax bool, taxRate *float64) *floa
 	if priceIncludesTax {
 		amt = total - total/(1+rate)
 	}
-	v := round2(amt)
+	v := money.Round2(amt)
 	return &v
 }
 
@@ -536,14 +538,14 @@ func (s *Service) createAddendumOrder(ctx context.Context, tenantID uuid.UUID, o
 	for _, a := range diff.added {
 		lines = append(lines, orders.OrderLineInput{
 			CatalogItemID: a.CatalogItemID, SKU: a.SKU, Name: a.Name, Quantity: a.Quantity,
-			UnitPrice: a.UnitPrice, TotalPrice: round2(a.UnitPrice * a.Quantity),
+			UnitPrice: a.UnitPrice, TotalPrice: money.Round2(a.UnitPrice * a.Quantity),
 			TaxCodeID: a.TaxCodeID, PriceIncludesTax: a.PriceIncludesTax, TaxRate: a.TaxRate,
 		})
 	}
 	for _, inc := range diff.increased {
 		lines = append(lines, orders.OrderLineInput{
 			CatalogItemID: inc.Line.CatalogItemID, SKU: inc.Line.Sku, Name: inc.Line.Name, Quantity: inc.ByQty,
-			UnitPrice: inc.Req.UnitPrice, TotalPrice: round2(inc.Req.UnitPrice * inc.ByQty),
+			UnitPrice: inc.Req.UnitPrice, TotalPrice: money.Round2(inc.Req.UnitPrice * inc.ByQty),
 			TaxCodeID: inc.Req.TaxCodeID, PriceIncludesTax: inc.Req.PriceIncludesTax, TaxRate: inc.Req.TaxRate,
 		})
 	}

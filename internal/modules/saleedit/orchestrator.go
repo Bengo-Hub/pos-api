@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Bengo-Hub/httpware/money"
+
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
@@ -208,7 +210,7 @@ func returnedQtyByLine(ctx context.Context, client *ent.Client, orderID uuid.UUI
 	out := make(map[uuid.UUID]float64, len(rets))
 	for _, ret := range rets {
 		for _, l := range ret.Edges.Lines {
-			out[l.OrderLineID] = round2(out[l.OrderLineID] + l.Quantity)
+			out[l.OrderLineID] = money.Round2(out[l.OrderLineID] + l.Quantity)
 		}
 	}
 	return out, nil
@@ -226,7 +228,7 @@ func buildReturnLines(removed []*ent.POSOrderLine, reduced []reducedLine, return
 		}
 		out = append(out, returns.LineInput{
 			OrderLineID: l.ID, SKU: l.Sku, Name: l.Name, Quantity: remaining,
-			UnitPrice: l.UnitPrice, TotalPrice: round2(l.TotalPrice * ratio),
+			UnitPrice: l.UnitPrice, TotalPrice: money.Round2(l.TotalPrice * ratio),
 		})
 	}
 	for _, r := range reduced {
@@ -236,7 +238,7 @@ func buildReturnLines(removed []*ent.POSOrderLine, reduced []reducedLine, return
 		}
 		out = append(out, returns.LineInput{
 			OrderLineID: r.Line.ID, SKU: r.Line.Sku, Name: r.Line.Name, Quantity: r.ByQty,
-			UnitPrice: r.Line.UnitPrice, TotalPrice: round2(r.Line.TotalPrice * ratio),
+			UnitPrice: r.Line.UnitPrice, TotalPrice: money.Round2(r.Line.TotalPrice * ratio),
 		})
 	}
 	return out
@@ -274,7 +276,7 @@ func snapshotLines(lines []*ent.POSOrderLine, returnedQty map[uuid.UUID]float64)
 		}
 		out = append(out, entschema.SaleEditLineSnapshotJSON{
 			LineID: l.ID, SKU: l.Sku, Name: l.Name,
-			Quantity: remaining, UnitPrice: l.UnitPrice, TotalPrice: round2(l.TotalPrice * ratio),
+			Quantity: remaining, UnitPrice: l.UnitPrice, TotalPrice: money.Round2(l.TotalPrice * ratio),
 		})
 	}
 	return out

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Bengo-Hub/httpware/money"
+
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
@@ -16,10 +18,10 @@ const taxCodeCacheTTL = 10 * time.Minute
 
 // TaxCodeInfo holds the resolved tax rate and KRA code for a single tax code.
 type TaxCodeInfo struct {
-	Code      string  `json:"code"`
-	Rate      float64 `json:"rate"`      // e.g. 16.0
-	KRACode   string  `json:"kra_code"`  // KRA TaxTyCd: A=16%VAT, B=8%VAT, D=exempt, E=zero
-	TaxType   string  `json:"tax_type"`  // "vat", "excise", etc.
+	Code    string  `json:"code"`
+	Rate    float64 `json:"rate"`     // e.g. 16.0
+	KRACode string  `json:"kra_code"` // KRA TaxTyCd: A=16%VAT, B=8%VAT, D=exempt, E=zero
+	TaxType string  `json:"tax_type"` // "vat", "excise", etc.
 }
 
 // TaxResolver fetches TaxCode definitions from treasury-api with Redis caching.
@@ -243,13 +245,9 @@ func ComputeLineTax(lineTotal float64, taxRate float64, priceIncludesTax bool) (
 		divisor := 1.0 + rate
 		base := lineTotal / divisor
 		tax := lineTotal - base
-		return roundTo2(tax), roundTo2(base)
+		return money.Round2(tax), money.Round2(base)
 	}
 	// Exclusive: tax = total * rate
 	tax := lineTotal * rate
-	return roundTo2(tax), roundTo2(lineTotal)
-}
-
-func roundTo2(v float64) float64 {
-	return float64(int(v*100+0.5)) / 100.0
+	return money.Round2(tax), money.Round2(lineTotal)
 }

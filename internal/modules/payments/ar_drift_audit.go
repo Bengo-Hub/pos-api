@@ -2,10 +2,12 @@ package payments
 
 import (
 	"context"
-	sharedcache "github.com/Bengo-Hub/cache"
 	"strconv"
 	"strings"
 	"time"
+
+	sharedcache "github.com/Bengo-Hub/cache"
+	"github.com/Bengo-Hub/httpware/money"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqljson"
@@ -214,7 +216,7 @@ func (s *ARDriftAuditScheduler) run(ctx context.Context) {
 
 	var flagged, healed int
 	for key, g := range groups {
-		s.auditOne(ctx, key.tenantID, key.phone, g.name, round2(g.due), &flagged, &healed)
+		s.auditOne(ctx, key.tenantID, key.phone, g.name, money.Round2(g.due), &flagged, &healed)
 	}
 	if flagged > 0 || healed > 0 {
 		s.log.Info("ar drift audit pass complete",
@@ -250,7 +252,7 @@ func (s *ARDriftAuditScheduler) auditOne(ctx context.Context, tenantID uuid.UUID
 		return
 	}
 
-	diff := round2(posOpen - treasuryBal)
+	diff := money.Round2(posOpen - treasuryBal)
 	if diff <= arDriftTolerance && diff >= -arDriftTolerance {
 		// In agreement now — close out any stale flag from a drift that has since resolved
 		// itself (a human fixed it, or a later event healed it), so the review queue reflects

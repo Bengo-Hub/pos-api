@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Bengo-Hub/httpware/money"
+
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
@@ -166,7 +168,7 @@ func (s *Service) stepPOSTotals(ctx context.Context, rev *ent.POSReversal) (stri
 			already = *line.VoidedQty
 		}
 		if _, uerr := line.Update().
-			SetVoidedQty(round2(already + rl.Quantity)).
+			SetVoidedQty(money.Round2(already + rl.Quantity)).
 			SetVoidedReason(voidReason).
 			SetVoidedBy(rev.RequestedBy).
 			SetVoidedAt(now).
@@ -290,8 +292,8 @@ func (s *Service) netPayments(ctx context.Context, client *ent.Client, rev *ent.
 			if cut > p.Amount {
 				cut = p.Amount
 			}
-			newAmt = round2(p.Amount - cut)
-			remaining = round2(remaining - cut)
+			newAmt = money.Round2(p.Amount - cut)
+			remaining = money.Round2(remaining - cut)
 
 			pd := map[string]any{}
 			for k, v := range p.PaymentData {
@@ -324,7 +326,7 @@ func (s *Service) netPayments(ctx context.Context, client *ent.Client, rev *ent.
 	}
 
 	if _, err := order.Update().
-		SetPaidTotal(round2(newPaidTotal)).
+		SetPaidTotal(money.Round2(newPaidTotal)).
 		SetMetadata(orderMD).
 		Save(ctx); err != nil {
 		return fmt.Errorf("update paid_total: %w", err)
@@ -424,14 +426,14 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 		currency = origOrder.Currency
 	}
 
-	cashNetted := round2(s.cashNettedForReversal(ctx, rev))
+	cashNetted := money.Round2(s.cashNettedForReversal(ctx, rev))
 	if cashNetted < 0 {
 		cashNetted = 0
 	}
 	if cashNetted > rev.Amount {
 		cashNetted = rev.Amount
 	}
-	arPortion := round2(rev.Amount - cashNetted)
+	arPortion := money.Round2(rev.Amount - cashNetted)
 	ratio := 0.0
 	if rev.Amount > 0 {
 		ratio = cashNetted / rev.Amount
@@ -491,10 +493,10 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 			return "", "", false, err
 		}
 	} else {
-		if err := post("cash", cashChannel, cashNetted, round2(rev.TaxAmount*ratio), round2(rev.CostAmount*ratio)); err != nil {
+		if err := post("cash", cashChannel, cashNetted, money.Round2(rev.TaxAmount*ratio), money.Round2(rev.CostAmount*ratio)); err != nil {
 			return "", "", false, fmt.Errorf("cash portion: %w", err)
 		}
-		if err := post("ar", "offset_invoice", arPortion, round2(rev.TaxAmount*(1-ratio)), round2(rev.CostAmount*(1-ratio))); err != nil {
+		if err := post("ar", "offset_invoice", arPortion, money.Round2(rev.TaxAmount*(1-ratio)), money.Round2(rev.CostAmount*(1-ratio))); err != nil {
 			return "", "", false, fmt.Errorf("AR write-off portion: %w", err)
 		}
 	}

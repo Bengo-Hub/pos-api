@@ -5,17 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/Bengo-Hub/httpware/money"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/Bengo-Hub/httpware"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
@@ -352,7 +353,7 @@ func buildDeliveryTaskRequest(order *ent.POSOrder, pickupName string) logistics.
 	// What the rider must collect at the door: the unpaid balance. logistics stores it in the task's
 	// cash_on_delivery column, checks it at proof of delivery and books it on the rider's cash ledger.
 	if due := order.TotalAmount - order.PaidTotal; due > 0.005 {
-		taskMeta["cash_on_delivery"] = math.Round(due*100) / 100
+		taskMeta["cash_on_delivery"] = money.Round2(due)
 	}
 	return logistics.CreateTaskRequest{
 		ExternalReference: order.ID.String(),

@@ -6,6 +6,8 @@ import (
 	"math"
 	"strings"
 
+	"github.com/Bengo-Hub/httpware/money"
+
 	"github.com/google/uuid"
 
 	"github.com/bengobox/pos-service/internal/ent"
@@ -87,7 +89,7 @@ func (s *Service) resolveReturnLines(ctx context.Context, orderID uuid.UUID, in 
 		line.Name = ol.Name
 		if !internal {
 			line.UnitPrice = ol.UnitPrice
-			line.TotalPrice = round2(ol.TotalPrice * (l.Quantity / ol.Quantity))
+			line.TotalPrice = money.Round2(ol.TotalPrice * (l.Quantity / ol.Quantity))
 		}
 		out = append(out, line)
 	}
@@ -149,8 +151,6 @@ func (s *Service) soldQtyBySKU(ctx context.Context, orderID uuid.UUID) map[strin
 	}
 	return out
 }
-
-func round2(v float64) float64 { return math.Round(v*100) / 100 }
 
 // lockUnsupported reports SQLite's refusal of SELECT ... FOR UPDATE. SQLite only backs the unit
 // tests and serializes writers itself, so callers fall back to an unlocked read there; Postgres

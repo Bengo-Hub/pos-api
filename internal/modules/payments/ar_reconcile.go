@@ -3,10 +3,11 @@ package payments
 import (
 	"context"
 	"fmt"
-	"math"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Bengo-Hub/httpware/money"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -17,8 +18,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 )
-
-func round2(f float64) float64 { return math.Round(f*100) / 100 }
 
 // ============================================================================================
 // Treasury → POS AR reconciliation.
@@ -110,7 +109,7 @@ func (s *Service) ReconcileCustomerOrders(ctx context.Context, p ReconcileParams
 	}
 	report := &ReconcileReport{
 		CustomerKey:       key,
-		TargetOutstanding: round2(p.TargetOutstanding),
+		TargetOutstanding: money.Round2(p.TargetOutstanding),
 		DryRun:            p.DryRun,
 		OrdersTouched:     []ReconciledOrder{},
 	}
@@ -164,8 +163,8 @@ func (s *Service) ReconcileCustomerOrders(ctx context.Context, p ReconcileParams
 		open = append(open, openOrder{order: o, due: due})
 		posOpen += due
 	}
-	report.POSOpenBefore = round2(posOpen)
-	report.POSOpenAfter = round2(posOpen)
+	report.POSOpenBefore = money.Round2(posOpen)
+	report.POSOpenAfter = money.Round2(posOpen)
 
 	// Reduce-only: only settle the surplus of POS-open over treasury's authoritative outstanding.
 	// If treasury still shows ≥ what POS knows about, the difference is non-POS AR — never fabricate.
@@ -206,9 +205,9 @@ func (s *Service) ReconcileCustomerOrders(ctx context.Context, p ReconcileParams
 		rec := ReconciledOrder{
 			OrderID:     oo.order.ID,
 			OrderNumber: oo.order.OrderNumber,
-			DueBefore:   round2(oo.due),
-			Applied:     round2(apply),
-			DueAfter:    round2(oo.due - apply),
+			DueBefore:   money.Round2(oo.due),
+			Applied:     money.Round2(apply),
+			DueAfter:    money.Round2(oo.due - apply),
 		}
 		if !p.DryRun {
 			if err := s.applyReconcileSettlement(ctx, oo.order, apply, method, p.Reference); err != nil {
@@ -220,8 +219,8 @@ func (s *Service) ReconcileCustomerOrders(ctx context.Context, p ReconcileParams
 		remaining -= apply
 		report.OrdersTouched = append(report.OrdersTouched, rec)
 	}
-	report.AmountSettled = round2(settled)
-	report.POSOpenAfter = round2(posOpen - settled)
+	report.AmountSettled = money.Round2(settled)
+	report.POSOpenAfter = money.Round2(posOpen - settled)
 	if !p.DryRun {
 		s.log.Info("reconcile: settled POS credit orders to treasury balance",
 			zap.String("customer_key", key),
@@ -332,7 +331,7 @@ func (s *Service) unreconcilePhantomPayments(ctx context.Context, matchedOrders 
 			if cut > remaining {
 				cut = remaining
 			}
-			dueBefore := round2(orders.ComputeSettlement(o, 0).AmountDue)
+			dueBefore := money.Round2(orders.ComputeSettlement(o, 0).AmountDue)
 			if !dryRun {
 				pd := map[string]any{}
 				for k, v := range p.PaymentData {
@@ -341,7 +340,7 @@ func (s *Service) unreconcilePhantomPayments(ctx context.Context, matchedOrders 
 				pd["unreconciled"] = true
 				pd["unreconciled_amount"] = cut
 				pd["unreconciled_reason"] = "source ar_receipt voided in treasury"
-				if _, uerr := p.Update().SetAmount(round2(p.Amount - cut)).SetPaymentData(pd).Save(ctx); uerr != nil {
+				if _, uerr := p.Update().SetAmount(money.Round2(p.Amount - cut)).SetPaymentData(pd).Save(ctx); uerr != nil {
 					return fmt.Errorf("unreconcile payment %s: %w", p.ID, uerr)
 				}
 				collected, _, rerr := s.RecomputePaidTotal(ctx, o.ID)
@@ -362,14 +361,14 @@ func (s *Service) unreconcilePhantomPayments(ctx context.Context, matchedOrders 
 					}
 				}
 			}
-			remaining = round2(remaining - cut)
+			remaining = money.Round2(remaining - cut)
 			report.OrdersTouched = append(report.OrdersTouched, ReconciledOrder{
-				OrderID: o.ID, OrderNumber: o.OrderNumber, DueBefore: dueBefore, Applied: -cut, DueAfter: round2(dueBefore + cut),
+				OrderID: o.ID, OrderNumber: o.OrderNumber, DueBefore: dueBefore, Applied: -cut, DueAfter: money.Round2(dueBefore + cut),
 			})
 		}
 	}
-	report.AmountSettled = round2(report.AmountSettled - (increase - remaining))
-	report.POSOpenAfter = round2(report.POSOpenAfter + (increase - remaining))
+	report.AmountSettled = money.Round2(report.AmountSettled - (increase - remaining))
+	report.POSOpenAfter = money.Round2(report.POSOpenAfter + (increase - remaining))
 	return nil
 }
 
