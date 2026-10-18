@@ -93,6 +93,7 @@ func New(
 	recipeCOGSBackfill *handlers.RecipeCOGSBackfillHandler,
 	catalogCostBackfill *handlers.CatalogCostBackfillHandler,
 	maintenanceWindow *handlers.MaintenanceWindowHandler,
+	tenantExport http.Handler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -1397,6 +1398,13 @@ func New(
 				}
 			})
 		})
+
+		// Tenant export for SSO tenant backups (auth-api): one tenant's rows as a gzipped JSON Lines
+		// stream (httpware/tenantexport). Its Accept header makes the timeout and compression
+		// middleware stand aside.
+		if internalServiceKey != "" && tenantExport != nil {
+			api.With(requireInternalServiceKey(internalServiceKey)).Get("/s2s/tenant-export", tenantExport.ServeHTTP)
+		}
 
 		// ── Service-to-service (S2S) endpoints ──────────────────────────────────────
 		// Internal backend-to-backend routes, authenticated with the shared

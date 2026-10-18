@@ -6,10 +6,8 @@ github.com/Bengo-Hub/auth-client v0.15.1 h1:lz3vQSew1gR+kJn5716muvKaauTgQkF8FnKp
 github.com/Bengo-Hub/auth-client v0.15.1/go.mod h1:i+YzG6wPeBk/KXh+FSOdA1GPEhbcNB7E4FD2LB+tlqk=
 github.com/Bengo-Hub/cache v0.5.7 h1:lqB2kBiEdIOPzfzc0UiE9yq7SKfacXTQJRRY1RFA4xo=
 github.com/Bengo-Hub/cache v0.5.7/go.mod h1:E84NxTCaQD5/Z+9aFlFrg02E+EQaAfYP4UmzxRHgp2A=
-github.com/Bengo-Hub/httpware v0.6.1 h1:yQRphTOJsCqY9RcvV2JwCdwIr863rMmEO53OpSooRuw=
-github.com/Bengo-Hub/httpware v0.6.1/go.mod h1:TZYP+f/fbbqw3xXGpcvVNZL5Ah1WGCasTcbQynJtI4o=
-github.com/Bengo-Hub/httpware v0.11.0 h1:PjonVFrbTRbwBDITQXuKo3ur9XjsxXtY3fo5ftY9u/8=
-github.com/Bengo-Hub/httpware v0.11.0/go.mod h1:QNGsmi84hKBTv5IHtW5q5ukCiUA7tXuc6HMaNv8L/MA=
+github.com/Bengo-Hub/httpware v0.14.1 h1:ymXJvTWf/Rmeu/0OxBJrcon+IxBvBc3sV9u4nXWYghs=
+github.com/Bengo-Hub/httpware v0.14.1/go.mod h1:fQZJsyAaX8EjY5k57p36IbagSyOah/xKEAYrwgjz0Ec=
 github.com/Bengo-Hub/pagination v0.4.0 h1:l2QxsUSrdqDTekHOhifJUfZqp5FHAD20Y1Zmzii7JQQ=
 github.com/Bengo-Hub/pagination v0.4.0/go.mod h1:qXxXpX45Shf6qplVtxqEeOMeKiSr/W4nT4nMLQqF4/g=
 github.com/Bengo-Hub/shared-events v0.7.3 h1:4ERebReJHeM14f+qq8mCLtNLCmrBrmLpFnN7GU4LOxc=
@@ -324,8 +322,6 @@ golang.org/x/tools v0.49.0/go.mod h1:SJNXV9DBKT0UbdttsQjbfJlAE/q+y36++zo3uL3N0Oo
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp09yW+WbY/TyQbw=
 google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
-google.golang.org/protobuf v1.36.9 h1:w2gp2mA27hUeUzj9Ex9FBjsBm40zfaDtEWow293U7Iw=
-google.golang.org/protobuf v1.36.9/go.mod h1:fuxRtAxBytpl4zzqUh6/eyUujkJdNiuEkXntxiD/uRU=
 google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
 google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
