@@ -33,7 +33,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/migrate"
 	handlers "github.com/bengobox/pos-service/internal/http/handlers"
 	router "github.com/bengobox/pos-service/internal/http/router"
-	backupmod "github.com/bengobox/pos-service/internal/modules/backup"
 	catalogmodule "github.com/bengobox/pos-service/internal/modules/catalog"
 	"github.com/bengobox/pos-service/internal/modules/documents"
 	"github.com/bengobox/pos-service/internal/modules/identity"
@@ -819,21 +818,8 @@ func New(ctx context.Context) (*App, error) {
 	// Settings → Documents: per-tenant document-numbering config API (numeric by default).
 	docSequenceHandler := handlers.NewDocumentSequenceHandler(log, docSeqSvc)
 
-	// Pluggable backup destination (OneDrive/GDrive/S3/WebDAV/SFTP/SMB) — encrypted
-	// at rest with a SECRET_KEY-derived key. The handler owns the destination Store;
-	// its Uploader is attached to the backup service so every PVC backup is
-	// additionally mirrored best-effort (the PVC copy remains the durable primary).
-	backupDestHandler := handlers.NewBackupDestinationHandler(entClient, log)
-
-	// Tenant-scoped backups + daily 02:00 auto-backup scheduler + retention churn.
-	backupSvc := backupmod.NewService(sqlDB, entClient, cfg.Backup.Dir, log).
-		WithMirrorer(backupDestHandler.Uploader())
-	backupHandler := handlers.NewBackupHandler(log, backupSvc, cfg.Backup.RetentionDays)
-	backupmod.NewScheduler(backupSvc, backupmod.SchedulerConfig{
-		Enabled:       cfg.Backup.ScheduleEnabled,
-		Hour:          cfg.Backup.ScheduleHour,
-		RetentionDays: cfg.Backup.RetentionDays,
-	}, log).WithRedis(redisClient).Start(ctx)
+	// Tenant backups are made from the SSO client area (auth-api collects this service's
+	// /api/v1/s2s/tenant-export); the platform pg_dumpall covers disaster recovery.
 
 	// One-time recovery tool: fleet-wide recipe-COGS backfill (platform-owner only).
 	recipeCOGSBackfillHandler := handlers.NewRecipeCOGSBackfillHandler(entClient, inventoryClient, treasuryClient, log)
@@ -845,7 +831,7 @@ func New(ctx context.Context) (*App, error) {
 	// Repair Mode) — see internal/http/middleware/maintenance.go for the gate it feeds.
 	maintenanceWindowHandler := handlers.NewMaintenanceWindowHandler(entClient, log)
 
-	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, reversalHandler, saleDeleteHandler, saleEditHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, docSequenceHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, backupHandler, backupDestHandler, screensaverMediaHandler, mediaStore.MediaHandler(), recipeCOGSBackfillHandler, catalogCostBackfillHandler, maintenanceWindowHandler,
+	chiRouter := router.New(log, healthHandler, authMiddleware, entClient, identitySvc, orderHandler, catalogHandler, tableHandler, tenderHandler, paymentHandler, drawerHandler, barTabHandler, promotionHandler, rbacHandler, rbacSvc, hotelHandler, kdsHandler, deviceHandler, pinAuthHandler, publicOutletHandler, closingHandler, returnHandler, reversalHandler, saleDeleteHandler, saleEditHandler, receiptHandler, menuHandler, layawayHandler, scaleHandler, appointmentHandler, commissionHandler, staffScheduleHandler, shiftOverrideHandler, leaveRequestHandler, shiftRotationHandler, loyaltyHandler, reportsHandler, reportPDFHandler, webhookHandler, onlineOrderHandler, serviceConfigHandler, serviceSettingsHandler, docSequenceHandler, notificationsHandler, queueHandler, billSplitHandler, resourceHandler, commissionRuleHandler, packageHandler, clientHandler, channelHandler, printHandler, printJobsHandler, printAgentAPIHandler, payrollHandler, staffAdminHandler, repairHandler, cfg.HTTP.AllowedOrigins, redisClient, cfg.Treasury.InternalServiceKey, screensaverMediaHandler, mediaStore.MediaHandler(), recipeCOGSBackfillHandler, catalogCostBackfillHandler, maintenanceWindowHandler,
 		tenantexport.Handler(sqlDB, tenantexport.Options{Service: "pos"}))
 
 	httpServer := &http.Server{

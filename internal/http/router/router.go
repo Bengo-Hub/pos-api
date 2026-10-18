@@ -86,8 +86,6 @@ func New(
 	allowedOrigins []string,
 	redisClient *redis.Client,
 	internalServiceKey string,
-	backups *handlers.BackupHandler,
-	backupDest *handlers.BackupDestinationHandler,
 	screensaverMedia *handlers.ScreensaverMediaHandler,
 	mediaFiles http.Handler,
 	recipeCOGSBackfill *handlers.RecipeCOGSBackfillHandler,
@@ -163,16 +161,11 @@ func New(
 					maintenanceWindow.RegisterRoutes(admin)
 				}
 
-				// Platform-default backup destination (OneDrive/GDrive/S3/WebDAV/
-				// SFTP/SMB) — platform-owner only. Secret params encrypted at rest.
-				if backupDest != nil || recipeCOGSBackfill != nil || catalogCostBackfill != nil {
+				// Platform-owner-only recovery tools.
+				if recipeCOGSBackfill != nil || catalogCostBackfill != nil {
 					admin.Group(func(platform chi.Router) {
 						platform.Use(requirePlatformOwner)
-						if backupDest != nil {
-							backupDest.RegisterPlatformRoutes(platform)
-						}
-						// One-time recipe-COGS backfill (see pos_cogs_backfill.go) — fleet-wide,
-						// platform-owner only, same gate as the backup-destination routes above.
+						// One-time recipe-COGS backfill (see pos_cogs_backfill.go), fleet-wide.
 						if recipeCOGSBackfill != nil {
 							recipeCOGSBackfill.RegisterRoutes(platform)
 						}
@@ -384,23 +377,6 @@ func New(
 				if docSequences != nil {
 					docSequences.RegisterRoutes(tenant,
 						outletmw.RequireServicePermission(rbacSvc, "pos.config.change", "pos.config.manage"))
-				}
-
-				// Tenant-scoped backups (this tenant's data only) — config/admin-gated.
-				if backups != nil {
-					tenant.Group(func(bg chi.Router) {
-						bg.Use(outletmw.RequireServicePermission(rbacSvc, "pos.config.change", "pos.config.manage"))
-						backups.RegisterRoutes(bg)
-					})
-				}
-
-				// Per-tenant backup-destination override (mirrors backups off the
-				// PVC) — same config permission gate as the tenant backups routes.
-				if backupDest != nil {
-					tenant.Group(func(dg chi.Router) {
-						dg.Use(outletmw.RequireServicePermission(rbacSvc, "pos.config.change", "pos.config.manage"))
-						backupDest.RegisterRoutes(dg)
-					})
 				}
 
 				tenant.Route("/pos", func(pos chi.Router) {
@@ -1475,10 +1451,9 @@ func requireInternalServiceKey(expected string) func(http.Handler) http.Handler 
 	}
 }
 
-// requirePlatformOwner gates a route to platform-owner principals only. It is used
-// for the platform-default (tenant_id NULL) backup-destination management routes,
-// which configure the off-PVC mirror for ALL tenants and so must never be reachable
-// by an ordinary tenant user. Returns 401 when unauthenticated, 403 otherwise.
+// requirePlatformOwner gates a route to platform-owner principals only (platform service
+// config, maintenance windows, fleet-wide recovery tools), never an ordinary tenant user.
+// Returns 401 when unauthenticated, 403 otherwise.
 func requirePlatformOwner(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := authclient.ClaimsFromContext(r.Context())
@@ -1489,8 +1464,7 @@ func requirePlatformOwner(next http.Handler) http.Handler {
 			return
 		}
 		// SEC-3 (auth-client v0.10.0): a tenant superuser is NOT a platform owner and must
-		// never reach platform-default (tenant_id NULL) management, which configures the
-		// off-PVC mirror for ALL tenants. Mirror the shared RequirePlatformOwner contract.
+		// never reach platform-wide management. Mirror the shared RequirePlatformOwner contract.
 		if !claims.IsPlatformOwner {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
