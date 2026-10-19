@@ -148,8 +148,6 @@ var purgePlan = []purgeStep{
 	direct("audit_logs"),
 	direct("integration_settings"),
 	direct("webhook_subscriptions"),
-	direct("backups"),
-	direct("backup_settings"),
 	direct("sync_failures"),
 	direct("tenant_sync_events"),
 	direct("idempotency_keys"),
