@@ -33,30 +33,6 @@ func (f AuditLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuditLogMutation", m)
 }
 
-// The BackupFunc type is an adapter to allow the use of ordinary
-// function as Backup mutator.
-type BackupFunc func(context.Context, *ent.BackupMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f BackupFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.BackupMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BackupMutation", m)
-}
-
-// The BackupSettingFunc type is an adapter to allow the use of ordinary
-// function as BackupSetting mutator.
-type BackupSettingFunc func(context.Context, *ent.BackupSettingMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f BackupSettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.BackupSettingMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BackupSettingMutation", m)
-}
-
 // The BarTabFunc type is an adapter to allow the use of ordinary
 // function as BarTab mutator.
 type BarTabFunc func(context.Context, *ent.BarTabMutation) (ent.Value, error)

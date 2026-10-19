@@ -14,8 +14,6 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/bengobox/pos-service/internal/ent/appointment"
 	"github.com/bengobox/pos-service/internal/ent/auditlog"
-	"github.com/bengobox/pos-service/internal/ent/backup"
-	"github.com/bengobox/pos-service/internal/ent/backupsetting"
 	"github.com/bengobox/pos-service/internal/ent/bartab"
 	"github.com/bengobox/pos-service/internal/ent/bartabevent"
 	"github.com/bengobox/pos-service/internal/ent/billsplit"
@@ -194,8 +192,6 @@ func checkColumn(t, c string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			appointment.Table:              appointment.ValidColumn,
 			auditlog.Table:                 auditlog.ValidColumn,
-			backup.Table:                   backup.ValidColumn,
-			backupsetting.Table:            backupsetting.ValidColumn,
 			bartab.Table:                   bartab.ValidColumn,
 			bartabevent.Table:              bartabevent.ValidColumn,
 			billsplit.Table:                billsplit.ValidColumn,

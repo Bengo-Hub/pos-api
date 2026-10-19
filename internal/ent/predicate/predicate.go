@@ -12,12 +12,6 @@ type Appointment func(*sql.Selector)
 // AuditLog is the predicate function for auditlog builders.
 type AuditLog func(*sql.Selector)
 
-// Backup is the predicate function for backup builders.
-type Backup func(*sql.Selector)
-
-// BackupSetting is the predicate function for backupsetting builders.
-type BackupSetting func(*sql.Selector)
-
 // BarTab is the predicate function for bartab builders.
 type BarTab func(*sql.Selector)
 

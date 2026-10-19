@@ -16,10 +16,6 @@ type Tx struct {
 	Appointment *AppointmentClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
-	// Backup is the client for interacting with the Backup builders.
-	Backup *BackupClient
-	// BackupSetting is the client for interacting with the BackupSetting builders.
-	BackupSetting *BackupSettingClient
 	// BarTab is the client for interacting with the BarTab builders.
 	BarTab *BarTabClient
 	// BarTabEvent is the client for interacting with the BarTabEvent builders.
@@ -385,8 +381,6 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.Appointment = NewAppointmentClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
-	tx.Backup = NewBackupClient(tx.config)
-	tx.BackupSetting = NewBackupSettingClient(tx.config)
 	tx.BarTab = NewBarTabClient(tx.config)
 	tx.BarTabEvent = NewBarTabEventClient(tx.config)
 	tx.BillSplit = NewBillSplitClient(tx.config)
