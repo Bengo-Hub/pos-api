@@ -620,5 +620,9 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 			docs.BoldText(""),
 		},
 	}}
+	if outletmw.ProfitHidden(r.Context()) {
+		report.Cards = withoutProfitCards(report.Cards)
+		hideProfitColumns(&report.Sections[0], 2) // Profit, Margin
+	}
 	h.write(w, r, report, "all-sales")
 }

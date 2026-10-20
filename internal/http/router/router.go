@@ -403,13 +403,16 @@ func New(
 						// could POST an order.
 						orderWrite := outletmw.RequireServicePermission(rbacSvc,
 							"pos.orders.add", "pos.orders.change", "pos.orders.change_own", "pos.orders.manage")
-						pos.With(orderRead).Get("/orders", orders.ListOrders)
+						// Order reads carry per-order profit and margin; cashiers lose them where the
+						// outlet's hide_profit_margin_for_cashier setting is on (profit_visibility.go).
+						orderReadNoProfit := outletmw.HideProfitForCashier(entClient, rbacSvc)
+						pos.With(orderRead, orderReadNoProfit).Get("/orders", orders.ListOrders)
 						// Totals footer for the All-Sales / POS-Sales list: aggregates the full
 						// filtered set (all pages), not just the visible page. Same read gate + filters.
-						pos.With(orderRead).Get("/orders/summary", orders.OrdersSummary)
+						pos.With(orderRead, orderReadNoProfit).Get("/orders/summary", orders.OrdersSummary)
 						pos.With(orderWrite).Post("/orders", orders.CreateOrder)
-						pos.With(orderRead).Get("/orders/by-number/{orderNumber}", orders.GetOrderByNumber)
-						pos.With(orderRead).Get("/orders/{orderID}", orders.GetOrder)
+						pos.With(orderRead, orderReadNoProfit).Get("/orders/by-number/{orderNumber}", orders.GetOrderByNumber)
+						pos.With(orderRead, orderReadNoProfit).Get("/orders/{orderID}", orders.GetOrder)
 						// Closing / completing / cancelling an order (the bill-clear action). Gated so a
 						// principal must hold an order-write permission; a super-waiter granted
 						// pos.orders.view can see + close others' bills, a plain waiter only their own.
@@ -1114,8 +1117,11 @@ func New(
 					// reports.view; the per-cashier own-sales scoping on the All-Sales export
 					// remains the data authority within that gate).
 					reportsView := outletmw.RequireServicePermission(rbacSvc, "pos.reports.view", "pos.reports.manage")
+					// Reports are full of profit and margin; the cashier holding reports.view loses them
+					// where the outlet's hide_profit_margin_for_cashier setting is on.
+					reportsNoProfit := outletmw.HideProfitForCashier(entClient, rbacSvc)
 					if reports != nil {
-						pos.With(reportsView).Group(func(rp chi.Router) {
+						pos.With(reportsView, reportsNoProfit).Group(func(rp chi.Router) {
 							rp.Get("/reports/summary", reports.GetSummary)
 							rp.Get("/reports/audit-logs", reports.ListAuditLogs)
 							rp.Get("/reports/exceptions", reports.Exceptions)
@@ -1169,7 +1175,7 @@ func New(
 					// Branded report documents (PDF/CSV via ?format=) — reset summary, item-type,
 					// daily sales, shift X, staff, tax and profitability reports. Same reports gate.
 					if reportPDF != nil {
-						pos.With(reportsView).Group(func(rp chi.Router) {
+						pos.With(reportsView, reportsNoProfit).Group(func(rp chi.Router) {
 							rp.Get("/reports/reset-summary", reportPDF.ResetSummary)
 							rp.Get("/reports/sales-by-item-type", reportPDF.SalesByItemType)
 							// Same use-case gate as the JSON route above — a retail/pharmacy outlet

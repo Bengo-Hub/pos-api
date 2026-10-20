@@ -868,23 +868,31 @@ func (h *ReportsHandler) ExportDailyReport(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 
+	// A cashier at an outlet that hides profit gets the same file without the profit column.
+	showProfit := !outletmw.ProfitHidden(r.Context())
 	cw := csv.NewWriter(w)
-	_ = cw.Write([]string{
+	head := []string{
 		"Date", "Orders",
 		fmt.Sprintf("Net Sales (%s)", currency),
 		fmt.Sprintf("VAT (%s)", currency),
 		fmt.Sprintf("Gross Revenue (%s)", currency),
-		fmt.Sprintf("Gross Profit (%s)", currency),
-	})
+	}
+	if showProfit {
+		head = append(head, fmt.Sprintf("Gross Profit (%s)", currency))
+	}
+	_ = cw.Write(head)
 	for _, row := range rows {
-		_ = cw.Write([]string{
+		line := []string{
 			row.Date,
 			strconv.Itoa(row.OrderCount),
 			fmt.Sprintf("%.2f", row.Net),
 			fmt.Sprintf("%.2f", row.Tax),
 			fmt.Sprintf("%.2f", row.Revenue),
-			fmt.Sprintf("%.2f", row.Profit),
-		})
+		}
+		if showProfit {
+			line = append(line, fmt.Sprintf("%.2f", row.Profit))
+		}
+		_ = cw.Write(line)
 	}
 	cw.Flush()
 }

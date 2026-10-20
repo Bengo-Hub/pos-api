@@ -195,9 +195,12 @@ type settingsResponse struct {
 	// non-manager-tier ("cashier") callers, on top of whatever the Roles & Permissions matrix
 	// already grants — see outletHidesDraftButtonForCashier. Plain booleans, no per-use-case
 	// default ladder (unlike the three CashierPolicyOverrides above).
-	HideDraftDeleteForCashier bool   `json:"hide_draft_delete_for_cashier"`
-	HideDraftResumeForCashier bool   `json:"hide_draft_resume_for_cashier"`
-	UpdatedAt                 string `json:"updated_at"`
+	HideDraftDeleteForCashier bool `json:"hide_draft_delete_for_cashier"`
+	HideDraftResumeForCashier bool `json:"hide_draft_resume_for_cashier"`
+	// Hides profit, margin and unit cost from non-manager callers across order and report
+	// responses and documents (middleware.HideProfitForCashier). Absent means shown.
+	HideProfitMarginForCashier bool   `json:"hide_profit_margin_for_cashier"`
+	UpdatedAt                  string `json:"updated_at"`
 }
 
 func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsResponse {
@@ -237,7 +240,7 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		ReturnWindowDays:                 s.ReturnWindowDays,
 		RestrictCreditSaleRefundToOffset: metaBoolDefault(s.Metadata, "restrict_credit_sale_refund_to_offset", true),
 		ReturnNoRestockReasons:           returns.NoRestockReasons(s.Metadata),
-		MaxDiscountPercent:              s.MaxDiscountPercent,
+		MaxDiscountPercent:               s.MaxDiscountPercent,
 		MaxDiscountAmount:                s.MaxDiscountAmount,
 		DiscountLimitType:                string(s.DiscountLimitType),
 		AllowPriceAboveBase:              s.AllowPriceAboveBase,
@@ -277,9 +280,10 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 			"auto_logout_after_sale":   s.AutoLogoutAfterSale != nil,
 			"cashier_terminal_surface": s.CashierTerminalSurface != nil,
 		},
-		HideDraftDeleteForCashier: metaBoolDefault(s.Metadata, metaKeyHideDraftDeleteForCashier, false),
-		HideDraftResumeForCashier: metaBoolDefault(s.Metadata, metaKeyHideDraftResumeForCashier, false),
-		UpdatedAt:                 s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		HideDraftDeleteForCashier:  metaBoolDefault(s.Metadata, metaKeyHideDraftDeleteForCashier, false),
+		HideDraftResumeForCashier:  metaBoolDefault(s.Metadata, metaKeyHideDraftResumeForCashier, false),
+		HideProfitMarginForCashier: metaBoolDefault(s.Metadata, outletmw.MetaKeyHideProfitMarginForCashier, false),
+		UpdatedAt:                  s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	if profile, ok := outletpolicy.ServiceProfileFromMetadata(s.Metadata); ok &&
 		outletpolicy.NormalizeUseCase(useCase) == outletpolicy.UseCaseServices {
@@ -553,11 +557,11 @@ type updateSettingsInput struct {
 	ScreensaverURL           *string          `json:"screensaver_url"`
 	ReturnWindowDays         *int             `json:"return_window_days"`
 	// returns policy
-	RestrictCreditSaleRefundToOffset *bool    `json:"restrict_credit_sale_refund_to_offset"`
+	RestrictCreditSaleRefundToOffset *bool     `json:"restrict_credit_sale_refund_to_offset"`
 	ReturnNoRestockReasons           *[]string `json:"return_no_restock_reasons"`
-	MaxDiscountPercent             *float64 `json:"max_discount_percent"`
-	MaxDiscountAmount                *float64 `json:"max_discount_amount"`
-	DiscountLimitType                *string  `json:"discount_limit_type"`
+	MaxDiscountPercent               *float64  `json:"max_discount_percent"`
+	MaxDiscountAmount                *float64  `json:"max_discount_amount"`
+	DiscountLimitType                *string   `json:"discount_limit_type"`
 	// pricing policy
 	AllowPriceAboveBase      *bool `json:"allow_price_above_base"`
 	RequireApprovalBelowBase *bool `json:"require_approval_below_base"`
@@ -596,6 +600,8 @@ type updateSettingsInput struct {
 	// booleans (unlike the tri-state fields above — no per-use-case default to reset to).
 	HideDraftDeleteForCashier *bool `json:"hide_draft_delete_for_cashier"`
 	HideDraftResumeForCashier *bool `json:"hide_draft_resume_for_cashier"`
+	// Quick config: hide profit, margin and unit cost from non-manager callers.
+	HideProfitMarginForCashier *bool `json:"hide_profit_margin_for_cashier"`
 }
 
 // PutSettings handles PUT /{tenantID}/pos/settings and PUT /{tenantID}/pos/outlets/{outletID}/settings
@@ -779,7 +785,8 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	// the OTHER block wrote first (ent's builder keeps only the last SetMetadata call, not a
 	// merge of both). Any FUTURE freeform-metadata setting must be added to THIS block.
 	if input.ShowLogoOnReceipt != nil || input.ShowTenantEmailOnReceipt != nil || input.RestrictCreditSaleRefundToOffset != nil || input.ShowTenantNameOnReceipt != nil ||
-		input.HideDraftDeleteForCashier != nil || input.HideDraftResumeForCashier != nil || input.ReturnNoRestockReasons != nil {
+		input.HideDraftDeleteForCashier != nil || input.HideDraftResumeForCashier != nil || input.HideProfitMarginForCashier != nil ||
+		input.ReturnNoRestockReasons != nil {
 		meta := map[string]any{}
 		for k, v := range setting.Metadata {
 			meta[k] = v
@@ -804,6 +811,9 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 		}
 		if input.HideDraftResumeForCashier != nil {
 			meta[metaKeyHideDraftResumeForCashier] = *input.HideDraftResumeForCashier
+		}
+		if input.HideProfitMarginForCashier != nil {
+			meta[outletmw.MetaKeyHideProfitMarginForCashier] = *input.HideProfitMarginForCashier
 		}
 		upd = upd.SetMetadata(meta)
 	}

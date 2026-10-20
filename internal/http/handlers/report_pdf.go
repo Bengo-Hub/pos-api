@@ -782,6 +782,10 @@ func (h *ReportPDFHandler) DailySales(w http.ResponseWriter, r *http.Request) {
 			docs.BoldText(fmtAmount(grossProfit)),
 		},
 	}}
+	if outletmw.ProfitHidden(r.Context()) {
+		report.Cards = withoutProfitCards(report.Cards)
+		hideProfitColumns(&report.Sections[0], 1) // Profit
+	}
 	h.write(w, r, report, "daily-sales")
 }
 
@@ -1061,6 +1065,10 @@ func (h *ReportPDFHandler) SalesByStaffPDF(w http.ResponseWriter, r *http.Reques
 			},
 		},
 		{Kind: docs.SectionChart, Title: "Revenue by Server", ValueUnit: currency, Bars: bars},
+	}
+	if outletmw.ProfitHidden(r.Context()) {
+		report.Cards = withoutProfitCards(report.Cards)
+		hideProfitColumns(&report.Sections[0], 1) // Gross Profit
 	}
 	h.write(w, r, report, "sales-by-staff")
 }
