@@ -14,7 +14,7 @@ require (
 	github.com/Bengo-Hub/shared-auth-client v0.6.0
 	github.com/Bengo-Hub/shared-events v0.7.3
 	github.com/Bengo-Hub/shared-ratelimit v0.2.1
-	github.com/Bengo-Hub/shared-service-client v0.3.1
+	github.com/Bengo-Hub/shared-service-client v0.4.0
 	github.com/alexbrainman/printer v0.0.0-20200912035444-f40f26f0bdeb
 	github.com/boombuler/barcode v1.0.2
 	github.com/go-chi/chi/v5 v5.3.2

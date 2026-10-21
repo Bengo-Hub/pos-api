@@ -14,8 +14,8 @@ github.com/Bengo-Hub/shared-events v0.7.3 h1:4ERebReJHeM14f+qq8mCLtNLCmrBrmLpFnN
 github.com/Bengo-Hub/shared-events v0.7.3/go.mod h1:ewMFuoY9JH934+qMxpU7v+zX9ILpsCh+DhnN5+dPNKs=
 github.com/Bengo-Hub/shared-ratelimit v0.2.1 h1:kuWRW9H7uukEWhpYUrgxS+4F9KtHAGMEuUr+FrQ9m28=
 github.com/Bengo-Hub/shared-ratelimit v0.2.1/go.mod h1:mgs0NgS1jIpo83IrDHgd5k50660jH3TB8HKs29F+nm0=
-github.com/Bengo-Hub/shared-service-client v0.3.1 h1:Z8I2m4NPSLhIRUOS7T2/uS5Tq5MW8qBIFOZ2Wnev6Nk=
-github.com/Bengo-Hub/shared-service-client v0.3.1/go.mod h1:n5segEtBfcG1/2YM+fssZ/dxKk4zjZ9+GmexzAe+G9g=
+github.com/Bengo-Hub/shared-service-client v0.4.0 h1:D/+JvNuVLDi3zWRYJ8/lws4iGOUkw6pGuFxXlPKONa4=
+github.com/Bengo-Hub/shared-service-client v0.4.0/go.mod h1:u2NQo14dAq+hbdv5nnBNvPGFmoSfLNPmm1dz1j+1+bA=
 github.com/DATA-DOG/go-sqlmock v1.5.0 h1:Shsta01QNfFxHCfpW6YH2STWB0MudeXXEWMr20OEh60=
 github.com/DATA-DOG/go-sqlmock v1.5.0/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/KyleBanks/depth v1.2.1 h1:5h8fQADFrWtarTdtDudMmGsC7GPbOAu6RVB3ffsVFHc=
