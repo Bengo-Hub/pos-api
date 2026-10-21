@@ -2,7 +2,6 @@ package router
 
 import (
 	"context"
-	"crypto/subtle"
 	ratelimit "github.com/Bengo-Hub/shared-ratelimit"
 	"net/http"
 	"time"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
 	"go.uber.org/zap"
 
 	"github.com/Bengo-Hub/httpware"
@@ -103,14 +101,7 @@ func New(
 	// 401 / timeout response still carries Access-Control-Allow-* headers — otherwise the browser
 	// masks the real status as an opaque CORS error. TrustedRealIP stays above so the limiter keys on
 	// the true client IP. go-chi/cors also short-circuits OPTIONS preflight here, before rate limiting.
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   allowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "Origin", "X-Request-ID", "X-Tenant-ID", "X-Tenant-Slug", "X-Outlet-ID", "X-API-Key", "Idempotency-Key"},
-		ExposedHeaders:   []string{"Link", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After", "Idempotent-Replayed"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	}))
+	r.Use(httpware.CORS(httpware.StandardCORS(allowedOrigins)))
 	r.Use(httpware.RequestID)
 	// Logging forwards Hijack/Flush since httpware v0.5.1; streams are still skipped (a log line
 	// per hours-long WebSocket says nothing useful).
@@ -1439,22 +1430,10 @@ func New(
 	return r
 }
 
-// requireInternalServiceKey guards S2S routes by requiring the shared INTERNAL_SERVICE_KEY in the
-// X-API-Key header. The key is compared in constant time to avoid leaking it via timing.
+// requireInternalServiceKey guards S2S routes with the shared INTERNAL_SERVICE_KEY: one
+// constant-time check that answers 401 when the key is missing or wrong, and always when unset.
 func requireInternalServiceKey(expected string) func(http.Handler) http.Handler {
-	expectedBytes := []byte(expected)
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			provided := r.Header.Get("X-API-Key")
-			if provided == "" || subtle.ConstantTimeCompare([]byte(provided), expectedBytes) != 1 {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusUnauthorized)
-				_, _ = w.Write([]byte(`{"error":"invalid or missing service key"}`))
-				return
-			}
-			next.ServeHTTP(w, r)
-		})
-	}
+	return httpware.RequireServiceKey(expected)
 }
 
 // requirePlatformOwner gates a route to platform-owner principals only (platform service
