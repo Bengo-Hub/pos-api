@@ -17,6 +17,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	"github.com/bengobox/pos-service/internal/modules/returns"
 )
 
 // A shift (POSDeviceSession) belongs to the staff member who opened it. Every outlet shares one
@@ -251,21 +252,27 @@ func PaymentsCollectedInShift(tid, uid uuid.UUID, from, to time.Time) predicate.
 
 // cashReturnsCompletedInShift sums the cash handed back for returns uid completed inside
 // [from, to] (returns.Service.CompleteReturn stamps metadata completed_by and completed_at).
-// Exchanges are left out: their cash leftover is a separate, smaller flow not tracked per user.
+//
+// The amount is metadata.cash_paid_out (returns.MetaCashPaidOut): the refund for a refund, the
+// leftover for a cheaper exchange. Returns completed before that key existed fall back to the
+// refund amount, or for an exchange to refund_amount - exchange_credit read off the replacement
+// order (the credit is min(returned, replacement), so that difference is exactly the leftover).
 func cashReturnsCompletedInShift(ctx context.Context, client *ent.Client, tid, uid uuid.UUID, from, to time.Time) (float64, error) {
 	rets, err := client.POSReturn.Query().
 		Where(
 			posreturn.TenantID(tid),
 			posreturn.StatusEQ(posreturn.StatusCompleted),
 			posreturn.RefundChannelEQ(posreturn.RefundChannelCash),
-			posreturn.ReturnTypeNEQ(posreturn.ReturnTypeExchange),
 			posreturn.UpdatedAtGTE(from),
 		).
 		All(ctx)
 	if err != nil {
 		return 0, err
 	}
-	var total float64
+	var (
+		total          float64
+		legacyExchange = map[uuid.UUID]float64{} // replacement order id -> returned value
+	)
 	for _, r := range rets {
 		by, _ := r.Metadata["completed_by"].(string)
 		if by == "" {
@@ -284,7 +291,36 @@ func cashReturnsCompletedInShift(ctx context.Context, client *ent.Client, tid, u
 		if at.Before(from) || at.After(to) {
 			continue
 		}
-		total += r.RefundAmount
+		if paid, ok := r.Metadata[returns.MetaCashPaidOut].(float64); ok {
+			total += paid
+			continue
+		}
+		if r.ReturnType != posreturn.ReturnTypeExchange {
+			total += r.RefundAmount
+			continue
+		}
+		if r.ExchangeOrderID != nil {
+			legacyExchange[*r.ExchangeOrderID] += r.RefundAmount
+		}
+	}
+	if len(legacyExchange) > 0 {
+		ids := make([]uuid.UUID, 0, len(legacyExchange))
+		for id := range legacyExchange {
+			ids = append(ids, id)
+		}
+		replacements, err := client.POSOrder.Query().
+			Where(posorder.TenantID(tid), posorder.IDIn(ids...)).
+			Select(posorder.FieldID, posorder.FieldMetadata).
+			All(ctx)
+		if err != nil {
+			return total, err
+		}
+		for _, o := range replacements {
+			credit, _ := o.Metadata["exchange_credit"].(float64)
+			if leftover := legacyExchange[o.ID] - credit; leftover > 0.009 {
+				total += leftover
+			}
+		}
 	}
 	return total, nil
 }

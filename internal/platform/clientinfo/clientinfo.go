@@ -72,9 +72,12 @@ func (i Info) Map() map[string]any {
 	return m
 }
 
-// Label is a short human description, e.g. "Titus's iPhone (mobile, iOS Safari)".
+// Label is a short human description that never includes the raw user agent, e.g.
+// "Titus's iPhone (Phone · Safari 18 on iOS)" or "Desktop · Edge 156 on Windows". Same format as
+// pos-ui's deviceLabel.
 func (i Info) Label() string {
-	detail := strings.TrimSpace(strings.Join(nonEmpty(i.DeviceKind, strings.TrimSpace(i.OS+" "+i.Browser)), ", "))
+	app := strings.Join(nonEmpty(i.Browser, i.OS), " on ")
+	detail := strings.Join(nonEmpty(kindLabels[i.DeviceKind], app), " · ")
 	switch {
 	case i.DeviceName != "" && detail != "":
 		return i.DeviceName + " (" + detail + ")"
@@ -84,6 +87,8 @@ func (i Info) Label() string {
 		return detail
 	}
 }
+
+var kindLabels = map[string]string{KindDesktop: "Desktop", KindMobile: "Phone", KindTablet: "Tablet"}
 
 type ctxKey struct{}
 

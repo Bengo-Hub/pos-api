@@ -8,6 +8,11 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 )
 
+// MetaCashPaidOut is the cash handed back over the counter when a return completes on the cash
+// channel: the refund amount for a refund, the leftover for a cheaper exchange. Shift cash-up
+// (shifts.Summarize) subtracts it from the completing user's expected cash.
+const MetaCashPaidOut = "cash_paid_out"
+
 // LineInput is one line of a return/exchange request.
 type LineInput struct {
 	OrderLineID uuid.UUID `json:"order_line_id"`

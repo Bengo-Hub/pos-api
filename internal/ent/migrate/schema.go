@@ -1762,6 +1762,39 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[4], PosOrdersColumns[45]},
 			},
+			{
+				Name:    "posorder_customer_name_trgm",
+				Unique:  false,
+				Columns: []*schema.Column{PosOrdersColumns[28]},
+				Annotation: &entsql.IndexAnnotation{
+					OpClass: "gin_trgm_ops",
+					Types: map[string]string{
+						"postgres": "GIN",
+					},
+				},
+			},
+			{
+				Name:    "posorder_customer_phone_trgm",
+				Unique:  false,
+				Columns: []*schema.Column{PosOrdersColumns[27]},
+				Annotation: &entsql.IndexAnnotation{
+					OpClass: "gin_trgm_ops",
+					Types: map[string]string{
+						"postgres": "GIN",
+					},
+				},
+			},
+			{
+				Name:    "posorder_order_number_trgm",
+				Unique:  false,
+				Columns: []*schema.Column{PosOrdersColumns[6]},
+				Annotation: &entsql.IndexAnnotation{
+					OpClass: "gin_trgm_ops",
+					Types: map[string]string{
+						"postgres": "GIN",
+					},
+				},
+			},
 		},
 	}
 	// PosOrderEventsColumns holds the columns for the "pos_order_events" table.

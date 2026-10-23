@@ -1,4 +1,4 @@
-h1:3SHcwv7MWJF1k4N4AeFSQdREmJrIE81y97wJ8Ik/Vys=
+h1:dWDVdZnrHIArGjtCnYKbpnLCG6V5MbcniRhC6WBO92Y=
 20260324210314_initial_schema.sql h1:L7ICP+7BHePtjHfQRRY9yP85A6Q9SyiYsqSvGK7paxA=
 20260403120000_fix_outbox_events_schema.sql h1:VNlTFTGCLBkz4+UvvvqZf5y5tyS0FfS1AXy770Ybc8o=
 20260507090905_hotel_module.sql h1:PGKqdzMQaeFLALmRXUmGsXjha3Rt42EldWJceFVNGDo=
@@ -110,3 +110,4 @@ h1:3SHcwv7MWJF1k4N4AeFSQdREmJrIE81y97wJ8Ik/Vys=
 20261006090000_add_kds_ticket_live_board_index.sql h1:SjjQNKRF/RMoydmCSiTokdm4ke7fJ9YxJyTzz5Fc4lQ=
 20261019090000_drop_per_service_backups.sql h1:7LXQLBiD02Svw08fHGggNwu09l1MueUch1j5uJ7sT2Q=
 20261023090000_client_trail_and_shift_indexes.sql h1:NBtSNm+i90cwbEzpFLbKbsR1pL1X9157PR77+jPPQH0=
+20261023150000_order_search_trgm_indexes.sql h1:8v4En6jJox53nOwucp9zh0TYq010kZe2NrApDpNCNLw=

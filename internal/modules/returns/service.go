@@ -477,6 +477,11 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 	if strings.TrimSpace(req.Notes) != "" {
 		md["completion_notes"] = req.Notes
 	}
+	// Cash leaves the drawer whenever the channel is cash, whether or not the treasury call
+	// above succeeded (that only books the ledger side).
+	if refundChannel == string(posreturn.RefundChannelCash) && settleAmount > 0.009 {
+		md[MetaCashPaidOut] = settleAmount
+	}
 	// Inventory confirms the restock (and where the goods went) via inventory.return.restocked;
 	// until then the return reads "restock pending". A write-off is final here: nothing goes
 	// back to stock, so there is nothing for inventory to confirm.

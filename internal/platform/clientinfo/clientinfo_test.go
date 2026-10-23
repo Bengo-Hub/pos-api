@@ -26,6 +26,11 @@ func TestClassify(t *testing.T) {
 			kind: KindDesktop, os: "Windows", browser: "Edge 155",
 		},
 		{
+			name: "windows edge 156",
+			ua:   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+			kind: KindDesktop, os: "Windows", browser: "Edge 156",
+		},
+		{
 			name: "iphone safari",
 			ua:   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
 			kind: KindMobile, os: "iOS", browser: "Safari 18",
@@ -85,7 +90,7 @@ func TestFromRequest(t *testing.T) {
 	if info.IP != "196.96.125.206" || info.ClientID != "" || info.DeviceName != "Front PC" || info.DeviceKind != KindDesktop {
 		t.Fatalf("unexpected info: %+v", info)
 	}
-	if got := info.Label(); got != "Front PC (desktop, Windows Chrome 109)" {
+	if got := info.Label(); got != "Front PC (Desktop · Chrome 109 on Windows)" {
 		t.Fatalf("label = %q", got)
 	}
 	if _, ok := FromContext(WithInfo(r.Context(), Info{})); ok {

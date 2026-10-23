@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
@@ -259,5 +260,22 @@ func (POSOrder) Indexes() []ent.Index {
 			Annotations(entsql.IndexWhere("order_subtype = 'service_job'")),
 		// Shift scope (shifts.Summarize): one cashier's orders inside a shift window.
 		index.Fields("tenant_id", "user_id", "created_at"),
+		// Sale search (All-Sales `q`/`customer`/`order_number`, the Initiate Return picker, the
+		// returns list `q`) runs leading-wildcard ILIKE on these columns, which no btree serves.
+		trgmIndex("customer_name", "posorder_customer_name_trgm"),
+		trgmIndex("customer_phone", "posorder_customer_phone_trgm"),
+		trgmIndex("order_number", "posorder_order_number_trgm"),
 	}
+}
+
+// trgmIndex is a GIN trigram index on one text column, backing `col ILIKE '%term%'` (the SQL
+// ent's ContainsFold emits on Postgres). Needs the pg_trgm extension, which is installed on the
+// pos database; ent's Schema.Create does not manage extensions. Same pattern as inventory-api.
+func trgmIndex(field, name string) ent.Index {
+	return index.Fields(field).
+		StorageKey(name).
+		Annotations(
+			entsql.IndexTypes(map[string]string{dialect.Postgres: "GIN"}),
+			entsql.OpClass("gin_trgm_ops"),
+		)
 }

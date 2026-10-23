@@ -95,8 +95,22 @@ sessions had only primary keys, so every payments-by-order load scanned the tabl
 - Order detail shows an Origin card (device, IP, offline origin), and its payments panel now reads
   `payment_data.method` / `occurred_at` (it showed "—" for every payment).
 
+## Follow-up fixes (same day)
+
+- **Exchange leftovers in cash-up.** `CompleteReturn` now stores the cash actually handed over
+  as `metadata.cash_paid_out` (`returns.MetaCashPaidOut`): the refund for a refund, the leftover
+  for a cheaper exchange. `shifts.Summarize` subtracts it. Returns completed earlier fall back to
+  the refund amount, or for an exchange to `refund_amount - exchange_credit` from the
+  replacement order (the credit is `min(returned, replacement)`, so the difference is exactly the
+  leftover). Covered by `internal/modules/shifts/summary_test.go`.
+- **Search indexes.** Migration `20261023150000_order_search_trgm_indexes.sql` adds GIN trigram
+  indexes on `pos_orders.customer_name`, `customer_phone` and `order_number`, serving the
+  `ILIKE '%term%'` that `ContainsFold` emits (All-Sales search, the Initiate Return picker, the
+  returns list `q`). pg_trgm was already installed on the pos database.
+- **Short device labels.** The UI never shows the raw user agent. A label reads "Desktop · Edge
+  156 on Windows" (or the device's name when set); `clientinfo.Info.Label` uses the same format
+  server-side, and pos-ui's `parseUserAgent` covers rows that only carry the raw string.
+
 ## Follow-ups
 
-- Exchange returns with a cash leftover are not yet netted out of expected cash.
-- `ILIKE '%term%'` customer search scans the tenant's orders; add a `pg_trgm` index if it gets slow.
 - The `clientinfo` parser could move into `httpware` if other services want the same trail.
