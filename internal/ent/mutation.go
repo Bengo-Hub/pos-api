@@ -1560,6 +1560,7 @@ type AuditLogMutation struct {
 	after_json       *map[string]interface{}
 	amount           *float64
 	addamount        *float64
+	metadata         *map[string]interface{}
 	created_at       *time.Time
 	clearedFields    map[string]struct{}
 	done             bool
@@ -2241,6 +2242,55 @@ func (m *AuditLogMutation) ResetAmount() {
 	delete(m.clearedFields, auditlog.FieldAmount)
 }
 
+// SetMetadata sets the "metadata" field.
+func (m *AuditLogMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *AuditLogMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the AuditLog entity.
+// If the AuditLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AuditLogMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *AuditLogMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[auditlog.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *AuditLogMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[auditlog.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *AuditLogMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, auditlog.FieldMetadata)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *AuditLogMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -2311,7 +2361,7 @@ func (m *AuditLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AuditLogMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.tenant_id != nil {
 		fields = append(fields, auditlog.FieldTenantID)
 	}
@@ -2348,6 +2398,9 @@ func (m *AuditLogMutation) Fields() []string {
 	if m.amount != nil {
 		fields = append(fields, auditlog.FieldAmount)
 	}
+	if m.metadata != nil {
+		fields = append(fields, auditlog.FieldMetadata)
+	}
 	if m.created_at != nil {
 		fields = append(fields, auditlog.FieldCreatedAt)
 	}
@@ -2383,6 +2436,8 @@ func (m *AuditLogMutation) Field(name string) (ent.Value, bool) {
 		return m.AfterJSON()
 	case auditlog.FieldAmount:
 		return m.Amount()
+	case auditlog.FieldMetadata:
+		return m.Metadata()
 	case auditlog.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -2418,6 +2473,8 @@ func (m *AuditLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldAfterJSON(ctx)
 	case auditlog.FieldAmount:
 		return m.OldAmount(ctx)
+	case auditlog.FieldMetadata:
+		return m.OldMetadata(ctx)
 	case auditlog.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -2513,6 +2570,13 @@ func (m *AuditLogMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAmount(v)
 		return nil
+	case auditlog.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
 	case auditlog.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -2592,6 +2656,9 @@ func (m *AuditLogMutation) ClearedFields() []string {
 	if m.FieldCleared(auditlog.FieldAmount) {
 		fields = append(fields, auditlog.FieldAmount)
 	}
+	if m.FieldCleared(auditlog.FieldMetadata) {
+		fields = append(fields, auditlog.FieldMetadata)
+	}
 	return fields
 }
 
@@ -2632,6 +2699,9 @@ func (m *AuditLogMutation) ClearField(name string) error {
 		return nil
 	case auditlog.FieldAmount:
 		m.ClearAmount()
+		return nil
+	case auditlog.FieldMetadata:
+		m.ClearMetadata()
 		return nil
 	}
 	return fmt.Errorf("unknown AuditLog nullable field %s", name)
@@ -2676,6 +2746,9 @@ func (m *AuditLogMutation) ResetField(name string) error {
 		return nil
 	case auditlog.FieldAmount:
 		m.ResetAmount()
+		return nil
+	case auditlog.FieldMetadata:
+		m.ResetMetadata()
 		return nil
 	case auditlog.FieldCreatedAt:
 		m.ResetCreatedAt()

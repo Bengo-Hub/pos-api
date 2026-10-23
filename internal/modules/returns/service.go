@@ -155,7 +155,9 @@ func (s *Service) CreateReturn(ctx context.Context, tenantID uuid.UUID, req Crea
 		return nil, perr
 	}
 
-	returnNumber := fmt.Sprintf("RET-%d", time.Now().UnixMilli())
+	// Fallback when the document sequence is missing or errors. The random suffix keeps two
+	// returns created in the same millisecond from colliding on (tenant_id, return_number).
+	returnNumber := fmt.Sprintf("RET-%d-%s", time.Now().UnixMilli(), uuid.NewString()[:4])
 	if s.seq != nil {
 		if n, err := s.seq.GenerateNumber(ctx, tenantID, documents.DocTypePosReturn); err == nil && n != "" {
 			returnNumber = n

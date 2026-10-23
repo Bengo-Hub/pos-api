@@ -246,6 +246,7 @@ type createOrderInput struct {
 	OrderNumber      string                 `json:"order_number"`
 	ClientReference  string                 `json:"client_reference,omitempty"`   // offline local_id — idempotency anchor
 	OfflineCreatedAt *time.Time             `json:"offline_created_at,omitempty"` // device-clock time the sale was rung up offline
+	Offline          *offlineOriginInput    `json:"offline,omitempty"`            // who rang up the offline sale and on which device
 	Currency         string                 `json:"currency"`
 	Lines            []createOrderLineInput `json:"lines"`
 	Metadata         map[string]interface{} `json:"metadata"`
@@ -1316,6 +1317,30 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	servedByUserID, _ := uuid.Parse(input.ServedByUserID) // zero value on blank/invalid = fall back to userID
 
+	// Orders used to keep a zero device_id unless the client sent one, which broke every
+	// per-device view. Fall back to the outlet's shared web_terminal device.
+	if deviceID == uuid.Nil {
+		if id, ok := outletWebTerminalID(r.Context(), h.client, tid, outletID); ok {
+			deviceID = id
+		}
+	}
+
+	// An offline sale replayed by the sync queue: credit whoever rang it up, not whoever is
+	// logged in now, and record both (resolveOfflineOrigin).
+	syncUserID := userID
+	var offlineBlock map[string]any
+	if input.OfflineCreatedAt != nil {
+		var creator uuid.UUID
+		creator, offlineBlock = h.resolveOfflineOrigin(r.Context(), tid, syncUserID, input.Offline, *input.OfflineCreatedAt)
+		userID = creator
+		meta := make(map[string]any, len(input.Metadata)+1)
+		for k, v := range input.Metadata {
+			meta[k] = v
+		}
+		meta[offlineMetaKey] = offlineBlock
+		input.Metadata = meta
+	}
+
 	// Metered order limit (max_orders_per_month): a new sale is refused once the tenant is at
 	// its limit. Nothing is counted here; subscriptions-api counts the order when the sale
 	// completes (pos.sale.finalized), so drafts and open orders never use up the allowance.
@@ -1369,6 +1394,13 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.autoAssignFacilityBookingsForOrder(r.Context(), order, lines)
+	// Only when this request created the row: a replay that lost the client_reference race gets
+	// the existing order back, whose offline block carries an earlier synced_at.
+	if offlineBlock != nil {
+		if stored, _ := order.Metadata[offlineMetaKey].(map[string]any); stored != nil && stored["synced_at"] == offlineBlock["synced_at"] {
+			h.recordOfflineSync(r.Context(), order, syncUserID, offlineBlock)
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

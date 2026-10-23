@@ -20,6 +20,7 @@ import (
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/identity"
 	rbacmodule "github.com/bengobox/pos-service/internal/modules/rbac"
+	"github.com/bengobox/pos-service/internal/platform/clientinfo"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
@@ -101,7 +102,10 @@ func New(
 	// 401 / timeout response still carries Access-Control-Allow-* headers — otherwise the browser
 	// masks the real status as an opaque CORS error. TrustedRealIP stays above so the limiter keys on
 	// the true client IP. go-chi/cors also short-circuits OPTIONS preflight here, before rate limiting.
-	r.Use(httpware.CORS(httpware.StandardCORS(allowedOrigins)))
+	r.Use(httpware.CORS(httpware.StandardCORS(allowedOrigins, clientinfo.HeaderClientID, clientinfo.HeaderDeviceName)))
+	// Which browser/device sent the request (client id, device name, user agent, IP). Below
+	// TrustedRealIP so the IP is the real client; audit.TrailHook stamps it onto created rows.
+	r.Use(clientinfo.Middleware)
 	r.Use(httpware.RequestID)
 	// Logging forwards Hijack/Flush since httpware v0.5.1; streams are still skipped (a log line
 	// per hours-long WebSocket says nothing useful).

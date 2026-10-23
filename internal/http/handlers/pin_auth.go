@@ -366,6 +366,7 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Validate bcrypt
 	if err := bcrypt.CompareHashAndPassword([]byte(*member.PinHash), []byte(input.PIN)); err != nil {
 		h.recordPINFailure(r.Context(), member)
+		h.recordPINFailedAttempt(r.Context(), tid, member, headerOutletID(r), "pin")
 		jsonError(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
@@ -403,6 +404,7 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	h.recordPINSignIn(r.Context(), member, sessionOutletID, "pin")
 
 	// Load outlet to include use_case and is_hq in the login response so pos-ui
 	// can initialise outlet state without an extra round-trip.
@@ -829,6 +831,7 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if member == nil {
+		h.recordPINFailedAttempt(r.Context(), tid, nil, outletID, "pin_identify")
 		jsonError(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
@@ -848,6 +851,7 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 	// Bcrypt verify (primary on fast-hash path, redundant but kept for defence-in-depth)
 	if err := bcrypt.CompareHashAndPassword([]byte(*member.PinHash), []byte(input.PIN)); err != nil {
 		h.recordPINFailure(r.Context(), member)
+		h.recordPINFailedAttempt(r.Context(), tid, member, outletID, "pin_identify")
 		jsonError(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
@@ -866,6 +870,7 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	h.recordPINSignIn(r.Context(), member, outletID, "pin_identify")
 
 	outletUseCase := "hospitality"
 	isHQ := false

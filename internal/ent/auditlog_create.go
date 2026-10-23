@@ -152,6 +152,12 @@ func (_c *AuditLogCreate) SetNillableAmount(v *float64) *AuditLogCreate {
 	return _c
 }
 
+// SetMetadata sets the "metadata" field.
+func (_c *AuditLogCreate) SetMetadata(v map[string]interface{}) *AuditLogCreate {
+	_c.mutation.SetMetadata(v)
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *AuditLogCreate) SetCreatedAt(v time.Time) *AuditLogCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -327,6 +333,10 @@ func (_c *AuditLogCreate) createSpec() (*AuditLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Amount(); ok {
 		_spec.SetField(auditlog.FieldAmount, field.TypeFloat64, value)
 		_node.Amount = &value
+	}
+	if value, ok := _c.mutation.Metadata(); ok {
+		_spec.SetField(auditlog.FieldMetadata, field.TypeJSON, value)
+		_node.Metadata = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(auditlog.FieldCreatedAt, field.TypeTime, value)
@@ -585,6 +595,24 @@ func (u *AuditLogUpsert) AddAmount(v float64) *AuditLogUpsert {
 // ClearAmount clears the value of the "amount" field.
 func (u *AuditLogUpsert) ClearAmount() *AuditLogUpsert {
 	u.SetNull(auditlog.FieldAmount)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *AuditLogUpsert) SetMetadata(v map[string]interface{}) *AuditLogUpsert {
+	u.Set(auditlog.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *AuditLogUpsert) UpdateMetadata() *AuditLogUpsert {
+	u.SetExcluded(auditlog.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *AuditLogUpsert) ClearMetadata() *AuditLogUpsert {
+	u.SetNull(auditlog.FieldMetadata)
 	return u
 }
 
@@ -874,6 +902,27 @@ func (u *AuditLogUpsertOne) UpdateAmount() *AuditLogUpsertOne {
 func (u *AuditLogUpsertOne) ClearAmount() *AuditLogUpsertOne {
 	return u.Update(func(s *AuditLogUpsert) {
 		s.ClearAmount()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *AuditLogUpsertOne) SetMetadata(v map[string]interface{}) *AuditLogUpsertOne {
+	return u.Update(func(s *AuditLogUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *AuditLogUpsertOne) UpdateMetadata() *AuditLogUpsertOne {
+	return u.Update(func(s *AuditLogUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *AuditLogUpsertOne) ClearMetadata() *AuditLogUpsertOne {
+	return u.Update(func(s *AuditLogUpsert) {
+		s.ClearMetadata()
 	})
 }
 
@@ -1330,6 +1379,27 @@ func (u *AuditLogUpsertBulk) UpdateAmount() *AuditLogUpsertBulk {
 func (u *AuditLogUpsertBulk) ClearAmount() *AuditLogUpsertBulk {
 	return u.Update(func(s *AuditLogUpsert) {
 		s.ClearAmount()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *AuditLogUpsertBulk) SetMetadata(v map[string]interface{}) *AuditLogUpsertBulk {
+	return u.Update(func(s *AuditLogUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *AuditLogUpsertBulk) UpdateMetadata() *AuditLogUpsertBulk {
+	return u.Update(func(s *AuditLogUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *AuditLogUpsertBulk) ClearMetadata() *AuditLogUpsertBulk {
+	return u.Update(func(s *AuditLogUpsert) {
+		s.ClearMetadata()
 	})
 }
 

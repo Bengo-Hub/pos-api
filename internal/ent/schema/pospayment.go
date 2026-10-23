@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 )
 
@@ -44,5 +45,15 @@ func (POSPayment) Edges() []ent.Edge {
 			Field("order_id").
 			Unique().
 			Required(),
+	}
+}
+
+func (POSPayment) Indexes() []ent.Index {
+	return []ent.Index{
+		// Every order detail, receipt and report loads payments by order; without this each
+		// lookup scanned the whole table.
+		index.Fields("order_id"),
+		// Shift cash-up (shifts.Summarize) reads the payments taken inside a shift window.
+		index.Fields("occurred_at"),
 	}
 }

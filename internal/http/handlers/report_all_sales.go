@@ -140,6 +140,16 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 	if to := parseDateParam(q.Get("to"), true, loc); to != nil {
 		filters = append(filters, effectiveDateLTE(*to))
 	}
+	// q: one search box matching the invoice number OR the customer's name or phone (the
+	// Initiate Return sale picker, so a sale can be found by who bought it).
+	if term := strings.TrimSpace(q.Get("q")); term != "" {
+		num := strings.TrimPrefix(strings.TrimPrefix(term, "RCT-"), "rct-")
+		filters = append(filters, posorder.Or(
+			posorder.OrderNumberContainsFold(num),
+			posorder.CustomerNameContainsFold(term),
+			posorder.CustomerPhoneContainsFold(term),
+		))
+	}
 	// Customer: match phone or name (contains, case-insensitive).
 	if cust := strings.TrimSpace(q.Get("customer")); cust != "" {
 		filters = append(filters, posorder.Or(

@@ -38,6 +38,8 @@ const (
 	FieldAfterJSON = "after_json"
 	// FieldAmount holds the string denoting the amount field in the database.
 	FieldAmount = "amount"
+	// FieldMetadata holds the string denoting the metadata field in the database.
+	FieldMetadata = "metadata"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// Table holds the table name of the auditlog in the database.
@@ -59,6 +61,7 @@ var Columns = []string{
 	FieldBeforeJSON,
 	FieldAfterJSON,
 	FieldAmount,
+	FieldMetadata,
 	FieldCreatedAt,
 }
 

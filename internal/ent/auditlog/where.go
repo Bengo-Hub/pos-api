@@ -700,6 +700,16 @@ func AmountNotNil() predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldNotNull(FieldAmount))
 }
 
+// MetadataIsNil applies the IsNil predicate on the "metadata" field.
+func MetadataIsNil() predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldIsNull(FieldMetadata))
+}
+
+// MetadataNotNil applies the NotNil predicate on the "metadata" field.
+func MetadataNotNil() predicate.AuditLog {
+	return predicate.AuditLog(sql.FieldNotNull(FieldMetadata))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.AuditLog {
 	return predicate.AuditLog(sql.FieldEQ(FieldCreatedAt, v))

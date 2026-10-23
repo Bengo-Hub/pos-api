@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 )
 
@@ -56,5 +57,15 @@ func (POSDeviceSession) Edges() []ent.Edge {
 		// user_id is a plain reference to the staff user who opened the session.
 		// No FK edge so that terminal PIN staff (in staff_members) can open sessions
 		// without requiring a corresponding record in the users table.
+	}
+}
+
+func (POSDeviceSession) Indexes() []ent.Index {
+	return []ent.Index{
+		// The current-shift lookup runs on every terminal load (per user) and on shift close
+		// (per device); history and the shift report list filter by opened_at.
+		index.Fields("tenant_id", "user_id", "session_status"),
+		index.Fields("tenant_id", "device_id", "session_status"),
+		index.Fields("tenant_id", "opened_at"),
 	}
 }

@@ -241,6 +241,18 @@ func (_u *AuditLogUpdate) ClearAmount() *AuditLogUpdate {
 	return _u
 }
 
+// SetMetadata sets the "metadata" field.
+func (_u *AuditLogUpdate) SetMetadata(v map[string]interface{}) *AuditLogUpdate {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *AuditLogUpdate) ClearMetadata() *AuditLogUpdate {
+	_u.mutation.ClearMetadata()
+	return _u
+}
+
 // Mutation returns the AuditLogMutation object of the builder.
 func (_u *AuditLogUpdate) Mutation() *AuditLogMutation {
 	return _u.mutation
@@ -360,6 +372,12 @@ func (_u *AuditLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.AmountCleared() {
 		_spec.ClearField(auditlog.FieldAmount, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(auditlog.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(auditlog.FieldMetadata, field.TypeJSON)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -594,6 +612,18 @@ func (_u *AuditLogUpdateOne) ClearAmount() *AuditLogUpdateOne {
 	return _u
 }
 
+// SetMetadata sets the "metadata" field.
+func (_u *AuditLogUpdateOne) SetMetadata(v map[string]interface{}) *AuditLogUpdateOne {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *AuditLogUpdateOne) ClearMetadata() *AuditLogUpdateOne {
+	_u.mutation.ClearMetadata()
+	return _u
+}
+
 // Mutation returns the AuditLogMutation object of the builder.
 func (_u *AuditLogUpdateOne) Mutation() *AuditLogMutation {
 	return _u.mutation
@@ -743,6 +773,12 @@ func (_u *AuditLogUpdateOne) sqlSave(ctx context.Context) (_node *AuditLog, err 
 	}
 	if _u.mutation.AmountCleared() {
 		_spec.ClearField(auditlog.FieldAmount, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(auditlog.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(auditlog.FieldMetadata, field.TypeJSON)
 	}
 	_node = &AuditLog{config: _u.config}
 	_spec.Assign = _node.assignValues

@@ -5,6 +5,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 )
 
@@ -30,5 +31,12 @@ func (POSRefund) Fields() []ent.Field {
 			Default("completed"),
 		field.Time("occurred_at").
 			Default(time.Now),
+	}
+}
+
+func (POSRefund) Indexes() []ent.Index {
+	return []ent.Index{
+		// Shift and refund reports look refunds up by order.
+		index.Fields("order_id"),
 	}
 }

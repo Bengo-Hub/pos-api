@@ -67,6 +67,7 @@ var (
 		{Name: "before_json", Type: field.TypeJSON, Nullable: true},
 		{Name: "after_json", Type: field.TypeJSON, Nullable: true},
 		{Name: "amount", Type: field.TypeFloat64, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 	}
 	// AuditLogsTable holds the schema information for the "audit_logs" table.
@@ -78,7 +79,7 @@ var (
 			{
 				Name:    "auditlog_tenant_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{AuditLogsColumns[1], AuditLogsColumns[13]},
+				Columns: []*schema.Column{AuditLogsColumns[1], AuditLogsColumns[14]},
 			},
 			{
 				Name:    "auditlog_tenant_id_outlet_id_action",
@@ -1607,6 +1608,23 @@ var (
 				OnDelete:   schema.NoAction,
 			},
 		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "posdevicesession_tenant_id_user_id_session_status",
+				Unique:  false,
+				Columns: []*schema.Column{PosDeviceSessionsColumns[1], PosDeviceSessionsColumns[2], PosDeviceSessionsColumns[3]},
+			},
+			{
+				Name:    "posdevicesession_tenant_id_device_id_session_status",
+				Unique:  false,
+				Columns: []*schema.Column{PosDeviceSessionsColumns[1], PosDeviceSessionsColumns[11], PosDeviceSessionsColumns[3]},
+			},
+			{
+				Name:    "posdevicesession_tenant_id_opened_at",
+				Unique:  false,
+				Columns: []*schema.Column{PosDeviceSessionsColumns[1], PosDeviceSessionsColumns[4]},
+			},
+		},
 	}
 	// PosLineModifiersColumns holds the columns for the "pos_line_modifiers" table.
 	PosLineModifiersColumns = []*schema.Column{
@@ -1739,6 +1757,11 @@ var (
 					Where: "order_subtype = 'service_job'",
 				},
 			},
+			{
+				Name:    "posorder_tenant_id_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{PosOrdersColumns[1], PosOrdersColumns[4], PosOrdersColumns[45]},
+			},
 		},
 	}
 	// PosOrderEventsColumns holds the columns for the "pos_order_events" table.
@@ -1833,6 +1856,18 @@ var (
 				OnDelete:   schema.NoAction,
 			},
 		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "pospayment_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosPaymentsColumns[8]},
+			},
+			{
+				Name:    "pospayment_occurred_at",
+				Unique:  false,
+				Columns: []*schema.Column{PosPaymentsColumns[7]},
+			},
+		},
 	}
 	// PosPermissionsColumns holds the columns for the "pos_permissions" table.
 	PosPermissionsColumns = []*schema.Column{
@@ -1888,6 +1923,13 @@ var (
 		Name:       "pos_refunds",
 		Columns:    PosRefundsColumns,
 		PrimaryKey: []*schema.Column{PosRefundsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "posrefund_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{PosRefundsColumns[1]},
+			},
+		},
 	}
 	// PosReturnsColumns holds the columns for the "pos_returns" table.
 	PosReturnsColumns = []*schema.Column{

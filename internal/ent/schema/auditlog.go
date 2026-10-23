@@ -38,6 +38,8 @@ func (AuditLog) Fields() []ent.Field {
 		field.JSON("after_json", map[string]any{}).Optional(),
 		field.Float("amount").Optional().Nillable().
 			Comment("Monetary magnitude of the action, when relevant"),
+		field.JSON("metadata", map[string]any{}).Optional().
+			Comment("Context of the action, e.g. client: the device, browser and IP it came from (audit.TrailHook)"),
 		field.Time("created_at").Default(time.Now).Immutable(),
 	}
 }

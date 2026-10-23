@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,9 +18,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posdevice"
 	enthelditem "github.com/bengobox/pos-service/internal/ent/helditem"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
-	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
-	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/shifts"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
@@ -72,6 +71,9 @@ func (h *DeviceHandler) ListDevices(w http.ResponseWriter, r *http.Request) {
 		OutletName   string  `json:"outlet_name,omitempty"`
 		LastSeenAt   *string `json:"last_seen_at,omitempty"`
 		RegisteredAt string  `json:"registered_at"`
+		// Clients are the browsers/phones/PCs that signed in on this device row, most recent
+		// first (see touchOutletDeviceClient).
+		Clients []map[string]any `json:"clients"`
 	}
 
 	result := make([]deviceResp, 0, len(devices))
@@ -82,6 +84,7 @@ func (h *DeviceHandler) ListDevices(w http.ResponseWriter, r *http.Request) {
 			DeviceType:   d.DeviceType,
 			Status:       d.Status,
 			RegisteredAt: d.RegisteredAt.Format(time.RFC3339),
+			Clients:      deviceClientList(d.Metadata),
 		}
 		if d.LastSeenAt != nil {
 			s := d.LastSeenAt.Format(time.RFC3339)
@@ -209,11 +212,11 @@ func (h *DeviceHandler) resolveOrCreateDevice(w http.ResponseWriter, r *http.Req
 	}
 
 	// Look for an existing web_terminal device for this outlet.
-	device, err := h.client.POSDevice.Query().
+	existingID, err := h.client.POSDevice.Query().
 		Where(posdevice.TenantID(tid), posdevice.OutletID(outletID), posdevice.DeviceType("web_terminal")).
-		First(ctx)
+		FirstID(ctx)
 	if err == nil {
-		return device.ID, nil
+		return existingID, nil
 	}
 	if !ent.IsNotFound(err) {
 		return uuid.Nil, err
@@ -228,7 +231,7 @@ func (h *DeviceHandler) resolveOrCreateDevice(w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	device, err = h.client.POSDevice.Create().
+	device, err := h.client.POSDevice.Create().
 		SetTenantID(tid).
 		SetOutletID(outletID).
 		SetDeviceCode(fmt.Sprintf("WEB-%s", outletID.String()[:8])).
@@ -261,16 +264,23 @@ func (h *DeviceHandler) resolveCurrentDeviceID(r *http.Request, tid uuid.UUID) (
 			outletID = id
 		}
 	}
+	return outletWebTerminalID(ctx, h.client, tid, outletID)
+}
+
+// outletWebTerminalID is the outlet's shared web_terminal device, without creating one. Every
+// browser at the outlet uses this row; which browser it actually was lives in the client trail
+// (audit.TrailHook) and the device's metadata.clients.
+func outletWebTerminalID(ctx context.Context, client *ent.Client, tid, outletID uuid.UUID) (uuid.UUID, bool) {
 	if outletID == uuid.Nil {
 		return uuid.Nil, false
 	}
-	device, err := h.client.POSDevice.Query().
+	id, err := client.POSDevice.Query().
 		Where(posdevice.TenantID(tid), posdevice.OutletID(outletID), posdevice.DeviceType("web_terminal")).
-		First(ctx)
+		FirstID(ctx)
 	if err != nil {
 		return uuid.Nil, false
 	}
-	return device.ID, true
+	return id, true
 }
 
 type closeSessionInput struct {
@@ -394,6 +404,9 @@ type SessionSummaryResponse struct {
 	CashInTotal float64 `json:"cash_in_total"`
 	CardTotal   float64 `json:"card_total"`
 	MpesaTotal  float64 `json:"mpesa_total"`
+	// CashRefunds is cash handed back for returns during the shift (already netted out of
+	// ExpectedCash).
+	CashRefunds float64 `json:"cash_refunds"`
 }
 
 // TenderBreakdown is the revenue split by payment method.
@@ -429,116 +442,45 @@ func (h *DeviceHandler) GetSessionSummary(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Query completed orders with their payments.
-	orders, err := h.client.POSOrder.Query().
-		Where(
-			posorder.TenantID(tid),
-			posorder.DeviceID(session.DeviceID),
-			posorder.CreatedAtGTE(session.OpenedAt),
-		).
-		WithPayments().
-		All(r.Context())
+	// One shared scope for every shift figure (the shift user's sales and takings inside the
+	// shift window), the same numbers the close variance is computed from.
+	sum, err := shifts.Summarize(r.Context(), h.client, session)
 	if err != nil {
-		h.log.Error("session summary: order query failed", zap.Error(err))
+		h.log.Error("session summary failed", zap.Error(err))
 		jsonError(w, "failed to compute session summary", http.StatusInternalServerError)
 		return
-	}
-
-	// Load all tenders for tender type lookup.
-	tenders, err := h.client.Tender.Query().
-		Where(tender.TenantID(tid)).
-		All(r.Context())
-	if err != nil {
-		h.log.Warn("session summary: tender query failed", zap.Error(err))
-	}
-	tenderMap := make(map[uuid.UUID]*ent.Tender, len(tenders))
-	for _, t := range tenders {
-		tenderMap[t.ID] = t
-	}
-
-	var (
-		totalRevenue float64
-		voidCount    int
-		orderCount   int
-	)
-	// map: tender_id → {name, type, amount, count}
-	type tenderAccum struct {
-		name   string
-		tType  string
-		amount float64
-		count  int
-	}
-	tenderAccums := make(map[uuid.UUID]*tenderAccum)
-
-	for _, o := range orders {
-		switch o.Status {
-		case "completed":
-			orderCount++
-			totalRevenue += o.TotalAmount
-		case "voided":
-			voidCount++
-		}
-		for _, p := range o.Edges.Payments {
-			if p.Status != "completed" {
-				continue
-			}
-			acc := tenderAccums[p.TenderID]
-			if acc == nil {
-				name, tType := p.TenderID.String()[:8], "other"
-				if t, ok := tenderMap[p.TenderID]; ok {
-					name = t.Name
-					tType = t.Type
-				}
-				acc = &tenderAccum{name: name, tType: tType}
-				tenderAccums[p.TenderID] = acc
-			}
-			acc.amount += p.Amount
-			acc.count++
-		}
-	}
-
-	// Compute expected cash = float + all cash-tender payments.
-	cashExpected := session.FloatAmount
-	for tID2, acc := range tenderAccums {
-		if t, ok := tenderMap[tID2]; ok && t.Type == "cash" {
-			cashExpected += acc.amount
-		}
-	}
-
-	breakdown := make([]TenderBreakdown, 0, len(tenderAccums))
-	var cashInTotal, cardTotal, mpesaTotal float64
-	for tID, acc := range tenderAccums {
-		breakdown = append(breakdown, TenderBreakdown{
-			TenderName: acc.name,
-			TenderType: acc.tType,
-			Amount:     acc.amount,
-			Count:      acc.count,
-		})
-		if t, ok := tenderMap[tID]; ok {
-			switch t.Type {
-			case "cash":
-				cashInTotal += acc.amount
-			case "card":
-				cardTotal += acc.amount
-			case "mpesa", "mobile_money":
-				mpesaTotal += acc.amount
-			}
-		}
 	}
 
 	jsonOK(w, SessionSummaryResponse{
 		SessionID:       session.ID.String(),
 		OpenedAt:        session.OpenedAt,
 		OpeningFloat:    session.FloatAmount,
-		OrderCount:      orderCount,
-		TotalRevenue:    totalRevenue,
-		ExpectedCash:    cashExpected,
-		VoidCount:       voidCount,
-		TenderBreakdown: breakdown,
-		CashInTotal:     cashInTotal,
-		CardTotal:       cardTotal,
-		MpesaTotal:      mpesaTotal,
+		OrderCount:      sum.OrderCount,
+		TotalRevenue:    sum.Revenue,
+		ExpectedCash:    sum.ExpectedCash,
+		RefundCount:     sum.RefundCount,
+		TotalRefunds:    sum.Refunds,
+		VoidCount:       sum.VoidCount,
+		TenderBreakdown: methodBreakdown(sum.Methods),
+		CashInTotal:     sum.CashTaken,
+		CardTotal:       sum.CardTotal,
+		MpesaTotal:      sum.MobileMoney,
+		CashRefunds:     sum.CashRefunds,
 	})
+}
+
+// methodBreakdown renders the shift takings per payment method with the All-Sales labels.
+func methodBreakdown(methods []shifts.MethodTotal) []TenderBreakdown {
+	out := make([]TenderBreakdown, 0, len(methods))
+	for _, m := range methods {
+		out = append(out, TenderBreakdown{
+			TenderName: exportMethodLabel(m.Method),
+			TenderType: m.Group,
+			Amount:     m.Amount,
+			Count:      m.Count,
+		})
+	}
+	return out
 }
 
 // GetSessionHistory handles GET /{tenantID}/pos/devices/current/sessions/history
@@ -598,25 +540,16 @@ func (h *DeviceHandler) GetSessionHistory(w http.ResponseWriter, r *http.Request
 		TotalRevenue float64  `json:"total_revenue"`
 	}
 
+	// Every row is this user's shift, so one query over the span of the page buckets all of them
+	// (the same user + window scope as the shift summary), instead of a query per row.
+	totals, terr := shifts.OrderTotalsForSessions(r.Context(), h.client, tid, userID, sessions)
+	if terr != nil {
+		h.log.Warn("session history: order totals failed", zap.Error(terr))
+	}
+
 	rows := make([]sessionRow, 0, len(sessions))
 	for _, s := range sessions {
-		orderQ := h.client.POSOrder.Query().
-			Where(
-				posorder.TenantID(tid),
-				posorder.StatusEQ("completed"),
-				posorder.CreatedAtGTE(s.OpenedAt),
-			)
-		// For closed sessions, bound the upper time so orders from the next shift aren't counted.
-		if s.ClosedAt != nil {
-			orderQ = orderQ.Where(posorder.CreatedAtLTE(*s.ClosedAt))
-		}
-		orders, _ := orderQ.All(r.Context())
-
-		var rev float64
-		for _, o := range orders {
-			rev += o.TotalAmount
-		}
-
+		tot := totals[s.ID]
 		autoClosed := false
 		if v, ok := s.Metadata["auto_closed"].(bool); ok {
 			autoClosed = v
@@ -629,8 +562,8 @@ func (h *DeviceHandler) GetSessionHistory(w http.ResponseWriter, r *http.Request
 			OpeningFloat: s.FloatAmount,
 			Notes:        s.Notes,
 			AutoClosed:   autoClosed,
-			OrderCount:   len(orders),
-			TotalRevenue: rev,
+			OrderCount:   tot.OrderCount,
+			TotalRevenue: tot.Revenue,
 		}
 		if s.ClosedAt != nil {
 			ts := s.ClosedAt.Format(time.RFC3339)
@@ -659,11 +592,4 @@ func currentUserID(r *http.Request) uuid.UUID {
 		return uuid.Nil
 	}
 	return id
-}
-
-// tenderTypeEQ is a helper used by computeExpectedCash to match cash tenders.
-func tenderTypeEQ(v string) func(*ent.TenderMutation) {
-	return func(m *ent.TenderMutation) {
-		m.SetType(v)
-	}
 }

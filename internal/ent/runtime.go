@@ -155,7 +155,7 @@ func init() {
 	// auditlog.ActionValidator is a validator for the "action" field. It is called by the builders before save.
 	auditlog.ActionValidator = auditlogDescAction.Validators[0].(func(string) error)
 	// auditlogDescCreatedAt is the schema descriptor for created_at field.
-	auditlogDescCreatedAt := auditlogFields[13].Descriptor()
+	auditlogDescCreatedAt := auditlogFields[14].Descriptor()
 	// auditlog.DefaultCreatedAt holds the default value on creation for the created_at field.
 	auditlog.DefaultCreatedAt = auditlogDescCreatedAt.Default.(func() time.Time)
 	// auditlogDescID is the schema descriptor for id field.

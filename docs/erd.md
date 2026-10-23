@@ -30,8 +30,8 @@ Schemas are defined with Ent to ensure type-safe access and migration automation
 | `tenants` | `id`, `slug`, `name`, `status`, `plan_code`, `created_at`, `updated_at` | POS-enabled organisations sharing the canonical `tenant_slug` with ordering-backend, inventory, and logistics services. Entitlements verified against subscription service. |
 | `outlets` | `id`, `tenant_id`, `tenant_slug`, `code`, `name`, `channel_type`, `address_json`, `timezone`, `status`, `opened_at`, `closed_at` | Physical/virtual POS outlets (café, kiosk, ecommerce hub) from the shared outlet registry. |
 | `outlet_settings` | `outlet_id (PK)`, `receipts_json`, `tax_config_json`, `service_charge_json`, `opening_hours_json`, `metadata`, `updated_at` | Outlet-specific configuration. |
-| `pos_devices` | `id`, `tenant_id`, `outlet_id`, `device_code`, `device_type`, `status`, `hardware_fingerprint`, `registered_at`, `last_seen_at`, `metadata` | POS terminals/tablets/kiosks. |
-| `pos_device_sessions` | `id`, `tenant_id`, `device_id`, `user_id`, `session_status`, `opened_at`, `closed_at`, `float_amount`, `metadata` | Device session lifecycle with cash float context. |
+| `pos_devices` | `id`, `tenant_id`, `outlet_id`, `device_code`, `device_type`, `status`, `hardware_fingerprint`, `registered_at`, `last_seen_at`, `metadata` | POS terminals. Every browser at an outlet shares the outlet's one auto-provisioned `web_terminal` row; the browsers that signed in on it are listed in `metadata.clients` (keyed by client id, capped at 50, refreshed on PIN sign-in). |
+| `pos_device_sessions` | `id`, `tenant_id`, `device_id`, `user_id`, `session_status`, `opened_at`, `closed_at`, `float_amount`, `closing_float`, `variance`, `metadata` | A staff member's shift. Figures are scoped to the user and the shift window (`shifts.Summarize`), not the shared device. `metadata.opened_from` / `closed_from` hold the client trail; `expected_cash`, `cash_taken`, `cash_refunds` are frozen at close. |
 
 ## Users, Roles & Licensing
 
@@ -154,7 +154,7 @@ Ent schemas in `internal/ent/schema/` (room.go, roomguest.go, roomfolioitem.go, 
 | `till_reports` | `id`, `tenant_id`, `outlet_id`, `device_id`, `report_date`, `opening_float`, `closing_amount`, `cash_variance`, `tender_breakdown_json`, `generated_by`, `generated_at` | End-of-day cash/tender summary. |
 | `sales_reports` | `id`, `tenant_id`, `report_date`, `outlet_id`, `channel`, `gross_sales`, `net_sales`, `tax_total`, `refund_total`, `discount_total`, `metadata` | Daily sales metrics. |
 | `daily_closings` | `id`, `tenant_id`, `outlet_id`, `closing_date`, `opened_by`, `closed_by`, `status`, `total_sales`, `total_cash`, `total_card`, `total_mpesa`, `total_loyalty_redemptions`, `total_room_charge`, `total_tax`, `total_orders`, `total_items_sold`, `closed_at`, `notes`, `metadata`, `created_at`, `updated_at` | Outlet-level daily closing record. Extended Sprint 11 with payment-method breakdown and order aggregate fields. `internal/ent/schema/dailyclosing.go`. |
-| `audit_logs` | `id`, `tenant_id`, `user_id`, `resource_type`, `resource_id`, `action`, `payload`, `ip_address`, `user_agent`, `occurred_at` | Compliance log (voids, discounts, drawer events). |
+| `audit_logs` | `id`, `tenant_id`, `outlet_id`, `actor_user_id`, `actor_staff_id`, `approver_user_id`, `action`, `entity_type`, `entity_id`, `reason`, `before_json`, `after_json`, `amount`, `metadata`, `created_at` | Append-only compliance trail (voids, line removals, price/discount overrides, returns, approvals, PIN sign-ins and failed PINs, offline sale syncs). `metadata.client` is the device, browser and IP the action came from (added 2026-10-23, see `sprints/sprint-device-trail-and-shift-cashup.md`). |
 | `regulatory_exports` | `id`, `tenant_id`, `export_type`, `period_start`, `period_end`, `status`, `file_url`, `requested_by`, `requested_at`, `completed_at`, `metadata` | Fiscal authority exports / ETR submissions. |
 
 ## Integrations & Eventing

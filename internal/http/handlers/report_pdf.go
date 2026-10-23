@@ -15,11 +15,11 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
-	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
@@ -28,6 +28,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/docs"
 	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/providerfooter"
+	"github.com/bengobox/pos-service/internal/modules/shifts"
 )
 
 // ReportPDFHandler renders professional, tenant-branded POS report documents (PDF/CSV) via the
@@ -261,56 +262,64 @@ func (h *ReportPDFHandler) completedOrders(ctx context.Context, tid uuid.UUID, o
 }
 
 // tenderBreakdown groups completed payments for the given order ids by tender, returning ordered
-// AccuPOS-style rows ("NN - NAME" → amount) and the grand tender total.
+// AccuPOS-style rows ("NN - NAME" → amount) and the grand tender total. A payment is named by its
+// configured tender when it references one, otherwise by its payment_data.method (the POS records
+// every till payment by method with a zero tender_id, so grouping by tender_id alone used to
+// collapse the whole breakdown into a single "Unknown" row).
 func (h *ReportPDFHandler) tenderBreakdown(ctx context.Context, tid uuid.UUID, orderIDs []uuid.UUID) (rows []docs.KV, total float64) {
 	if len(orderIDs) == 0 {
 		return nil, 0
 	}
 	payments, err := h.db.POSPayment.Query().
 		Where(pospayment.StatusEQ("completed"), pospayment.OrderIDIn(orderIDs...)).
+		Select(pospayment.FieldTenderID, pospayment.FieldAmount, pospayment.FieldPaymentData).
 		All(ctx)
 	if err != nil {
 		h.log.Warn("report: tender breakdown query failed", zap.Error(err))
 		return nil, 0
 	}
-	byTender := make(map[uuid.UUID]float64)
+	tenderIDs := make([]uuid.UUID, 0)
+	seen := map[uuid.UUID]bool{}
 	for _, p := range payments {
-		byTender[p.TenderID] += p.Amount
+		if p.TenderID != uuid.Nil && !seen[p.TenderID] {
+			seen[p.TenderID] = true
+			tenderIDs = append(tenderIDs, p.TenderID)
+		}
+	}
+	names := make(map[uuid.UUID]string, len(tenderIDs))
+	if len(tenderIDs) > 0 {
+		if tenders, terr := h.db.Tender.Query().Where(enttender.TenantID(tid), enttender.IDIn(tenderIDs...)).All(ctx); terr == nil {
+			for _, t := range tenders {
+				names[t.ID] = t.Name
+			}
+		}
+	}
+	byLabel := make(map[string]float64)
+	for _, p := range payments {
+		label := names[p.TenderID]
+		if label == "" {
+			method, _ := p.PaymentData["method"].(string)
+			label = exportMethodLabel(shifts.NormalizeMethod(method))
+		}
+		byLabel[label] += p.Amount
 		total += p.Amount
 	}
-	if len(byTender) == 0 {
-		return nil, total
+	return tenderRows(byLabel), total
+}
+
+// tenderRows renders label totals as AccuPOS-style "NN - NAME" rows in a stable, alphabetical
+// order so the codes are deterministic.
+func tenderRows(byLabel map[string]float64) []docs.KV {
+	labels := make([]string, 0, len(byLabel))
+	for l := range byLabel {
+		labels = append(labels, l)
 	}
-	// Resolve tender names.
-	ids := make([]uuid.UUID, 0, len(byTender))
-	for id := range byTender {
-		ids = append(ids, id)
+	sort.Strings(labels)
+	rows := make([]docs.KV, 0, len(labels))
+	for i, l := range labels {
+		rows = append(rows, docs.KV{Label: fmt.Sprintf("%02d - %s", i+1, strings.ToUpper(l)), Value: fmtAmount(byLabel[l])})
 	}
-	names := make(map[uuid.UUID]string)
-	tenders, terr := h.db.Tender.Query().Where(enttender.IDIn(ids...)).All(ctx)
-	if terr == nil {
-		for _, t := range tenders {
-			names[t.ID] = t.Name
-		}
-	}
-	type tRow struct {
-		name   string
-		amount float64
-	}
-	tmp := make([]tRow, 0, len(byTender))
-	for id, amt := range byTender {
-		n := names[id]
-		if n == "" {
-			n = "Unknown"
-		}
-		tmp = append(tmp, tRow{name: n, amount: amt})
-	}
-	// Stable, alphabetical order so the AccuPOS "NN - NAME" codes are deterministic.
-	sort.Slice(tmp, func(i, j int) bool { return tmp[i].name < tmp[j].name })
-	for i, t := range tmp {
-		rows = append(rows, docs.KV{Label: fmt.Sprintf("%02d - %s", i+1, strings.ToUpper(t.name)), Value: fmtAmount(t.amount)})
-	}
-	return rows, total
+	return rows
 }
 
 // ── amount/quantity formatting (display strings for docs cells) ─────────────────
@@ -402,8 +411,8 @@ func (h *ReportPDFHandler) ResetSummary(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// (a) Tender Summary.
-	tenderRows, tenderTotal := h.tenderBreakdown(ctx, tid, orderIDs)
-	tenderRows = append(tenderRows, docs.KV{Label: "Tendering Total", Value: fmtAmount(tenderTotal), Bold: true, Rule: true})
+	tenderSummary, tenderTotal := h.tenderBreakdown(ctx, tid, orderIDs)
+	tenderSummary = append(tenderSummary, docs.KV{Label: "Tendering Total", Value: fmtAmount(tenderTotal), Bold: true, Rule: true})
 
 	// (b) Item Types (grouped by catalog category) + totals (taxable/nontaxable/tax) + items sold.
 	type catAgg struct {
@@ -522,7 +531,7 @@ func (h *ReportPDFHandler) ResetSummary(w http.ResponseWriter, r *http.Request) 
 		{Label: "Voids", Value: fmtQty(voidQty), Sub: currency + " " + fmtAmount(voidAmount)},
 	}
 	report.Sections = []docs.Section{
-		{Kind: docs.SectionKeyValue, Title: "Tender Summary", Pairs: tenderRows},
+		{Kind: docs.SectionKeyValue, Title: "Tender Summary", Pairs: tenderSummary},
 		{
 			Kind:    docs.SectionTable,
 			Title:   "Item Types",
@@ -819,40 +828,34 @@ func (h *ReportPDFHandler) ShiftReportPDF(w http.ResponseWriter, r *http.Request
 		shiftOutletID = &device.OutletID
 	}
 
-	orders, err := h.db.POSOrder.Query().
-		Where(posorder.TenantID(tid), posorder.DeviceID(session.DeviceID), posorder.StatusEQ("completed")).
-		All(ctx)
+	// Same scope as the shift screen and the close variance (shifts.Summarize): the shift user's
+	// sales and takings inside the shift window.
+	sum, err := shifts.Summarize(ctx, h.db, session)
 	if err != nil {
-		h.log.Error("shift report: orders query failed", zap.Error(err))
+		h.log.Error("shift report: summary failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	orderIDs := make([]uuid.UUID, 0, len(orders))
-	var totalRevenue, totalTax, totalDiscount float64
-	// Same per-order Currency override pattern as DailySales/MostProfitablePDF — a report is
-	// generated for one tenant's orders, which may not be KES.
 	currency := "KES"
-	for _, o := range orders {
-		if o.Currency != "" {
-			currency = o.Currency
-		}
-		orderIDs = append(orderIDs, o.ID)
-		totalRevenue += o.TotalAmount
-		totalTax += o.TaxTotal
-		totalDiscount += o.DiscountTotal
+	if sum.Currency != "" {
+		currency = sum.Currency
 	}
-	var totalRefunds float64
-	if len(orderIDs) > 0 {
-		refunds, rerr := h.db.POSRefund.Query().Where(posrefund.OrderIDIn(orderIDs...)).All(ctx)
-		if rerr != nil {
-			h.log.Warn("shift report: refunds query failed", zap.Error(rerr))
-		}
-		for _, ref := range refunds {
-			totalRefunds += ref.Amount
+	totalRevenue, totalTax, totalDiscount, totalRefunds := sum.Revenue, sum.Tax, sum.Discount, sum.Refunds
+	byLabel := make(map[string]float64, len(sum.Methods))
+	for _, m := range sum.Methods {
+		byLabel[exportMethodLabel(m.Method)] += m.Amount
+	}
+	shiftTenders := append(tenderRows(byLabel), docs.KV{Label: "Tendering Total", Value: fmtAmount(sum.PaymentsTotal), Bold: true, Rule: true})
+	staffName := session.UserID.String()
+	if names := staffNames(ctx, h.db, tid, []uuid.UUID{session.UserID}); names[session.UserID] != "" {
+		staffName = names[session.UserID]
+	}
+	deviceLabel := session.DeviceID.String()
+	if from, ok := session.Metadata[audit.KeyOpenedFrom].(map[string]any); ok {
+		if l := clientLabel(from); l != "" {
+			deviceLabel = l
 		}
 	}
-	tenderRows, tenderTotal := h.tenderBreakdown(ctx, tid, orderIDs)
-	tenderRows = append(tenderRows, docs.KV{Label: "Tendering Total", Value: fmtAmount(tenderTotal), Bold: true, Rule: true})
 
 	closedAt := "—"
 	if session.ClosedAt != nil {
@@ -870,29 +873,34 @@ func (h *ReportPDFHandler) ShiftReportPDF(w http.ResponseWriter, r *http.Request
 	report := h.newReport(ctx, tid, shiftOutletID, "Shift Report", "X Report", session.OpenedAt.UTC(), timeOrNow(session.ClosedAt), false)
 	report.Currency = currency
 	report.Cards = []docs.Card{
-		{Label: "Net Sales", Value: currency + " " + fmtAmount(totalRevenue-totalRefunds), Sub: fmt.Sprintf("%d order(s)", len(orders))},
+		{Label: "Net Sales", Value: currency + " " + fmtAmount(totalRevenue-totalRefunds), Sub: fmt.Sprintf("%d order(s)", sum.OrderCount)},
 		{Label: "Refunds", Value: currency + " " + fmtAmount(totalRefunds)},
 		{Label: "Cash Variance", Value: currency + " " + fmtAmount(variance)},
 	}
 	report.Sections = []docs.Section{
 		{Kind: docs.SectionKeyValue, Title: "Shift", Pairs: []docs.KV{
 			{Label: "Session", Value: session.ID.String()},
-			{Label: "Device", Value: session.DeviceID.String()},
+			{Label: "Staff", Value: staffName},
+			{Label: "Device", Value: deviceLabel},
 			{Label: "Opened", Value: session.OpenedAt.UTC().Format("02 Jan 2006 15:04")},
 			{Label: "Closed", Value: closedAt},
 			{Label: "Status", Value: strings.ToUpper(session.SessionStatus)},
 		}},
 		{Kind: docs.SectionKeyValue, Title: "Sales", Pairs: []docs.KV{
-			{Label: "Orders", Value: strconv.Itoa(len(orders))},
+			{Label: "Orders", Value: strconv.Itoa(sum.OrderCount)},
+			{Label: "Voids", Value: strconv.Itoa(sum.VoidCount)},
 			{Label: "Gross Sales", Value: fmtAmount(totalRevenue)},
 			{Label: "Tax", Value: fmtAmount(totalTax)},
 			{Label: "Discounts", Value: fmtAmount(totalDiscount)},
 			{Label: "Refunds", Value: fmtAmount(totalRefunds)},
 			{Label: "Net Sales", Value: fmtAmount(totalRevenue - totalRefunds), Bold: true, Rule: true},
 		}},
-		{Kind: docs.SectionKeyValue, Title: "Tender Breakdown", Pairs: tenderRows},
+		{Kind: docs.SectionKeyValue, Title: "Tender Breakdown", Pairs: shiftTenders},
 		{Kind: docs.SectionKeyValue, Title: "Cash", Pairs: []docs.KV{
 			{Label: "Opening Float", Value: fmtAmount(session.FloatAmount)},
+			{Label: "Cash Taken", Value: fmtAmount(sum.CashTaken)},
+			{Label: "Cash Refunds", Value: fmtAmount(sum.CashRefunds)},
+			{Label: "Expected Cash", Value: fmtAmount(sum.ExpectedCash), Bold: true},
 			{Label: "Closing Float", Value: fmtAmount(closingFloat)},
 			{Label: "Variance", Value: fmtAmount(variance), Bold: true, Rule: true},
 		}},

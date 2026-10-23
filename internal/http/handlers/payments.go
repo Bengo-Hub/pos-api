@@ -89,6 +89,10 @@ type createIntentInput struct {
 	Reason        string `json:"reason,omitempty"`
 	ApprovalToken string `json:"approvalToken,omitempty"`
 	ApprovalCode  string `json:"approvalCode,omitempty"`
+	// OfflineCollectedBy is who took this payment while offline, replayed by the sync queue. It
+	// is honoured only for an offline order credited to that same person (see
+	// resolveOfflineOrigin), so the cash lands in their shift, not the syncing login's.
+	OfflineCollectedBy string `json:"offlineCollectedBy,omitempty"`
 }
 
 // CreatePaymentIntent handles POST /{tenantID}/pos/orders/{orderID}/payments/intent
@@ -113,6 +117,14 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
+	}
+	if by, perr := uuid.Parse(input.OfflineCollectedBy); perr == nil && by != uuid.Nil {
+		if o, oerr := h.client.POSOrder.Query().
+			Where(posorder.ID(orderID), posorder.TenantID(tid)).
+			Select(posorder.FieldUserID, posorder.FieldOfflineCreatedAt).
+			Only(r.Context()); oerr == nil && o.OfflineCreatedAt != nil && o.UserID == by {
+			r = r.WithContext(audit.WithCollector(r.Context(), by))
+		}
 	}
 
 	// Credit sales (sell on account) are available to CASHIERS too (product decision

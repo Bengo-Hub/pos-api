@@ -257,5 +257,7 @@ func (POSOrder) Indexes() []ent.Index {
 		index.Fields("tenant_id", "outlet_id", "status", "created_at").
 			StorageKey("posorder_service_jobs").
 			Annotations(entsql.IndexWhere("order_subtype = 'service_job'")),
+		// Shift scope (shifts.Summarize): one cashier's orders inside a shift window.
+		index.Fields("tenant_id", "user_id", "created_at"),
 	}
 }

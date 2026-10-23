@@ -43,6 +43,8 @@ type AuditLog struct {
 	AfterJSON map[string]interface{} `json:"after_json,omitempty"`
 	// Monetary magnitude of the action, when relevant
 	Amount *float64 `json:"amount,omitempty"`
+	// Context of the action, e.g. client: the device, browser and IP it came from (audit.TrailHook)
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt    time.Time `json:"created_at,omitempty"`
 	selectValues sql.SelectValues
@@ -55,7 +57,7 @@ func (*AuditLog) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case auditlog.FieldOutletID, auditlog.FieldActorStaffID, auditlog.FieldApproverUserID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
-		case auditlog.FieldBeforeJSON, auditlog.FieldAfterJSON:
+		case auditlog.FieldBeforeJSON, auditlog.FieldAfterJSON, auditlog.FieldMetadata:
 			values[i] = new([]byte)
 		case auditlog.FieldAmount:
 			values[i] = new(sql.NullFloat64)
@@ -166,6 +168,14 @@ func (_m *AuditLog) assignValues(columns []string, values []any) error {
 				_m.Amount = new(float64)
 				*_m.Amount = value.Float64
 			}
+		case auditlog.FieldMetadata:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field metadata", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Metadata); err != nil {
+					return fmt.Errorf("unmarshal field metadata: %w", err)
+				}
+			}
 		case auditlog.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -251,6 +261,9 @@ func (_m *AuditLog) String() string {
 		builder.WriteString("amount=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("metadata=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

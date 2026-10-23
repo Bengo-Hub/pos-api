@@ -282,7 +282,11 @@ func (h *ReturnHandler) CreateReturn(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(returnResponse{POSReturn: ret, OrderNumber: h.orderNumberFor(r.Context(), tid, orderID)})
 }
 
-// ListReturns handles GET /{tenantID}/pos/returns
+// returnSearchOrderCap bounds how many matching sales a returns search considers.
+const returnSearchOrderCap = 1000
+
+// ListReturns handles GET /{tenantID}/pos/returns. Filters: status, staff_id, order_id, from/to,
+// q (return number, or the sale's invoice number, customer name or phone).
 func (h *ReturnHandler) ListReturns(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -309,6 +313,28 @@ func (h *ReturnHandler) ListReturns(w http.ResponseWriter, r *http.Request) {
 	}
 	if from, to, ok := parseCreatedAtRange(r); ok {
 		baseQ = baseQ.Where(posreturn.CreatedAtGTE(from), posreturn.CreatedAtLTE(to))
+	}
+	// q: search by return number, or by the original sale's invoice number or customer name or
+	// phone (the customer lives on the order, so match orders first; bounded so a very common
+	// name can't build an unbounded IN list).
+	if term := strings.TrimSpace(urlq.Get("q")); term != "" {
+		orderIDs, oerr := h.client.POSOrder.Query().
+			Where(entposorder.TenantID(tid), entposorder.Or(
+				entposorder.OrderNumberContainsFold(term),
+				entposorder.CustomerNameContainsFold(term),
+				entposorder.CustomerPhoneContainsFold(term),
+			)).
+			Limit(returnSearchOrderCap).
+			IDs(r.Context())
+		if oerr != nil {
+			h.log.Error("list returns: customer search failed", zap.Error(oerr))
+			jsonError(w, "failed to list returns", http.StatusInternalServerError)
+			return
+		}
+		baseQ = baseQ.Where(posreturn.Or(
+			posreturn.ReturnNumberContainsFold(term),
+			posreturn.OrderIDIn(orderIDs...),
+		))
 	}
 
 	total, _ := baseQ.Clone().Count(r.Context())

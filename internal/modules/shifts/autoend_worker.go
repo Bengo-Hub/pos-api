@@ -96,15 +96,13 @@ func (w *AutoEndWorker) runOnce(ctx context.Context) error {
 			// manual CloseSession handler uses). expected_cash is recorded so the
 			// auto-closed shift is reconciled, not just flagged. The conditional
 			// update inside CloseSession is HA race-safe across replicas.
-			expectedCash, _ := ComputeExpectedCash(ctx, w.client, sess.TenantID, sess)
-			_, _, err := CloseSession(ctx, w.client, sess, CloseOptions{
+			_, expectedCash, err := CloseSession(ctx, w.client, sess, CloseOptions{
 				ClosingFloat: nil,
 				Auto:         true,
 				Notes:        fmt.Sprintf("Auto-closed: open longer than %dh", maxHours),
 				Metadata: map[string]any{
-					"auto_closed":   true,
-					"expected_cash": expectedCash,
-					"max_hours":     maxHours,
+					"auto_closed": true,
+					"max_hours":   maxHours,
 				},
 			})
 			if errors.Is(err, ErrSessionAlreadyClosed) {

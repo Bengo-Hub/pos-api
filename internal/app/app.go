@@ -190,6 +190,9 @@ func New(ctx context.Context) (*App, error) {
 	sqlDB.SetConnMaxIdleTime(1 * time.Minute)
 	drv := entsql.OpenDB(dialect.Postgres, sqlDB)
 	entClient := ent.NewClient(ent.Driver(drv))
+	// Stamp the originating device, browser and IP onto orders, payments, shift sessions and
+	// audit entries at create time (clientinfo middleware supplies it per request).
+	entClient.Use(audit.TrailHook())
 
 	// readEntClient points a handful of heavy, staleness-tolerant read endpoints (All-Sales
 	// list/export today) at a read replica instead of the primary, via cfg.Postgres.ReadOnlyURL

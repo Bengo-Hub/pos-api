@@ -5,12 +5,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
-
+	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
-	"github.com/bengobox/pos-service/internal/ent/posorder"
-	"github.com/bengobox/pos-service/internal/ent/tender"
+	"github.com/bengobox/pos-service/internal/platform/clientinfo"
 )
 
 // ErrSessionAlreadyClosed is returned by CloseSession when the conditional
@@ -18,46 +16,15 @@ import (
 // already closed this session. Callers should treat it as a no-op.
 var ErrSessionAlreadyClosed = errors.New("session already closed")
 
-// ComputeExpectedCash calculates opening_float + total completed cash-tender
-// payments for orders during this session window on this device. This is the
-// single source of truth shared by the manual close handler and the auto-end
-// worker — do NOT duplicate this logic elsewhere.
-func ComputeExpectedCash(ctx context.Context, client *ent.Client, tid uuid.UUID, session *ent.POSDeviceSession) (float64, error) {
-	// Get all completed orders for this device since session opened.
-	orders, err := client.POSOrder.Query().
-		Where(
-			posorder.TenantID(tid),
-			posorder.DeviceID(session.DeviceID),
-			posorder.StatusEQ("completed"),
-			posorder.CreatedAtGTE(session.OpenedAt),
-		).
-		WithPayments().
-		All(ctx)
+// ComputeExpectedCash is opening float + cash the shift user took - cash they refunded, over the
+// shift window (see Summarize for the scope). It is the single source of truth shared by the
+// manual close handler and the auto-end worker.
+func ComputeExpectedCash(ctx context.Context, client *ent.Client, session *ent.POSDeviceSession) (float64, error) {
+	sum, err := Summarize(ctx, client, session)
 	if err != nil {
-		return 0, err
+		return session.FloatAmount, err
 	}
-
-	// Load cash tenders for the tenant.
-	cashTenders, err := client.Tender.Query().
-		Where(tender.TenantID(tid), tender.TypeEQ("cash")).
-		All(ctx)
-	if err != nil {
-		return 0, err
-	}
-	cashTenderIDs := make(map[uuid.UUID]bool, len(cashTenders))
-	for _, t := range cashTenders {
-		cashTenderIDs[t.ID] = true
-	}
-
-	cashTotal := session.FloatAmount
-	for _, o := range orders {
-		for _, p := range o.Edges.Payments {
-			if p.Status == "completed" && cashTenderIDs[p.TenderID] {
-				cashTotal += p.Amount
-			}
-		}
-	}
-	return cashTotal, nil
+	return sum.ExpectedCash, nil
 }
 
 // CloseOptions controls how a register session is closed. Shared by the manual
@@ -85,12 +52,11 @@ type CloseOptions struct {
 // was already closed by another replica, returns ErrSessionAlreadyClosed and the
 // caller should skip (no-op).
 func CloseSession(ctx context.Context, client *ent.Client, session *ent.POSDeviceSession, opts CloseOptions) (*ent.POSDeviceSession, float64, error) {
-	tid := session.TenantID
-
-	expectedCash, err := ComputeExpectedCash(ctx, client, tid, session)
+	// Reconciliation is best-effort: on a failure Summarize leaves ExpectedCash at zero, so fall
+	// back to the opening float and let the close still proceed (mirrors the prior behaviour).
+	sum, err := Summarize(ctx, client, session)
+	expectedCash := sum.ExpectedCash
 	if err != nil {
-		// Reconciliation is best-effort; fall back to the opening float so the
-		// close still proceeds (mirrors the prior handler behaviour).
 		expectedCash = session.FloatAmount
 	}
 
@@ -103,6 +69,16 @@ func CloseSession(ctx context.Context, client *ent.Client, session *ent.POSDevic
 	}
 	for k, v := range opts.Metadata {
 		merged[k] = v
+	}
+	// Freeze the cash-up breakdown at close so later edits to the shift's sales can't silently
+	// change what the variance was computed from.
+	merged["expected_cash"] = expectedCash
+	if err == nil {
+		merged["cash_taken"] = sum.CashTaken
+		merged["cash_refunds"] = sum.CashRefunds
+	}
+	if info, ok := clientinfo.FromContext(ctx); ok {
+		merged[audit.KeyClosedFrom] = info.Map()
 	}
 
 	// RACE-SAFE conditional close: only affect rows still "open". The Where on

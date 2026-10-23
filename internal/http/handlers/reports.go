@@ -27,8 +27,10 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	"github.com/bengobox/pos-service/internal/audit"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
+	"github.com/bengobox/pos-service/internal/modules/shifts"
 )
 
 type ReportsHandler struct {
@@ -918,55 +920,38 @@ func (h *ReportsHandler) ShiftReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orders, err := h.db.POSOrder.Query().
-		Where(posorder.TenantID(tid), posorder.DeviceID(session.DeviceID), posorder.StatusEQ("completed")).
-		All(r.Context())
+	// Same scope as the live summary and the close variance: the shift user's sales and
+	// takings inside the shift window (shifts.Summarize). Scoping by device_id counted every
+	// cashier's sales on the shared outlet device, with no time bound at all.
+	sum, err := shifts.Summarize(r.Context(), h.db, session)
 	if err != nil {
-		h.log.Error("shift report orders query failed", zap.Error(err))
+		h.log.Error("shift report summary failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
-	}
-
-	// Collect order IDs so we can query refunds (POSRefund has no tenant_id/session_id).
-	orderIDs := make([]uuid.UUID, 0, len(orders))
-	for _, o := range orders {
-		orderIDs = append(orderIDs, o.ID)
-	}
-	var refunds []*ent.POSRefund
-	if len(orderIDs) > 0 {
-		refunds, err = h.db.POSRefund.Query().
-			Where(posrefund.OrderIDIn(orderIDs...)).
-			All(r.Context())
-		if err != nil {
-			h.log.Error("shift report refunds query failed", zap.Error(err))
-			jsonError(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	totalRevenue, totalTax, totalDiscount := 0.0, 0.0, 0.0
-	for _, o := range orders {
-		totalRevenue += o.TotalAmount
-		totalTax += o.TaxTotal
-		totalDiscount += o.DiscountTotal
-	}
-	totalRefunds := 0.0
-	for _, ref := range refunds {
-		totalRefunds += ref.Amount
 	}
 
 	jsonOK(w, map[string]any{
 		"session_id":      sessionID,
 		"device_id":       session.DeviceID,
+		"user_id":         session.UserID,
 		"started_at":      session.OpenedAt,
 		"ended_at":        session.ClosedAt,
-		"order_count":     len(orders),
-		"total_revenue":   totalRevenue,
-		"total_tax":       totalTax,
-		"total_discounts": totalDiscount,
-		"total_refunds":   totalRefunds,
-		"net_sales":       totalRevenue - totalRefunds,
+		"order_count":     sum.OrderCount,
+		"void_count":      sum.VoidCount,
+		"total_revenue":   sum.Revenue,
+		"total_tax":       sum.Tax,
+		"total_discounts": sum.Discount,
+		"total_refunds":   sum.Refunds,
+		"net_sales":       sum.Revenue - sum.Refunds,
 		"opening_cash":    session.FloatAmount,
+		"cash_taken":      sum.CashTaken,
+		"cash_refunds":    sum.CashRefunds,
+		"expected_cash":   sum.ExpectedCash,
+		"closing_cash":    session.ClosingFloat,
+		"variance":        session.Variance,
+		"methods":         methodBreakdown(sum.Methods),
+		"opened_from":     session.Metadata[audit.KeyOpenedFrom],
+		"closed_from":     session.Metadata[audit.KeyClosedFrom],
 	})
 }
 
