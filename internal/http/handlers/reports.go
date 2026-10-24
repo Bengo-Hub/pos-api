@@ -586,50 +586,58 @@ func (h *ReportsHandler) TopItems(w http.ResponseWriter, r *http.Request) {
 	if outletFilter := parseOutletFilter(r); outletFilter != uuid.Nil {
 		preds = append(preds, posorder.OutletID(outletFilter))
 	}
-	orders, err := h.db.POSOrder.Query().
-		Where(preds...).
-		WithLines().
-		All(r.Context())
+	rows, err := h.salesBySKU(r.Context(), preds)
 	if err != nil {
 		h.log.Error("top items query failed", zap.Error(err))
 		jsonError(w, "failed to generate top items report", http.StatusInternalServerError)
 		return
 	}
-
-	type itemBucket struct {
-		Name     string  `json:"name"`
-		SKU      string  `json:"sku"`
-		Quantity float64 `json:"quantity_sold"`
-		Revenue  float64 `json:"revenue"`
-	}
-	buckets := make(map[string]*itemBucket)
-	for _, o := range orders {
-		for _, l := range o.Edges.Lines {
-			if _, ok := buckets[l.Sku]; !ok {
-				buckets[l.Sku] = &itemBucket{SKU: l.Sku, Name: l.Name}
-			}
-			buckets[l.Sku].Quantity += l.Quantity
-			buckets[l.Sku].Revenue += l.TotalPrice
-		}
-	}
-
-	rows := make([]*itemBucket, 0, len(buckets))
-	for _, b := range buckets {
-		rows = append(rows, b)
-	}
-	// sort by revenue descending
-	for i := 0; i < len(rows)-1; i++ {
-		for j := i + 1; j < len(rows); j++ {
-			if rows[j].Revenue > rows[i].Revenue {
-				rows[i], rows[j] = rows[j], rows[i]
-			}
-		}
-	}
+	sortSKURows(rows, "revenue")
 	if len(rows) > limit {
 		rows = rows[:limit]
 	}
-
 	jsonOK(w, rows)
+}
+
+// skuSales is one SKU's completed POS sales in a period.
+type skuSales struct {
+	SKU          string  `json:"sku"`
+	Name         string  `json:"name"`
+	QuantitySold float64 `json:"quantity_sold"`
+	Revenue      float64 `json:"revenue"`
+}
+
+// salesBySKU sums completed order lines per SKU in the database, so the work and the rows
+// returned grow with the number of distinct SKUs, not with the number of orders.
+func (h *ReportsHandler) salesBySKU(ctx context.Context, orderPreds []predicate.POSOrder) ([]skuSales, error) {
+	var rows []skuSales
+	err := h.db.POSOrderLine.Query().
+		Where(posorderline.HasOrderWith(orderPreds...)).
+		GroupBy(posorderline.FieldSku).
+		Aggregate(
+			ent.As(ent.Max(posorderline.FieldName), "name"),
+			ent.As(ent.Sum(posorderline.FieldQuantity), "quantity_sold"),
+			ent.As(ent.Sum(posorderline.FieldTotalPrice), "revenue"),
+		).
+		Scan(ctx, &rows)
+	if rows == nil {
+		rows = []skuSales{}
+	}
+	return rows, err
+}
+
+// sortSKURows orders rows by revenue or by quantity, highest first, then by SKU so the order is stable.
+func sortSKURows(rows []skuSales, by string) {
+	sort.Slice(rows, func(i, j int) bool {
+		a, b := rows[i].Revenue, rows[j].Revenue
+		if by == "quantity" {
+			a, b = rows[i].QuantitySold, rows[j].QuantitySold
+		}
+		if a != b {
+			return a > b
+		}
+		return rows[i].SKU < rows[j].SKU
+	})
 }
 
 // S2SSalesBySKU handles GET /api/v1/s2s/{tenant}/pos/sales/by-sku?from=&to=
@@ -644,43 +652,24 @@ func (h *ReportsHandler) S2SSalesBySKU(w http.ResponseWriter, r *http.Request) {
 	}
 	from, to := parseDateRange(r, requestTenantLocation(r, h.db))
 
-	orders, err := h.db.POSOrder.Query().
-		Where(
-			posorder.TenantID(tid),
-			posorder.StatusEQ("completed"),
-			effectiveDateGTE(from),
-			effectiveDateLTE(to),
-		).
-		WithLines().
-		All(r.Context())
+	rows, err := h.salesBySKU(r.Context(), []predicate.POSOrder{
+		posorder.TenantID(tid),
+		posorder.StatusEQ("completed"),
+		effectiveDateGTE(from),
+		effectiveDateLTE(to),
+	})
 	if err != nil {
 		h.log.Error("s2s sales-by-sku query failed", zap.Error(err))
 		jsonError(w, "failed to aggregate sales", http.StatusInternalServerError)
 		return
 	}
-
-	type skuRow struct {
-		SKU          string  `json:"sku"`
-		Name         string  `json:"name"`
-		QuantitySold float64 `json:"quantity_sold"`
-		Revenue      float64 `json:"revenue"`
+	// Optional ranking for "best sellers" callers (marketflow onboarding); without limit every
+	// SKU is returned, as inventory-api's variance report expects.
+	if order := r.URL.Query().Get("order"); order == "revenue" || order == "quantity" {
+		sortSKURows(rows, order)
 	}
-	buckets := make(map[string]*skuRow)
-	for _, o := range orders {
-		for _, l := range o.Edges.Lines {
-			if l.Sku == "" {
-				continue
-			}
-			if _, ok := buckets[l.Sku]; !ok {
-				buckets[l.Sku] = &skuRow{SKU: l.Sku, Name: l.Name}
-			}
-			buckets[l.Sku].QuantitySold += l.Quantity
-			buckets[l.Sku].Revenue += l.TotalPrice
-		}
-	}
-	rows := make([]*skuRow, 0, len(buckets))
-	for _, b := range buckets {
-		rows = append(rows, b)
+	if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && n > 0 && n < len(rows) {
+		rows = rows[:n]
 	}
 	jsonOK(w, map[string]any{
 		"from": from.Format("2006-01-02"),
