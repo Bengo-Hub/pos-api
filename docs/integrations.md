@@ -337,6 +337,14 @@ The pickup and delivery queues share one live-queue rule: not cancelled, voided,
 
 The till prices deliveries with logistics' delivery areas, the same quote online checkout uses; pos-api keeps no fee tables. The terminal's delivery panel lists the tenant's areas (`GET /pos/delivery-areas`, from logistics `GET /s2s/zones/{tenant}/coverage`), and the chosen area's pin is previewed with `GET /pos/delivery-quote`. On `POST /pos/orders` with `order_subtype = delivery` and `metadata.delivery_lat/lng`, `applyDeliveryQuote` re-quotes through `POST /s2s/zones/{tenant}/quote`, sets `charges.shipping` to the fee (a typed charge is replaced) and stores `metadata.delivery_quote` (fee, zone, distance, time). The quoted fee is not a manager adjustment, so it skips the `order.adjustment` approval. A pin outside the areas returns 422 `delivery_not_serviceable`. If logistics is unreachable the cashier's typed charge stays and needs approval as before.
 
+### 3.5 Storefront promotions (S2S, `X-API-Key`)
+
+pos-api owns every discount; the storefront only reads them.
+- `GET /api/v1/s2s/{tenant}/discounts?status=active` feeds a tenant's Top Deals grid; ordering keeps only promotions inside their window.
+- `GET /api/v1/s2s/{tenant}/discounts/banners?use_case=` feeds the banner carousel: active promotions with `metadata.banner.show_on_storefront`, rechecked against the tenant's `storefront_banner` feature on every read. Since 2026-10-27 each banner also carries `is_flash_sale` and `end_at`. Both fields were declared before but never filled, so a flash-sale banner could not count down.
+- `GET /api/v1/s2s/storefront/discounts?tenant_ids=a,b,c` (2026-10-27, at most 50 tenants) returns, for the platform marketplace page, every promotion of those tenants that is live now and flagged for the storefront (a banner or a flash sale), with its rule and `tenant_id`, soonest ending first. It is one query for the promotions and one for their rules, whatever the number of stores. Banner-only promotions keep the live feature recheck.
+- `GET /api/v1/s2s/{tenant}/pos/sales/by-sku?from=&to=&order=quantity&limit=` returns real units sold per SKU; the storefront's best sellers pass `order` and `limit` so only the top rows come back.
+
 ## 4. Auth Service Integration
 
 ### 4.1 JWT Validation (SSO Login)
