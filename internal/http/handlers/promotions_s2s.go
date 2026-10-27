@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -274,7 +276,77 @@ func (h *PromotionHandler) S2SListBanners(w http.ResponseWriter, r *http.Request
 			BannerColor:    banner.BannerColor,
 			TextColor:      banner.TextColor,
 			OutletID:       p.OutletID,
+			IsFlashSale:    banner.IsFlashSale,
+			EndAt:          p.EndAt,
 		})
 	}
 	jsonOK(w, out)
+}
+
+// maxStorefrontTenants bounds one cross-tenant storefront request.
+const maxStorefrontTenants = 50
+
+// S2SListStorefrontDiscounts handles GET /api/v1/s2s/storefront/discounts?tenant_ids=a,b,c
+// For the platform marketplace page (ordering-backend's /marketplace/deals): the promotions of
+// many tenants that are live right now (status active, inside [start_at, end_at]) AND flagged for
+// the storefront, either as a banner (banner.show_on_storefront) or as a flash sale
+// (banner.is_flash_sale), each with its rule and tenant_id. One query for all tenants and one
+// for their rules, so the page costs the same whether 5 or 50 stores are listed. Banner-only
+// promotions keep the live entitlement re-check S2SListBanners does; a flash sale was already
+// gated when it was flagged.
+func (h *PromotionHandler) S2SListStorefrontDiscounts(w http.ResponseWriter, r *http.Request) {
+	var ids []uuid.UUID
+	for _, raw := range strings.Split(r.URL.Query().Get("tenant_ids"), ",") {
+		if id, err := uuid.Parse(strings.TrimSpace(raw)); err == nil {
+			ids = append(ids, id)
+		}
+		if len(ids) == maxStorefrontTenants {
+			break
+		}
+	}
+	if len(ids) == 0 {
+		jsonOK(w, map[string]any{"data": []promotionWithRule{}})
+		return
+	}
+
+	now := time.Now()
+	promos, err := h.client.Promotion.Query().
+		Where(
+			promotion.TenantIDIn(ids...),
+			promotion.Status("active"),
+			promotion.StartAtLTE(now),
+			promotion.Or(promotion.EndAtIsNil(), promotion.EndAtGTE(now)),
+			func(s *sql.Selector) {
+				s.Where(sql.Or(
+					sqljson.ValueEQ(promotion.FieldMetadata, true, sqljson.Path("banner", "show_on_storefront")),
+					sqljson.ValueEQ(promotion.FieldMetadata, true, sqljson.Path("banner", "is_flash_sale")),
+				))
+			},
+		).
+		// Soonest ending first: that is what a flash-deals rail shows first.
+		Order(ent.Asc(promotion.FieldEndAt), ent.Desc(promotion.FieldStartAt)).
+		Limit(200).
+		All(r.Context())
+	if err != nil {
+		h.log.Error("s2s list storefront discounts failed", zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	entitled := map[uuid.UUID]bool{}
+	kept := make([]*ent.Promotion, 0, len(promos))
+	for _, p := range promos {
+		if !promotions.BannerFromMetadata(p.Metadata).IsFlashSale {
+			ok, seen := entitled[p.TenantID]
+			if !seen {
+				ok = h.subs == nil || h.subs.ConsumerHasFeature(r.Context(), p.TenantID.String(), subscriptions.FeatureStorefrontBanner)
+				entitled[p.TenantID] = ok
+			}
+			if !ok {
+				continue
+			}
+		}
+		kept = append(kept, p)
+	}
+	jsonOK(w, map[string]any{"data": h.attachRules(r.Context(), kept)})
 }

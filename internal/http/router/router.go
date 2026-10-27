@@ -1391,6 +1391,12 @@ func New(
 		if internalServiceKey != "" && (loyalty != nil || reports != nil || payments != nil || promotions != nil || onlineOrders != nil) {
 			api.Group(func(s2s chi.Router) {
 				s2s.Use(requireInternalServiceKey(internalServiceKey))
+				if promotions != nil {
+					// Cross-tenant: storefront banners and flash sales of many tenants in one call
+					// (ordering-backend's platform marketplace page). Static path, so it wins over
+					// the {tenant} route below.
+					s2s.Get("/s2s/storefront/discounts", promotions.S2SListStorefrontDiscounts)
+				}
 				s2s.Route("/s2s/{tenant}", func(t chi.Router) {
 					if loyalty != nil {
 						t.Post("/loyalty/earn", loyalty.S2SEarn)
