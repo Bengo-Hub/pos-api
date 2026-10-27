@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Bengo-Hub/httpware/money"
 	"github.com/google/uuid"
 
 	"github.com/bengobox/pos-service/internal/ent"
@@ -42,10 +43,55 @@ func IsFiscalized(ctx context.Context, treasuryClient *treasury.Client, tenantSl
 		return false, "", nil
 	}
 	fi, err := treasuryClient.GetEtimsFiscal(ctx, tenantSlug, orderID.String())
-	if err != nil || fi == nil {
+	if err != nil {
+		// Unknown, not "no". Callers that raise a credit note treat it as fiscalised: treasury only
+		// sends a refund to KRA when the original sale was transmitted, so sending the lines when
+		// unsure is safe, and dropping them would lose the KRA credit note.
+		return false, "", err
+	}
+	if fi == nil {
 		return false, "", nil
 	}
 	return true, fi.CuInvoiceNo, nil
+}
+
+// ReturnedQtyByLine sums, per order line, the quantity on this order's returns in the given
+// statuses. Returns never touch VoidedQty, so anything that works out what is left on a line
+// (sale edits, reversals) has to subtract this too.
+func ReturnedQtyByLine(ctx context.Context, client *ent.Client, orderID uuid.UUID, statuses ...entposreturn.Status) (map[uuid.UUID]float64, error) {
+	rets, err := client.POSReturn.Query().
+		Where(entposreturn.OrderID(orderID), entposreturn.StatusIn(statuses...)).
+		WithLines().
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[uuid.UUID]float64, len(rets))
+	for _, ret := range rets {
+		for _, l := range ret.Edges.Lines {
+			out[l.OrderLineID] = money.Round2(out[l.OrderLineID] + l.Quantity)
+		}
+	}
+	return out, nil
+}
+
+// WithReturnedAsVoided returns copies of lines whose VoidedQty also counts the returned quantity,
+// so a reversal never reverses (and credits KRA for) goods a return already took back.
+func WithReturnedAsVoided(lines []*ent.POSOrderLine, returned map[uuid.UUID]float64) []*ent.POSOrderLine {
+	out := make([]*ent.POSOrderLine, len(lines))
+	for i, l := range lines {
+		c := *l
+		if r := returned[l.ID]; r > 0 {
+			v := r
+			if l.VoidedQty != nil {
+				v += *l.VoidedQty
+			}
+			v = money.Round2(v)
+			c.VoidedQty = &v
+		}
+		out[i] = &c
+	}
+	return out
 }
 
 // HasCorrectionHistory reports whether an order already has ANY prior return, refund, or

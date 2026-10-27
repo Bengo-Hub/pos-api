@@ -29,8 +29,10 @@ func (s *Service) resolvePolicy(ctx context.Context, tenantID uuid.UUID, tenantS
 	if profile, err := s.treasuryClient.GetTaxProfile(ctx, tenantSlug); err == nil && profile != nil && !profile.EtimsActivated {
 		return p // tenant not eTIMS-integrated — never fiscalized, skip the per-order lookup
 	}
-	fiscalized, invoiceID, _ := orders.IsFiscalized(ctx, s.treasuryClient, tenantSlug, orderID)
-	p.fiscalized = fiscalized
+	fiscalized, invoiceID, ferr := orders.IsFiscalized(ctx, s.treasuryClient, tenantSlug, orderID)
+	// When treasury cannot be read, apply the stricter fiscalised policy rather than editing a sale
+	// KRA may already hold.
+	p.fiscalized = fiscalized || ferr != nil
 	p.invoiceID = invoiceID
 	return p
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
+	entposreturn "github.com/bengobox/pos-service/internal/ent/posreturn"
 	entposreversal "github.com/bengobox/pos-service/internal/ent/posreversal"
 	entschema "github.com/bengobox/pos-service/internal/ent/schema"
 	"github.com/bengobox/pos-service/internal/modules/documents"
@@ -145,6 +146,16 @@ func (s *Service) Execute(ctx context.Context, tenantID uuid.UUID, req CreateReq
 	if err != nil {
 		return nil, fmt.Errorf("load order lines: %w", err)
 	}
+
+	// Quantity already on a return (completed, or approved or pending and about to complete) is
+	// not reversible again: returns do not touch VoidedQty, and a second reversal of the same goods
+	// would raise a second KRA credit note under a different reference.
+	returned, err := orders.ReturnedQtyByLine(ctx, s.client, order.ID,
+		entposreturn.StatusPending, entposreturn.StatusApproved, entposreturn.StatusCompleted)
+	if err != nil {
+		return nil, fmt.Errorf("load returned quantities: %w", err)
+	}
+	lines = orders.WithReturnedAsVoided(lines, returned)
 
 	revLines, amount, tax, err := s.resolveLines(order, lines, req)
 	if err != nil {

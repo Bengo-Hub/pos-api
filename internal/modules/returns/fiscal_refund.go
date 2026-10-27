@@ -33,7 +33,11 @@ func (s *Service) fiscalRefundFor(ctx context.Context, tenantSlug string, ret *e
 	default:
 		return fiscalRefund{}
 	}
-	if fiscalized, _, _ := orders.IsFiscalized(ctx, s.treasuryClient, tenantSlug, ret.OrderID); !fiscalized {
+	fiscalized, _, ferr := orders.IsFiscalized(ctx, s.treasuryClient, tenantSlug, ret.OrderID)
+	if ferr != nil {
+		s.log.Warn("fiscal refund: could not read the sale's eTIMS status, sending the lines anyway",
+			zap.Error(ferr), zap.String("return_id", ret.ID.String()))
+	} else if !fiscalized {
 		return fiscalRefund{}
 	}
 	order, err := s.client.POSOrder.Get(ctx, ret.OrderID)

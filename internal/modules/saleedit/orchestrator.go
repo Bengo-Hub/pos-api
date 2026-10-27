@@ -195,25 +195,11 @@ func (s *Service) Edit(ctx context.Context, tenantID uuid.UUID, req EditSaleRequ
 	return result, nil
 }
 
-// returnedQtyByLine sums, per order line, the quantity already removed via a completed
-// fiscalized POSReturn against this order — see diffLines' doc comment for why this is
-// necessary on top of VoidedQty. Only COMPLETED returns count (a pending/rejected return
-// never actually took the stock/money back).
+// returnedQtyByLine is the quantity completed returns took back from each line (see diffLines
+// for why this is needed on top of VoidedQty). A pending or rejected return has not taken stock
+// or money back yet, so an edit only counts completed ones.
 func returnedQtyByLine(ctx context.Context, client *ent.Client, orderID uuid.UUID) (map[uuid.UUID]float64, error) {
-	rets, err := client.POSReturn.Query().
-		Where(entposreturn.OrderID(orderID), entposreturn.StatusEQ(entposreturn.StatusCompleted)).
-		WithLines().
-		All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := make(map[uuid.UUID]float64, len(rets))
-	for _, ret := range rets {
-		for _, l := range ret.Edges.Lines {
-			out[l.OrderLineID] = money.Round2(out[l.OrderLineID] + l.Quantity)
-		}
-	}
-	return out, nil
+	return orders.ReturnedQtyByLine(ctx, client, orderID, entposreturn.StatusCompleted)
 }
 
 // buildReturnLines converts removed/reduced diff entries into returns.LineInput, prorating

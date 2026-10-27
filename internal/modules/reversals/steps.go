@@ -556,8 +556,11 @@ func (s *Service) stepEtimsCreditNote(ctx context.Context, rev *ent.POSReversal,
 	}
 	stepCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	fiscalized, _, _ := orders.IsFiscalized(stepCtx, s.treasuryClient, tenantSlug, rev.OrderID)
-	if !fiscalized {
+	// An unreadable status is not "never transmitted": the credit note is raised anyway, and
+	// treasury sends it to KRA only if the sale was transmitted. Skipping here would mark the step
+	// done and the Retry endpoint would never raise it.
+	fiscalized, _, ferr := orders.IsFiscalized(stepCtx, s.treasuryClient, tenantSlug, rev.OrderID)
+	if ferr == nil && !fiscalized {
 		return "", "sale was not transmitted to KRA, no eTIMS credit note needed", true, nil
 	}
 	order, err := s.client.POSOrder.Query().
