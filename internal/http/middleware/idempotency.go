@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"time"
 
@@ -16,6 +17,11 @@ import (
 // because a POS terminal can be offline for several days; the offline-sync worker may
 // not replay until reconnect.
 const idempotencyTTL = 72 * time.Hour
+
+// staleInFlightAfter is how long an in_flight claim may stand before a retry takes it over. A
+// request finishes or is removed well inside this; a claim this old was left by a process that
+// died mid-request, and leaving it would answer 409 to every retry for 72 hours.
+const staleInFlightAfter = 2 * time.Minute
 
 // captureWriter buffers the handler's response so it can be persisted for replay.
 type captureWriter struct {
@@ -59,29 +65,59 @@ func Idempotency(client *ent.Client) func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
-			ctx := r.Context()
+			// The key store writes outlive the client's connection: an offline-sync client that drops
+			// mid-request must still leave the row completed (or removed), never stuck in_flight.
+			ctx := context.WithoutCancel(r.Context())
 			endpoint := r.Method + " " + r.URL.Path
+			claim := func() error {
+				_, err := client.IdempotencyKey.Create().
+					SetTenantID(tid).
+					SetKey(key).
+					SetEndpoint(endpoint).
+					SetStatus("in_flight").
+					SetExpiresAt(time.Now().Add(idempotencyTTL)).
+					Save(ctx)
+				return err
+			}
 
 			// Try to claim the key. The unique (tenant_id, key) index makes this atomic.
-			_, err = client.IdempotencyKey.Create().
-				SetTenantID(tid).
-				SetKey(key).
-				SetEndpoint(endpoint).
-				SetStatus("in_flight").
-				SetExpiresAt(time.Now().Add(idempotencyTTL)).
-				Save(ctx)
+			err = claim()
+			if err != nil && ent.IsConstraintError(err) {
+				// A claim left in_flight by a process that died mid-request is taken over.
+				if n, derr := client.IdempotencyKey.Delete().
+					Where(idempotencykey.TenantID(tid), idempotencykey.Key(key),
+						idempotencykey.Status("in_flight"),
+						idempotencykey.CreatedAtLT(time.Now().Add(-staleInFlightAfter))).
+					Exec(ctx); derr == nil && n > 0 {
+					err = claim()
+				}
+			}
 			if err != nil {
 				if !ent.IsConstraintError(err) {
-					// Unexpected DB error — fail open so a key-store outage can't block sales.
-					next.ServeHTTP(w, r)
+					// The key store is unreachable. Running the request without it could create the
+					// same sale twice, so refuse with a retryable 503; offline sync retries it.
+					w.Header().Set("Retry-After", "5")
+					writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+						"error": "duplicate protection unavailable, retry shortly",
+					})
 					return
 				}
-				// Key already exists — this is a replay.
+				// Key already exists: this is a replay.
 				existing, qerr := client.IdempotencyKey.Query().
 					Where(idempotencykey.TenantID(tid), idempotencykey.Key(key)).
 					Only(ctx)
 				if qerr != nil {
-					next.ServeHTTP(w, r)
+					w.Header().Set("Retry-After", "5")
+					writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+						"error": "duplicate protection unavailable, retry shortly",
+					})
+					return
+				}
+				if existing.Endpoint != endpoint {
+					// One key must not replay another endpoint's stored response.
+					writeJSON(w, http.StatusUnprocessableEntity, map[string]any{
+						"error": "Idempotency-Key already used for a different request",
+					})
 					return
 				}
 				if existing.Status != "completed" {

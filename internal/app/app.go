@@ -67,16 +67,18 @@ import (
 )
 
 type App struct {
-	cfg                            *config.Config
-	log                            *zap.Logger
-	httpServer                     *http.Server
-	db                             *pgxpool.Pool
-	entClient                      *ent.Client
-	cache                          *redis.Client
-	events                         *nats.Conn
-	outboxPublisher                *eventslib.Publisher
-	webhookWorker                  *webhookmodule.DeliveryWorker
-	shiftAutoEndWorker             *shiftsmodule.AutoEndWorker
+	cfg                *config.Config
+	log                *zap.Logger
+	httpServer         *http.Server
+	db                 *pgxpool.Pool
+	entClient          *ent.Client
+	cache              *redis.Client
+	events             *nats.Conn
+	outboxPublisher    *eventslib.Publisher
+	webhookWorker      *webhookmodule.DeliveryWorker
+	shiftAutoEndWorker *shiftsmodule.AutoEndWorker
+	// returnsSvc retries return credit notes that did not reach treasury (returns/credit_note_retry.go).
+	returnsSvc                     *returns.Service
 	saleFinalizedReconciler        *paymentmodule.SaleFinalizedReconciler
 	treasuryIntentReconciler       *paymentmodule.TreasuryIntentReconciler
 	kdsHub                         *kdsmodule.Hub
@@ -857,6 +859,7 @@ func New(ctx context.Context) (*App, error) {
 		outboxPublisher:                outboxPub,
 		webhookWorker:                  webhookWorker,
 		shiftAutoEndWorker:             shiftAutoEndWorker,
+		returnsSvc:                     returnsSvc,
 		saleFinalizedReconciler:        saleFinalizedReconciler,
 		treasuryIntentReconciler:       treasuryIntentReconciler,
 		kdsHub:                         kdsHub,
@@ -888,6 +891,11 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	// Start shift auto-end worker — closes overdue shift sessions every 15 min
+	// Raise return credit notes that failed to reach treasury when the return was completed.
+	if a.returnsSvc != nil {
+		go a.returnsSvc.StartCreditNoteRetry(ctx)
+	}
+
 	if a.shiftAutoEndWorker != nil {
 		go a.shiftAutoEndWorker.Start(ctx)
 	}

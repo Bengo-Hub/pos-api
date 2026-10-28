@@ -329,7 +329,15 @@ func (s *Service) ApproveReturn(ctx context.Context, tenantID uuid.UUID, returnI
 // return.completed/exchange.completed (inventory restock + treasury settlement), then marks
 // the return completed.
 func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenantSlug string, returnID uuid.UUID, req CompleteReturnRequest) (*ent.POSReturn, *ExchangeResult, error) {
-	ret, err := s.client.POSReturn.Get(ctx, returnID)
+	// The return row stays locked until it is marked completed. A second completion of the same
+	// return (a double click, two tills) waits, then finds it completed and stops, instead of
+	// creating a second exchange order, a second refund and a second restock.
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("complete return: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	ret, err := lockReturn(ctx, tx, posreturn.ID(returnID))
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return nil, nil, fmt.Errorf("return not found")
@@ -350,7 +358,7 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 		return nil, nil, fmt.Errorf("get return: lines: %w", err)
 	}
 
-	update := s.client.POSReturn.UpdateOne(ret).SetStatus(posreturn.StatusCompleted)
+	update := tx.POSReturn.UpdateOne(ret).SetStatus(posreturn.StatusCompleted)
 
 	// Restock or write off: the manager's explicit choice wins, otherwise the outlet's policy
 	// (damaged/defective/expired are written off by default).
@@ -465,11 +473,18 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 		}
 	}
 
-	if len(fiscal.lines) > 0 && !refundSent && s.treasuryClient != nil {
-		s.raiseFiscalCreditNote(ctx, tenantSlug, ret, fiscal)
+	creditNoteState := ""
+	if len(fiscal.lines) > 0 && s.treasuryClient != nil {
+		creditNoteState = creditNoteDone
+		if !refundSent && !s.raiseFiscalCreditNote(ctx, tenantSlug, ret, fiscal) {
+			creditNoteState = creditNotePending // StartCreditNoteRetry raises it later
+		}
 	}
 
 	md := cloneReturnMetadata(ret.Metadata)
+	if creditNoteState != "" {
+		md[mdFiscalCreditNote] = creditNoteState
+	}
 	md["completed_at"] = time.Now().UTC().Format(time.RFC3339)
 	if req.CompletedBy != uuid.Nil {
 		md["completed_by"] = req.CompletedBy.String()
@@ -500,6 +515,9 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 	updated, err := update.Save(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("complete return: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, nil, fmt.Errorf("complete return: commit: %w", err)
 	}
 
 	if s.auditSvc != nil {

@@ -83,7 +83,7 @@ func (s *Service) fiscalRefundFor(ctx context.Context, tenantSlug string, ret *e
 // raiseFiscalCreditNote asks treasury for the credit note on its own, for a return that settled no
 // money through the refund call (an exchange with nothing left over, or a refund call that failed).
 // Treasury keys it on the return id, so the credit note the refund call raises later is the same one.
-func (s *Service) raiseFiscalCreditNote(ctx context.Context, tenantSlug string, ret *ent.POSReturn, f fiscalRefund) {
+func (s *Service) raiseFiscalCreditNote(ctx context.Context, tenantSlug string, ret *ent.POSReturn, f fiscalRefund) bool {
 	crmContactID, customerName, customerIdentifier := orders.ResolveOrderCustomer(ctx, s.client, ret.TenantID, ret.OrderID)
 	cn, err := s.treasuryClient.RaiseReturnCreditNote(ctx, tenantSlug, treasury.ReturnCreditNoteRequest{
 		ReferenceID: ret.ID.String(), Reference: ret.ReturnNumber, OriginalOrderID: f.orderID, OutletID: f.outletID,
@@ -91,8 +91,9 @@ func (s *Service) raiseFiscalCreditNote(ctx context.Context, tenantSlug string, 
 		Currency: f.currency, Reason: ret.Reason, Lines: f.lines,
 	})
 	if err != nil {
-		s.log.Warn("eTIMS credit note for return failed (non fatal)", zap.Error(err), zap.String("return_id", ret.ID.String()))
-		return
+		s.log.Warn("eTIMS credit note for return failed (retried by StartCreditNoteRetry)", zap.Error(err), zap.String("return_id", ret.ID.String()))
+		return false
 	}
 	s.log.Info("eTIMS credit note raised for return", zap.String("return_id", ret.ID.String()), zap.String("credit_note", cn.Number))
+	return true
 }
