@@ -288,6 +288,9 @@ type Service struct {
 	// kdsTrees serves each tenant's cached inventory category tree for KDS routing (nil-safe:
 	// routing then matches flat on the line's own category).
 	kdsTrees *kdsroute.Source
+	// variantResolver identifies variant child SKUs for the metadata.variant line stamp
+	// (nil-safe: lines are then left unstamped).
+	variantResolver *VariantResolver
 }
 
 // WithPublicAPIBase wires pos-api's own public base URL so RequestSaleNotification can build a
@@ -769,6 +772,10 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 			req.Lines[i].TotalPrice = 0
 		}
 	}
+
+	// Variant children (size, colour) get the server's metadata.variant snapshot; the line's
+	// own SKU already drives stock, cost, tax and eTIMS.
+	s.StampLineVariants(ctx, req.TenantID, req.Lines)
 
 	discount := decimal.NewFromFloat(req.DiscountAmount)
 	// Auto-apply the best happy-hour / negotiated-meal discount (scope-enforced) on top of any
@@ -1881,6 +1888,8 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 	case StatusCompleted, StatusCancelled, StatusVoided, StatusRefunded:
 		return nil, fmt.Errorf("orders: cannot add items to a %s order", order.Status)
 	}
+
+	s.StampLineVariants(ctx, tenantID, lines)
 
 	// Resolve KDS station IDs from catalog overrides for new line SKUs.
 	skus := make([]string, 0, len(lines))

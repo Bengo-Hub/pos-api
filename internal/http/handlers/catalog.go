@@ -61,7 +61,10 @@ func NewCatalogHandler(log *zap.Logger, client *ent.Client) *CatalogHandler {
 // serialized to callers holding pos.catalog.view_cost (manager/admin) — never to cashier terminals.
 func (h *CatalogHandler) SetRBAC(rbac middleware.PermissionChecker) { h.rbac = rbac }
 
-// inventoryProxyVariant is the shape of an item variation surfaced by inventory-api.
+// inventoryProxyVariant mirrors inventory-api's items.VariantDTO. Each variant is its own
+// inventory item (a child of the parent product), so ID is the child item id the till sends as
+// catalog_item_id and SKU is the child SKU that drives stock, cost, tax and eTIMS.
+// OnHand/Available are display only: stock never blocks a sale.
 type inventoryProxyVariant struct {
 	ID         string            `json:"id"`
 	SKU        string            `json:"sku"`
@@ -70,6 +73,9 @@ type inventoryProxyVariant struct {
 	Attributes map[string]string `json:"attributes,omitempty"`
 	Barcode    string            `json:"barcode,omitempty"`
 	IsActive   bool              `json:"is_active"`
+	ImageURL   string            `json:"image_url,omitempty"`
+	OnHand     *float64          `json:"on_hand,omitempty"`
+	Available  *float64          `json:"available,omitempty"`
 }
 
 // inventoryProxyItem is the shape returned by inventory-api /items list.
@@ -89,14 +95,17 @@ type inventoryProxyItem struct {
 	Model        string `json:"model"`
 	// Drug-master fields (pharmacy) — let the POS prescription drug picker auto-fill
 	// dosage/form from the catalog item instead of requiring manual re-entry.
-	DosageForm              string                  `json:"dosage_form,omitempty"`
-	Strength                string                  `json:"strength,omitempty"`
-	HasVariants             bool                    `json:"has_variants"`
-	Variants                []inventoryProxyVariant `json:"variants,omitempty"`
-	Barcode                 string                  `json:"barcode"`
-	RequiresAgeVerification bool                    `json:"requires_age_verification"`
-	IsControlledSubstance   bool                    `json:"is_controlled_substance"`
-	TrackSerialNumbers      bool                    `json:"track_serial_numbers"`
+	DosageForm  string                  `json:"dosage_form,omitempty"`
+	Strength    string                  `json:"strength,omitempty"`
+	HasVariants bool                    `json:"has_variants"`
+	Variants    []inventoryProxyVariant `json:"variants,omitempty"`
+	// Set when this row is itself a variant child (reached by id, SKU or barcode search).
+	VariantOf               string            `json:"variant_of,omitempty"`
+	VariantAttributes       map[string]string `json:"variant_attributes,omitempty"`
+	Barcode                 string            `json:"barcode"`
+	RequiresAgeVerification bool              `json:"requires_age_verification"`
+	IsControlledSubstance   bool              `json:"is_controlled_substance"`
+	TrackSerialNumbers      bool              `json:"track_serial_numbers"`
 	// NonBillable: never charged at the till even when a selling price exists (free
 	// accompaniments like ugali, supplies like tissue/packaging); stock still deducts.
 	NonBillable *bool `json:"non_billable,omitempty"`
@@ -480,7 +489,7 @@ const inventoryPageSize = 100
 // reduction: inventory-api still computes/enriches the full row server-side either way.
 const inventoryProxyFields = "id,sku,name,description,type,is_active,image_url,category_name," +
 	"brand_id,brand_name,brand_code,manufacturer,model,dosage_form,strength,has_variants,variants," +
-	"barcode,requires_age_verification,is_controlled_substance,track_serial_numbers,non_billable," +
+	"variant_of,variant_attributes,barcode,requires_age_verification,is_controlled_substance,track_serial_numbers,non_billable," +
 	"not_for_sale,duration_minutes,use_case,total_capacity,booked_capacity,cost_price," +
 	"suggested_price,min_selling_price,max_selling_price,on_hand,selling_price,food_cost_pct," +
 	"status,purchase_price,purchase_pack_size,purchase_unit,yield_pct,tax_code_id,tax_inclusive," +
@@ -613,7 +622,9 @@ func fetchInventoryItems(ctx context.Context, tenantSlug, outletID string, useCa
 // elsewhere, just for a single-item lookup instead of a cost map. Returns nil, nil (not an error)
 // when the item isn't found, so callers can treat a missing/deleted item as absent.
 func fetchInventoryItemByID(ctx context.Context, tenantSlug, itemID string) (*inventoryProxyItem, error) {
-	url := fmt.Sprintf("%s/v1/%s/inventory/items?id=%s&lean=1&fields=%s", inventoryURL(), tenantSlug, itemID, inventoryProxyFields)
+	// include=variants: a parent fetched by id carries its variants[]; an id filter never hides
+	// a child, so a child fetched by id comes back with variant_of set.
+	url := fmt.Sprintf("%s/v1/%s/inventory/items?id=%s&include=variants&lean=1&fields=%s", inventoryURL(), tenantSlug, itemID, inventoryProxyFields)
 	body, err := doInventoryGET(ctx, url, "")
 	if err != nil {
 		return nil, err
@@ -1372,7 +1383,8 @@ func (h *CatalogHandler) assembleMenuItems(
 		if filters.Search != "" &&
 			!strings.Contains(strings.ToLower(item.Name), filters.Search) &&
 			!strings.Contains(strings.ToLower(item.SKU), filters.Search) &&
-			!strings.Contains(strings.ToLower(item.Barcode), filters.Search) {
+			!strings.Contains(strings.ToLower(item.Barcode), filters.Search) &&
+			!variantsMatchSearch(item.Variants, filters.Search) {
 			continue
 		}
 		if filters.ItemType != "" {
@@ -1483,6 +1495,14 @@ func (h *CatalogHandler) assembleMenuItems(
 			}
 		}
 
+		// Variant parent: each variant carries its own price (child override applied). A parent
+		// holds no price of its own in the usual setup, so it shows the cheapest variant as its
+		// "from" price instead of tripping the zero-price gate below.
+		variants := applyVariantOverrides(item.Variants, overrideMap)
+		if price == 0 && len(variants) > 0 {
+			price = lowestActiveVariantPrice(variants)
+		}
+
 		// Round up to next whole number — no decimal prices on POS receipts or displays.
 		if price > 0 {
 			price = math.Ceil(price)
@@ -1518,7 +1538,9 @@ func (h *CatalogHandler) assembleMenuItems(
 			if nonBillable || (hasOverride && o.complimentary) || isAccompanimentCategory(item.CategoryName) {
 				isComplimentary = true
 				isAvailable = true
-			} else {
+			} else if len(variants) == 0 {
+				// Hidden, except a variant parent: it is never rung up itself, so one whose
+				// variants have no price yet keeps the availability staff set.
 				isAvailable = false
 			}
 		}
@@ -1551,7 +1573,7 @@ func (h *CatalogHandler) assembleMenuItems(
 			DosageForm:              item.DosageForm,
 			Strength:                item.Strength,
 			HasVariants:             item.HasVariants,
-			Variants:                item.Variants,
+			Variants:                variants,
 			ItemType:                item.Type,
 			IsActive:                item.IsActive,
 			IsAvailable:             isAvailable,

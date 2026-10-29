@@ -690,3 +690,98 @@ func (c *Client) fetchCatalogCostPage(ctx context.Context, tenantID string, limi
 	}
 	return page.Data, nil
 }
+
+// VariantChild is a variant child item (size, colour, ...) as an order line needs it: the child
+// item itself plus its parent product. Each variant is its own inventory item whose
+// metadata.variant_of names the parent.
+type VariantChild struct {
+	ID         string            `json:"id"`
+	SKU        string            `json:"sku"`
+	Name       string            `json:"name"`
+	Attributes map[string]string `json:"attributes,omitempty"`
+	ParentID   string            `json:"parent_id,omitempty"`
+	ParentSKU  string            `json:"parent_sku,omitempty"`
+	ParentName string            `json:"parent_name,omitempty"`
+}
+
+// variantLookupRow is the projected item row LookupVariantChildren decodes.
+type variantLookupRow struct {
+	ID                string            `json:"id"`
+	SKU               string            `json:"sku"`
+	Name              string            `json:"name"`
+	VariantOf         string            `json:"variant_of"`
+	VariantAttributes map[string]string `json:"variant_attributes"`
+}
+
+// LookupVariantChildren returns, keyed by SKU, the given SKUs that are variant children, with
+// their parent's id, SKU and name. SKUs of ordinary items are simply absent. One call lists the
+// SKUs (?skus= never hides children, status=all so a variant deactivated after an offline sale
+// still resolves) and one more per distinct parent fills in the parent; a parent that cannot be
+// read leaves only its id on the child.
+func (c *Client) LookupVariantChildren(ctx context.Context, tenantID string, skus []string) (map[string]VariantChild, error) {
+	out := map[string]VariantChild{}
+	if c == nil || c.baseURL == "" || len(skus) == 0 {
+		return out, nil
+	}
+	const fields = "id,sku,name,variant_of,variant_attributes"
+	// inventory-api caps a page at 100 rows, so a very large order goes in chunks.
+	const chunk = 90
+	var rows []variantLookupRow
+	for start := 0; start < len(skus); start += chunk {
+		end := min(start+chunk, len(skus))
+		page, err := c.listItemRows(ctx, fmt.Sprintf("%s/v1/%s/inventory/items?skus=%s&status=all&lean=1&fields=%s&limit=100",
+			c.baseURL, tenantID, url.QueryEscape(strings.Join(skus[start:end], ",")), fields))
+		if err != nil {
+			return out, fmt.Errorf("inventory.Client.LookupVariantChildren: %w", err)
+		}
+		rows = append(rows, page...)
+	}
+	parents := map[string]*variantLookupRow{}
+	for _, r := range rows {
+		if r.VariantOf == "" || r.SKU == "" {
+			continue
+		}
+		out[r.SKU] = VariantChild{ID: r.ID, SKU: r.SKU, Name: r.Name, Attributes: r.VariantAttributes, ParentID: r.VariantOf}
+		parents[r.VariantOf] = nil
+	}
+	for pid := range parents {
+		prow, perr := c.listItemRows(ctx, fmt.Sprintf("%s/v1/%s/inventory/items?id=%s&status=all&lean=1&fields=id,sku,name",
+			c.baseURL, tenantID, url.QueryEscape(pid)))
+		if perr != nil || len(prow) == 0 {
+			continue
+		}
+		p := prow[0]
+		parents[pid] = &p
+	}
+	for sku, v := range out {
+		if p := parents[v.ParentID]; p != nil {
+			v.ParentSKU, v.ParentName = p.SKU, p.Name
+			out[sku] = v
+		}
+	}
+	return out, nil
+}
+
+// listItemRows GETs one page of the inventory item list and decodes its data rows.
+func (c *Client) listItemRows(ctx context.Context, reqURL string) ([]variantLookupRow, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build request: %w", err)
+	}
+	httpReq.Header.Set("X-API-Key", c.apiKey)
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("http: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status %d", resp.StatusCode)
+	}
+	var wrapped struct {
+		Data []variantLookupRow `json:"data"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&wrapped); err != nil {
+		return nil, fmt.Errorf("decode: %w", err)
+	}
+	return wrapped.Data, nil
+}

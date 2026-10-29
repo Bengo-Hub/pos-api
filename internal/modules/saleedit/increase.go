@@ -126,6 +126,8 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 	}
 	var addedTaxes []resolvedAddedLineTax
 	if s.orderSvc != nil {
+		// Same metadata.variant snapshot a new sale's lines get (variant children only).
+		s.orderSvc.StampLineVariants(ctx, tenantID, addedInputs)
 		// orders.ResolveLineTaxes returns an unexported element type (can't be named here), so
 		// convert inline via field access — every field this copies is exported.
 		raw := s.orderSvc.ResolveLineTaxes(ctx, tenantID, req.TenantSlug, addedInputs,
@@ -153,6 +155,10 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 			}
 		}
 		inclusive := lt.inclusive || a.PriceIncludesTax
+		lineMeta := map[string]any{"sale_edit_id": editID.String(), "edit_added": true}
+		if v, ok := addedInputs[i].Metadata[orders.LineVariantKey]; ok {
+			lineMeta[orders.LineVariantKey] = v
+		}
 		create := s.client.POSOrderLine.Create().
 			SetOrderID(order.ID).
 			SetCatalogItemID(a.CatalogItemID).
@@ -162,7 +168,7 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 			SetUnitPrice(a.UnitPrice).
 			SetTotalPrice(total).
 			SetPriceIncludesTax(inclusive).
-			SetMetadata(map[string]any{"sale_edit_id": editID.String(), "edit_added": true})
+			SetMetadata(lineMeta)
 		if lt.codeID != "" {
 			create = create.SetTaxCodeID(lt.codeID)
 		} else if a.TaxCodeID != "" {

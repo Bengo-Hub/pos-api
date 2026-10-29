@@ -134,6 +134,28 @@ integrated service, each step tracked on the `pos_reversals` row (steps JSON) an
 **Action:** Create notification entry in `stock_alert_subscriptions` or call notifications-service  
 **Status:** ❌ NATS subscriber not yet wired (Sprint 6)
 
+### 1.4 Variants: sizes and colours (2026-10-29)
+
+Each variant is its own inventory item (child) with its own SKU, barcode, price and stock, linked
+to a display parent through `metadata.variant_of` (inventory-api `06e7cdf`). Stock, cost, tax, UOM
+and eTIMS work per child SKU with no POS change.
+- Catalog sweep reads `include=variants`: children are hidden and each parent carries `variants[]`
+  (`{id (child item id), sku, name, price, attributes, barcode, is_active, image_url, on_hand,
+  available}`). Each child's `POSCatalogOverride` applies to its variant (POS price, staff
+  "unavailable" toggle); prices round up. A parent with no price shows its cheapest active variant
+  and is not hidden by the zero-price gate. A search on a child's SKU, barcode or name finds the
+  parent. Stock never affects availability (manual availability rule).
+- Barcode lookup searches with `include=variants`. An exact barcode, then an exact SKU, wins; a
+  scanned child comes back with `variant` (the same snapshot the server stamps on the line).
+- Order lines: `CreateOrder`, `AddOrderLines` and sale-edit increases drop any client-sent
+  `metadata.variant` and stamp `{id, sku, name, attributes, parent_id, parent_sku, parent_name}`
+  when the line SKU is a child, filling `catalog_item_id` with the child id when missing. One
+  inventory call per order (`skus=...&status=all`), cached per SKU in Redis for 10 minutes
+  (`pos:variant:{tenant}:{sku}`, misses cached too). Best effort with a 3 s timeout: a slow
+  inventory never fails a sale; the line just goes unstamped.
+- Promotions still match the line SKU: a promotion scoped to the parent SKU does not cover its
+  variants. Scope it to the variant SKUs or the category.
+
 ---
 
 ## 2. Treasury Service Integration

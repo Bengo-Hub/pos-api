@@ -292,6 +292,9 @@ func New(ctx context.Context) (*App, error) {
 	}
 	inventoryClient := inventorymodule.NewClient(inventoryAPIURL, cfg.Treasury.InternalServiceKey, 15*time.Second)
 
+	// Variant children (size, colour) get a server-side metadata.variant snapshot on order lines.
+	orderSvc.SetVariantResolver(ordermodule.NewVariantResolver(inventoryClient, redisClient, log))
+
 	// One cached inventory category tree per tenant for KDS routing (a sub-category inherits its
 	// section's station), shared by order stamping, ticket/chit routing and the station screen.
 	kdsCategorySource := kdsroute.NewSource(func(ctx context.Context, tenantID uuid.UUID) ([]kdsroute.Category, error) {

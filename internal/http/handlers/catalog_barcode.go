@@ -17,6 +17,8 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	entoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/http/middleware"
+	"github.com/bengobox/pos-service/internal/modules/inventory"
+	"github.com/bengobox/pos-service/internal/modules/orders"
 )
 
 const barcodeCacheTTL = 5 * time.Minute
@@ -85,7 +87,10 @@ func (h *CatalogHandler) BarcodeLookup(w http.ResponseWriter, r *http.Request) {
 	// NOT applying the catalog sweep's `fields=` projection here: unlike that typed path, this
 	// handler decodes into a raw map and passes most of it straight through to the frontend, so
 	// trimming fields would risk silently dropping something the barcode-scan UI still reads.
-	invURL := fmt.Sprintf("%s/v1/%s/inventory/items?search=%s&limit=10&lean=1", inventoryURL(), tenantSlug, url.QueryEscape(barcode))
+	// include=variants: a search never hides variant children, so a scanned child barcode or SKU
+	// comes back as the child row itself (variant_of set), and a scanned parent carries its
+	// variants[] for the picker.
+	invURL := fmt.Sprintf("%s/v1/%s/inventory/items?search=%s&limit=10&lean=1&include=variants", inventoryURL(), tenantSlug, url.QueryEscape(barcode))
 	body, err := doInventoryGET(r.Context(), invURL, "")
 	if err != nil {
 		h.log.Warn("barcode lookup: inventory-api error", zap.String("barcode", barcode), zap.Error(err))
@@ -109,6 +114,16 @@ func (h *CatalogHandler) BarcodeLookup(w http.ResponseWriter, r *http.Request) {
 		if bc, _ := cand["barcode"].(string); strings.EqualFold(strings.TrimSpace(bc), scanned) {
 			item = cand
 			break
+		}
+	}
+	// A typed or scanned SKU is just as exact as a barcode (variant children are often keyed by
+	// SKU only), so an exact SKU match wins over the single-result fallback.
+	if item == nil {
+		for _, cand := range wrapper.Data {
+			if s, _ := cand["sku"].(string); strings.EqualFold(strings.TrimSpace(s), scanned) {
+				item = cand
+				break
+			}
 		}
 	}
 	if item == nil {
@@ -157,6 +172,12 @@ func (h *CatalogHandler) BarcodeLookup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// A variant child: attach the parent so the till can show "T-shirt, Red / M" under its
+	// product and stamp the same snapshot the server stamps on the order line.
+	if parentID, _ := item["variant_of"].(string); parentID != "" {
+		item["variant"] = h.barcodeVariantInfo(r.Context(), tenantSlug, item, parentID)
+	}
+
 	payload, _ := json.Marshal(map[string]any{"data": item})
 
 	if h.redis != nil && len(payload) > 0 {
@@ -166,4 +187,28 @@ func (h *CatalogHandler) BarcodeLookup(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Cache", "MISS")
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(payload)
+}
+
+// barcodeVariantInfo builds the metadata.variant snapshot for a scanned variant child (the
+// same shape orders.VariantSnapshot stamps on the sale line), reading the parent's SKU and name
+// from inventory. A parent that cannot be read still leaves its id on the snapshot.
+func (h *CatalogHandler) barcodeVariantInfo(ctx context.Context, tenantSlug string, item map[string]any, parentID string) map[string]any {
+	v := inventory.VariantChild{ParentID: parentID}
+	v.ID, _ = item["id"].(string)
+	v.SKU, _ = item["sku"].(string)
+	v.Name, _ = item["name"].(string)
+	if attrs, ok := item["variant_attributes"].(map[string]any); ok {
+		v.Attributes = make(map[string]string, len(attrs))
+		for k, val := range attrs {
+			if s, ok := val.(string); ok {
+				v.Attributes[k] = s
+			}
+		}
+	}
+	if parent, err := fetchInventoryItemByID(ctx, tenantSlug, parentID); err == nil && parent != nil {
+		v.ParentSKU, v.ParentName = parent.SKU, parent.Name
+	} else if err != nil {
+		h.log.Debug("barcode lookup: variant parent not read", zap.String("parent_id", parentID), zap.Error(err))
+	}
+	return orders.VariantSnapshot(v)
 }
