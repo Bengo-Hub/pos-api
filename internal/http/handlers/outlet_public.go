@@ -32,6 +32,10 @@ type outletPublicItem struct {
 	// ServiceProfile is a services outlet's sub use case (printing_branding, salon_barber, ...).
 	// The ordering storefront uses it to show the right booking form.
 	ServiceProfile string `json:"service_profile,omitempty"`
+	// ServiceProfileLabel and ServiceStages describe the trade to customers ("Garage & Auto
+	// Service": Inspection, Estimate approval, ...), straight from the profile registry.
+	ServiceProfileLabel string   `json:"service_profile_label,omitempty"`
+	ServiceStages       []string `json:"service_stages,omitempty"`
 	// StaffRoles are the roles this outlet's PIN login shows (outletpolicy.StaffRolesFor), so a
 	// print shop's login never offers salon roles.
 	StaffRoles []string `json:"staff_roles"`
@@ -163,6 +167,10 @@ func toOutletPublicItem(o *ent.Outlet) outletPublicItem {
 		if p, ok := outletpolicy.ServiceProfileFromMetadata(s.Metadata); ok {
 			profile = &p
 			item.ServiceProfile = p.Key
+			item.ServiceProfileLabel = p.Label
+			for _, st := range p.Stages {
+				item.ServiceStages = append(item.ServiceStages, st.Label)
+			}
 		}
 	}
 	item.StaffRoles = outletpolicy.StaffRolesFor(useCase, profile)
