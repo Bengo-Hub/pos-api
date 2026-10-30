@@ -42,6 +42,9 @@ type outletSettingsPublic struct {
 	ScreensaverURL            string   `json:"screensaver_url,omitempty"`
 	ScreensaverURLs           []string `json:"screensaver_urls,omitempty"`
 	ScreensaverTimeoutSeconds int      `json:"screensaver_timeout_seconds,omitempty"`
+	// ReturnWindowDays is how many days after purchase the outlet accepts a return (the same
+	// window the returns module enforces). The storefront shows it on product pages.
+	ReturnWindowDays int `json:"return_window_days,omitempty"`
 }
 
 // ListPublicOutlets returns all active outlets for a tenant (public, no auth).
@@ -172,7 +175,8 @@ func toOutletPublicItem(o *ent.Outlet) outletPublicItem {
 			settings.ScreensaverURL = *s.ScreensaverURL
 		}
 		settings.ScreensaverURLs = metaStringSlice(s.Metadata, "screensaver_urls")
-		if settings.PinLoginMessage != "" || settings.ScreensaverURL != "" || len(settings.ScreensaverURLs) > 0 {
+		settings.ReturnWindowDays = s.ReturnWindowDays
+		if settings.PinLoginMessage != "" || settings.ScreensaverURL != "" || len(settings.ScreensaverURLs) > 0 || settings.ReturnWindowDays > 0 {
 			item.Settings = settings
 		}
 	}
