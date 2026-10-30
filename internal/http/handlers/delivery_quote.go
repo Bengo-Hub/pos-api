@@ -73,8 +73,13 @@ func (h *POSOrderHandler) applyDeliveryQuote(w http.ResponseWriter, r *http.Requ
 		return false, true
 	}
 	if !q.Serviceable {
+		msg := "this address is outside the delivery areas"
+		if q.Reason == "at_outlet" {
+			// logistics refuses a pin at the outlet itself: nothing to deliver.
+			msg = "this address is the outlet itself, so ring it up as a takeaway instead of a delivery"
+		}
 		respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
-			"error":  "this address is outside the delivery areas",
+			"error":  msg,
 			"code":   "delivery_not_serviceable",
 			"reason": q.Reason,
 		})
