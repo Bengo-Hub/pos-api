@@ -222,7 +222,6 @@ pos-ui → POST /{tenant}/pos/orders/{id}/payments
 
 | Env Var | Purpose |
 |---------|---------|
-| `TAX_RATE_PERCENT` | Default VAT rate (16% Kenya) |
 | `DEFAULT_CURRENCY` | `KES` |
 | `ORDER_PREFIX` | Order number prefix (e.g., `BNG`) |
 | `INTERNAL_SERVICE_KEY` | Single shared S2S key (`X-API-Key` header) |

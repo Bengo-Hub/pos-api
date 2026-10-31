@@ -34,7 +34,7 @@ These are non-negotiable for any Kenyan deployment. Missing any of these makes t
 | KRA eTIMS Compliance | OSCU/VSCU modes, offline queue, auto-transmission | ❌ Not implemented (Sprint 12) |
 | Offline Mode | IndexedDB on pos-ui, offline order queue, sync on reconnect | ✅ pos-ui IndexedDB + sync worker complete (Sprint 6) |
 | Multi-branch Management | Tenant/outlet scoping on all entities | ✅ Complete |
-| KES Currency | `DEFAULT_CURRENCY=KES`, `TAX_RATE_PERCENT=16` | ✅ Configurable |
+| KES Currency | `DEFAULT_CURRENCY=KES`; tax from treasury tax codes per item, outlet fallback code in Settings, Tax | ✅ Configurable |
 | Receipt Generation | Till reports, regulatory exports | 🟡 Receipt endpoint exists; PDF format pending |
 
 ---
