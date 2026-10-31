@@ -261,8 +261,9 @@ no WhatsApp plan or credit is refused with `402` before anything is published (s
 `/s2s/credits/whatsapp/check`, no charge); `400` when the sale has no phone or email. pos-ui offers Email and WhatsApp
 only and shows the refusal message.
 
-Still SMS only, and so never delivered (SMS is not an active channel; notifications-api now drops them at the source for
-tenants without SMS credit): payment received notification, appointments, loyalty points and tier, returns, layaway due,
-KDS waiter call, low stock alert (`notifications-api cmd/worker/pos_consumer.go`), and repair status. Each needs an email
-template and an approved WhatsApp template before it reaches customers.
+Other customer notices (payment received, loyalty points, tier and referral bonus, refund processed, layaway due,
+hotel check-in and check-out) go by email and WhatsApp from notifications-api (`docs/integrations.md`, POS Service).
+pos-api puts the customer's email and phone on each event (`customer_email`/`customer_phone`, `referrer_email`,
+`guest_email`/`guest_phone`). The automatic receipt after a sale goes by email, and by WhatsApp only for a tenant that
+switched on "WhatsApp receipt after every sale" in notifications settings.
 

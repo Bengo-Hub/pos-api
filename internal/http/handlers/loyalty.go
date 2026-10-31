@@ -533,6 +533,7 @@ func (h *LoyaltyHandler) applyEarn(ctx context.Context, tid, accountID uuid.UUID
 			"account_id":     acc.ID.String(),
 			"customer_phone": acc.CustomerPhone,
 			"customer_name":  acc.CustomerName,
+			"customer_email": acc.CustomerEmail,
 			"points_earned":  points,
 			"balance_after":  newBalance,
 		}

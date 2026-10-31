@@ -547,6 +547,8 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 			"room_number":   room.RoomNumber,
 			"guest_id":      guest.ID,
 			"guest_name":    input.GuestName,
+			"guest_email":   guest.Email,
+			"guest_phone":   guest.Phone,
 			"nights":        input.Nights,
 			"total_charge":  totalCharge,
 			"check_in_date": now,
@@ -683,6 +685,8 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 			"room_id":        roomID,
 			"guest_id":       guest.ID,
 			"guest_name":     guest.GuestName,
+			"guest_email":    guest.Email,
+			"guest_phone":    guest.Phone,
 			"total_folio":    totalFolio,
 			"checked_out_at": now,
 		})

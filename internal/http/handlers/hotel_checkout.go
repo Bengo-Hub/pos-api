@@ -306,6 +306,7 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 			if h.publisher != nil {
 				_ = h.publisher.PublishHotelCheckOut(r.Context(), tid, map[string]any{
 					"room_id": roomID, "guest_id": guest.ID, "guest_name": guest.GuestName,
+					"guest_email": guest.Email, "guest_phone": guest.Phone,
 					"total_folio": summary.ChargesTotal, "checked_out_at": now,
 				})
 			}

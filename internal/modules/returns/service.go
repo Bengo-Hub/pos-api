@@ -584,14 +584,17 @@ func (s *Service) completedPayload(ctx context.Context, ret *ent.POSReturn, line
 			"unit_price":    l.UnitPrice,
 		})
 	}
-	orderNumber, customerName := "", ""
+	orderNumber, customerName, customerPhone := "", "", ""
 	if o, err := s.client.POSOrder.Query().
 		Where(entposorder.ID(ret.OrderID), entposorder.TenantID(ret.TenantID)).
-		Select(entposorder.FieldOrderNumber, entposorder.FieldCustomerName).
+		Select(entposorder.FieldOrderNumber, entposorder.FieldCustomerName, entposorder.FieldCustomerPhone).
 		Only(ctx); err == nil {
 		orderNumber = o.OrderNumber
 		if o.CustomerName != nil {
 			customerName = *o.CustomerName
+		}
+		if o.CustomerPhone != nil {
+			customerPhone = *o.CustomerPhone
 		}
 	}
 	return map[string]any{
@@ -601,6 +604,7 @@ func (s *Service) completedPayload(ctx context.Context, ret *ent.POSReturn, line
 		"order_id":            ret.OrderID,
 		"order_number":        orderNumber,
 		"customer_name":       customerName,
+		"customer_phone":      customerPhone,
 		"outlet_id":           ret.OutletID,
 		"return_type":         string(ret.ReturnType),
 		"refund_amount":       ret.RefundAmount,

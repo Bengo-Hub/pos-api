@@ -70,6 +70,7 @@ func (s *LayawayReminderScheduler) run(ctx context.Context) {
 			"layaway_plan_id": plan.ID,
 			"customer_name":   plan.CustomerName,
 			"customer_phone":  plan.CustomerPhone,
+			"customer_email":  plan.CustomerEmail,
 			"balance_due":     plan.RemainingAmount,
 			"due_date":        dueDate,
 		}
