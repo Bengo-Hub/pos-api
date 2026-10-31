@@ -158,6 +158,24 @@ New `ReceiptView`/JSON fields: `use_case`, `show_logo`, `payment_date`, `balance
 (total − collected; on-account credit sales carry the full amount due), `charges` (named
 breakdown) and `barcode_png` (data URI).
 
+## VAT included by rate (2026-10-31)
+
+Every customer receipt prints the VAT in the sale at each rate under the total, for example
+`VAT 16% on 377.16   60.34`. The figures are on what the customer paid: each line at its active
+quantity (voids taken out), its VAT scaled to that quantity, and any order discount shared across
+the lines before VAT. They come from the same lines the `pos.sale.finalized` event sends treasury,
+so the receipt, the books and the KRA eTIMS receipt declare the same VAT.
+
+- Built once in `BuildReceiptView` (`ReceiptView.VatSummary`, JSON `vat_summary`) with
+  `saletax.RateSummary`. The `saletax` package holds the sale VAT helpers (`LineGross`,
+  `OrderDiscountVAT`, `RateSummary`) shared by orders, payments and printing.
+- Rendered by the A4 HTML/PDF, thermal HTML/PDF and ESC/POS layouts (`layouts.vatSummaryRows`)
+  and by pos-ui's preview, thermal print and retail print (`vatSummaryRows` in
+  `lib/pos/receipt-rows.ts`).
+- Printed only when the outlet charges VAT (`vat_enabled`). A split-by-item guest bill carries
+  no summary, since its order-level tax figures are zeroed. Lines with no VAT are left out.
+- The existing `VAT (16%)` row above the total is unchanged.
+
 ## Receipt settings additions
 
 - `show_logo_on_receipt` (GET/PUT `/pos/settings`) — include the tenant/outlet logo on
