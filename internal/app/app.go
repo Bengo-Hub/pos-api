@@ -256,6 +256,12 @@ func New(ctx context.Context) (*App, error) {
 	// URL) embedded in pos.sale.notification_requested for notifications-service.
 	orderSvc.WithPublicAPIBase(cfg.Treasury.PublicBaseURL)
 	orderSvc.WithShortLinkBase(cfg.Treasury.ShortLinkBaseURL)
+	// A WhatsApp receipt is refused up front (402) when the tenant has no WhatsApp plan or credit,
+	// instead of being queued for notifications-api to drop.
+	orderSvc.WithMessagingGate(func(ctx context.Context, tenantID uuid.UUID, service string) (bool, bool, string) {
+		d := subsClient.MessagingAllowed(ctx, tenantID.String(), service)
+		return d.Allowed, d.Known, d.Reason
+	})
 
 	// Wire event publisher for POS order lifecycle events (shared-events outbox pattern)
 	var outboxPub *eventslib.Publisher

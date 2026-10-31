@@ -291,6 +291,56 @@ type Service struct {
 	// variantResolver identifies variant child SKUs for the metadata.variant line stamp
 	// (nil-safe: lines are then left unstamped).
 	variantResolver *VariantResolver
+	// messagingAllowed, when wired, answers whether the tenant may send on a paid channel
+	// (WhatsApp), so a receipt the tenant cannot pay for is refused here instead of queued.
+	messagingAllowed MessagingGate
+}
+
+// MessagingGate reports whether tenantID may send one message on a paid channel ("whatsapp"),
+// and why not. known is false when the answer is unavailable; the send then goes ahead.
+type MessagingGate func(ctx context.Context, tenantID uuid.UUID, service string) (allowed, known bool, reason string)
+
+// WithMessagingGate wires the paid-channel check used by RequestSaleNotification.
+func (s *Service) WithMessagingGate(g MessagingGate) *Service {
+	s.messagingAllowed = g
+	return s
+}
+
+// ErrMessagingNotActive is returned when the tenant has no plan or credit for the chosen channel.
+type ErrMessagingNotActive struct {
+	Channel string
+	Reason  string
+}
+
+func (e *ErrMessagingNotActive) Error() string {
+	if e.Reason == "service_not_activated" || e.Reason == "no_subscription" {
+		return "WhatsApp is not active for this business: buy a WhatsApp plan or bundle in Billing, or send the receipt by email"
+	}
+	return "WhatsApp credit is used up: buy a WhatsApp bundle in Billing, or send the receipt by email"
+}
+
+// ResolveReceiptChannel picks how a receipt goes out. Only email and WhatsApp are active
+// channels: an empty or "sms" request becomes email when there is an address, else WhatsApp,
+// and a chosen channel without its contact falls back to the other one. "" means nothing to send to.
+func ResolveReceiptChannel(channel, phone, email string) string {
+	phone, email = strings.TrimSpace(phone), strings.TrimSpace(email)
+	switch strings.ToLower(strings.TrimSpace(channel)) {
+	case "whatsapp":
+		if phone != "" {
+			return "whatsapp"
+		}
+	case "email":
+		if email != "" {
+			return "email"
+		}
+	}
+	if email != "" {
+		return "email"
+	}
+	if phone != "" {
+		return "whatsapp"
+	}
+	return ""
 }
 
 // WithPublicAPIBase wires pos-api's own public base URL so RequestSaleNotification can build a
@@ -1247,10 +1297,10 @@ func (s *Service) GetReceiptShareLink(ctx context.Context, tenantID, orderID uui
 
 // RequestSaleNotification publishes pos.sale.notification_requested for an order — the
 // All-Sales "New Sale Notification" action. notifications-service consumes it and sends the
-// customer their receipt/invoice (SMS/email/WhatsApp). It does NOT re-post to the ledger.
+// customer their receipt/invoice by email or WhatsApp. It does NOT re-post to the ledger.
 // overridePhone/overrideEmail let the cashier redirect the notification if the order has none.
-// channel picks the delivery channel ("sms" | "email" | "whatsapp" | "" for the notifications-
-// service default of SMS-with-fallback).
+// channel is resolved by ResolveReceiptChannel; a WhatsApp receipt the tenant has no plan or
+// credit for is refused with *ErrMessagingNotActive and nothing is published.
 func (s *Service) RequestSaleNotification(ctx context.Context, tenantID, orderID uuid.UUID, overridePhone, overrideEmail, channel string) (*ent.POSOrder, error) {
 	order, err := s.client.POSOrder.Query().
 		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
@@ -1282,6 +1332,16 @@ func (s *Service) RequestSaleNotification(ctx context.Context, tenantID, orderID
 	// just without the link.
 	downloadLink := s.receiptDownloadLink(order)
 
+	channel = ResolveReceiptChannel(channel, phone, email)
+	if channel == "" {
+		return nil, ErrNoReceiptContact
+	}
+	if channel == "whatsapp" && s.messagingAllowed != nil {
+		if allowed, known, reason := s.messagingAllowed(ctx, tenantID, "whatsapp"); known && !allowed {
+			return nil, &ErrMessagingNotActive{Channel: channel, Reason: reason}
+		}
+	}
+
 	if s.publisher != nil {
 		_ = s.publisher.PublishSaleNotificationRequested(ctx, tenantID, map[string]any{
 			"order_id":             orderID.String(),
@@ -1296,11 +1356,14 @@ func (s *Service) RequestSaleNotification(ctx context.Context, tenantID, orderID
 			"items":                items,
 			"etims_invoice_number": derefStr(order.EtimsInvoiceNumber),
 			"download_link":        downloadLink,
-			"channel":              strings.ToLower(strings.TrimSpace(channel)),
+			"channel":              channel,
 		})
 	}
 	return order, nil
 }
+
+// ErrNoReceiptContact means the sale has no phone or email and none was typed in.
+var ErrNoReceiptContact = errors.New("the sale has no phone number or email: enter one to send the receipt")
 
 // derefStr returns the pointed-to string or "" for a nil pointer.
 func derefStr(p *string) string {

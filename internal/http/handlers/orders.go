@@ -1609,7 +1609,8 @@ func (h *POSOrderHandler) UpdateShipping(w http.ResponseWriter, r *http.Request)
 }
 
 // notifySaleInput optionally redirects the sale notification to a specific phone/email and
-// picks the delivery channel (sms | email | whatsapp; empty = notifications-service default).
+// picks the delivery channel (email | whatsapp; empty or a legacy "sms" becomes email when there is
+// an address, else WhatsApp, see orders.ResolveReceiptChannel).
 type notifySaleInput struct {
 	Phone   string `json:"phone,omitempty"`
 	Email   string `json:"email,omitempty"`
@@ -1636,6 +1637,15 @@ func (h *POSOrderHandler) NotifySale(w http.ResponseWriter, r *http.Request) {
 	if _, err := h.orderSvc.RequestSaleNotification(r.Context(), tid, orderID, input.Phone, input.Email, input.Channel); err != nil {
 		if ent.IsNotFound(err) {
 			jsonError(w, "order not found", http.StatusNotFound)
+			return
+		}
+		var inactive *orders.ErrMessagingNotActive
+		if errors.As(err, &inactive) {
+			jsonError(w, inactive.Error(), http.StatusPaymentRequired)
+			return
+		}
+		if errors.Is(err, orders.ErrNoReceiptContact) {
+			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		h.log.Error("notify sale failed", zap.Error(err))

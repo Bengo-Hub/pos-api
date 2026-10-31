@@ -52,7 +52,7 @@ These are non-negotiable for any Kenyan deployment. Missing any of these makes t
 6. Waiter marks order served
 7. Customer requests bill; cashier presents total with VAT breakdown
 8. Payment: cash, card, M-Pesa, or split tender
-9. Receipt printed / SMS / eTIMS QR code
+9. Receipt printed / sent by email or WhatsApp / eTIMS QR code
 10. Table released to available
 
 **Key Features:** floor plan, course firing, bar tabs, order split, modifiers, KDS, void/return
@@ -251,3 +251,18 @@ These are non-negotiable for any Kenyan deployment. Missing any of these makes t
 | [pos-api sprints](sprints/) | Sprint-by-sprint task tracking for the Go API |
 | [pos-ui sprints](../../pos-ui/docs/sprints/) | Sprint-by-sprint task tracking for the Next.js PWA |
 | [Design reference](../../pos-ui/docs/use-case-designs/hotel-pos-v8.jsx) | Full UX prototype for hotel + restaurant + bar POS |
+
+## Receipt notifications (2026-10-31)
+
+`POST /{tenant}/pos/orders/{id}/notify` (All Sales, "Send Notification") sends the receipt by email or WhatsApp only.
+`orders.ResolveReceiptChannel` picks the channel: an empty or legacy `sms` request becomes email when there is an
+address, else WhatsApp, and a channel without its contact falls back to the other. A WhatsApp receipt for a business with
+no WhatsApp plan or credit is refused with `402` before anything is published (subscriptions-api
+`/s2s/credits/whatsapp/check`, no charge); `400` when the sale has no phone or email. pos-ui offers Email and WhatsApp
+only and shows the refusal message.
+
+Still SMS only, and so never delivered (SMS is not an active channel; notifications-api now drops them at the source for
+tenants without SMS credit): payment received notification, appointments, loyalty points and tier, returns, layaway due,
+KDS waiter call, low stock alert (`notifications-api cmd/worker/pos_consumer.go`), and repair status. Each needs an email
+template and an approved WhatsApp template before it reaches customers.
+
