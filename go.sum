@@ -8,6 +8,8 @@ github.com/Bengo-Hub/cache v0.5.7 h1:lqB2kBiEdIOPzfzc0UiE9yq7SKfacXTQJRRY1RFA4xo
 github.com/Bengo-Hub/cache v0.5.7/go.mod h1:E84NxTCaQD5/Z+9aFlFrg02E+EQaAfYP4UmzxRHgp2A=
 github.com/Bengo-Hub/httpware v0.16.0 h1:gOe5SAAj8n5SOwlb2CKVXc3nUjw7KAZ4KVGmFN04dgg=
 github.com/Bengo-Hub/httpware v0.16.0/go.mod h1:fQZJsyAaX8EjY5k57p36IbagSyOah/xKEAYrwgjz0Ec=
+github.com/Bengo-Hub/httpware v0.19.0 h1:3UTpgIdYBpscokDDWXz0nQYVwM2+GjxYVJnRhL1McjU=
+github.com/Bengo-Hub/httpware v0.19.0/go.mod h1:fQZJsyAaX8EjY5k57p36IbagSyOah/xKEAYrwgjz0Ec=
 github.com/Bengo-Hub/pagination v0.4.0 h1:l2QxsUSrdqDTekHOhifJUfZqp5FHAD20Y1Zmzii7JQQ=
 github.com/Bengo-Hub/pagination v0.4.0/go.mod h1:qXxXpX45Shf6qplVtxqEeOMeKiSr/W4nT4nMLQqF4/g=
 github.com/Bengo-Hub/shared-events v0.7.3 h1:4ERebReJHeM14f+qq8mCLtNLCmrBrmLpFnN7GU4LOxc=

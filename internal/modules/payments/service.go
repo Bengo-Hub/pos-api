@@ -1529,6 +1529,7 @@ func (s *Service) signEtimsSync(ctx context.Context, order *ent.POSOrder) {
 	if len(items) == 0 {
 		return
 	}
+	shareSignItemsDiscountVAT(items, order.DiscountTotal)
 
 	tenantSlug := ""
 	if outlet, oErr := s.client.Outlet.Get(ctx, order.OutletID); oErr == nil {
@@ -1769,6 +1770,7 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		}
 		items = append(items, item)
 	}
+	shareOrderDiscountVAT(items, order.DiscountTotal)
 
 	// Determine the SELLING SCHEME from the order's tenders so treasury routes the ledger correctly.
 	// A credit ("on account") sale has ALREADY posted the amount to the customer's AR balance in

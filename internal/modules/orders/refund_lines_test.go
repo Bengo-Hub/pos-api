@@ -24,6 +24,16 @@ func TestOrderDiscountRatio(t *testing.T) {
 	if got := OrderDiscountRatio(50, nil); got != 0 {
 		t.Fatalf("no lines: got %v", got)
 	}
+	// An exclusive line's total_price is net; its VAT counts toward the gross, so an undiscounted
+	// order with one is not mistaken for a discounted one (or the reverse).
+	tax := 16.0
+	mixed := []*ent.POSOrderLine{{TotalPrice: 100, TaxAmount: &tax, PriceIncludesTax: false}, {TotalPrice: 50, PriceIncludesTax: true}}
+	if got := OrderDiscountRatio(166, mixed); got != 0 {
+		t.Fatalf("undiscounted order with an exclusive line: got %v", got)
+	}
+	if got := OrderDiscountRatio(149.4, mixed); math.Abs(got-0.1) > 1e-9 {
+		t.Fatalf("10%% off a mixed order: got %v", got)
+	}
 }
 
 func TestBuildRefundLines(t *testing.T) {
@@ -48,13 +58,13 @@ func TestBuildRefundLines(t *testing.T) {
 		t.Fatalf("discounted gross %.4f, want 469.80", g)
 	}
 
-	// No tax on the line: the sale fell back to 16% inclusive, so the refund does too.
+	// No tax on the line: the sale carried no VAT, so the refund carries none (never an assumed 16%).
 	f := BuildRefundLines(0, []RefundLineInput{{Name: "Water", Quantity: 3, Gross: 240}})
-	if math.Abs(f[0].TaxRate-16) > 0.001 {
-		t.Fatalf("fallback rate: got %v", f[0].TaxRate)
+	if f[0].TaxRate != 0 {
+		t.Fatalf("an untaxed line must refund no VAT: rate %v", f[0].TaxRate)
 	}
 	if g := grossOf(f[0].Quantity, f[0].UnitPrice, f[0].TaxRate); math.Abs(g-240) > 0.005 {
-		t.Fatalf("fallback gross %.4f, want 240", g)
+		t.Fatalf("untaxed gross %.4f, want 240", g)
 	}
 
 	// Lines with nothing coming back are dropped.

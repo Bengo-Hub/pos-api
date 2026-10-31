@@ -66,6 +66,10 @@ func (s *Service) fiscalRefundFor(ctx context.Context, tenantSlug string, ret *e
 				}
 				in.Tax = *ol.TaxAmount * ratio
 			}
+			// An exclusive line's total_price is net: the refund gross includes its VAT.
+			if !ol.PriceIncludesTax {
+				in.Gross = l.TotalPrice + in.Tax
+			}
 		}
 		inputs = append(inputs, in)
 	}

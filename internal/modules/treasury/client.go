@@ -92,6 +92,9 @@ type SignPOSSaleItem struct {
 	TaxRate          float64 `json:"tax_rate,omitempty"`
 	TaxAmount        float64 `json:"tax_amount,omitempty"`
 	PriceIncludesTax bool    `json:"price_includes_tax"`
+	// PaidGross is what the customer paid for the line after its share of the order discount;
+	// TaxAmount is then the VAT in that amount (orders.OrderDiscountVAT). Unset with no discount.
+	PaidGross float64 `json:"paid_gross,omitempty"`
 }
 
 // SignPOSSaleTender mirrors one settled tender of the sale so treasury declares the real KRA

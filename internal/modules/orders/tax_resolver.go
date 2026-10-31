@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Bengo-Hub/httpware/money"
-
+	vat "github.com/Bengo-Hub/httpware/tax"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
@@ -20,7 +19,7 @@ const taxCodeCacheTTL = 10 * time.Minute
 type TaxCodeInfo struct {
 	Code    string  `json:"code"`
 	Rate    float64 `json:"rate"`     // e.g. 16.0
-	KRACode string  `json:"kra_code"` // KRA TaxTyCd: A=16%VAT, B=8%VAT, D=exempt, E=zero
+	KRACode string  `json:"kra_code"` // KRA eTIMS OSCU band: A exempt, B standard, C zero-rated, D non-VAT, E reduced
 	TaxType string  `json:"tax_type"` // "vat", "excise", etc.
 }
 
@@ -44,8 +43,8 @@ func NewTaxResolver(treasuryClient *treasury.Client, redisClient *redis.Client, 
 
 // Resolve returns the TaxCodeInfo for a given code string (e.g. "VAT-16").
 // Returns nil, nil when the code is not found in treasury — callers should treat as tax-exempt.
-// VAT is suppressed (rate→0, KRA code E=zero-rated) when the business is not VAT-active
-// (not VAT-registered) — a non-registered business must not charge VAT to its customers.
+// VAT is suppressed (rate 0, band D non-VAT) when the business is not VAT-active: a business that
+// is not VAT-registered must not charge VAT, and its supplies are outside VAT, not zero-rated.
 func (r *TaxResolver) Resolve(ctx context.Context, tenantSlug, taxCodeID string) (*TaxCodeInfo, error) {
 	if r.treasury == nil || taxCodeID == "" {
 		return nil, nil
@@ -59,7 +58,7 @@ func (r *TaxResolver) Resolve(ctx context.Context, tenantSlug, taxCodeID string)
 	if info.TaxType == "vat" && info.Rate > 0 && !r.vatActive(ctx, tenantSlug) {
 		gated := *info
 		gated.Rate = 0
-		gated.KRACode = "E" // zero-rated
+		gated.KRACode = string(vat.BandNonVAT)
 		return &gated, nil
 	}
 	return info, nil
@@ -231,23 +230,14 @@ func (r *TaxResolver) deleteByPattern(ctx context.Context, pattern string) {
 	}
 }
 
-// ComputeLineTax calculates the tax_amount for a single order line.
-// If priceIncludesTax=true (inclusive): tax is back-calculated from the total.
-// If priceIncludesTax=false (exclusive): tax is added on top of the total.
-// Returns (taxAmount, baseAmount, ok).
+// ComputeLineTax works out the VAT on one order line with the platform's shared calculator
+// (github.com/Bengo-Hub/httpware/tax), so the till, treasury and KRA agree to the cent. An inclusive
+// line total holds the VAT; an exclusive one has it added on top. Returns the VAT and the taxable
+// value, each rounded to 2 decimal places.
 func ComputeLineTax(lineTotal float64, taxRate float64, priceIncludesTax bool) (taxAmount, baseAmount float64) {
 	if taxRate <= 0 || lineTotal <= 0 {
 		return 0, lineTotal
 	}
-	rate := taxRate / 100.0
-	if priceIncludesTax {
-		// Inclusive: tax = total - (total / (1 + rate))
-		divisor := 1.0 + rate
-		base := lineTotal / divisor
-		tax := lineTotal - base
-		return money.Round2(tax), money.Round2(base)
-	}
-	// Exclusive: tax = total * rate
-	tax := lineTotal * rate
-	return money.Round2(tax), money.Round2(lineTotal)
+	net, tax, _ := vat.Split(lineTotal, taxRate, priceIncludesTax)
+	return tax, net
 }

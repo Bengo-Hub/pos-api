@@ -109,8 +109,35 @@ func (s *TaxSubscriber) SubscribeToTaxEvents(nc *nats.Conn) error {
 		s.resolver.InvalidateCodeAllTenants(ctx, code)
 	}, nats.Durable("pos-treasury-tax-updated"), nats.ManualAck())
 
-	s.log.Info("tax event subscription registered (treasury.tax.code_updated)")
+	// A VAT switch or a tax settings change affects every code and the till's own settings, so it
+	// drops the tenant's whole cached tax state.
+	s.subscribeTenantInvalidation(js, "treasury.tax.vat_status_changed", "pos-treasury-vat-status")
+	s.subscribeTenantInvalidation(js, "treasury.tax.settings_changed", "pos-treasury-tax-settings")
+
+	s.log.Info("tax event subscriptions registered (treasury.tax.code_updated, vat_status_changed, settings_changed)")
 	return nil
+}
+
+// subscribeTenantInvalidation drops all cached tax data for the event's tenant. Best-effort and
+// always acked; the cache TTL is the backstop.
+func (s *TaxSubscriber) subscribeTenantInvalidation(js nats.JetStreamContext, subject, durable string) {
+	sharedevents.SubscribeQueueWithRebind(s.log, js, "treasury", subject, durable, func(msg *nats.Msg) {
+		defer func() { _ = msg.Ack() }()
+		var evt taxCodeUpdatedEvent
+		if err := json.Unmarshal(msg.Data, &evt); err != nil {
+			s.log.Error(subject+": unmarshal", zap.Error(err))
+			return
+		}
+		tenantID := evt.Payload.TenantID
+		if tenantID == "" {
+			tenantID = evt.TenantID
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if slug := s.slugForTenant(ctx, tenantID); slug != "" {
+			s.resolver.InvalidateTenant(ctx, slug)
+		}
+	}, nats.Durable(durable), nats.ManualAck())
 }
 
 // slugForTenant maps a tenant UUID string to its slug using the local Tenant projection.

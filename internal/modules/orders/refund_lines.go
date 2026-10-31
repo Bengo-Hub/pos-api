@@ -18,13 +18,14 @@ type RefundLineInput struct {
 	TaxCode  string
 }
 
-// OrderDiscountRatio is the share of the order's gross that was discounted at the header. POS keeps
-// no per line discount, so the sale spread the header discount over its lines by this ratio when it
-// was sent to KRA, and a refund has to spread it the same way to reverse what was recorded.
+// OrderDiscountRatio is the share of the order's gross that was discounted at the header. The sale
+// spread the header discount over its lines by gross when it was sent to KRA, and a refund has to
+// spread it the same way to reverse what was recorded. An exclusive line's total_price is net, so
+// its VAT is added back to compare it with the order total.
 func OrderDiscountRatio(orderTotal float64, orderLines []*ent.POSOrderLine) float64 {
 	var gross float64
 	for _, l := range orderLines {
-		gross += l.TotalPrice
+		gross += LineGross(l)
 	}
 	if gross > orderTotal && gross > 0 {
 		return (gross - orderTotal) / gross
@@ -32,8 +33,14 @@ func OrderDiscountRatio(orderTotal float64, orderLines []*ent.POSOrderLine) floa
 	return 0
 }
 
-// vatInclusiveFallback matches the sale's fallback when a line carries no tax amount.
-const vatInclusiveFallback = 1.16
+// LineGross is what an order line costs with its VAT: total_price for an inclusive line, total_price
+// plus tax_amount for an exclusive one.
+func LineGross(l *ent.POSOrderLine) float64 {
+	if !l.PriceIncludesTax && l.TaxAmount != nil && *l.TaxAmount > 0 {
+		return l.TotalPrice + *l.TaxAmount
+	}
+	return l.TotalPrice
+}
 
 // BuildRefundLines turns returned lines into the lines treasury raises the credit note from. Each
 // line is netted of the order discount, then split into a price before tax and a tax rate so that
@@ -45,9 +52,11 @@ func BuildRefundLines(discRatio float64, in []RefundLineInput) []treasury.Refund
 			continue
 		}
 		eff := l.Gross * (1 - discRatio)
-		tax := l.Tax * (1 - discRatio)
-		if l.Tax <= 0 {
-			tax = eff - eff/vatInclusiveFallback
+		// A line that carried no VAT refunds none; treasury's registered-band check decides the
+		// rest, the same way it did for the sale.
+		tax := 0.0
+		if l.Tax > 0 {
+			tax = l.Tax * (1 - discRatio)
 		}
 		net := eff - tax
 		rate := 0.0
