@@ -1,9 +1,23 @@
-package orders
+// Package saletax works out the VAT of a POS sale as declared: per line, with the order discount
+// shared across the lines before VAT, through the platform's shared calculator. It depends on no
+// other module, so orders, payments (sale events) and printing (receipts) all use the same figures.
+package saletax
 
 import (
 	"github.com/Bengo-Hub/httpware/money"
 	vat "github.com/Bengo-Hub/httpware/tax"
+
+	"github.com/bengobox/pos-service/internal/ent"
 )
+
+// LineGross is what an order line costs with its VAT: total_price for an inclusive line, total_price
+// plus tax_amount for an exclusive one.
+func LineGross(l *ent.POSOrderLine) float64 {
+	if !l.PriceIncludesTax && l.TaxAmount != nil && *l.TaxAmount > 0 {
+		return l.TotalPrice + *l.TaxAmount
+	}
+	return l.TotalPrice
+}
 
 // SaleLineVATInput is one sold line as pos-api stores it: total_price (VAT-inclusive, or net with
 // tax_amount on top for an exclusive line), the VAT recorded at the till and its rate.

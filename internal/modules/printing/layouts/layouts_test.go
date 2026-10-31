@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bengobox/pos-service/internal/modules/saletax"
 )
 
 func fixtureReceipt(useCase string) Receipt {
@@ -131,6 +133,7 @@ func TestVatDisabledNeverShowsTaxLine(t *testing.T) {
 	rec.TaxAmount = 40
 	rec.VatRate = 16
 	rec.VatEnabled = false
+	rec.VatSummary = []saletax.RateRow{{Rate: 16, Taxable: 250, Tax: 40}}
 	for _, l := range All() {
 		rec.Layout = l.ID
 		html := string(RenderHTML(rec, ""))
@@ -151,6 +154,25 @@ func TestVatEnabledShowsTaxLine(t *testing.T) {
 		html := string(RenderHTML(rec, ""))
 		if !strings.Contains(html, "VAT") {
 			t.Errorf("layout %s must render the VAT line when VatEnabled=true and tax_amount>0", l.ID)
+		}
+	}
+}
+
+// Every layout prints the VAT included at each rate, on what was paid, under the total.
+func TestVatSummaryRendersPerRate(t *testing.T) {
+	rec := fixtureReceipt("retail")
+	rec.VatEnabled = true
+	rec.VatSummary = []saletax.RateRow{{Rate: 16, Taxable: 377.16, Tax: 60.34}, {Rate: 8, Taxable: 100, Tax: 8}}
+	for _, l := range All() {
+		rec.Layout = l.ID
+		html := string(RenderHTML(rec, ""))
+		for _, want := range []string{"VAT 16% on", "377.16", "60.34", "VAT 8% on"} {
+			if !strings.Contains(html, want) {
+				t.Errorf("layout %s missing VAT summary text %q", l.ID, want)
+			}
+		}
+		if pdf, err := RenderPDF(rec, Brand{}); err != nil || len(pdf) == 0 {
+			t.Errorf("layout %s PDF with a VAT summary failed: %v", l.ID, err)
 		}
 	}
 }

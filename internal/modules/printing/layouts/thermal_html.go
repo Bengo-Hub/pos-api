@@ -215,6 +215,9 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Round Off</span><span>%s</span></div>`, amount(rec.RoundOff)))
 	}
 	buf.WriteString(fmt.Sprintf(`<div class="line bold tot"><span>%s</span><span>%s %s</span></div>`, escape(totalLabel(rec, "")), amount(rec.TotalAmount), escape(rec.Currency)))
+	for _, vr := range vatSummaryRows(rec) {
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>%s</span><span>%s</span></div>`, escape(vr[0]), escape(vr[1])))
+	}
 	// Payment method with settle date on retail ("Cash (14-07-2026)") — matches ESC/POS.
 	if rec.UseCase == "retail" {
 		if pl := paymentMethodLabel(rec); pl != "" {

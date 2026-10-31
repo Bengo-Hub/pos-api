@@ -300,6 +300,7 @@ func newReceiptResponse(v printing.ReceiptView, layout string) receiptResponse {
 		ReceiptFooter:               v.ReceiptFooter,
 		VatEnabled:                  v.VatEnabled,
 		VatRate:                     v.VatRate,
+		VatSummary:                  v.VatSummary,
 		PaperWidth:                  v.PaperWidth,
 		ServedBy:                    v.ServedBy,
 		UseCase:                     v.UseCase,

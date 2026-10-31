@@ -4,6 +4,7 @@ import (
 	"github.com/Bengo-Hub/httpware/money"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/modules/saletax"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
 
@@ -25,21 +26,12 @@ type RefundLineInput struct {
 func OrderDiscountRatio(orderTotal float64, orderLines []*ent.POSOrderLine) float64 {
 	var gross float64
 	for _, l := range orderLines {
-		gross += LineGross(l)
+		gross += saletax.LineGross(l)
 	}
 	if gross > orderTotal && gross > 0 {
 		return (gross - orderTotal) / gross
 	}
 	return 0
-}
-
-// LineGross is what an order line costs with its VAT: total_price for an inclusive line, total_price
-// plus tax_amount for an exclusive one.
-func LineGross(l *ent.POSOrderLine) float64 {
-	if !l.PriceIncludesTax && l.TaxAmount != nil && *l.TaxAmount > 0 {
-		return l.TotalPrice + *l.TaxAmount
-	}
-	return l.TotalPrice
 }
 
 // BuildRefundLines turns returned lines into the lines treasury raises the credit note from. Each

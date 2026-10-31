@@ -11,6 +11,8 @@ import (
 
 	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/google/uuid"
+
+	"github.com/bengobox/pos-service/internal/modules/saletax"
 )
 
 // Line is a single line item on the receipt.
@@ -61,8 +63,8 @@ type Receipt struct {
 	// tenant name by default, or the outlet's own name when the tenant turned that off for a
 	// non-HQ outlet (see printing.ReceiptView.DisplayName). Falls back to OutletName when empty
 	// (older/unresolved receipts) so no layout ever renders a blank header.
-	DisplayName   string    `json:"display_name,omitempty"`
-	OutletAddress string    `json:"outlet_address,omitempty"`
+	DisplayName   string `json:"display_name,omitempty"`
+	OutletAddress string `json:"outlet_address,omitempty"`
 	// Formatted labeled-phone line from the outlet's contact_phones metadata —
 	// printed under the address as "Mobile: AIRTEL +2547… · MTN +2567…".
 	OutletPhones string `json:"outlet_phones,omitempty"`
@@ -124,8 +126,10 @@ type Receipt struct {
 	ReceiptFooter string  `json:"receipt_footer,omitempty"`
 	VatEnabled    bool    `json:"vat_enabled"`
 	VatRate       float64 `json:"vat_rate,omitempty"`
-	PaperWidth    string  `json:"paper_width,omitempty"`
-	ServedBy      string  `json:"served_by,omitempty"`
+	// VatSummary is the VAT in the sale by rate, on what was paid (printing.ReceiptView.VatSummary).
+	VatSummary []saletax.RateRow `json:"vat_summary,omitempty"`
+	PaperWidth string            `json:"paper_width,omitempty"`
+	ServedBy   string            `json:"served_by,omitempty"`
 	// UseCase is the outlet's use case ("retail", "hospitality", …). Kept for retail-specific
 	// content (barcode, Amount Paid line); layout selection is driven by Layout, not UseCase.
 	UseCase string `json:"use_case,omitempty"`

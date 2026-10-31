@@ -147,6 +147,23 @@ func headerDuplicatesLocation(header, companyName, outletName, outletAddress str
 	return false
 }
 
+// vatSummaryRows is the "VAT included" block every layout prints under the total: one row per
+// rate, "VAT 16% on 377.16" with the VAT as the value, on what the customer paid. Only for an
+// outlet that charges VAT.
+func vatSummaryRows(rec Receipt) [][2]string {
+	if !rec.VatEnabled || len(rec.VatSummary) == 0 {
+		return nil
+	}
+	out := make([][2]string, 0, len(rec.VatSummary))
+	for _, r := range rec.VatSummary {
+		out = append(out, [2]string{
+			fmt.Sprintf("VAT %g%% on %s", r.Rate, money(rec.Currency, r.Taxable)),
+			money(rec.Currency, r.Tax),
+		})
+	}
+	return out
+}
+
 // taxLabel is the shared "VAT (16%)" / "Tax" label used by every layout.
 func taxLabel(rec Receipt) string {
 	if rec.VatRate > 0 {

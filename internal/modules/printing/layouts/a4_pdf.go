@@ -167,6 +167,9 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 		trow("Round Off:", money(rec.Currency, rec.RoundOff), false)
 	}
 	trow(totalLabel(rec, ":"), money(rec.Currency, rec.TotalAmount), true)
+	for _, vr := range vatSummaryRows(rec) {
+		trow(vr[0], vr[1], false)
+	}
 	if pl := paymentMethodLabel(rec); pl != "" && rec.AmountPaid > 0 {
 		trow(pl, money(rec.Currency, rec.AmountPaid), false)
 	}

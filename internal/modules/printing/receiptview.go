@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/modules/saletax"
 )
 
 // ServedByFromContext resolves a "served by" display value for a receipt from the request's auth
@@ -185,6 +186,9 @@ type ReceiptView struct {
 
 	VatEnabled bool
 	VatRate    float64
+	// VatSummary is the VAT in this sale by rate, on what was paid (saletax.RateSummary), the same
+	// figures the sale event sends treasury and KRA. Empty on a split bill or a sale with no VAT.
+	VatSummary []saletax.RateRow
 
 	ReceiptHeader string
 	ReceiptFooter string
@@ -498,6 +502,10 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 			items = append(items, ReceiptLine{SKU: l.Sku, Name: receiptLineName(l), Quantity: activeQty, UnitPrice: l.UnitPrice, TotalPrice: l.UnitPrice * activeQty, AddedAt: l.CreatedAt})
 		}
 	}
+	var vatSummary []saletax.RateRow
+	if opts.SplitLineIDs == nil {
+		vatSummary = saleVATSummary(lines, order.DiscountTotal)
+	}
 
 	// Balance still owed on the sale (negative = customer credit / over-payment). Keyed off the
 	// order's maintained paid_total so a credit/on-account sale correctly shows the FULL amount
@@ -531,6 +539,7 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		Currency:           currency,
 		Subtotal:           subtotal,
 		TaxAmount:          taxAmount,
+		VatSummary:         vatSummary,
 		DiscountAmount:     discountAmount,
 		ChargesTotal:       chargesTotal,
 		Charges:            chargesBreakdown(order.Metadata),
@@ -576,6 +585,33 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 	applyOutletContext(&v, outlet, setting, opts.TenantName)
 
 	return v
+}
+
+// saleVATSummary is the receipt's VAT by rate, from the lines exactly as the sale event sends them
+// (payments.Service): each line at its active quantity, its VAT scaled to that quantity, and the
+// order discount shared before VAT. A receipt therefore never declares a different VAT from the
+// one treasury books and KRA receives.
+func saleVATSummary(lines []*ent.POSOrderLine, discount float64) []saletax.RateRow {
+	in := make([]saletax.SaleLineVATInput, 0, len(lines))
+	for _, l := range lines {
+		qty := l.Quantity
+		if l.VoidedQty != nil {
+			qty -= *l.VoidedQty
+		}
+		if qty <= 0 || l.Quantity <= 0 {
+			continue
+		}
+		share := qty / l.Quantity
+		row := saletax.SaleLineVATInput{TotalPrice: l.TotalPrice * share, Inclusive: l.PriceIncludesTax}
+		if l.TaxAmount != nil {
+			row.TaxAmount = *l.TaxAmount * share
+		}
+		if l.TaxRate != nil {
+			row.TaxRate = *l.TaxRate
+		}
+		in = append(in, row)
+	}
+	return saletax.RateSummary(in, discount)
 }
 
 // headerRepeatsOutletIdentity reports whether a custom receipt-header string just repeats the

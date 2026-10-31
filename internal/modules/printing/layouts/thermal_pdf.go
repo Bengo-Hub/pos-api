@@ -249,6 +249,9 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 		line("Round Off", moneyLine(rec.RoundOff), "", 9)
 	}
 	line(totalLabel(rec, ""), moneyLine(rec.TotalAmount), "B", 12)
+	for _, vr := range vatSummaryRows(rec) {
+		line(vr[0], vr[1], "", 8)
+	}
 	hr()
 
 	// Payment

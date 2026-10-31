@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/bengobox/pos-service/internal/modules/saletax"
 )
 
 // ESC/POS control bytes
@@ -44,13 +46,15 @@ type ReceiptData struct {
 	// are stored in UTC and the pods run on UTC, so without it a ticket reads hours behind the
 	// local clock. nil prints in Africa/Nairobi. Not part of the JSON receipt_data the browser
 	// renders (the browser formats DateTime in its own zone).
-	Location      *time.Location `json:"-"`
-	Header        string         // custom header text from OutletSetting
-	Footer        string         // custom footer text from OutletSetting
-	Items         []ReceiptItem
-	Subtotal      float64
-	TaxTotal      float64
-	VatRate       float64 // percentage, e.g. 16 — 0 means "unknown", falls back to the plain "Tax" label
+	Location *time.Location `json:"-"`
+	Header   string         // custom header text from OutletSetting
+	Footer   string         // custom footer text from OutletSetting
+	Items    []ReceiptItem
+	Subtotal float64
+	TaxTotal float64
+	VatRate  float64 // percentage, e.g. 16 — 0 means "unknown", falls back to the plain "Tax" label
+	// VatSummary is the VAT by rate printed under the total; empty when the outlet charges no VAT.
+	VatSummary    []saletax.RateRow
 	DiscountTotal float64
 	ChargesTotal  float64
 	RoundOff      float64
@@ -293,6 +297,10 @@ func BuildReceipt(d ReceiptData) []byte {
 		write(escBold)
 		writeln(formatLine("TOTAL", fmt.Sprintf("%s %.2f", d.Currency, d.TotalAmount)))
 		write(escSizeReset)
+		// VAT included, by rate, on what was paid (the figures KRA receives).
+		for _, r := range d.VatSummary {
+			writeln(formatLine(fmt.Sprintf("VAT %g%% on %.2f", r.Rate, r.Taxable), fmt.Sprintf("%s %.2f", d.Currency, r.Tax)))
+		}
 		if d.PaymentMethod != "" {
 			// Retail prints the settle date beside the method — "Payment  Cash (14-07-2026)".
 			method := d.PaymentMethod

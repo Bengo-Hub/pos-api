@@ -7,6 +7,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/modules/orderchannel"
+	"github.com/bengobox/pos-service/internal/modules/saletax"
 )
 
 // OutletLocation resolves the outlet's display timezone for every printed timestamp (schema
@@ -51,6 +52,15 @@ func OrderReceiptDataOpts(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet
 	d := receiptDataFromView(view, OutletLocation(outlet))
 	d.QRRaster = qrRasterFromSetting(setting)
 	return d
+}
+
+// escposVATSummary is the per-rate VAT block for the thermal bytes, printed only for an outlet that
+// charges VAT, the same rule as layouts.vatSummaryRows.
+func escposVATSummary(v ReceiptView) []saletax.RateRow {
+	if !v.VatEnabled {
+		return nil
+	}
+	return v.VatSummary
 }
 
 // qrRasterFromSetting reads the customer/bill printer profile's `qr_native` capability
@@ -230,6 +240,7 @@ func receiptDataFromView(v ReceiptView, loc *time.Location) ReceiptData {
 		Subtotal:                    v.Subtotal,
 		TaxTotal:                    v.TaxAmount,
 		VatRate:                     v.VatRate,
+		VatSummary:                  escposVATSummary(v),
 		DiscountTotal:               v.DiscountAmount,
 		ChargesTotal:                v.ChargesTotal,
 		RoundOff:                    v.RoundOff,
