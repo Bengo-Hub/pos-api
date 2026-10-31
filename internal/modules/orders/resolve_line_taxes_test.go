@@ -34,7 +34,7 @@ func TestResolveLineTaxes_AppliesOutletFallback(t *testing.T) {
 	lines := []OrderLineInput{{SKU: "NO-CATALOG-TAX", UnitPrice: 100, Quantity: 1}}
 	fallbackRate := decimal.NewFromFloat(0.16) // 16%
 
-	got := svc.ResolveLineTaxes(context.Background(), uuid.New(), "test-tenant", lines, fallbackRate)
+	got := svc.ResolveLineTaxes(context.Background(), uuid.New(), "test-tenant", lines, OutletTaxFallback{Rate: fallbackRate})
 	if len(got) != 1 {
 		t.Fatalf("expected 1 resolved tax, got %d", len(got))
 	}
@@ -49,13 +49,13 @@ func TestResolveLineTaxes_AppliesOutletFallback(t *testing.T) {
 	}
 }
 
-// TestResolveLineTaxes_NoFallbackWhenRateZero confirms a VAT-disabled outlet (fallbackRate=0,
-// what OutletFallbackTaxRate returns when OutletSetting.VatEnabled is false) never fabricates tax.
+// TestResolveLineTaxes_NoFallbackWhenRateZero confirms a VAT-disabled outlet (no fallback,
+// what OutletFallbackTax returns when OutletSetting.VatEnabled is false) never fabricates tax.
 func TestResolveLineTaxes_NoFallbackWhenRateZero(t *testing.T) {
 	svc, _ := newTestOrdersService(t)
 	lines := []OrderLineInput{{SKU: "NO-CATALOG-TAX", UnitPrice: 100, Quantity: 1}}
 
-	got := svc.ResolveLineTaxes(context.Background(), uuid.New(), "test-tenant", lines, decimal.Zero)
+	got := svc.ResolveLineTaxes(context.Background(), uuid.New(), "test-tenant", lines, OutletTaxFallback{})
 	if got[0].HasInfo || got[0].Amount != 0 {
 		t.Errorf("got %+v, want a zero/no-info resolution when fallbackRate is 0", got[0])
 	}
@@ -69,7 +69,7 @@ func TestResolveLineTaxes_FallbackSkipsInclusiveLine(t *testing.T) {
 	svc, _ := newTestOrdersService(t)
 	lines := []OrderLineInput{{SKU: "INCLUSIVE-ITEM", UnitPrice: 116, Quantity: 1, PriceIncludesTax: true}}
 
-	got := svc.ResolveLineTaxes(context.Background(), uuid.New(), "test-tenant", lines, decimal.NewFromFloat(0.16))
+	got := svc.ResolveLineTaxes(context.Background(), uuid.New(), "test-tenant", lines, OutletTaxFallback{Rate: decimal.NewFromFloat(0.16)})
 	if got[0].HasInfo || got[0].Amount != 0 {
 		t.Errorf("got %+v, want no fallback applied to an inclusive-price line", got[0])
 	}
@@ -81,7 +81,7 @@ func TestResolveLineTaxes_FallbackSkipsExemptLine(t *testing.T) {
 	svc, _ := newTestOrdersService(t)
 	lines := []OrderLineInput{{SKU: "EXEMPT-ITEM", UnitPrice: 100, Quantity: 1, TaxStatus: "zero_rated"}}
 
-	got := svc.ResolveLineTaxes(context.Background(), uuid.New(), "test-tenant", lines, decimal.NewFromFloat(0.16))
+	got := svc.ResolveLineTaxes(context.Background(), uuid.New(), "test-tenant", lines, OutletTaxFallback{Rate: decimal.NewFromFloat(0.16)})
 	if got[0].Amount != 0 {
 		t.Errorf("Amount = %v, want 0 (zero_rated line must never be fallback-taxed)", got[0].Amount)
 	}

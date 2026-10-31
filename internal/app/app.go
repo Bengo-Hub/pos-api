@@ -242,7 +242,6 @@ func New(ctx context.Context) (*App, error) {
 	// Initialize business services
 	orderSvc := ordermodule.NewService(entClient, ordermodule.Config{
 		DefaultCurrency: cfg.App.DefaultCurrency,
-		TaxRatePercent:  cfg.App.TaxRatePercent,
 		OrderPrefix:     cfg.App.OrderPrefix,
 	}, log)
 

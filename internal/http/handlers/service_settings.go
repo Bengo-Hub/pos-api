@@ -19,6 +19,7 @@ import (
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
+	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/modules/printing/layouts"
@@ -89,6 +90,9 @@ type settingsResponse struct {
 	Currency                 string  `json:"currency"`
 	VATEnabled               bool    `json:"vat_enabled"`
 	VATRate                  float64 `json:"vat_rate"`
+	// FallbackTaxCode is the treasury tax code charged on items with no tax code of their own
+	// (metadata fallback_tax_code; see orders.OutletFallbackTax). Empty when none was picked.
+	FallbackTaxCode string `json:"fallback_tax_code"`
 	// printer
 	PrinterType      string  `json:"printer_type"`
 	PrinterIP        *string `json:"printer_ip"`
@@ -218,6 +222,7 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		Currency:                         s.Currency,
 		VATEnabled:                       s.VatEnabled,
 		VATRate:                          s.VatRate,
+		FallbackTaxCode:                  metaString(s.Metadata, orders.MetaKeyFallbackTaxCode),
 		PrinterType:                      s.PrinterType,
 		PaperWidth:                       s.PaperWidth,
 		ReceiptFormat:                    string(s.ReceiptFormat),
@@ -546,6 +551,7 @@ type updateSettingsInput struct {
 	Currency                 *string          `json:"currency"`
 	VATEnabled               *bool            `json:"vat_enabled"`
 	VATRate                  *float64         `json:"vat_rate"`
+	FallbackTaxCode          *string          `json:"fallback_tax_code"`
 	PrinterType              *string          `json:"printer_type"`
 	PrinterIP                *string          `json:"printer_ip"`
 	PaperWidth               *string          `json:"paper_width"`
@@ -786,7 +792,7 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	// merge of both). Any FUTURE freeform-metadata setting must be added to THIS block.
 	if input.ShowLogoOnReceipt != nil || input.ShowTenantEmailOnReceipt != nil || input.RestrictCreditSaleRefundToOffset != nil || input.ShowTenantNameOnReceipt != nil ||
 		input.HideDraftDeleteForCashier != nil || input.HideDraftResumeForCashier != nil || input.HideProfitMarginForCashier != nil ||
-		input.ReturnNoRestockReasons != nil {
+		input.ReturnNoRestockReasons != nil || input.FallbackTaxCode != nil {
 		meta := map[string]any{}
 		for k, v := range setting.Metadata {
 			meta[k] = v
@@ -814,6 +820,13 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 		}
 		if input.HideProfitMarginForCashier != nil {
 			meta[outletmw.MetaKeyHideProfitMarginForCashier] = *input.HideProfitMarginForCashier
+		}
+		if input.FallbackTaxCode != nil {
+			if code := strings.TrimSpace(*input.FallbackTaxCode); code != "" {
+				meta[orders.MetaKeyFallbackTaxCode] = code
+			} else {
+				delete(meta, orders.MetaKeyFallbackTaxCode)
+			}
 		}
 		upd = upd.SetMetadata(meta)
 	}

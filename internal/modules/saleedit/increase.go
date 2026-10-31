@@ -131,7 +131,7 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 		// orders.ResolveLineTaxes returns an unexported element type (can't be named here), so
 		// convert inline via field access — every field this copies is exported.
 		raw := s.orderSvc.ResolveLineTaxes(ctx, tenantID, req.TenantSlug, addedInputs,
-			s.orderSvc.OutletFallbackTaxRate(ctx, order.OutletID))
+			s.orderSvc.OutletFallbackTax(ctx, order.OutletID))
 		addedTaxes = make([]resolvedAddedLineTax, len(raw))
 		for i, t := range raw {
 			addedTaxes[i] = resolvedAddedLineTax{

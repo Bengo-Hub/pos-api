@@ -255,7 +255,6 @@ type Service struct {
 	client          *ent.Client
 	log             *zap.Logger
 	defaultCurrency string
-	taxRate         decimal.Decimal // fallback tax rate when treasury tax code not available
 	orderPrefix     string
 	publisher       *events.Publisher
 	taxResolver     *TaxResolver // resolves tax codes from treasury with Redis cache
@@ -450,7 +449,6 @@ func (s *Service) GetPublisher() *events.Publisher {
 // Config holds order service configuration.
 type Config struct {
 	DefaultCurrency string
-	TaxRatePercent  float64 // e.g. 16.0 for 16% VAT
 	OrderPrefix     string
 }
 
@@ -464,57 +462,11 @@ func NewService(client *ent.Client, cfg Config, log *zap.Logger) *Service {
 	if prefix == "" {
 		prefix = "POS"
 	}
-	taxRate := decimal.NewFromFloat(cfg.TaxRatePercent).Div(decimal.NewFromInt(100))
-
 	return &Service{
 		client:          client,
 		log:             log.Named("orders.service"),
 		defaultCurrency: currency,
-		taxRate:         taxRate,
 		orderPrefix:     prefix,
-	}
-}
-
-// CalculateTotals computes subtotal, tax, discount, and total for order lines using the flat
-// fallback rate. Tax-inclusive lines (PriceIncludesTax) already contain their VAT inside the
-// line price, so they are NEVER taxed again on top — mirroring the till's cart math
-// (pos-ui src/lib/pos/cart-tax.ts). Prefer calculateTotalsWithTaxes when per-line treasury
-// tax resolutions are available.
-func (s *Service) CalculateTotals(lines []OrderLineInput, discountAmount decimal.Decimal) OrderTotals {
-	subtotal := decimal.Zero
-	taxableAmount := decimal.Zero
-
-	for _, line := range lines {
-		lineTotal := decimal.NewFromFloat(line.TotalPrice)
-		if lineTotal.IsZero() {
-			lineTotal = decimal.NewFromFloat(line.UnitPrice).Mul(decimal.NewFromFloat(line.Quantity))
-		}
-		subtotal = subtotal.Add(lineTotal)
-
-		if (line.TaxStatus == "" || line.TaxStatus == "taxable") && !line.PriceIncludesTax {
-			taxableAmount = taxableAmount.Add(lineTotal)
-		}
-	}
-
-	taxTotal := decimal.Zero
-	if s.taxRate.IsPositive() {
-		taxTotal = taxableAmount.Mul(s.taxRate).Round(2)
-	}
-
-	if discountAmount.IsNegative() {
-		discountAmount = decimal.Zero
-	}
-
-	totalAmount := subtotal.Add(taxTotal).Sub(discountAmount)
-	if totalAmount.IsNegative() {
-		totalAmount = decimal.Zero
-	}
-
-	return OrderTotals{
-		Subtotal:      subtotal.Round(2),
-		TaxTotal:      taxTotal.Round(2),
-		DiscountTotal: discountAmount.Round(2),
-		TotalAmount:   totalAmount.Round(2),
 	}
 }
 
@@ -531,8 +483,8 @@ type resolvedLineTax struct {
 
 // ResolveLineTaxes resolves tax for every line: the caller's explicit tax code → the local
 // catalog projection default (POSCatalogOverride) → the till-provided rate (treasury-enriched
-// catalog, carried on the create request) → the outlet's flat fallback VAT rate (see
-// OutletFallbackTaxRate) for a line with none of the above. Lines marked tax_exempt / zero_rated
+// catalog, carried on the create request) → the outlet's fallback tax code, else its VAT rate
+// (see OutletFallbackTax) for a line with none of the above. Lines marked tax_exempt / zero_rated
 // resolve to a definitive zero so the fallback flat rate never taxes them.
 //
 // The fallback tier is resolved HERE, not left to the caller's own totals math, so that
@@ -547,7 +499,7 @@ type resolvedLineTax struct {
 // subtotal) lost its entire tax_total on the very next Edit-Sale edit. Exported (capital R) so
 // saleedit's in-place-increase path can resolve an added line's tax identically instead of its
 // own narrower, client-rate-only helper.
-func (s *Service) ResolveLineTaxes(ctx context.Context, tenantID uuid.UUID, tenantSlug string, lines []OrderLineInput, fallbackRate decimal.Decimal) []resolvedLineTax {
+func (s *Service) ResolveLineTaxes(ctx context.Context, tenantID uuid.UUID, tenantSlug string, lines []OrderLineInput, fallback OutletTaxFallback) []resolvedLineTax {
 	out := make([]resolvedLineTax, len(lines))
 
 	// Batch-load catalog tax defaults for all SKUs (synced from inventory-api ← treasury-api).
@@ -615,13 +567,22 @@ func (s *Service) ResolveLineTaxes(ctx context.Context, tenantID uuid.UUID, tena
 			r.Amount, _ = ComputeLineTax(lineTotal, r.Rate, r.Inclusive)
 			r.HasInfo = true
 		}
-		// Nothing catalog/till-level resolved — fall back to the outlet's flat VAT rate, the
-		// SAME rate calculateTotalsWithTaxes used to apply only at the order-total level. Applying
-		// it here too (never for an inclusive line — its VAT is already embedded in the price) is
-		// what makes it survive every later totals recompute-from-lines; see this function's own
-		// doc comment above.
-		if !r.HasInfo && !r.Inclusive && fallbackRate.IsPositive() {
-			ratePct, _ := fallbackRate.Mul(decimal.NewFromInt(100)).Float64()
+		// Nothing catalog/till-level resolved: the outlet's fallback. Never for an inclusive line,
+		// so the payable matches the till. Its treasury code first, resolved like any coded line
+		// (rate, KRA band, and zero for a tenant not registered for VAT).
+		if !r.HasInfo && !r.Inclusive && fallback.CodeID != "" && s.taxResolver != nil {
+			if tc, resolveErr := s.taxResolver.Resolve(ctx, tenantSlug, fallback.CodeID); resolveErr == nil && tc != nil {
+				r.CodeID = fallback.CodeID
+				r.Rate = tc.Rate
+				r.KRACode = tc.KRACode
+				r.Amount, _ = ComputeLineTax(lineTotal, r.Rate, false)
+				r.HasInfo = true
+			}
+		}
+		// Else the outlet's VAT rate, applied here (not only at the order-total level) so it
+		// survives every later totals recompute-from-lines; see this function's doc comment.
+		if !r.HasInfo && !r.Inclusive && fallback.Rate.IsPositive() {
+			ratePct, _ := fallback.Rate.Mul(decimal.NewFromInt(100)).Float64()
 			amt, _ := ComputeLineTax(lineTotal, ratePct, false)
 			if amt > 0 {
 				r.Rate = ratePct
@@ -634,21 +595,35 @@ func (s *Service) ResolveLineTaxes(ctx context.Context, tenantID uuid.UUID, tena
 	return out
 }
 
-// OutletFallbackTaxRate returns the flat VAT fraction (e.g. 0.16) for lines with NO resolved tax
-// info: the outlet's configured vat_rate (the SAME setting the till uses as its legacy fallback),
-// else the service-level env default. VAT disabled on the outlet → zero. Exported so
-// saleedit.applyInPlaceIncrease can resolve the same fallback for an Edit-Sale-added line that
-// ResolveLineTaxes applies for CreateOrder/AddOrderLines.
-func (s *Service) OutletFallbackTaxRate(ctx context.Context, outletID uuid.UUID) decimal.Decimal {
-	if set, err := s.client.OutletSetting.Query().
+// MetaKeyFallbackTaxCode is the OutletSetting.metadata key holding the treasury tax code the
+// outlet picked in Settings, Tax, for lines with no tax code of their own.
+const MetaKeyFallbackTaxCode = "fallback_tax_code"
+
+// OutletTaxFallback is the tax for a line that resolved none of its own: the outlet's treasury
+// tax code when it picked one (resolved like any coded line, so it carries the KRA band and
+// treasury's VAT-registration gate), else the outlet's VAT rate as a fraction (e.g. 0.16) for
+// outlets saved before the code was stored.
+type OutletTaxFallback struct {
+	CodeID string
+	Rate   decimal.Decimal
+}
+
+// OutletFallbackTax returns the outlet's OutletTaxFallback. VAT disabled on the outlet, or no
+// settings row, gives none: no rate is ever assumed. Exported so saleedit.applyInPlaceIncrease
+// resolves an Edit-Sale-added line the same way ResolveLineTaxes does for CreateOrder and
+// AddOrderLines.
+func (s *Service) OutletFallbackTax(ctx context.Context, outletID uuid.UUID) OutletTaxFallback {
+	set, err := s.client.OutletSetting.Query().
 		Where(entoutletsetting.OutletID(outletID)).
-		Only(ctx); err == nil && set != nil {
-		if !set.VatEnabled {
-			return decimal.Zero
-		}
-		return decimal.NewFromFloat(set.VatRate).Div(decimal.NewFromInt(100))
+		Only(ctx)
+	if err != nil || set == nil || !set.VatEnabled {
+		return OutletTaxFallback{}
 	}
-	return s.taxRate
+	code, _ := set.Metadata[MetaKeyFallbackTaxCode].(string)
+	return OutletTaxFallback{
+		CodeID: strings.TrimSpace(code),
+		Rate:   decimal.NewFromFloat(set.VatRate).Div(decimal.NewFromInt(100)),
+	}
 }
 
 // ResolveOutletWarehouseID returns the outlet's configured default warehouse id
@@ -872,7 +847,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	// Resolve every line's tax BEFORE computing totals so the order header and its lines can
 	// never disagree — the historical flat-16%-on-top header math made every sale under a
 	// tax-inclusive tenant "partially paid" by exactly the phantom tax.
-	lineTaxes := s.ResolveLineTaxes(ctx, req.TenantID, req.TenantSlug, req.Lines, s.OutletFallbackTaxRate(ctx, req.OutletID))
+	lineTaxes := s.ResolveLineTaxes(ctx, req.TenantID, req.TenantSlug, req.Lines, s.OutletFallbackTax(ctx, req.OutletID))
 	orderTax := decimal.NewFromFloat(req.OrderTaxAmount)
 	totals := s.calculateTotalsWithTaxes(req.Lines, lineTaxes, discount, sumCharges(req.Charges), orderTax)
 
@@ -1983,7 +1958,7 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 	// their VAT and the recomputed header stays consistent with the till — including the outlet's
 	// flat fallback VAT rate for a line with no catalog tax code, which (before this fix) an
 	// added-to-bill line never got charged at all.
-	lineTaxes := s.ResolveLineTaxes(ctx, tenantID, tenantSlug, lines, s.OutletFallbackTaxRate(ctx, order.OutletID))
+	lineTaxes := s.ResolveLineTaxes(ctx, tenantID, tenantSlug, lines, s.OutletFallbackTax(ctx, order.OutletID))
 
 	newLines := make([]*ent.POSOrderLine, 0, len(lines))
 	addedAt := time.Now() // these lines are added NOW — drives their happy-hour window eligibility

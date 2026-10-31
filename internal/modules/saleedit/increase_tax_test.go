@@ -26,9 +26,8 @@ import (
 func TestEdit_NonFiscalized_IncreaseAppliesOutletFallbackTax(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:saleedit_orch_"+uuid.NewString()+"?mode=memory&cache=shared")
 	t.Cleanup(func() { _ = client.Close() })
-	// TaxRatePercent:16 with no OutletSetting row seeded — OutletFallbackTaxRate falls through to
-	// this service-level default, exactly like a real outlet with no per-outlet VAT override.
-	orderSvc := orders.NewService(client, orders.Config{DefaultCurrency: "KES", TaxRatePercent: 16}, zap.NewNop())
+	// The outlet charges VAT at 16% with no fallback tax code: OutletFallbackTax gives its rate.
+	orderSvc := orders.NewService(client, orders.Config{DefaultCurrency: "KES"}, zap.NewNop())
 	revSvc := reversals.NewService(zap.NewNop(), client, orderSvc, nil, nil)
 	returnsSvc := returns.NewService(zap.NewNop(), client, nil, nil)
 	returnsSvc.SetOrderService(orderSvc)
@@ -37,11 +36,20 @@ func TestEdit_NonFiscalized_IncreaseAppliesOutletFallbackTax(t *testing.T) {
 	svc.SetReturnsService(returnsSvc)
 
 	tid := uuid.New()
-	outletID := uuid.New()
-	order := seedOrchestratorOrder(t, client, tid, outletID, 5, 100) // total 500, untaxed line
+	if _, err := client.Tenant.Create().SetID(tid).SetName("Demo").SetSlug("demo").Save(context.Background()); err != nil {
+		t.Fatalf("seed tenant: %v", err)
+	}
+	outlet, err := client.Outlet.Create().SetTenantID(tid).SetTenantSlug("demo").SetCode("MAIN").SetName("Main").Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed outlet: %v", err)
+	}
+	if _, err := client.OutletSetting.Create().SetOutletID(outlet.ID).SetVatEnabled(true).SetVatRate(16).Save(context.Background()); err != nil {
+		t.Fatalf("seed settings: %v", err)
+	}
+	order := seedOrchestratorOrder(t, client, tid, outlet.ID, 5, 100) // total 500, untaxed line
 	line := onlyLine(t, client, order.ID)
 
-	_, err := svc.Edit(context.Background(), tid, EditSaleRequest{
+	_, err = svc.Edit(context.Background(), tid, EditSaleRequest{
 		OrderID: order.ID, Reason: "add item", RequestedBy: uuid.New(),
 		CustomerName: "Jane Doe", CustomerIdentifier: "+254700000001",
 		Lines: []EditLine{
