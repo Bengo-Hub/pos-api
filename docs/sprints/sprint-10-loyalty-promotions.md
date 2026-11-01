@@ -88,6 +88,8 @@ Core loyalty engine shipped: programs (list/create/update), accounts (list/creat
 
 **2026-11-01, competing "buy X get Y" deals (Urban Loft):** a deal set for today, "buy one large pizza get one large free", never applied; the till kept auto-adding a free small from the everyday "buy a large get a small free". The terminal's pair auto-add took the first-listed deal for a shared buy item, and the server could grant both deals off the same pizzas. Now the newest deal (latest `start_at`, which defaults to creation time) owns a buy item both cover; the older deal resumes when the newer one ends. Server: `promotions.newestFirst` and `bogoBuySKUs` in `combineTimedDiscounts`. Terminal: `bogoOwners`/`ownsBuySku` in `lib/pos/happy-hour.ts`, used by `computeHappyHour`, `bogoFreeUnitsForSku`, `computePairAutoAdd` and `findPromoForSku`. Tests: `TestCombine_NewestBogoOwnsSharedBuyItem`, `node-tests/happy-hour.test.ts`.
 
+**2026-11-01, the actual Urban Loft cause (read from production):** their only pizza deal, "Pizza Bogo" (Sundays 07:30 to 22:30), maps each large to itself. pos-ui `computePairAutoAdd` counts only paid lines yet applied the pricing step's buy+get cycle to a self-pair and counted the paid large as an already-rung free one, so one large never earned its free large (every pizza order that morning had no free line). Earning now uses the buy quantity; pricing (server `calculateCorrespondingPairBOGO`, terminal `calcCorrespondingPairBogo`) keeps the buy+get cycle because it pools paid and free units. pos-ui 6b65c41, `node-tests/auto-apply-discounts.test.ts`.
+
 ---
 
 ## Use Cases Covered
