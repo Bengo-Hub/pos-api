@@ -13,6 +13,16 @@ type RateRow struct {
 	Tax     float64 `json:"tax"`
 }
 
+// SummaryAddsDetail reports whether the per-rate block says more than the receipt's single VAT line
+// (vatTotal): it does when the sale has more than one rate, or when an order discount makes the VAT
+// paid differ from that line. One rate with the same VAT would print the same figure twice.
+func SummaryAddsDetail(rows []RateRow, vatTotal float64) bool {
+	if len(rows) == 0 {
+		return false
+	}
+	return len(rows) > 1 || money.Round2(rows[0].Tax) != money.Round2(vatTotal)
+}
+
 // RateSummary groups a sale's VAT by rate, on what was actually paid: the order discount is shared
 // across the lines before VAT (OrderDiscountVAT), the same figures the sale event, treasury and KRA
 // eTIMS carry. VAT inside VAT-inclusive prices is included. Lines with no VAT are left out. Rows are

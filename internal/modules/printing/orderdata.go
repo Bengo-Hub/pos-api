@@ -55,9 +55,9 @@ func OrderReceiptDataOpts(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet
 }
 
 // escposVATSummary is the per-rate VAT block for the thermal bytes, printed only for an outlet that
-// charges VAT, the same rule as layouts.vatSummaryRows.
+// charges VAT and only when it adds to the VAT line, the same rule as layouts.vatSummaryRows.
 func escposVATSummary(v ReceiptView) []saletax.RateRow {
-	if !v.VatEnabled {
+	if !v.VatEnabled || !saletax.SummaryAddsDetail(v.VatSummary, v.TaxAmount) {
 		return nil
 	}
 	return v.VatSummary

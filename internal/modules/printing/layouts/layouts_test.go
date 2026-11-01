@@ -158,6 +158,29 @@ func TestVatEnabledShowsTaxLine(t *testing.T) {
 	}
 }
 
+// One rate with the same VAT as the VAT line is not printed again under the total; one rate whose
+// VAT differs from the line (an order discount) still is.
+func TestVatSummarySkipsSingleRateDuplicate(t *testing.T) {
+	rec := fixtureReceipt("retail")
+	rec.VatEnabled = true
+	rec.VatRate = 16
+	rec.TaxAmount = 102.40
+	rec.VatSummary = []saletax.RateRow{{Rate: 16, Taxable: 640, Tax: 102.40}}
+	for _, l := range All() {
+		rec.Layout = l.ID
+		if html := string(RenderHTML(rec, "")); strings.Contains(html, "VAT 16% on") {
+			t.Errorf("layout %s repeats the single-rate VAT under the total", l.ID)
+		}
+	}
+	rec.VatSummary = []saletax.RateRow{{Rate: 16, Taxable: 600, Tax: 96}}
+	for _, l := range All() {
+		rec.Layout = l.ID
+		if html := string(RenderHTML(rec, "")); !strings.Contains(html, "VAT 16% on") {
+			t.Errorf("layout %s dropped a VAT summary that differs from the VAT line", l.ID)
+		}
+	}
+}
+
 // Every layout prints the VAT included at each rate, on what was paid, under the total.
 func TestVatSummaryRendersPerRate(t *testing.T) {
 	rec := fixtureReceipt("retail")

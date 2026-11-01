@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/bengobox/pos-service/internal/modules/saletax"
 )
 
 // money renders "KSh 16,200" / "KSh -1,000" style amounts: thousands separators,
@@ -149,9 +151,10 @@ func headerDuplicatesLocation(header, companyName, outletName, outletAddress str
 
 // vatSummaryRows is the "VAT included" block every layout prints under the total: one row per
 // rate, "VAT 16% on 377.16" with the VAT as the value, on what the customer paid. Only for an
-// outlet that charges VAT.
+// outlet that charges VAT, and only when it adds to the VAT line above the total
+// (saletax.SummaryAddsDetail).
 func vatSummaryRows(rec Receipt) [][2]string {
-	if !rec.VatEnabled || len(rec.VatSummary) == 0 {
+	if !rec.VatEnabled || !saletax.SummaryAddsDetail(rec.VatSummary, rec.TaxAmount) {
 		return nil
 	}
 	out := make([][2]string, 0, len(rec.VatSummary))
