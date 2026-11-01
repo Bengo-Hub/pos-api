@@ -205,3 +205,37 @@ func TestCombine_EmptyInputs(t *testing.T) {
 		t.Fatalf("no lines → 0, got %s", r.Discount)
 	}
 }
+
+// Urban Loft, 2026-11-01: an everyday "buy a large pizza, get the small free" deal and a deal set
+// for today, "buy one large get one large free", both cover the large. The newest deal owns the
+// large: two larges in the cart earn one free large and no small, never both deals off the same
+// pizzas. With today's deal over, the everyday deal applies again.
+func TestCombine_NewestBogoOwnsSharedBuyItem(t *testing.T) {
+	s := &Service{}
+	everyday := promoW("Large gets small free", "", "", nil)
+	everyday.StartAt = time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	today := promoW("Large BOGO today", "", "", nil)
+	today.StartAt = time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	noonNov1 := time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)
+	items := []promoWithRule{
+		{promo: everyday, rule: pairBogoRule(map[string]string{"PIZ-L": "PIZ-S"})},
+		{promo: today, rule: sameSkuBogoRule(100, "PIZ-L")},
+	}
+	lines := []TimedDiscountLine{
+		tline("PIZ-L", 2, 1600, noonNov1),
+		tline("PIZ-S", 1, 900, noonNov1), // the small the till used to auto-add
+	}
+	r := s.combineTimedDiscounts(items, lines, time.UTC)
+	if !r.Discount.Equal(decimal.NewFromInt(1600)) || r.PromoID != today.ID {
+		t.Fatalf("got %s from %q, want 1600 (one free large) from today's deal", r.Discount, r.PromoName)
+	}
+	if _, ok := r.PerSKU["PIZ-S"]; ok {
+		t.Fatalf("the small must not be free while today's deal owns the large: %+v", r.PerSKU)
+	}
+
+	// Today's deal has ended: only the everyday deal is live, and the small is free again.
+	r = s.combineTimedDiscounts(items[:1], lines, time.UTC)
+	if !r.Discount.Equal(decimal.NewFromInt(900)) {
+		t.Fatalf("got %s, want 900 (the free small) once today's deal is over", r.Discount)
+	}
+}

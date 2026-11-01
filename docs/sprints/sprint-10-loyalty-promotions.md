@@ -44,7 +44,7 @@ Basic promotions (percentage discount, fixed discount) already exist via the `Pr
   - New fields: `combo_items (JSON: [{catalog_item_id, qty}])`, `combo_price (float)`
 - [ ] New rule type: `time_window` — active only during specific hours/days
   - `PromotionRule.valid_from_time (string HH:MM nullable)`, `valid_to_time (string HH:MM nullable)`, `valid_days (JSON: [0-6] — 0=Sunday)`
-- [ ] Promotion evaluation order: promotions are applied in priority order; first match wins unless `allow_stacking = true`
+- [x] Promotion evaluation order (built differently, no priority field): every live auto-apply deal stacks, each SKU keeps the single best saving, and when two "buy X get Y" deals cover the same buy item the newest one (latest `start_at`) owns it. Deals that started together are not ranked. See the 2026-11-01 note below.
 - [ ] `POST /{tenant}/pos/promotions/evaluate` — dry-run promotion calculation for a cart (used by pos-ui before order creation)
 
 ### Referral Tracking
@@ -85,6 +85,8 @@ Basic promotions (percentage discount, fixed discount) already exist via the `Pr
 ## Completion Notes (2026-05-21)
 
 Core loyalty engine shipped: programs (list/create/update), accounts (list/create/get), and transactions (earn/redeem) are all registered in the router. Advanced promotion engine extensions (BXGY, combo, time-window), referral tracking, and tier-based pricebook integration remain unimplemented.
+
+**2026-11-01, competing "buy X get Y" deals (Urban Loft):** a deal set for today, "buy one large pizza get one large free", never applied; the till kept auto-adding a free small from the everyday "buy a large get a small free". The terminal's pair auto-add took the first-listed deal for a shared buy item, and the server could grant both deals off the same pizzas. Now the newest deal (latest `start_at`, which defaults to creation time) owns a buy item both cover; the older deal resumes when the newer one ends. Server: `promotions.newestFirst` and `bogoBuySKUs` in `combineTimedDiscounts`. Terminal: `bogoOwners`/`ownsBuySku` in `lib/pos/happy-hour.ts`, used by `computeHappyHour`, `bogoFreeUnitsForSku`, `computePairAutoAdd` and `findPromoForSku`. Tests: `TestCombine_NewestBogoOwnsSharedBuyItem`, `node-tests/happy-hour.test.ts`.
 
 ---
 

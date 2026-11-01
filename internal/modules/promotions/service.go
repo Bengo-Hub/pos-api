@@ -423,14 +423,19 @@ func (s *Service) combineTimedDiscounts(items []promoWithRule, lines []TimedDisc
 	promoNames := map[uuid.UUID]string{}
 	perPromo := map[uuid.UUID]decimal.Decimal{} // promo → total it contributes (net of reassignments)
 	storewideTotal := decimal.Zero              // unattributed (storewide) contributions
+	// claimed: lower(buy SKU) → start of the newest BOGO deal covering it (see newestFirst). A BOGO
+	// deal that started earlier never earns from that item; deals that started at the same moment
+	// both run and the better one keeps each SKU, as below.
+	claimed := map[string]time.Time{}
 
-	for _, it := range items {
+	for _, it := range newestFirst(items) {
 		p, rule := it.promo, it.rule
 		if rule == nil {
 			continue
 		}
+		buySKUs := bogoBuySKUs(rule)
 		// Keep only lines added within THIS promo's window AND its rule's meal period, if any
-		// (localized).
+		// (localized), minus the buy items a newer BOGO deal already owns.
 		eligible := make([]DiscountLine, 0, len(lines))
 		eligSub := decimal.Zero
 		for _, tl := range lines {
@@ -439,10 +444,18 @@ func (s *Service) combineTimedDiscounts(items []promoWithRule, lines []TimedDisc
 				when = now
 			}
 			whenLocal := when.In(loc)
-			if s.isWithinSchedule(p, whenLocal) && isWithinMealPeriod(rule, whenLocal) {
-				eligible = append(eligible, tl.DiscountLine)
-				eligSub = eligSub.Add(tl.Total)
+			if !s.isWithinSchedule(p, whenLocal) || !isWithinMealPeriod(rule, whenLocal) {
+				continue
 			}
+			sku := strings.ToLower(strings.TrimSpace(tl.SKU))
+			if _, isBuy := buySKUs[sku]; isBuy {
+				if ownerStart, ok := claimed[sku]; ok && ownerStart.After(p.StartAt) {
+					continue
+				}
+				claimed[sku] = p.StartAt
+			}
+			eligible = append(eligible, tl.DiscountLine)
+			eligSub = eligSub.Add(tl.Total)
 		}
 		if len(eligible) == 0 {
 			continue
@@ -504,6 +517,47 @@ func (s *Service) combineTimedDiscounts(items []promoWithRule, lines []TimedDisc
 		ContributingPromoIDs: contributing,
 		PerPromoAmount:       perPromo,
 	}
+}
+
+// newestFirst orders deals so the one that started most recently comes first (latest start_at,
+// which defaults to the creation time; the id only fixes the order of exact ties). When two
+// "buy X get Y" deals cover the same item, the newest one owns it: a deal set for today ("buy a
+// large pizza, get a large free") takes the large pizzas from an everyday one ("buy a large, get a
+// small free"), which resumes once today's ends. Deals that started at the same moment are not
+// ranked; the better saving wins per item. pos-ui lib/pos/happy-hour.ts applies the same rule.
+func newestFirst(items []promoWithRule) []promoWithRule {
+	out := append([]promoWithRule(nil), items...)
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := out[i].promo, out[j].promo
+		if !a.StartAt.Equal(b.StartAt) {
+			return a.StartAt.After(b.StartAt)
+		}
+		return a.ID.String() > b.ID.String()
+	})
+	return out
+}
+
+// bogoBuySKUs is the lowercased "buy" side of an item-scoped BOGO rule: the get_pair_map keys
+// for a corresponding-pair deal, otherwise scope_ids. Empty for every other rule.
+func bogoBuySKUs(rule *ent.PromotionRule) map[string]struct{} {
+	out := map[string]struct{}{}
+	if rule.DiscountType != promotionrule.DiscountTypeBogo || rule.ScopeType != promotionrule.ScopeTypeItem {
+		return out
+	}
+	if len(rule.GetPairMap) > 0 {
+		for k := range rule.GetPairMap {
+			if k = strings.ToLower(strings.TrimSpace(k)); k != "" {
+				out[k] = struct{}{}
+			}
+		}
+		return out
+	}
+	for _, id := range rule.ScopeIds {
+		if id = strings.ToLower(strings.TrimSpace(id)); id != "" {
+			out[id] = struct{}{}
+		}
+	}
+	return out
 }
 
 // EvaluateAutoDiscount returns the combined auto-apply discount for an outlet, treating all lines as
