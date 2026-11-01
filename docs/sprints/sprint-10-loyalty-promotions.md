@@ -90,6 +90,8 @@ Core loyalty engine shipped: programs (list/create/update), accounts (list/creat
 
 **2026-11-01, the actual Urban Loft cause (read from production):** their only pizza deal, "Pizza Bogo" (Sundays 07:30 to 22:30), maps each large to itself. pos-ui `computePairAutoAdd` counts only paid lines yet applied the pricing step's buy+get cycle to a self-pair and counted the paid large as an already-rung free one, so one large never earned its free large (every pizza order that morning had no free line). Earning now uses the buy quantity; pricing (server `calculateCorrespondingPairBOGO`, terminal `calcCorrespondingPairBogo`) keeps the buy+get cycle because it pools paid and free units. pos-ui 6b65c41, `node-tests/auto-apply-discounts.test.ts`.
 
+**2026-11-01, storefront follows each promotion's schedule:** the ordering storefront's banners, Top Deals and marketplace deals showed every active promotion inside its date range at all hours, ignoring days of the week, the daily window and the meal period (Pizza Bogo, Sundays only, showed all week). `promotions.Service.LiveCheck` (the till's `isWithinSchedule` and `isWithinMealPeriod`, in each outlet's local time, one timezone lookup per outlet) now filters `S2SListBanners`, `S2SListStorefrontDiscounts` and `S2SListDiscounts?live=1` (new, for ordering-backend's Top Deals; unpaginated, at most 200). Test: `TestLiveCheckFollowsDaysWindowAndMealPeriod`. Deploy pos-api before ordering-backend, which now asks for `live=1` and no longer filters dates itself.
+
 ---
 
 ## Use Cases Covered

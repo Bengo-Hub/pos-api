@@ -31,13 +31,35 @@ import (
 // (createPromoInput / promotionWithRule), so the shared discount modal form used
 // across frontends serializes one shape regardless of which service proxies it.
 
-// S2SListDiscounts handles GET /api/v1/s2s/{tenant}/discounts?status=&kind=
+// S2SListDiscounts handles GET /api/v1/s2s/{tenant}/discounts?status=&kind=&live=
 // Returns the tenant's promotions with their discount rules attached. Defaults to
-// active discounts; pass status=all for every status (management screens).
+// active discounts; pass status=all for every status (management screens). live=1 returns only
+// the active promotions running right now by their full schedule (the ordering storefront's
+// deals grid), unpaginated and bounded.
 func (h *PromotionHandler) S2SListDiscounts(w http.ResponseWriter, r *http.Request) {
 	tid, err := uuid.Parse(chi.URLParam(r, "tenant"))
 	if err != nil {
 		jsonError(w, "invalid tenant", http.StatusBadRequest)
+		return
+	}
+	if r.URL.Query().Get("live") == "1" {
+		now := time.Now()
+		promos, err := h.client.Promotion.Query().
+			Where(
+				promotion.TenantID(tid),
+				promotion.Status("active"),
+				promotion.StartAtLTE(now),
+				promotion.Or(promotion.EndAtIsNil(), promotion.EndAtGTE(now)),
+			).
+			Order(ent.Desc(promotion.FieldStartAt)).
+			Limit(maxLivePromotions).
+			All(r.Context())
+		if err != nil {
+			h.log.Error("s2s list live discounts failed", zap.Error(err))
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		jsonOK(w, map[string]any{"data": h.liveOnly(r.Context(), h.attachRules(r.Context(), promos))})
 		return
 	}
 
@@ -209,8 +231,9 @@ type s2sBanner struct {
 // Returns active promotions flagged (via metadata["banner"].show_on_storefront, set by the
 // POS Discounts page) to also surface as a marketing banner on the customer-facing ordering
 // storefront (ordering-frontend, a separate app — it consumes this endpoint, never a parallel
-// banner entity). "Active" mirrors the /discounts default: status=active and now within
-// [start_at, end_at] (end_at nil = no upper bound). A promo whose banner.use_cases is
+// banner entity). "Active" means status=active and running now by its full schedule: within
+// [start_at, end_at] (end_at nil = no upper bound) and on one of its days, inside its daily
+// window and meal period, in the outlet's local time (liveOnly). A promo whose banner.use_cases is
 // non-empty only matches when the caller's use_case query param is in that list; an empty
 // use_cases list means "show for every outlet use_case".
 func (h *PromotionHandler) S2SListBanners(w http.ResponseWriter, r *http.Request) {
@@ -244,8 +267,11 @@ func (h *PromotionHandler) S2SListBanners(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	out := make([]s2sBanner, 0, len(promos))
-	for _, p := range promos {
+	// Only the promotions running now by their days, hours and meal period, not just their dates.
+	live := h.liveOnly(r.Context(), h.attachRules(r.Context(), promos))
+	out := make([]s2sBanner, 0, len(live))
+	for _, it := range live {
+		p := it.Promotion
 		banner := promotions.BannerFromMetadata(p.Metadata)
 		if !banner.ShowOnStorefront {
 			continue
@@ -285,6 +311,9 @@ func (h *PromotionHandler) S2SListBanners(w http.ResponseWriter, r *http.Request
 
 // maxStorefrontTenants bounds one cross-tenant storefront request.
 const maxStorefrontTenants = 50
+
+// maxLivePromotions bounds one tenant's live-promotions read (far above any real tenant's count).
+const maxLivePromotions = 200
 
 // S2SListStorefrontDiscounts handles GET /api/v1/s2s/storefront/discounts?tenant_ids=a,b,c
 // For the platform marketplace page (ordering-backend's /marketplace/deals): the promotions of
@@ -348,5 +377,6 @@ func (h *PromotionHandler) S2SListStorefrontDiscounts(w http.ResponseWriter, r *
 		}
 		kept = append(kept, p)
 	}
-	jsonOK(w, map[string]any{"data": h.attachRules(r.Context(), kept)})
+	// Only the promotions running now by their days, hours and meal period, not just their dates.
+	jsonOK(w, map[string]any{"data": h.liveOnly(r.Context(), h.attachRules(r.Context(), kept))})
 }

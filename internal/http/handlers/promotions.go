@@ -101,6 +101,23 @@ func (h *PromotionHandler) attachRules(ctx context.Context, promos []*ent.Promot
 	return out
 }
 
+// liveOnly keeps the promotions running right now by their full schedule (promotions.LiveCheck:
+// dates, days of the week, daily window and meal period in the outlet's local time). Every
+// customer-facing list uses it, so a Sunday-only deal is not advertised on a Tuesday.
+func (h *PromotionHandler) liveOnly(ctx context.Context, items []promotionWithRule) []promotionWithRule {
+	if h.promoSvc == nil {
+		return items
+	}
+	live := h.promoSvc.LiveCheck(ctx, time.Now())
+	out := items[:0]
+	for _, it := range items {
+		if live(it.Promotion, it.Rule) {
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
 // ListPromotions handles GET /{tenantID}/pos/promotions
 func (h *PromotionHandler) ListPromotions(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)

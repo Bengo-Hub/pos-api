@@ -989,6 +989,29 @@ func (s *Service) isWithinSchedule(p *ent.Promotion, now time.Time) bool {
 	return true
 }
 
+// LiveCheck returns a test for whether a promotion is running at `now` by its full schedule: its
+// date range, days of the week and daily window, judged in its outlet's local time (the tenant
+// sets them as wall-clock times), plus its rule's meal period when the rule is given. The till's
+// evaluator uses the same isWithinSchedule/isWithinMealPeriod, so what the ordering storefront
+// shows matches what applies. Each outlet's timezone is looked up once per check. Status is the
+// caller's query's concern.
+func (s *Service) LiveCheck(ctx context.Context, now time.Time) func(p *ent.Promotion, rule *ent.PromotionRule) bool {
+	zones := map[uuid.UUID]*time.Location{}
+	return func(p *ent.Promotion, rule *ent.PromotionRule) bool {
+		key := uuid.Nil
+		if p.OutletID != nil {
+			key = *p.OutletID
+		}
+		loc, ok := zones[key]
+		if !ok {
+			loc = s.outletTimezone(ctx, p.OutletID)
+			zones[key] = loc
+		}
+		local := now.In(loc)
+		return s.isWithinSchedule(p, local) && isWithinMealPeriod(rule, local)
+	}
+}
+
 // CreatePromotion creates a new promotion with proper defaults.
 func (s *Service) CreatePromotion(ctx context.Context, tenantID uuid.UUID, name, promoCode string, startAt, endAt *time.Time, metadata map[string]any) (*ent.Promotion, error) {
 	if promoCode == "" {

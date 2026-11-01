@@ -1,6 +1,7 @@
 package promotions
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -237,5 +238,34 @@ func TestCombine_NewestBogoOwnsSharedBuyItem(t *testing.T) {
 	r = s.combineTimedDiscounts(items[:1], lines, time.UTC)
 	if !r.Discount.Equal(decimal.NewFromInt(900)) {
 		t.Fatalf("got %s, want 900 (the free small) once today's deal is over", r.Discount)
+	}
+}
+
+// The ordering storefront shows a promotion only while it is running by its full schedule.
+// Urban Loft's "Pizza Bogo" runs Sundays 07:30 to 22:30 Nairobi time; it used to show every day
+// because the storefront checked only its date range.
+func TestLiveCheckFollowsDaysWindowAndMealPeriod(t *testing.T) {
+	s := &Service{}
+	pizza := promoW("Pizza Bogo", "07:30", "22:30", []int{0}) // Sunday
+	pizza.StartAt = time.Date(2026, 7, 12, 0, 0, 0, 0, time.UTC)
+	dinner := promotionrule.MealPeriodDinner
+	cocktails := &ent.PromotionRule{MealPeriod: &dinner}
+	eat := time.FixedZone("EAT", 3*3600)
+	for _, tc := range []struct {
+		name string
+		at   time.Time
+		rule *ent.PromotionRule
+		want bool
+	}{
+		{"Sunday noon", time.Date(2026, 11, 1, 12, 0, 0, 0, eat), nil, true},
+		{"Sunday 23:00, after the window", time.Date(2026, 11, 1, 23, 0, 0, 0, eat), nil, false},
+		{"Monday noon", time.Date(2026, 11, 2, 12, 0, 0, 0, eat), nil, false},
+		{"Sunday noon, dinner-only rule", time.Date(2026, 11, 1, 12, 0, 0, 0, eat), cocktails, false},
+		{"Sunday 19:00, dinner-only rule", time.Date(2026, 11, 1, 19, 0, 0, 0, eat), cocktails, true},
+	} {
+		// No outlet on the promotion: judged in the platform's home timezone (Africa/Nairobi).
+		if got := s.LiveCheck(context.Background(), tc.at)(pizza, tc.rule); got != tc.want {
+			t.Errorf("%s: live=%v, want %v", tc.name, got, tc.want)
+		}
 	}
 }
