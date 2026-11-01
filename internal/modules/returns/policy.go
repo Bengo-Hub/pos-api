@@ -52,6 +52,11 @@ func validateRefundChannel(reasonCode *posreturn.ReasonCode, returnType posretur
 	if onAccount && restrictOnAccount && channel != "" && channel != "offset_invoice" {
 		return fmt.Errorf("this sale was on account (unpaid) — settle the return by offsetting the customer's balance (offset_invoice), not %s", channel)
 	}
+	// The reverse: a sale paid in full left nothing owing, so "reduce what the customer owes"
+	// would only leave a stray balance in their favour. Refund the money or give store credit.
+	if !onAccount && channel == "offset_invoice" {
+		return fmt.Errorf("this sale was paid in full, so there is no balance to reduce; refund the customer or give store credit")
+	}
 	return nil
 }
 

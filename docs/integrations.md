@@ -51,6 +51,16 @@ The POS service is the **source of truth for sales catalogs (menus)**. While `in
   `POST /api/v1/s2s/{tenant}/pos/returns/credit-note` (`treasury.Client.RaiseReturnCreditNote`). Lines are
   built by `orders.BuildRefundLines`, priced the way the sale was sent. A pos "Save as Quotation" calls a
   treasury quotation S2S create.
+  The refund method (cash, M-Pesa, bank, cheque, store credit, reduce customer credit) only changes the
+  books, never what KRA receives. "Reduce customer credit" (`offset_invoice`) is allowed only on a sale
+  settled on account; a sale paid in full has no balance to reduce (`returns/policy.go`).
+  An exchange is a refund plus a new sale, as KRA treats it (2026-11-01): the return settles its full
+  value with `exchange_credit` (the returned value, capped at the replacement total) so treasury keeps
+  that part in exchange clearing (2310) and pays out only the leftover; the replacement order is sold at
+  full price, never discounted, and paid with an `exchange_credit` tender (`payments.TenderExchangeCredit`)
+  that treasury books against clearing. A replacement the credit covers completes through
+  `payments.RecheckCompletion`, so `pos.sale.finalized` takes it to treasury, eTIMS and stock. Before
+  this the replacement carried the credit as a discount, so KRA saw the returned value taken off twice.
   A standalone pos `CreditNote` entity was built once and DISCARDED — do not reintroduce it. pos-ui LINKS
   to treasury-ui for these documents (never duplicates the pages); only the create-from-pos action lives here.
 

@@ -39,6 +39,10 @@ type Service struct {
 	auditSvc       *audit.Service
 	// orderSvc creates exchange replacement orders through the normal sale pipeline.
 	orderSvc *orders.Service
+	// completion closes a fully paid exchange replacement order the way a till payment does
+	// (payments.Service.RecheckCompletion), which publishes pos.sale.finalized so the sale reaches
+	// treasury, KRA eTIMS and inventory. A bare status change publishes none of that.
+	completion OrderCompletion
 	// seq, when wired, mints return numbers through the tenant-configurable document sequence
 	// (numeric by default), falling back to the legacy RET-<epoch-ms> format.
 	seq *documents.SequenceService
@@ -61,6 +65,14 @@ func (s *Service) WithSequence(seq *documents.SequenceService) *Service {
 
 // SetOrderService wires the orders service used to create exchange replacement orders.
 func (s *Service) SetOrderService(svc *orders.Service) { s.orderSvc = svc }
+
+// OrderCompletion completes an order whose payments cover its total. Satisfied by *payments.Service.
+type OrderCompletion interface {
+	RecheckCompletion(ctx context.Context, tenantID, orderID uuid.UUID) error
+}
+
+// SetOrderCompletion wires the payment-completion path used to finish exchange replacement orders.
+func (s *Service) SetOrderCompletion(c OrderCompletion) { s.completion = c }
 
 // Client exposes the ent client for read-only list/detail queries in the HTTP layer.
 func (s *Service) Client() *ent.Client { return s.client }
@@ -399,19 +411,19 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 	}
 
 	// Money movement: settle in treasury for a cash/mpesa/bank refund, a store-credit return,
-	// an offset_invoice (credit-sale) return — and the LEFTOVER of an exchange whose
-	// replacement is cheaper than the returned goods. A store-credit return type with no
-	// channel persisted yet defaults to the store_credit channel — but ONLY when the original
-	// sale was NOT on account (see the on-account guard above). For an exchange the
-	// replacement order's exchange-credit discount already nets the revenue, so only the
-	// leftover moves money.
+	// an offset_invoice (credit-sale) return and an exchange. A store-credit return type with no
+	// channel persisted yet defaults to the store_credit channel, but ONLY when the original
+	// sale was NOT on account (see the on-account guard above).
+	//
+	// An exchange settles its full returned value too: the return is a real refund (KRA gets the
+	// credit note, the books reverse the sale), of which exchangeCredit pays for the replacement
+	// order (treasury parks it in exchange clearing) and only the leftover goes to the customer.
 	settleAmount := ret.RefundAmount
-	if ret.ReturnType == posreturn.ReturnTypeExchange {
-		settleAmount = 0
-		if exchange != nil {
-			settleAmount = exchange.Leftover
-		}
+	exchangeCredit := 0.0
+	if exchange != nil {
+		exchangeCredit = exchange.ExchangeCredit
 	}
+	paidOut := settleAmount - exchangeCredit
 	// A return of a fiscalised sale must reach KRA as a refund of the returned lines. The lines go
 	// with the refund below when money is settled; otherwise the credit note is raised on its own.
 	fiscal := s.fiscalRefundFor(ctx, tenantSlug, ret, lines)
@@ -425,10 +437,6 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 		// Sum the returned lines' VAT and COGS so treasury can reverse the exact tax + cost-of-goods.
 		taxAmount := s.resolveReturnTax(ctx, ret.OrderID, lines)
 		costAmount := s.resolveReturnCost(ctx, tenantID, lines)
-		if ret.ReturnType == posreturn.ReturnTypeExchange && ret.RefundAmount > 0 {
-			taxAmount = taxAmount * (settleAmount / ret.RefundAmount)
-			costAmount = 0
-		}
 		// Written-off goods never come back as an inventory asset, so their cost stays expensed:
 		// no COGS reversal.
 		if !restock {
@@ -460,6 +468,7 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 			OutletID:           fiscal.outletID,
 			OriginalOrderID:    fiscal.orderID,
 			Lines:              fiscal.lines,
+			ExchangeCredit:     exchangeCredit,
 		})
 		if refundErr != nil {
 			s.log.Error("treasury refund call failed (non-fatal; refund can be retried)",
@@ -494,8 +503,8 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 	}
 	// Cash leaves the drawer whenever the channel is cash, whether or not the treasury call
 	// above succeeded (that only books the ledger side).
-	if refundChannel == string(posreturn.RefundChannelCash) && settleAmount > 0.009 {
-		md[MetaCashPaidOut] = settleAmount
+	if refundChannel == string(posreturn.RefundChannelCash) && paidOut > 0.009 {
+		md[MetaCashPaidOut] = paidOut
 	}
 	// Inventory confirms the restock (and where the goods went) via inventory.return.restocked;
 	// until then the return reads "restock pending". A write-off is final here: nothing goes

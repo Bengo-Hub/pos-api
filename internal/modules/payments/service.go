@@ -107,6 +107,12 @@ const TenderOnAccount = "on_account"
 // alongside other tenders in a split payment, not only on a fully-credit sale.
 const TenderCustomerCredit = "customer_credit"
 
+// TenderExchangeCredit pays (part of) an exchange's replacement order with the value of the goods
+// returned (returns.fulfilExchange). No money moves: the replacement is a sale at full price, so
+// KRA sees the returned goods refunded and the replacement sold, and treasury books this tender
+// against exchange clearing, which the return credited.
+const TenderExchangeCredit = "exchange_credit"
+
 // TenderComplimentary is the "no-charge" tender: no money is taken and no debt is created —
 // the bill is closed as a complimentary/goodwill gesture (staff meals, director's order,
 // goodwill for a visiting team). Requires a mandatory reason and manager approval, enforced by

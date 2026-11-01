@@ -312,6 +312,10 @@ type RefundRequest struct {
 	OutletID        string       `json:"outlet_id,omitempty"`
 	OriginalOrderID string       `json:"original_order_id,omitempty"`
 	Lines           []RefundLine `json:"lines,omitempty"`
+	// ExchangeCredit is the part of Amount that pays for an exchange's replacement order instead of
+	// going back to the customer. Treasury parks it in exchange clearing, which the replacement
+	// sale's exchange_credit tender draws down; only the rest goes out through RefundChannel.
+	ExchangeCredit float64 `json:"exchange_credit,omitempty"`
 }
 
 // RefundLine is one returned or reversed line. UnitPrice is the price before tax.

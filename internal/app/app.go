@@ -536,6 +536,8 @@ func New(ctx context.Context) (*App, error) {
 	returnsSvc.WithSequence(docSeqSvc) // pos_return numbers via the document sequence
 	// Exchange fulfilment creates the replacement order through the normal sale pipeline.
 	returnsSvc.SetOrderService(orderSvc)
+	// A replacement paid in full by the exchange credit completes like a till payment.
+	returnsSvc.SetOrderCompletion(paymentSvc)
 	// Branding + platform-owner footer for the printable refund receipt.
 	returnHandler := handlers.NewReturnHandler(log, entClient, returnsSvc).WithBranding(tenantCache, cfg.Auth.ServiceURL)
 	// Transaction reversals (platform-owner data-repair tool): orchestrates pos totals,
