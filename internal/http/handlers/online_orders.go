@@ -296,9 +296,9 @@ type markCollectedRequest struct {
 }
 
 // MarkCollected handles POST /{tenantID}/pos/online-orders/{orderID}/collected
-// The order is handed over: the customer collected it at the counter, or (for an online delivery
-// the outlet delivers with its own staff) it was delivered. Serves any outstanding KDS tickets and
-// tells ordering-backend, which completes the online order, settles cash on collection/delivery
+// The order is handed over: the customer collected it at the counter, or a delivery order that
+// logistics already marked delivered is closed. Serves any outstanding KDS tickets and, for a
+// pickup, tells ordering-backend, which completes the online order, settles cash on collection
 // and consumes the stock reservation.
 func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
@@ -354,6 +354,16 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 	external := h.externalOrderID(r, oid)
 	isOnline := external != ""
 	isDelivery := string(order.OrderSubtype) == "delivery"
+
+	// A delivery order is delivered through logistics: the rider's proof of delivery (code, photo,
+	// cash at the door) is what marks it delivered. The counter only closes one logistics already
+	// delivered; it can never declare a delivery itself.
+	if isDelivery {
+		if status, _ := meta["dispatch_status"].(string); status != ordersmod.DispatchDelivered {
+			jsonError(w, "a delivery order is completed by the rider's proof of delivery in logistics; assign a rider", http.StatusConflict)
+			return
+		}
+	}
 
 	// A till order is paid at the till. Handing it over unpaid used to complete it with no payment
 	// at all (a lost sale, and a completed order with an open balance).
@@ -433,7 +443,8 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 		h.releaser.AutoClearKDSTicketsForOrder(r.Context(), tid, oid)
 	}
 
-	if isOnline && h.publisher != nil {
+	// A delivered order already reached ordering through logistics; only a pickup hand-over is news.
+	if isOnline && !isDelivery && h.publisher != nil {
 		payload := map[string]any{
 			"external_order_id": external,
 			"order_number":      updated.OrderNumber,
@@ -447,15 +458,8 @@ func (h *OnlineOrderHandler) MarkCollected(w http.ResponseWriter, r *http.Reques
 		if paid, _ := meta["paid_at_terminal"].(bool); paid {
 			payload["paid_at_terminal"] = true
 		}
-		if isDelivery {
-			// Delivered by the outlet's own staff (no rider app): ordering walks the order through
-			// out-for-delivery to delivered, settling cash on delivery.
-			payload["source"] = "own_delivery"
-			_ = h.publisher.PublishOnlineOrderDelivered(r.Context(), tid, payload)
-		} else {
-			payload["source"] = "click_and_collect"
-			_ = h.publisher.PublishOnlineOrderCollected(r.Context(), tid, payload)
-		}
+		payload["source"] = "click_and_collect"
+		_ = h.publisher.PublishOnlineOrderCollected(r.Context(), tid, payload)
 	}
 
 	jsonOK(w, updated)
