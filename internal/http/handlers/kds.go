@@ -499,6 +499,19 @@ func (h *KDSHandler) publishOrderReadyIfAllReady(ctx context.Context, tid, order
 		externalOrderID = link.ExternalOrderID
 	}
 
+	// An online order is now waiting at the counter: move its POS record to ready so the online
+	// orders queue shows it as ready to hand over (or for its rider) instead of still preparing,
+	// and the counter does not press Ready a second time. Only an open order moves, as when the
+	// tickets are served (settleOnlineOrderServed).
+	if externalOrderID != "" {
+		if _, uerr := h.client.POSOrder.Update().
+			Where(entposorder.ID(orderID), entposorder.TenantID(tid), entposorder.Status(ordersmod.StatusOpen)).
+			SetStatus(onlineReadyStatus).
+			Save(ctx); uerr != nil {
+			h.log.Warn("kds: failed to mark online order ready", zap.Error(uerr), zap.String("order", orderNumber))
+		}
+	}
+
 	_ = h.publisher.PublishKDSOrderReady(ctx, tid, map[string]any{
 		"order_id":          orderID,
 		"order_number":      orderNumber,
