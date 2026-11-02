@@ -3,7 +3,7 @@ module github.com/bengobox/pos-service
 go 1.26.0
 
 // Use online tagged release (same as ordering-backend) to avoid COPY shared in Docker
-replace github.com/Bengo-Hub/shared-auth-client => github.com/Bengo-Hub/auth-client v0.15.1
+replace github.com/Bengo-Hub/shared-auth-client => github.com/Bengo-Hub/auth-client v0.17.1
 
 require (
 	ariga.io/atlas v1.1.0
@@ -12,7 +12,7 @@ require (
 	github.com/Bengo-Hub/httpware v0.19.0
 	github.com/Bengo-Hub/pagination v0.4.0
 	github.com/Bengo-Hub/shared-auth-client v0.6.0
-	github.com/Bengo-Hub/shared-events v0.7.3
+	github.com/Bengo-Hub/shared-events v0.9.0
 	github.com/Bengo-Hub/shared-ratelimit v0.2.1
 	github.com/Bengo-Hub/shared-service-client v0.4.0
 	github.com/alexbrainman/printer v0.0.0-20200912035444-f40f26f0bdeb

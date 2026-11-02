@@ -125,6 +125,9 @@ func (h *AuthEventHandler) handleUserCreated(ctx context.Context, evt *sharedeve
 	if err != nil {
 		return fmt.Errorf("invalid user_id %q: %w", userIDStr, err)
 	}
+	if handled, err := h.revoked(ctx, evt, authServiceUserID); handled {
+		return err
+	}
 
 	// Check if user already exists
 	exists, _ := h.client.User.Query().
@@ -187,6 +190,9 @@ func (h *AuthEventHandler) handleUserUpdated(ctx context.Context, evt *sharedeve
 	authServiceUserID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		return fmt.Errorf("invalid user_id %q: %w", userIDStr, err)
+	}
+	if handled, err := h.revoked(ctx, evt, authServiceUserID); handled {
+		return err
 	}
 
 	// Find existing user — if absent, create it so the StaffMember name patch below can run.
@@ -292,6 +298,9 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 
 	if pinHash == "" {
 		return fmt.Errorf("pin_hash is required")
+	}
+	if handled, err := h.revoked(ctx, evt, authServiceUserID); handled {
+		return err
 	}
 
 	// Look up by user_id only — evt.TenantID is auth-api's own tenant UUID, which
@@ -445,7 +454,51 @@ func (h *AuthEventHandler) handleUserDeleted(ctx context.Context, evt *sharedeve
 	if err != nil {
 		return fmt.Errorf("invalid user_id %q: %w", userIDStr, err)
 	}
+	if err := h.removeLocalUser(ctx, authServiceUserID); err != nil {
+		return err
+	}
+	h.logger.Info("user hard-deleted from auth.user.deleted event", zap.String("user_id", userIDStr))
+	return nil
+}
 
+// posRelevance reads auth-api's services list on auth.user events (shared-events UserRelevance).
+var posRelevance = sharedevents.UserRelevance{Service: "pos"}
+
+// revoked removes the local copy of the user when the event's services list leaves POS out and
+// the copy belongs to the event's tenant (resolved by slug, since pos-api's tenant id can differ
+// from auth-api's). Reports whether the event was handled that way. Events without the list are
+// never handled here.
+func (h *AuthEventHandler) revoked(ctx context.Context, evt *sharedevents.Event, authServiceUserID uuid.UUID) (bool, error) {
+	if !posRelevance.Revoked(evt.Payload) {
+		return false, nil
+	}
+	u, err := h.client.User.Query().Where(user.AuthServiceUserIDEQ(authServiceUserID)).Only(ctx)
+	if ent.IsNotFound(err) {
+		return true, nil // never provisioned here: nothing to do
+	}
+	if err != nil {
+		return true, fmt.Errorf("query user: %w", err)
+	}
+	tenantID := evt.TenantID
+	if slug, _ := evt.Payload["tenant_slug"].(string); slug != "" && h.tenantSyncer != nil {
+		if tid, serr := h.tenantSyncer.SyncTenant(ctx, slug); serr == nil {
+			tenantID = tid
+		}
+	}
+	if u.TenantID != tenantID {
+		return true, nil // the copy here belongs to another tenant of this person: keep it
+	}
+	if err := h.removeLocalUser(ctx, authServiceUserID); err != nil {
+		return true, fmt.Errorf("remove user outside pos: %w", err)
+	}
+	h.logger.Info("user removed: not a pos member", zap.String("user_id", authServiceUserID.String()),
+		zap.String("tenant_id", tenantID.String()))
+	return true, nil
+}
+
+// removeLocalUser hard-deletes pos-api's copy of a user, child rows first: staff outlets, POS
+// roles, staff member, user. Orders and payments keep their user id.
+func (h *AuthEventHandler) removeLocalUser(ctx context.Context, authServiceUserID uuid.UUID) error {
 	tx, err := h.client.Tx(ctx)
 	if err != nil {
 		return fmt.Errorf("start tx: %w", err)
@@ -478,12 +531,9 @@ func (h *AuthEventHandler) handleUserDeleted(ctx context.Context, evt *sharedeve
 		_ = tx.Rollback()
 		return fmt.Errorf("delete user: %w", err)
 	}
-
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit: %w", err)
 	}
-
-	h.logger.Info("user hard-deleted from auth.user.deleted event", zap.String("user_id", userIDStr))
 	return nil
 }
 
