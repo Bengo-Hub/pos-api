@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Bengo-Hub/httpware"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/tender"
+	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/payments"
 )
@@ -72,14 +72,8 @@ func (h *ReportsHandler) RegisterDetails(w http.ResponseWriter, r *http.Request)
 
 	// Outlet scope: explicit ?outlet_id wins; else the header outlet context.
 	filters := []predicate.POSOrder{posorder.TenantID(tid), posorder.CreatedAtGTE(from), posorder.CreatedAtLTE(to)}
-	if outletParam := r.URL.Query().Get("outlet_id"); outletParam != "" && outletParam != "all" {
-		if oid, perr := uuid.Parse(outletParam); perr == nil {
-			filters = append(filters, posorder.OutletID(oid))
-		}
-	} else if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
-		if oid, perr := uuid.Parse(oidStr); perr == nil {
-			filters = append(filters, posorder.OutletID(oid))
-		}
+	if oid := outletmw.RequestOutletScope(r); oid != nil {
+		filters = append(filters, posorder.OutletID(*oid))
 	}
 
 	orderList, err := h.db.POSOrder.Query().Where(filters...).WithLines().WithPayments().All(r.Context())

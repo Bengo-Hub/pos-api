@@ -105,6 +105,17 @@ Routes are gated at both the middleware and sidebar level based on `outlet.use_c
 
 Platform owners and HQ users (`is_hq_user=true`) bypass all use-case gates.
 
+### Outlet scope of reads (`?outlet_id=`)
+
+`OutletContextMiddleware` resolves the request's outlet (X-Outlet-ID, else the token's outlet, else
+the HQ outlet) and refuses a header outlet a non-HQ user is not assigned to. Reads that also take
+`?outlet_id=` resolve it with `outletmw.RequestOutletScope` (2026-11-03): the All-Sales list,
+summary and export, the dashboard KPI summary, and the analytics, register, KDS, hotel and PDF
+reports. `all` spans every outlet for HQ-level callers only (`CanAccessAllOutlets`); a named
+outlet counts only when the caller may see it (`CanViewOutlet`: HQ caller, their resolved outlet,
+an assigned outlet or the HQ outlet); anything else falls back to the request's outlet. Since the
+outlet context always resolves to an outlet, a report is tenant-wide only with `outlet_id=all`.
+
 ### OutletSetting (`outlet_settings` table)
 
 Per-outlet configuration stored in `outlet_settings`. Fields:

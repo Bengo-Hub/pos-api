@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/Bengo-Hub/httpware"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
@@ -131,9 +132,68 @@ func OutletContextMiddleware(client *ent.Client, log *zap.Logger) func(http.Hand
 				// Also populate the lightweight httpware key so handlers can call httpware.GetOutletID().
 				ctx = httpware.WithOutletID(ctx, resolved.ID.String())
 			}
+			// What RequestOutletScope needs to check an ?outlet_id= the caller names.
+			ctx = context.WithValue(ctx, outletAccessKey{}, outletAccess{client: client, tenantID: tenantID})
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+type outletAccessKey struct{}
+
+type outletAccess struct {
+	client   *ent.Client
+	tenantID uuid.UUID
+}
+
+// RequestOutletScope is the one rule every read that takes ?outlet_id= uses (the All-Sales list,
+// summary and export, and the analytics, register, KDS and hotel reports). It returns the outlet
+// to filter by, or nil for every outlet:
+//   - outlet_id=all: every outlet, for HQ-level callers only
+//   - outlet_id=<id>: that outlet when the caller may see it (CanViewOutlet)
+//   - absent, invalid or not allowed: the request's outlet context (X-Outlet-ID, the token's
+//     outlet, else the HQ outlet)
+//
+// Before it, four copies of this logic took any outlet id from any caller and ignored "all", so a
+// report could never span every outlet and branch staff could read another branch by editing the
+// URL.
+func RequestOutletScope(r *http.Request) *uuid.UUID {
+	// The request's outlet: the middleware's OutletContext, else the lightweight httpware key
+	// (the middleware sets both; some callers and tests set only the httpware one).
+	contextOutlet := func() *uuid.UUID {
+		if oc := OutletFromContext(r.Context()); oc != nil {
+			id := oc.ID
+			return &id
+		}
+		if s := httpware.GetOutletID(r.Context()); s != "" {
+			if id, err := uuid.Parse(s); err == nil {
+				return &id
+			}
+		}
+		return nil
+	}
+	p := strings.TrimSpace(r.URL.Query().Get("outlet_id"))
+	if p == "" {
+		return contextOutlet()
+	}
+	if strings.EqualFold(p, "all") {
+		if CanAccessAllOutlets(r) {
+			return nil
+		}
+		return contextOutlet()
+	}
+	oid, err := uuid.Parse(p)
+	if err != nil {
+		return contextOutlet()
+	}
+	if acc, ok := r.Context().Value(outletAccessKey{}).(outletAccess); ok {
+		if CanViewOutlet(r, acc.client, acc.tenantID, oid) {
+			return &oid
+		}
+	} else if CanAccessAllOutlets(r) {
+		return &oid
+	}
+	return contextOutlet()
 }
 
 func outletToCtx(o *ent.Outlet) *OutletContext {

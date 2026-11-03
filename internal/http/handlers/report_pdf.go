@@ -10,7 +10,6 @@ import (
 	"time"
 
 	sharedcache "github.com/Bengo-Hub/cache"
-	"github.com/Bengo-Hub/httpware"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -98,20 +97,10 @@ func (h *ReportPDFHandler) branding(ctx context.Context, tenantID uuid.UUID) rec
 	return b
 }
 
-// outletScope resolves the outlet the report is scoped to: an explicit ?outlet_id= wins, otherwise
-// the outlet in the request context (httpware). Returns nil when the report spans all outlets.
+// outletScope resolves the outlet the report is scoped to through the shared rule
+// (outletmw.RequestOutletScope). Returns nil when the report spans all outlets.
 func (h *ReportPDFHandler) outletScope(r *http.Request) *uuid.UUID {
-	if s := r.URL.Query().Get("outlet_id"); s != "" {
-		if oid, err := uuid.Parse(s); err == nil {
-			return &oid
-		}
-	}
-	if s := httpware.GetOutletID(r.Context()); s != "" {
-		if oid, err := uuid.Parse(s); err == nil {
-			return &oid
-		}
-	}
-	return nil
+	return outletmw.RequestOutletScope(r)
 }
 
 // tenantAddress resolves a display address line from tenant metadata (street/city/country),

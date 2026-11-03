@@ -10,6 +10,7 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 // The ?outlet_id= param on the All-Sales list, summary and export follows the header rule: HQ
@@ -67,6 +68,41 @@ func TestCanViewOutlet(t *testing.T) {
 	for _, c := range cases {
 		if got := CanViewOutlet(c.r, client, tenantID, c.outlet); got != c.want {
 			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		}
+	}
+
+	// RequestOutletScope through the real middleware: the reports and the All-Sales list use it.
+	scope := func(claims *authclient.Claims, query string) *uuid.UUID {
+		var got *uuid.UUID
+		h := OutletContextMiddleware(client, zap.NewNop())(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			got = RequestOutletScope(r)
+		}))
+		r := httptest.NewRequest(http.MethodGet, "/reports?"+query, nil)
+		h.ServeHTTP(httptest.NewRecorder(), r.WithContext(authclient.ContextWithClaims(r.Context(), claims)))
+		return got
+	}
+	adminClaims := &authclient.Claims{TenantID: tenantID.String(), RegisteredClaims: jwt.RegisteredClaims{Subject: uuid.NewString()}, Roles: []string{"admin"}}
+	cashierClaims := &authclient.Claims{TenantID: tenantID.String(), OutletID: junior.String(), RegisteredClaims: jwt.RegisteredClaims{Subject: cashier.String()}, Roles: []string{"cashier"}}
+	scopes := []struct {
+		name   string
+		claims *authclient.Claims
+		query  string
+		want   *uuid.UUID // nil = every outlet
+	}{
+		{"admin all", adminClaims, "outlet_id=all", nil},
+		{"admin named outlet", adminClaims, "outlet_id=" + eldoret.String(), &eldoret},
+		{"admin no param falls back to HQ", adminClaims, "", &hq},
+		{"cashier all is held to own outlet", cashierClaims, "outlet_id=all", &junior},
+		{"cashier other branch is held to own outlet", cashierClaims, "outlet_id=" + eldoret.String(), &junior},
+		{"cashier garbage param is held to own outlet", cashierClaims, "outlet_id=nope", &junior},
+	}
+	for _, c := range scopes {
+		got := scope(c.claims, c.query)
+		switch {
+		case c.want == nil && got != nil:
+			t.Errorf("%s: got %s, want every outlet", c.name, got)
+		case c.want != nil && (got == nil || *got != *c.want):
+			t.Errorf("%s: got %v, want %s", c.name, got, c.want)
 		}
 	}
 }

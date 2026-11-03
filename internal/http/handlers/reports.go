@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Bengo-Hub/httpware"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
 	entcommrec "github.com/bengobox/pos-service/internal/ent/commissionrecord"
 	"github.com/bengobox/pos-service/internal/ent/posdevicesession"
@@ -27,7 +27,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrefund"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
-	"github.com/bengobox/pos-service/internal/audit"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	ordersmod "github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/shifts"
@@ -136,10 +135,10 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var outletFilters []predicate.POSOrder
-	if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
-		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
-			outletFilters = []predicate.POSOrder{posorder.OutletID(oid)}
-		}
+	outletKey := "all"
+	if oid := parseOutletFilter(r); oid != uuid.Nil {
+		outletFilters = []predicate.POSOrder{posorder.OutletID(oid)}
+		outletKey = oid.String()
 	}
 	// A view_own-only principal (plain cashier, outlet not configured for outlet-wide visibility)
 	// gets THEIR OWN sales summary here, not the whole outlet/tenant's day totals — the same
@@ -169,7 +168,7 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	if fromParam == "" && toParam == "" {
 		window = "today:" + todayStart.Format("2006-01-02")
 	}
-	cacheKey := "pos:report:summary:" + tid.String() + ":" + httpware.GetOutletID(r.Context()) + ":" + ownKey + ":" + window
+	cacheKey := "pos:report:summary:" + tid.String() + ":" + outletKey + ":" + ownKey + ":" + window
 	result, err := sharedcache.GetOrSetStale(r.Context(), h.cache, cacheKey, sharedcache.TTLOperational, time.Minute,
 		func(ctx context.Context) (map[string]any, error) {
 			queryOrders := func(from, to time.Time) ([]*ent.POSOrder, float64, error) {
@@ -319,10 +318,8 @@ func (h *ReportsHandler) SalesSummary(w http.ResponseWriter, r *http.Request) {
 			effectiveDateLTE(to),
 		)
 
-	if outletStr := r.URL.Query().Get("outlet_id"); outletStr != "" {
-		if oid, err2 := uuid.Parse(outletStr); err2 == nil {
-			q = q.Where(posorder.OutletID(oid))
-		}
+	if oid := parseOutletFilter(r); oid != uuid.Nil {
+		q = q.Where(posorder.OutletID(oid))
 	}
 
 	orders, err := q.WithLines().All(r.Context())
@@ -1420,25 +1417,12 @@ func parseDateRange(r *http.Request, loc *time.Location) (from, to time.Time) {
 	return
 }
 
-// parseOutletFilter reads the optional ?outlet_id= query param shared by the analytics report
-// endpoints. Returns uuid.Nil when absent/invalid, meaning "all outlets" (no filter applied).
-// parseOutletFilter resolves the outlet a report should be scoped to: an explicit ?outlet_id=
-// query param (an admin/manager deliberately viewing a DIFFERENT outlet's report) takes
-// precedence, falling back to the ambient X-Outlet-ID header (set by every frontend's outlet
-// switcher — see header.tsx's HeaderOutletChip — defaulting to the caller's own home outlet) so
-// a report is outlet-scoped by default even when the caller passes no explicit override. Mirrors
-// GetSummary's httpware.GetOutletID(ctx) resolution so every report handler in this file agrees
-// on what "the current outlet" means.
+// parseOutletFilter resolves the outlet an analytics report is scoped to through the shared rule
+// (outletmw.RequestOutletScope): ?outlet_id=all for every outlet (HQ-level callers), an outlet the
+// caller may see, else the request's outlet context. uuid.Nil means every outlet.
 func parseOutletFilter(r *http.Request) uuid.UUID {
-	if s := r.URL.Query().Get("outlet_id"); s != "" {
-		if oid, err := uuid.Parse(s); err == nil {
-			return oid
-		}
-	}
-	if s := httpware.GetOutletID(r.Context()); s != "" {
-		if oid, err := uuid.Parse(s); err == nil {
-			return oid
-		}
+	if oid := outletmw.RequestOutletScope(r); oid != nil {
+		return *oid
 	}
 	return uuid.Nil
 }

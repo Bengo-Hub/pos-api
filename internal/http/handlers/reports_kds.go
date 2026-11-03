@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Bengo-Hub/httpware"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
@@ -16,6 +15,7 @@ import (
 	entkdsstation "github.com/bengobox/pos-service/internal/ent/kdsstation"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/predicate"
+	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 	"github.com/bengobox/pos-service/internal/modules/docs"
 	"github.com/bengobox/pos-service/internal/modules/kdsroute"
 )
@@ -293,19 +293,8 @@ func (h *ReportPDFHandler) SalesByKDSStationDoc(w http.ResponseWriter, r *http.R
 	h.write(w, r, report, "sales-by-kds-station")
 }
 
-// reportOutletScope resolves the same outlet_id precedence report_pdf.go's outletScope uses
-// (explicit ?outlet_id= wins, else the request's active outlet), for JSON report handlers that
-// aren't methods on ReportPDFHandler.
+// reportOutletScope is the shared outlet rule (outletmw.RequestOutletScope) for JSON report
+// handlers that aren't methods on ReportPDFHandler. nil means every outlet.
 func reportOutletScope(r *http.Request) *uuid.UUID {
-	if s := r.URL.Query().Get("outlet_id"); s != "" {
-		if oid, err := uuid.Parse(s); err == nil {
-			return &oid
-		}
-	}
-	if s := httpware.GetOutletID(r.Context()); s != "" {
-		if oid, err := uuid.Parse(s); err == nil {
-			return &oid
-		}
-	}
-	return nil
+	return outletmw.RequestOutletScope(r)
 }
