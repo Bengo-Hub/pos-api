@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/user"
+	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/userposrole"
 )
 
@@ -522,6 +523,12 @@ func (h *AuthEventHandler) removeLocalUser(ctx context.Context, authServiceUserI
 	if _, err := tx.UserPOSRole.Delete().Where(userposrole.UserID(authServiceUserID)).Exec(ctx); err != nil {
 		_ = tx.Rollback()
 		return fmt.Errorf("delete user pos roles: %w", err)
+	}
+	// pos_user_role_assignments has a NO ACTION FK to users too: without this, removing anyone
+	// who holds a v2 role assignment failed and the copy stayed.
+	if _, err := tx.POSUserRoleAssignment.Delete().Where(posuserroleassignment.UserID(authServiceUserID)).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("delete pos user role assignments: %w", err)
 	}
 	if _, err := tx.StaffMember.Delete().Where(staffmember.UserID(authServiceUserID)).Exec(ctx); err != nil {
 		_ = tx.Rollback()

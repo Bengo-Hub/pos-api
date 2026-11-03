@@ -72,6 +72,11 @@ func TestAuthEventServicesListRemovesPOSCopy(t *testing.T) {
 	}
 
 	storekeeper := seed()
+	// A v2 role assignment (NO ACTION FK to users) must not block the removal.
+	role := client.POSRoleV2.Create().SetTenantID(tenantID).SetRoleCode("cashier").SetName("Cashier").
+		SetIsSystemRole(true).SetCreatedAt(now).SetUpdatedAt(now).SaveX(ctx)
+	client.POSUserRoleAssignment.Create().SetTenantID(tenantID).SetUserID(storekeeper).SetRoleID(role.ID).
+		SetAssignedBy(storekeeper).SetAssignedAt(now).ExecX(ctx)
 	if err := h.handleUserUpdated(ctx, event(storekeeper, tenantID, "updated", map[string]any{"services": []any{"inventory"}})); err != nil {
 		t.Fatal(err)
 	}
