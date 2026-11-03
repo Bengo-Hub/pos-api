@@ -26,7 +26,7 @@ import (
 //
 // SAFETY: this handler performs hard, unrecoverable DELETEs. It runs ONLY when:
 //   - tenant_id is present AND a valid, non-nil UUID, and
-//   - payload.confirmed == true AND payload.reason == "dormancy".
+//   - payload.confirmed == true AND payload.reason is a known purge reason (dormancy, registration_rejected, tenant_deleted; shared-events IsTenantPurgeReason).
 //
 // Any other condition Acks the message and does nothing (never a no-filter delete,
 // never a poison-loop). A transient DB failure Naks for a bounded retry.
@@ -269,7 +269,7 @@ func (s *TenantPurgeSubscriber) handle(msg *nats.Msg) {
 	// GUARD 2: only a confirmed dormancy purge proceeds.
 	confirmed, _ := evt.Payload["confirmed"].(bool)
 	reason, _ := evt.Payload["reason"].(string)
-	if !confirmed || reason != "dormancy" {
+	if !confirmed || !sharedevents.IsTenantPurgeReason(reason) {
 		s.log.Warn("tenant.purge: not a confirmed dormancy purge — acking, skipping",
 			zap.String("tenant_id", tenantID.String()),
 			zap.Bool("confirmed", confirmed),
