@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/Bengo-Hub/httpware"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
@@ -64,7 +64,7 @@ func OutletContextMiddleware(client *ent.Client, log *zap.Logger) func(http.Hand
 			// claims.CanAccessAllOutlets() covers platform owner / IsAdmin() / the session's own
 			// outlet being HQ, but the vendored auth-client claims helper doesn't recognize the
 			// "manager" role — so also allow via the caller's own role list.
-			isHQUser := hasClaims && (claims.CanAccessAllOutlets() || posrole.IsAdminLevelAny(claims.Roles))
+			isHQUser := hasClaims && claimsSeeAllOutlets(claims)
 
 			// ── Resolve requested outlet from header ──────────────────────────
 			var requestedOutletID uuid.UUID
@@ -149,6 +149,40 @@ func outletToCtx(o *ent.Outlet) *OutletContext {
 		IsHQ:    o.IsHq,
 		Status:  o.Status,
 	}
+}
+
+// claimsSeeAllOutlets is the HQ rule: platform owner, admin, HQ session or a manager-level role.
+func claimsSeeAllOutlets(claims *authclient.Claims) bool {
+	return claims.CanAccessAllOutlets() || posrole.IsAdminLevelAny(claims.Roles)
+}
+
+// CanAccessAllOutlets reports whether the caller may read across every outlet (?outlet_id=all),
+// by the same rule OutletContextMiddleware applies to the X-Outlet-ID header.
+func CanAccessAllOutlets(r *http.Request) bool {
+	claims, ok := authclient.ClaimsFromContext(r.Context())
+	return ok && claims != nil && claimsSeeAllOutlets(claims)
+}
+
+// CanViewOutlet reports whether the caller may scope a read to outletID through a query param.
+// It mirrors the header check: HQ callers may read any outlet of their tenant, everyone else their
+// resolved outlet, an outlet they are assigned to, or the HQ outlet.
+func CanViewOutlet(r *http.Request, client *ent.Client, tenantID, outletID uuid.UUID) bool {
+	if CanAccessAllOutlets(r) {
+		return true
+	}
+	if oc := OutletFromContext(r.Context()); oc != nil && oc.ID == outletID {
+		return true
+	}
+	ctx := r.Context()
+	if claims, ok := authclient.ClaimsFromContext(ctx); ok && claims != nil && claims.Subject != "" {
+		if userID, err := uuid.Parse(claims.Subject); err == nil && isStaffAssignedToOutlet(ctx, client, tenantID, userID, outletID) {
+			return true
+		}
+	}
+	isHQ, _ := client.Outlet.Query().
+		Where(entoutlet.ID(outletID), entoutlet.TenantID(tenantID), entoutlet.IsHq(true)).
+		Exist(ctx)
+	return isHQ
 }
 
 func isStaffAssignedToOutlet(ctx context.Context, client *ent.Client, tenantID, userID, outletID uuid.UUID) bool {

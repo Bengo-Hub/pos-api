@@ -345,6 +345,7 @@ func (s *Service) stepInventory(ctx context.Context, rev *ent.POSReversal) (stri
 	req := inventory.ReverseConsumptionRequest{
 		OrderID:        rev.OrderID.String(),
 		Reason:         fmt.Sprintf("Reversal %s: %s", rev.ReversalNumber, rev.Reason),
+		Kind:           InventoryKind(rev.Reason),
 		IdempotencyKey: "pos-reversal-" + rev.ID.String(),
 	}
 	if rev.Scope == entposreversal.ScopePartial {

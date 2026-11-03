@@ -43,7 +43,7 @@ func (s *Service) deleteFiscalized(ctx context.Context, tenantID uuid.UUID, orde
 	rev, err := s.reversalSvc.Execute(ctx, tenantID, reversals.CreateRequest{
 		OrderID:     order.ID,
 		Scope:       "full",
-		Reason:      fmt.Sprintf("Delete Sale: %s", req.Reason),
+		Reason:      reversals.ReasonPrefixDeleteSale + req.Reason,
 		RequestedBy: req.RequestedBy,
 		TenantSlug:  req.TenantSlug,
 	})
@@ -56,11 +56,11 @@ func (s *Service) deleteFiscalized(ctx context.Context, tenantID uuid.UUID, orde
 		md[k] = v
 	}
 	md["deletion"] = map[string]any{
-		"deleted_by":     req.RequestedBy.String(),
-		"delete_reason":  req.Reason,
-		"deleted_at":     time.Now().UTC().Format(time.RFC3339),
-		"invoice_id":     invoiceID,
-		"reversal_id":    rev.ID.String(),
+		"deleted_by":      req.RequestedBy.String(),
+		"delete_reason":   req.Reason,
+		"deleted_at":      time.Now().UTC().Format(time.RFC3339),
+		"invoice_id":      invoiceID,
+		"reversal_id":     rev.ID.String(),
 		"reversal_number": rev.ReversalNumber,
 	}
 	now := time.Now()
@@ -117,6 +117,7 @@ func (s *Service) deleteNonFiscalized(ctx context.Context, tenantID uuid.UUID, o
 		resp, ierr := s.inventoryClient.ReverseConsumption(ctx, tenantID.String(), inventory.ReverseConsumptionRequest{
 			OrderID:        order.ID.String(),
 			Reason:         fmt.Sprintf("Delete Sale (shred): %s", req.Reason),
+			Kind:           inventory.ReversalVoid,
 			IdempotencyKey: "pos-shred-" + shred.ID.String(),
 		})
 		switch {

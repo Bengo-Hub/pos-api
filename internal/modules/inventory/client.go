@@ -430,11 +430,22 @@ type ReverseConsumptionItem struct {
 // ReverseConsumptionRequest is the body for POST /v1/{tenant}/inventory/consumption/reverse.
 // Empty Items reverses the order's entire recorded consumption. Idempotent on IdempotencyKey.
 type ReverseConsumptionRequest struct {
-	OrderID        string                   `json:"order_id"`
-	Items          []ReverseConsumptionItem `json:"items,omitempty"`
-	Reason         string                   `json:"reason,omitempty"`
-	IdempotencyKey string                   `json:"idempotency_key,omitempty"`
+	OrderID string                   `json:"order_id"`
+	Items   []ReverseConsumptionItem `json:"items,omitempty"`
+	Reason  string                   `json:"reason,omitempty"`
+	// Kind tells inventory's stock history why the stock came back: void, edit, return or
+	// reversal (see the Reversal* constants below).
+	Kind           string `json:"kind,omitempty"`
+	IdempotencyKey string `json:"idempotency_key,omitempty"`
 }
+
+// Reversal kinds inventory-api records on the compensating consumption (its stock history shows
+// a voided sale as voided, an Edit Sale reduction as edited).
+const (
+	ReversalVoid     = "void"
+	ReversalEdit     = "edit"
+	ReversalReversal = "reversal"
+)
 
 // ReversedIngredient reports one ingredient line's reversal outcome.
 type ReversedIngredient struct {

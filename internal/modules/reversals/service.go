@@ -14,6 +14,7 @@ package reversals
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Bengo-Hub/httpware/money"
@@ -105,6 +106,25 @@ type CreateRequest struct {
 	// TenantSlug is the URL tenant segment, forwarded to treasury S2S calls (which key on slug).
 	TenantSlug  string    `json:"-"`
 	RequestedBy uuid.UUID `json:"-"`
+}
+
+// Reason prefixes the Delete Sale and Edit Sale tools put on the reversals they run. The stock
+// step reads them back (InventoryKind) so inventory's history labels the movement correctly.
+const (
+	ReasonPrefixDeleteSale = "Delete Sale: "
+	ReasonPrefixEditSale   = "Edit Sale: "
+)
+
+// InventoryKind is the reversal kind inventory-api records for a reversal with this reason: a
+// Delete Sale is a void, an Edit Sale reduction an edit, anything else a plain reversal.
+func InventoryKind(reason string) string {
+	switch {
+	case strings.HasPrefix(reason, ReasonPrefixDeleteSale):
+		return inventory.ReversalVoid
+	case strings.HasPrefix(reason, ReasonPrefixEditSale):
+		return inventory.ReversalEdit
+	}
+	return inventory.ReversalReversal
 }
 
 // finalizedStatuses are order states a reversal may act on — the same set the line-void

@@ -143,7 +143,7 @@ func (s *Service) Edit(ctx context.Context, tenantID uuid.UUID, req EditSaleRequ
 		} else {
 			rev, rerr := s.reversalSvc.Execute(ctx, tenantID, reversals.CreateRequest{
 				OrderID: order.ID, Scope: "partial", Lines: buildLineSelections(diff.removed, diff.reduced),
-				Reason: fmt.Sprintf("Edit Sale: %s", req.Reason), RequestedBy: req.RequestedBy, TenantSlug: req.TenantSlug,
+				Reason: reversals.ReasonPrefixEditSale + req.Reason, RequestedBy: req.RequestedBy, TenantSlug: req.TenantSlug,
 			})
 			if rerr != nil {
 				stepErr = fmt.Errorf("reduce: %w", rerr)

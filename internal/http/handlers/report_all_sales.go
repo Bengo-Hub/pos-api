@@ -50,17 +50,29 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 	var filters []predicate.POSOrder
 
 	// Business Location: an explicit ?outlet_id= query param wins (the All-Sales location
-	// filter). "all" (admins) lists every outlet. Absent → scope to the header outlet context.
-	if outletParam := q.Get("outlet_id"); outletParam != "" {
-		if !strings.EqualFold(outletParam, "all") {
-			if oid, parseErr := uuid.Parse(outletParam); parseErr == nil {
+	// filter). "all" lists every outlet. Absent → scope to the header outlet context. The param
+	// gets the same access rule as the X-Outlet-ID header: "all" only for HQ-level callers, a
+	// specific outlet only when the caller may see it. Anyone else falls back to their own outlet
+	// context, so branch staff can never widen the list, summary or export by editing the URL.
+	ctxOutlet := func() {
+		if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
+			if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
 				filters = append(filters, posorder.OutletID(oid))
 			}
 		}
-	} else if oidStr := httpware.GetOutletID(r.Context()); oidStr != "" {
-		if oid, parseErr := uuid.Parse(oidStr); parseErr == nil {
+	}
+	if outletParam := strings.TrimSpace(q.Get("outlet_id")); outletParam != "" {
+		if strings.EqualFold(outletParam, "all") {
+			if !outletmw.CanAccessAllOutlets(r) {
+				ctxOutlet()
+			}
+		} else if oid, parseErr := uuid.Parse(outletParam); parseErr == nil && outletmw.CanViewOutlet(r, client, tid, oid) {
 			filters = append(filters, posorder.OutletID(oid))
+		} else {
+			ctxOutlet()
 		}
+	} else {
+		ctxOutlet()
 	}
 
 	if status := q.Get("status"); status != "" {
