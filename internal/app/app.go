@@ -234,6 +234,7 @@ func New(ctx context.Context) (*App, error) {
 		RequestTimeout: cfg.Subscriptions.RequestTimeout,
 		APIKey:         cfg.Subscriptions.APIKey,
 	}, log.Named("subscriptions.client"))
+	subscriptions.SetLiveLimitLookup(subsClient.LiveLimit)
 
 	tenantCache := sharedcache.New(redisClient, log)
 	tenantSyncer := tenant.NewSyncer(entClient, cfg.Auth.ServiceURL, tenantCache).WithDB(sqlDB)

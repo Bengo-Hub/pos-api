@@ -1,9 +1,11 @@
 package subscriptions
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
@@ -171,10 +173,34 @@ func CheckStructuralLimit(w http.ResponseWriter, r *http.Request, metric, limitK
 		return true // 0 = not configured, -1 = unlimited
 	}
 	if currentCount >= limit {
+		// Ask the live plan before refusing: an upgrade since the token was issued must count.
+		if live, ok := liveLimit(r.Context(), claims.TenantID, limitKey); ok {
+			if live <= 0 || currentCount < live {
+				return true
+			}
+			limit = live
+		}
 		writeLimitReached(w, metric, limit, currentCount, false)
 		return false
 	}
 	return true
+}
+
+// liveLimitLookup answers the tenant's current plan limit (SetLiveLimitLookup).
+var liveLimitLookup atomic.Pointer[func(ctx context.Context, tenantID, limitKey string) (int, bool)]
+
+// SetLiveLimitLookup wires the live plan limit consulted before a token-based refusal. Tokens can be
+// hours old, so an upgrade would otherwise stay blocked until the next sign-in.
+func SetLiveLimitLookup(fn func(ctx context.Context, tenantID, limitKey string) (int, bool)) {
+	liveLimitLookup.Store(&fn)
+}
+
+func liveLimit(ctx context.Context, tenantID, limitKey string) (int, bool) {
+	fn := liveLimitLookup.Load()
+	if fn == nil || tenantID == "" {
+		return 0, false
+	}
+	return (*fn)(ctx, tenantID, limitKey)
 }
 
 // CheckDeviceLimit is a convenience wrapper around CheckStructuralLimit for max_devices.
