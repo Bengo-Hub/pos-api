@@ -139,6 +139,11 @@ func (c *Client) SignPOSSale(ctx context.Context, tenantSlug string, req SignPOS
 	return fi, nil
 }
 
+// GetSettlementMethods proxies the online methods a settlement form may offer this tenant (raw JSON passthrough).
+func (c *Client) GetSettlementMethods(ctx context.Context, tenantSlug string) (json.RawMessage, error) {
+	return c.getRaw(ctx, fmt.Sprintf("%s/api/v1/s2s/%s/gateways/settlement-methods", c.baseURL, tenantSlug))
+}
+
 // ListBanks proxies the treasury S2S Paystack bank list for a country (raw JSON passthrough).
 func (c *Client) ListBanks(ctx context.Context, tenantSlug, country string) (json.RawMessage, error) {
 	if country == "" {

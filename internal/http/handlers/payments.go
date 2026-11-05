@@ -592,6 +592,25 @@ func (h *PaymentHandler) GetGateways(w http.ResponseWriter, r *http.Request) {
 // is unreachable. Bounded by tenants x outlet currencies, so it never needs eviction.
 var lastGoodGateways sync.Map
 
+// GetSettlementMethods handles GET /{tenantID}/pos/settlement-methods: the online methods a settlement
+// form may offer, from gateways this tenant itself switched on. Unlike /pos/gateways this has no
+// platform fallback. With no answer from treasury the form offers offline methods only.
+func (h *PaymentHandler) GetSettlementMethods(w http.ResponseWriter, r *http.Request) {
+	none := map[string]any{"collect": []string{}, "payout": []string{}}
+	tenantSlug := resolveTenantSlugForRequest(r, h.client)
+	if tenantSlug == "" || h.treasuryClient == nil {
+		jsonOK(w, none)
+		return
+	}
+	methods, err := h.treasuryClient.GetSettlementMethods(r.Context(), tenantSlug)
+	if err != nil {
+		h.log.Warn("get settlement methods failed; offline methods only", zap.String("tenant", tenantSlug), zap.Error(err))
+		jsonOK(w, none)
+		return
+	}
+	jsonOK(w, methods)
+}
+
 // GetSupportedCurrencies handles GET /{tenantID}/pos/currency/currencies — proxies treasury's
 // canonical ISO 4217 currency list (with per-currency decimal places) so the outlet-currency
 // picker never drifts from what treasury's forex/conversion engine actually supports.

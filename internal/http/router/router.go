@@ -654,6 +654,7 @@ func New(
 					// Payments
 					if payments != nil {
 						pos.Get("/gateways", payments.GetGateways)
+						pos.Get("/settlement-methods", payments.GetSettlementMethods)
 						// Currency: proxied from treasury's centralized conversion service —
 						// backs the outlet-currency picker + currency-change confirmation modal.
 						pos.Get("/currency/currencies", payments.GetSupportedCurrencies)
