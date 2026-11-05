@@ -85,11 +85,12 @@ func OutletContextMiddleware(client *ent.Client, log *zap.Logger) func(http.Hand
 					http.Error(w, `{"error":"outlet not found or access denied"}`, http.StatusForbidden)
 					return
 				}
-				// A limited manager holds exactly their list, HQ outlet included.
+				// A limited manager holds exactly their list, HQ outlet included. An outlet off the
+				// list is ignored rather than refused and the fallback below opens one they hold: a
+				// browser still remembering an outlet from before the limit must not lock them out.
 				if hasClaims && claims.OutletRestricted() {
-					if !claims.AllowsOutlet(o.ID.String()) {
-						http.Error(w, `{"error":"outlet not assigned to this user"}`, http.StatusForbidden)
-						return
+					if claims.AllowsOutlet(o.ID.String()) {
+						resolved = outletToCtx(o)
 					}
 				} else if !isHQUser && !o.IsHq {
 					// Non-HQ users can only request their assigned outlet.
@@ -102,7 +103,9 @@ func OutletContextMiddleware(client *ent.Client, log *zap.Logger) func(http.Hand
 						}
 					}
 				}
-				resolved = outletToCtx(o)
+				if !hasClaims || !claims.OutletRestricted() {
+					resolved = outletToCtx(o)
+				}
 			}
 
 			// ── Fallback: the caller's own assigned outlet from their JWT claim ───

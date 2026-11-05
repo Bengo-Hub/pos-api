@@ -1074,7 +1074,11 @@ func (h *ServiceSettingsHandler) SwitchOutlet(w http.ResponseWriter, r *http.Req
 
 	// HQ users and superusers can switch to any outlet.
 	// Regular staff must be assigned to the target outlet.
-	if hasClaims && !claims.IsPlatformOwner {
+	if hasClaims && claims.OutletRestricted() && !claims.AllowsOutlet(outletID.String()) {
+		jsonError(w, "you are not assigned to this outlet", http.StatusForbidden)
+		return
+	}
+	if hasClaims && !claims.IsPlatformOwner && !claims.OutletRestricted() {
 		isHQ := claims.CanAccessAllOutlets()
 		isSuper := false
 		for _, role := range claims.Roles {
