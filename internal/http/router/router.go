@@ -1399,6 +1399,9 @@ func New(
 					s2s.Get("/s2s/storefront/discounts", promotions.S2SListStorefrontDiscounts)
 				}
 				s2s.Route("/s2s/{tenant}", func(t chi.Router) {
+					if staffAdmin != nil {
+						t.Get("/staff/{userID}/pin-hash", staffAdmin.S2SPinHash)
+					}
 					if loyalty != nil {
 						t.Post("/loyalty/earn", loyalty.S2SEarn)
 						t.Post("/loyalty/redeem", loyalty.S2SRedeem)

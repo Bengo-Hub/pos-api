@@ -35,6 +35,31 @@ type StaffHandler struct {
 	http        *http.Client
 }
 
+// S2SPinHash answers a staff member's PIN hash for inventory-api, so someone newly given inventory
+// keeps the PIN they use at the till. Internal key only. The hash is a bcrypt digest, and the same
+// value already travels on the auth.user.pin_set event.
+// GET /api/v1/s2s/{tenant}/staff/{userID}/pin-hash
+func (h *StaffHandler) S2SPinHash(w http.ResponseWriter, r *http.Request) {
+	tid, err := s2sTenantUUID(r)
+	if err != nil {
+		jsonError(w, "invalid tenant", http.StatusBadRequest)
+		return
+	}
+	uid, err := uuid.Parse(chi.URLParam(r, "userID"))
+	if err != nil {
+		jsonError(w, "invalid user", http.StatusBadRequest)
+		return
+	}
+	member, err := h.client.StaffMember.Query().
+		Where(entstaff.TenantID(tid), entstaff.UserID(uid), entstaff.IsActive(true), entstaff.PinHashNotNil()).
+		First(r.Context())
+	if err != nil || member.PinHash == nil || *member.PinHash == "" {
+		jsonError(w, "no pin", http.StatusNotFound)
+		return
+	}
+	jsonOK(w, map[string]any{"pin_hash": *member.PinHash})
+}
+
 func NewStaffHandler(log *zap.Logger, client *ent.Client, authURL, internalKey string) *StaffHandler {
 	return &StaffHandler{
 		log:         log,
