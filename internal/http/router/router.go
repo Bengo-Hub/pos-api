@@ -415,7 +415,7 @@ func New(
 						pos.With(orderWrite).Patch("/orders/{orderID}/status", orders.UpdateStatus)
 						// All-Sales "Edit Shipping": update shipping status/address/charges (metadata).
 						pos.Patch("/orders/{orderID}/shipping", orders.UpdateShipping)
-						pos.Get("/delivery-quote", orders.DeliveryQuote)
+						pos.With(subscriptions.RequireFeature(subscriptions.FeatureLogistics)).Get("/delivery-quote", orders.DeliveryQuote)
 						pos.Get("/delivery-areas", orders.DeliveryAreas)
 						// All-Sales "New Sale Notification": (re)send the customer their receipt/invoice.
 						pos.Post("/orders/{orderID}/notify", orders.NotifySale)
@@ -1242,12 +1242,12 @@ func New(
 							Post("/online-orders/{orderID}/verify-payment", onlineOrders.VerifyPayment)
 						// WS-D delivery rider assignment: list fleet (proxy logistics) +
 						// assign rider (delegate to ordering-backend, which owns the order).
-						pos.Get("/online-orders/riders", onlineOrders.ListAvailableRiders)
+						pos.With(subscriptions.RequireFeature(subscriptions.FeatureLogistics)).Get("/online-orders/riders", onlineOrders.ListAvailableRiders)
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.online_orders.change", "pos.orders.change", "pos.orders.manage"), onlineFeat).
 							Post("/online-orders/{orderID}/assign-rider", onlineOrders.AssignRider)
 						// Shipments: hand a sale with shipping details to logistics-api (delivery-
 						// execution source of truth) — creates a delivery task, pos keeps the reference.
-						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage")).
+						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.change", "pos.orders.manage"), subscriptions.RequireFeature(subscriptions.FeatureLogistics)).
 							Post("/orders/{orderID}/dispatch-delivery", onlineOrders.DispatchShipment)
 					}
 

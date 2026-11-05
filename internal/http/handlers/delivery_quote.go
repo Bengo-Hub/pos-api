@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/platform/logistics"
+	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
 
 // Till deliveries are priced by logistics-api's delivery areas and policy (the one pricing
@@ -145,7 +146,8 @@ func (h *POSOrderHandler) DeliveryAreas(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
 		return
 	}
-	if h.deliveryQuoter == nil {
+	// A plan with no logistics reads as delivery not being set up, so the terminal stays quiet.
+	if h.deliveryQuoter == nil || !subscriptions.HasFeature(r, subscriptions.FeatureLogistics) {
 		jsonOK(w, map[string]any{"areas": []logistics.DeliveryArea{}, "configured": false})
 		return
 	}

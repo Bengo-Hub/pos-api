@@ -141,6 +141,16 @@ func RequireFeature(featureCode string) func(http.Handler) http.Handler {
 	return authclient.RequireFeatureCode(featureCode)
 }
 
+// HasFeature reports whether the request's plan includes featureCode, for a handler that answers
+// differently rather than refusing. No claims and exempt tokens pass, like RequireFeature.
+func HasFeature(r *http.Request, featureCode string) bool {
+	claims, ok := authclient.ClaimsFromContext(r.Context())
+	if !ok || claims == nil || claims.IsGatingExempt() {
+		return true
+	}
+	return claims.HasFeature(featureCode)
+}
+
 // CheckStructuralLimit enforces a hard-block structural cap (devices, tables, cashiers,
 // outlets, …) before creating a new resource. It returns true when the request may
 // proceed, or writes a structured 402 and returns false when the cap is reached.

@@ -10,6 +10,9 @@ const (
 	FeatureConference      = "conference_events"
 	FeatureHappyHour       = "happy_hour"
 	FeatureLoyalty         = "loyalty_program"
+	// FeatureLogistics gates what pos-api asks logistics-api for: delivery quotes and areas, riders
+	// and dispatching a sale. Tier 1 PowerSuite has no logistics.
+	FeatureLogistics = "basic_logistics_access"
 	FeatureOnlineOrdering  = "online_ordering"
 	FeatureShiftReports    = "shift_reports"
 	// FeatureFacilityBooking gates bookable-space management (co-working desks, conference/
