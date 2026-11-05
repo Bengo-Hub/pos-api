@@ -27,6 +27,7 @@ type terminalClaims struct {
 	TenantID      string   `json:"tenant_id"`
 	TenantSlug    string   `json:"tenant_slug"`
 	OutletID      string   `json:"outlet_id"`
+	OutletIDs     []string `json:"outlet_ids,omitempty"` // a limited manager's outlets
 	OutletCode    string   `json:"outlet_code"`
 	OutletUseCase string   `json:"outlet_use_case"`
 	IsHQUser      bool     `json:"is_hq_user"`
@@ -75,6 +76,7 @@ type terminalClaims struct {
 // subscriptions client); issueTerminalJWT stays decoupled from the HTTP layer.
 type terminalEntitlements struct {
 	TenantSlug      string
+	OutletIDs       []string // from auth-api, see PINAuthHandler.applyOutletLimit
 	IsPlatformOwner bool
 	IsDemo          bool
 	BillingMode     string
@@ -131,6 +133,7 @@ func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutlet
 		TenantID:             tenantID.String(),
 		TenantSlug:           ent2.TenantSlug,
 		OutletID:             sessionOutletID.String(),
+		OutletIDs:            ent2.OutletIDs,
 		OutletCode:           outletCode,
 		OutletUseCase:        outletUseCase,
 		IsHQUser:             isHQ,
@@ -247,6 +250,7 @@ func terminalToAuthClaims(tc *terminalClaims) *authclient.Claims {
 		TenantID:      tc.TenantID,
 		TenantSlug:    tc.TenantSlug,
 		OutletID:      tc.OutletID,
+		OutletIDs:     tc.OutletIDs,
 		OutletCode:    tc.OutletCode,
 		OutletUseCase: tc.OutletUseCase,
 		IsHQUser:      tc.IsHQUser,

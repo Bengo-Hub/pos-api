@@ -85,8 +85,14 @@ func OutletContextMiddleware(client *ent.Client, log *zap.Logger) func(http.Hand
 					http.Error(w, `{"error":"outlet not found or access denied"}`, http.StatusForbidden)
 					return
 				}
-				// Non-HQ users can only request their assigned outlet.
-				if !isHQUser && !o.IsHq {
+				// A limited manager holds exactly their list, HQ outlet included.
+				if hasClaims && claims.OutletRestricted() {
+					if !claims.AllowsOutlet(o.ID.String()) {
+						http.Error(w, `{"error":"outlet not assigned to this user"}`, http.StatusForbidden)
+						return
+					}
+				} else if !isHQUser && !o.IsHq {
+					// Non-HQ users can only request their assigned outlet.
 					if hasClaims && claims.Subject != "" {
 						if userID, err := uuid.Parse(claims.Subject); err == nil {
 							if !isStaffAssignedToOutlet(ctx, client, tenantID, userID, o.ID) {
@@ -105,7 +111,11 @@ func OutletContextMiddleware(client *ent.Client, log *zap.Logger) func(http.Hand
 			// it's the outlet the token issuer assigned to this exact user at login, not a
 			// caller-supplied override.
 			if resolved == nil && hasClaims {
-				if raw := claims.GetOutletID(); raw != "" {
+				raw := claims.GetOutletID()
+				if claims.OutletRestricted() {
+					raw = claims.RestrictedHomeOutlet() // never the HQ fallback below
+				}
+				if raw != "" {
 					if id, err := uuid.Parse(raw); err == nil {
 						o, err := client.Outlet.Query().
 							Where(entoutlet.ID(id), entoutlet.TenantID(tenantID)).
@@ -213,6 +223,9 @@ func outletToCtx(o *ent.Outlet) *OutletContext {
 
 // claimsSeeAllOutlets is the HQ rule: platform owner, admin, HQ session or a manager-level role.
 func claimsSeeAllOutlets(claims *authclient.Claims) bool {
+	if claims.OutletRestricted() {
+		return false // an assigned list outranks the manager level
+	}
 	return claims.CanAccessAllOutlets() || posrole.IsAdminLevelAny(claims.Roles)
 }
 
@@ -229,6 +242,9 @@ func CanAccessAllOutlets(r *http.Request) bool {
 func CanViewOutlet(r *http.Request, client *ent.Client, tenantID, outletID uuid.UUID) bool {
 	if CanAccessAllOutlets(r) {
 		return true
+	}
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims != nil && claims.OutletRestricted() {
+		return claims.AllowsOutlet(outletID.String())
 	}
 	if oc := OutletFromContext(r.Context()); oc != nil && oc.ID == outletID {
 		return true

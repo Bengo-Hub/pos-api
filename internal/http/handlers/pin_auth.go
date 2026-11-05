@@ -129,6 +129,30 @@ func NewPINAuthHandler(log *zap.Logger, client *ent.Client, jwtSecret []byte, su
 	}
 }
 
+// applyOutletLimit carries a limited manager's outlets from auth-api into the PIN token and returns
+// the outlet the session opens on: the one asked for when they hold it, else the first they hold.
+// When auth cannot be reached the login carries on without a limit, so an outage never locks the till.
+func (h *PINAuthHandler) applyOutletLimit(ctx context.Context, tid uuid.UUID, member *ent.StaffMember, outletID uuid.UUID, subEnt *terminalEntitlements) uuid.UUID {
+	limit, err := authclient.MemberOutletLimit(ctx, h.authURL, h.internalKey, tid.String(), member.UserID.String())
+	if err != nil {
+		h.log.Warn("pin login: outlet limit lookup failed", zap.Error(err))
+		return outletID
+	}
+	subEnt.OutletIDs = limit
+	if len(limit) == 0 {
+		return outletID
+	}
+	for _, id := range limit {
+		if strings.EqualFold(id, outletID.String()) {
+			return outletID
+		}
+	}
+	if first, err := uuid.Parse(limit[0]); err == nil {
+		return first
+	}
+	return outletID
+}
+
 // SetAuditService wires the centralized audit trail (manager step-up events).
 func (h *PINAuthHandler) SetAuditService(a *audit.Service) {
 	h.auditSvc = a
@@ -396,6 +420,7 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Resolve subscription entitlements + bypass flags so the terminal JWT gates exactly
 	// like an SSO session (and exempts demo / platform-owner tenants and platform admins).
 	subEnt := h.sessionEntitlements(r.Context(), tid, member)
+	sessionOutletID = h.applyOutletLimit(r.Context(), tid, member, sessionOutletID, &subEnt)
 
 	// Issue a short-lived terminal JWT (4 hours)
 	token, permissions, err := issueTerminalJWT(member, tid, sessionOutletID, h.jwtSecret, h.client, r.Context(), subEnt)
@@ -864,6 +889,7 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 
 	// Issue terminal JWT — same shape as Login (carry subscription entitlements + bypass).
 	subEnt := h.sessionEntitlements(r.Context(), tid, member)
+	outletID = h.applyOutletLimit(r.Context(), tid, member, outletID, &subEnt)
 	token, permissions, err := issueTerminalJWT(member, tid, outletID, h.jwtSecret, h.client, r.Context(), subEnt)
 	if err != nil {
 		h.log.Error("failed to issue terminal JWT", zap.Error(err))
