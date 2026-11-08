@@ -6,6 +6,10 @@
 
 This document describes every business vertical the POS supports, the workflows each enables, and the features required. It links to sprint files, ERD, and integration docs.
 
+## Find, Flip, Fix
+
+Before planning or building any item here, research the products people already pay for in this area: how they sell, what they charge and what their customers complain about. Change the angle for our market and turn the top complaints into requirements a test can prove. Record the findings, with sources and dates, in the plan or sprint file. Research that names a client stays in the private docs repo. Persuasive copy and flows need a true fact behind every claim.
+
 ---
 
 ## Supported Business Verticals
