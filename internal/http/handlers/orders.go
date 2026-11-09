@@ -77,6 +77,9 @@ type POSOrderHandler struct {
 	// this handler (order creation/edits/voids, everything else) always uses client (primary),
 	// unchanged.
 	readClient *ent.Client
+	// summaryShadowDB runs the SQL-aggregate shadow of OrdersSummary on the read replica (see
+	// orders_summary_parity.go). Nil disables the shadow entirely.
+	summaryShadowDB orders.RowQuerier
 }
 
 func NewPOSOrderHandler(log *zap.Logger, client *ent.Client, orderSvc *orders.Service, subsClient *subscriptions.Client) *POSOrderHandler {
@@ -474,6 +477,17 @@ func (h *POSOrderHandler) OrdersSummary(w http.ResponseWriter, r *http.Request) 
 
 	items := h.enrichOrderList(r.Context(), tid, list)
 	truncated := totalMatching > len(list)
+	sum := buildOrdersSummary(items, totalMatching, truncated, paymentStatusFilter)
+	// TODO(2026-11-17): cut over to the SQL aggregate. Serve orders.SummaryAggregatesSQL
+	// (Truncated always false, no 5,000 cap), then delete the Go summing path above
+	// (the capped load, enrichOrderList here and buildOrdersSummary) and this shadow call.
+	h.shadowOrdersSummary(r, tid, filters, paymentStatusFilter, sum)
+	jsonOK(w, sum)
+}
+
+// buildOrdersSummary is the Go summing path of OrdersSummary, kept as its own function so the
+// SQL shadow and the parity test compare against exactly what the endpoint serves.
+func buildOrdersSummary(items []orderListItem, totalMatching int, truncated bool, paymentStatusFilter string) ordersSummary {
 	// paid/partial/due/overdue depend on the server-derived settlement (sell-returns netted in,
 	// per orders.ComputeSettlement) — exact-match it here rather than trusting the coarse SQL
 	// predicate allSalesOrderFilters applied, for the same reason ListOrders does (see its comment).
@@ -523,7 +537,7 @@ func (h *POSOrderHandler) OrdersSummary(w http.ResponseWriter, r *http.Request) 
 		sum.SumDue += it.AmountDue
 		sum.SumReturn += it.ReturnTotal
 	}
-	jsonOK(w, sum)
+	return sum
 }
 
 // orderListItem wraps a POSOrder with the derived columns the All-Sales table needs

@@ -125,11 +125,21 @@ func SettledOnAccount(ctx context.Context, client *ent.Client, tenantID, orderID
 // IsOrderOverdue reports whether an order is past its stamped metadata.payment_due_date (RFC3339).
 func IsOrderOverdue(meta map[string]any) bool {
 	raw, ok := meta["payment_due_date"].(string)
-	if !ok || raw == "" {
+	if !ok {
+		return false
+	}
+	return DueDatePassed(raw, time.Now())
+}
+
+// DueDatePassed is the single rule for "this payment_due_date has passed": an RFC3339 string
+// before now. Anything that does not parse (empty, malformed, an impossible date) is not
+// overdue. The SQL summary uses it too, so the database never has to cast a stored date.
+func DueDatePassed(raw string, now time.Time) bool {
+	if raw == "" {
 		return false
 	}
 	due, err := time.Parse(time.RFC3339, raw)
-	return err == nil && due.Before(time.Now())
+	return err == nil && due.Before(now)
 }
 
 // DerivePaymentStatus maps an order's status + collected amount to a display payment status.

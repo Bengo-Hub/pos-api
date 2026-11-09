@@ -95,14 +95,17 @@ type App struct {
 // pgbouncer's pos_ro alias in prod) for the read-routing described on readEntClient in New(). A
 // smaller pool than the primary's — this backs a handful of specific endpoints, not general
 // traffic. No migration/schema management here; the replica streams the primary's schema.
-func newReadOnlyEntClient(cfg config.PostgresConfig) (*ent.Client, error) {
+//
+// The raw *sql.DB is returned too, for the one read that is a hand-built SQL statement rather
+// than an Ent query (the All-Sales footer's SQL aggregate, orders.SummaryAggregatesSQL).
+func newReadOnlyEntClient(cfg config.PostgresConfig) (*ent.Client, *sql.DB, error) {
 	sqlDB, err := sql.Open("pgx", cfg.ReadOnlyURL)
 	if err != nil {
-		return nil, fmt.Errorf("sql open for read-replica ent client: %w", err)
+		return nil, nil, fmt.Errorf("sql open for read-replica ent client: %w", err)
 	}
 	if err := sqlDB.Ping(); err != nil {
 		_ = sqlDB.Close()
-		return nil, fmt.Errorf("read-replica ping: %w", err)
+		return nil, nil, fmt.Errorf("read-replica ping: %w", err)
 	}
 	maxOpen := cfg.MaxOpenConns / 2
 	if maxOpen < 2 {
@@ -113,7 +116,7 @@ func newReadOnlyEntClient(cfg config.PostgresConfig) (*ent.Client, error) {
 	sqlDB.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 	sqlDB.SetConnMaxIdleTime(1 * time.Minute)
 	drv := entsql.OpenDB(dialect.Postgres, sqlDB)
-	return ent.NewClient(ent.Driver(drv)), nil
+	return ent.NewClient(ent.Driver(drv)), sqlDB, nil
 }
 
 func New(ctx context.Context) (*App, error) {
@@ -203,11 +206,15 @@ func New(ctx context.Context) (*App, error) {
 	// behavior change. A replica connection failure at startup is logged and swallowed, not
 	// fatal: those endpoints just keep using the primary, same as before this existed.
 	readEntClient := entClient
+	// readSQLDB is the same replica (or primary fallback) as a raw *sql.DB, for the All-Sales
+	// footer's SQL aggregate shadow (handlers/orders_summary_parity.go).
+	readSQLDB := sqlDB
 	if cfg.Postgres.ReadOnlyURL != "" {
-		if roClient, err := newReadOnlyEntClient(cfg.Postgres); err != nil {
+		if roClient, roDB, err := newReadOnlyEntClient(cfg.Postgres); err != nil {
 			log.Warn("read-replica postgres connection failed — read-heavy endpoints will use the primary", zap.Error(err))
 		} else {
 			readEntClient = roClient
+			readSQLDB = roDB
 		}
 	}
 
@@ -375,6 +382,9 @@ func New(ctx context.Context) (*App, error) {
 	orderHandler.SetPaymentService(paymentSvc)
 	// All-Sales list routed to a read replica when configured — see readEntClient above.
 	orderHandler.SetReadClient(readEntClient)
+	// One-week shadow of the SQL-aggregate totals footer on the same replica; switch off with
+	// POS_SUMMARY_SQL_SHADOW=false. TODO(2026-11-17): cut over and remove the shadow.
+	orderHandler.SetSummaryShadowDB(readSQLDB)
 	// Enforces Promotion.usage_limit/max_units_per_customer when an order carries a promotion_id.
 	orderHandler.SetPromotionsService(promoSvc)
 	catalogHandler := handlers.NewCatalogHandler(log, entClient)
