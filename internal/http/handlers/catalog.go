@@ -20,6 +20,7 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/Bengo-Hub/httpware"
+	"github.com/Bengo-Hub/pagination"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/ent"
 	entkdsstation "github.com/bengobox/pos-service/internal/ent/kdsstation"
@@ -1839,7 +1840,8 @@ func (h *CatalogHandler) ListCatalogItems(w http.ResponseWriter, r *http.Request
 	offset := (page - 1) * limit
 
 	catFilter := r.URL.Query().Get("category")
-	searchFilter := strings.ToLower(r.URL.Query().Get("search"))
+	// Trimmed, whitespace-collapsed and capped (shared rule with the UI), so " cola" still matches.
+	searchFilter := strings.ToLower(pagination.SearchTerm(r, "search"))
 	itemTypeFilter := strings.ToUpper(r.URL.Query().Get("item_type"))
 
 	tenantSlug := ""

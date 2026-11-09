@@ -458,7 +458,9 @@ func (h *POSOrderHandler) OrdersSummary(w http.ResponseWriter, r *http.Request) 
 	extraFilters, paymentStatusFilter := allSalesOrderFilters(r, h.client, tid, loc)
 	filters = append(filters, extraFilters...)
 
-	baseQ := h.client.POSOrder.Query().Where(filters...)
+	// Read replica, like ListOrders: this footer reloads on every filter or search change and
+	// can scan thousands of orders, so it must not load the primary.
+	baseQ := h.rc().POSOrder.Query().Where(filters...)
 	totalMatching, _ := baseQ.Clone().Count(r.Context())
 	list, err := baseQ.WithLines().WithPayments().
 		Order(orderByEffectiveDate(true)).
