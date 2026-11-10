@@ -159,13 +159,14 @@ func (h *PINAuthHandler) SetAuditService(a *audit.Service) {
 }
 
 // resolveTerminalEntitlements builds the subscription snapshot + bypass flags embedded in
-// the terminal JWT. It derives demo / platform-owner from the local tenant slug (works even
-// if subscriptions-api is down) and fetches features/limits/status from subscriptions-api.
+// the terminal JWT. It derives demo from the local tenant slug (works even if
+// subscriptions-api is down) and fetches features/limits/status from subscriptions-api.
+// It never sets IsPlatformOwner: a tenant slug grants no platform powers. The platform
+// tenant is gating-exempt through subscriptions-api's exempt flag (te.Exempt) instead.
 func (h *PINAuthHandler) resolveTerminalEntitlements(ctx context.Context, tenantID uuid.UUID) terminalEntitlements {
 	te := terminalEntitlements{}
 	if t, err := h.client.Tenant.Get(ctx, tenantID); err == nil {
 		te.TenantSlug = t.Slug
-		te.IsPlatformOwner = t.Slug == "codevertex"
 		te.IsDemo = t.Slug == "codevertex-demo"
 	}
 	if h.subsClient != nil {
