@@ -377,6 +377,19 @@ pos-api owns every discount; the storefront only reads them.
 - `GET /api/v1/s2s/storefront/discounts?tenant_ids=a,b,c` (2026-10-27, at most 50 tenants) returns, for the platform marketplace page, every promotion of those tenants that is live now and flagged for the storefront (a banner or a flash sale), with its rule and `tenant_id`, soonest ending first. It is one query for the promotions and one for their rules, whatever the number of stores. Banner-only promotions keep the live feature recheck.
 - `GET /api/v1/s2s/{tenant}/pos/sales/by-sku?from=&to=&order=quantity&limit=` returns real units sold per SKU; the storefront's best sellers pass `order` and `limit` so only the top rows come back.
 
+## 3A. MarketFlow CRM Integration (November 2026)
+
+marketflow-api owns customer identity. pos-api keeps `crm_contact_id` on loyalty accounts and client records, plus the name, phone and email as a read-only snapshot.
+
+- **Client.** `github.com/Bengo-Hub/shared-service-client/crm` (v0.5.0), configured with `MARKETFLOW_API_URL` and `INTERNAL_SERVICE_KEY`.
+- **Creating a customer.** Staff-created loyalty accounts and client records upsert the contact first. A CRM answer of 400 or 422 is shown to the user. An outage (401, 403, 429, 5xx, no answer) saves the record unlinked within 2 seconds, and the reconciler links it later. A sale never waits on the CRM.
+- **Phone lookup.** One indexed lookup matches every common spelling of a number (+254..., 254..., 07..., bare digits). Among duplicate accounts the busiest wins (most points), then the CRM-linked one, then the oldest. A new account is never created when one exists.
+- **Snapshots.** `crm.contact.updated` refreshes the snapshot from the CRM. `crm.contact.deleted` clears the link and sets `metadata.crm_unlinked_at` on the loyalty account or client record, and the reconciler skips marked rows. A staff create or edit clears the mark and links again.
+- **Loyalty is never destroyed by a customer delete.** When treasury deletes a customer, POS deletes its rows except a loyalty account that still holds points. That one is unlinked and marked instead.
+- **Hotel guests.** The guest register keeps the details typed at check-in and never takes data from the CRM. Guest edit, booking edit and the public booking widget do not link guests yet.
+
+---
+
 ## 4. Auth Service Integration
 
 ### 4.1 JWT Validation (SSO Login)
