@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
+	"time"
 
 	sharedevents "github.com/Bengo-Hub/shared-events"
 	"github.com/google/uuid"
@@ -261,8 +262,34 @@ func (s *TreasurySubscriber) subscribeCustomerDeleted(js nats.JetStreamContext) 
 			return // can't key the cleanup against anything
 		}
 
-		ctx := context.Background()
+		s.cleanupDeletedCustomer(context.Background(), tenantID, crmContactID, identifier)
+	}, nats.Durable("pos-treasury-customer-deleted"), nats.ManualAck())
+	return nil
+}
 
+// removeOrKeepAccount deletes a zero-point loyalty account. An account that still holds points is
+// money the business owes the customer, so it is kept: the CRM link is cleared and the
+// crm_unlinked_at marker set (the same unlink the crm.contact.deleted handler uses).
+func (s *TreasurySubscriber) removeOrKeepAccount(ctx context.Context, acc *ent.LoyaltyAccount) {
+	if acc.PointsBalance > 0 {
+		if err := customers.UnlinkAccount(ctx, s.client, acc, time.Now()); err != nil {
+			s.log.Warn("treasury.customer.deleted: loyalty account unlink failed", zap.Error(err))
+			return
+		}
+		s.log.Info("treasury.customer.deleted: loyalty account with points kept, unlinked",
+			zap.String("account_id", acc.ID.String()))
+		return
+	}
+	if err := s.client.LoyaltyAccount.DeleteOneID(acc.ID).Exec(ctx); err != nil {
+		s.log.Warn("treasury.customer.deleted: loyalty account cleanup failed", zap.Error(err))
+		return
+	}
+	s.log.Info("treasury.customer.deleted: loyalty account(s) removed", zap.Int("count", 1))
+}
+
+// cleanupDeletedCustomer is the body of the treasury.customer.deleted handler.
+func (s *TreasurySubscriber) cleanupDeletedCustomer(ctx context.Context, tenantID uuid.UUID, crmContactID *uuid.UUID, identifier string) {
+	{
 		cbcQ := s.client.CustomerBalanceCache.Delete().Where(customerbalancecache.TenantID(tenantID))
 		if crmContactID != nil {
 			cbcQ = cbcQ.Where(customerbalancecache.CrmContactID(*crmContactID))
@@ -276,12 +303,14 @@ func (s *TreasurySubscriber) subscribeCustomerDeleted(js nats.JetStreamContext) 
 		}
 
 		if crmContactID != nil {
-			if n, derr := s.client.LoyaltyAccount.Delete().
+			accs, aerr := s.client.LoyaltyAccount.Query().
 				Where(loyaltyaccount.TenantID(tenantID), loyaltyaccount.CrmContactID(*crmContactID)).
-				Exec(ctx); derr != nil {
-				s.log.Warn("treasury.customer.deleted: loyalty account cleanup failed", zap.Error(derr))
-			} else if n > 0 {
-				s.log.Info("treasury.customer.deleted: loyalty account(s) removed", zap.Int("count", n))
+				All(ctx)
+			if aerr != nil {
+				s.log.Warn("treasury.customer.deleted: loyalty account lookup failed", zap.Error(aerr))
+			}
+			for _, acc := range accs {
+				s.removeOrKeepAccount(ctx, acc)
 			}
 
 			if n, derr := s.client.ClientRecord.Delete().
@@ -296,11 +325,7 @@ func (s *TreasurySubscriber) subscribeCustomerDeleted(js nats.JetStreamContext) 
 			if acc, ferr := customers.FindAccountIn(ctx, s.client, tenantID, identifier); ferr != nil {
 				s.log.Warn("treasury.customer.deleted: loyalty account lookup failed", zap.Error(ferr))
 			} else if acc != nil {
-				if derr := s.client.LoyaltyAccount.DeleteOneID(acc.ID).Exec(ctx); derr != nil {
-					s.log.Warn("treasury.customer.deleted: loyalty account cleanup failed", zap.Error(derr))
-				} else {
-					s.log.Info("treasury.customer.deleted: loyalty account(s) removed", zap.Int("count", 1))
-				}
+				s.removeOrKeepAccount(ctx, acc)
 			}
 
 			if rec, ferr := customers.FindClientIn(ctx, s.client, tenantID, identifier); ferr != nil {
@@ -313,6 +338,5 @@ func (s *TreasurySubscriber) subscribeCustomerDeleted(js nats.JetStreamContext) 
 				}
 			}
 		}
-	}, nats.Durable("pos-treasury-customer-deleted"), nats.ManualAck())
-	return nil
+	}
 }

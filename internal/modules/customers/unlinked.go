@@ -72,12 +72,21 @@ func (r *Resolver) unlinkAccounts(ctx context.Context, tenantID, contactID uuid.
 		return fmt.Errorf("load loyalty accounts: %w", err)
 	}
 	for _, acc := range accounts {
-		if err := r.db.LoyaltyAccount.UpdateOneID(acc.ID).
-			ClearCrmContactID().
-			SetMetadata(withUnlinked(acc.Metadata, now)).
-			Exec(ctx); err != nil {
-			return fmt.Errorf("unlink loyalty account: %w", err)
+		if err := UnlinkAccount(ctx, r.db, acc, now); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+// UnlinkAccount clears one account's CRM link and sets the marker, keeping every other metadata
+// key. Points are not touched.
+func UnlinkAccount(ctx context.Context, db *ent.Client, acc *ent.LoyaltyAccount, now time.Time) error {
+	if err := db.LoyaltyAccount.UpdateOneID(acc.ID).
+		ClearCrmContactID().
+		SetMetadata(withUnlinked(acc.Metadata, now)).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("unlink loyalty account: %w", err)
 	}
 	return nil
 }

@@ -1,6 +1,6 @@
 // Package customers links pos-api's customer records to the MarketFlow CRM, which owns customer
-// identity. Loyalty accounts, client records and room guests keep the CRM contact id plus a
-// read-only snapshot of name, phone and email that is refreshed from the CRM.
+// identity. Loyalty accounts and client records keep the CRM contact id plus a read-only
+// snapshot of name, phone and email that is refreshed from the CRM.
 package customers
 
 import (

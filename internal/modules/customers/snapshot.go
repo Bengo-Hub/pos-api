@@ -43,8 +43,9 @@ func (r *Resolver) RefreshSnapshots(ctx context.Context, tenantID uuid.UUID, ids
 }
 
 // ApplySnapshot writes the CRM contact's name, phone and email onto the loyalty accounts and
-// client records linked to it. Hotel guests and bookings are never rewritten. A phone that would collide with another record's
-// unique phone is not written; the old phone stays and a warning is logged.
+// client records linked to it. Hotel guests and bookings are never rewritten. A phone that
+// would collide with another record's unique phone is not written; the old phone stays and a
+// warning is logged.
 func (r *Resolver) ApplySnapshot(ctx context.Context, tenantID uuid.UUID, c crm.Contact) error {
 	if r == nil || r.db == nil || c.ID == uuid.Nil {
 		return nil

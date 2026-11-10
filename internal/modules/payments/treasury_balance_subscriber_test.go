@@ -9,7 +9,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
 
@@ -37,6 +40,56 @@ func TestResolveReconcileTarget_PrefersLiveBalanceOverStaleEventPayload(t *testi
 	}
 	if target != 35410 {
 		t.Errorf("target = %v, want 35410 (the LIVE treasury balance) — the stale event payload figure (22700) must never win", target)
+	}
+}
+
+// TestCustomerDeletedKeepsAccountWithPoints checks that treasury.customer.deleted never deletes a
+// loyalty account that still holds points: it is unlinked and marked instead. A zero-point
+// account for another deleted customer is removed.
+func TestCustomerDeletedKeepsAccountWithPoints(t *testing.T) {
+	_, client := newTestPaymentsService(t)
+	ctx := context.Background()
+	tenantID := uuid.New()
+	sub := NewTreasurySubscriber(client, nil, zap.NewNop())
+
+	pointedCRM, zeroCRM := uuid.New(), uuid.New()
+	pointed, err := client.LoyaltyAccount.Create().
+		SetTenantID(tenantID).SetCustomerPhone("+254711000001").SetCustomerName("Pointed").
+		SetCrmContactID(pointedCRM).SetPointsBalance(120).
+		SetMetadata(map[string]any{"keep": "yes"}).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("seed pointed account: %v", err)
+	}
+	zero, err := client.LoyaltyAccount.Create().
+		SetTenantID(tenantID).SetCustomerPhone("+254711000002").SetCustomerName("Zero").
+		SetCrmContactID(zeroCRM).SetPointsBalance(0).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("seed zero account: %v", err)
+	}
+
+	sub.cleanupDeletedCustomer(ctx, tenantID, &pointedCRM, "")
+	sub.cleanupDeletedCustomer(ctx, tenantID, &zeroCRM, "")
+
+	got, err := client.LoyaltyAccount.Get(ctx, pointed.ID)
+	if err != nil {
+		t.Fatalf("account with points must survive: %v", err)
+	}
+	if got.CrmContactID != nil {
+		t.Errorf("crm_contact_id = %v, want cleared", got.CrmContactID)
+	}
+	if got.PointsBalance != 120 {
+		t.Errorf("points = %d, want 120", got.PointsBalance)
+	}
+	if _, ok := got.Metadata[customers.UnlinkedAtKey].(string); !ok {
+		t.Errorf("metadata %v is missing %s", got.Metadata, customers.UnlinkedAtKey)
+	}
+	if got.Metadata["keep"] != "yes" {
+		t.Errorf("existing metadata key lost: %v", got.Metadata)
+	}
+	if _, err := client.LoyaltyAccount.Get(ctx, zero.ID); !ent.IsNotFound(err) {
+		t.Errorf("zero-point account should be deleted, got err=%v", err)
 	}
 }
 
