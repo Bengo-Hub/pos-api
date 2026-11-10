@@ -207,7 +207,7 @@ func New(ctx context.Context) (*App, error) {
 	// fatal: those endpoints just keep using the primary, same as before this existed.
 	readEntClient := entClient
 	// readSQLDB is the same replica (or primary fallback) as a raw *sql.DB, for the All-Sales
-	// footer's SQL aggregate shadow (handlers/orders_summary_parity.go).
+	// totals footer's SQL aggregate (orders.SummaryAggregatesSQL).
 	readSQLDB := sqlDB
 	if cfg.Postgres.ReadOnlyURL != "" {
 		if roClient, roDB, err := newReadOnlyEntClient(cfg.Postgres); err != nil {
@@ -382,9 +382,9 @@ func New(ctx context.Context) (*App, error) {
 	orderHandler.SetPaymentService(paymentSvc)
 	// All-Sales list routed to a read replica when configured — see readEntClient above.
 	orderHandler.SetReadClient(readEntClient)
-	// One-week shadow of the SQL-aggregate totals footer on the same replica; switch off with
-	// POS_SUMMARY_SQL_SHADOW=false. TODO(2026-11-17): cut over and remove the shadow.
-	orderHandler.SetSummaryShadowDB(readSQLDB)
+	// The All-Sales totals footer is one SQL aggregate (orders.SummaryAggregatesSQL) on the same
+	// replica, or the primary when no replica is configured.
+	orderHandler.SetSummaryDB(readSQLDB)
 	// Enforces Promotion.usage_limit/max_units_per_customer when an order carries a promotion_id.
 	orderHandler.SetPromotionsService(promoSvc)
 	catalogHandler := handlers.NewCatalogHandler(log, entClient)

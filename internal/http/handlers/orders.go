@@ -77,9 +77,9 @@ type POSOrderHandler struct {
 	// this handler (order creation/edits/voids, everything else) always uses client (primary),
 	// unchanged.
 	readClient *ent.Client
-	// summaryShadowDB runs the SQL-aggregate shadow of OrdersSummary on the read replica (see
-	// orders_summary_parity.go). Nil disables the shadow entirely.
-	summaryShadowDB orders.RowQuerier
+	// summaryDB runs the All-Sales totals footer's SQL aggregate (orders.SummaryAggregatesSQL)
+	// on the read replica, or the primary when no replica is configured. Wired by SetSummaryDB.
+	summaryDB orders.RowQuerier
 }
 
 func NewPOSOrderHandler(log *zap.Logger, client *ent.Client, orderSvc *orders.Service, subsClient *subscriptions.Client) *POSOrderHandler {
@@ -89,6 +89,10 @@ func NewPOSOrderHandler(log *zap.Logger, client *ent.Client, orderSvc *orders.Se
 // SetReadClient wires an optional read-replica Ent client for the All-Sales list query. Nil (the
 // default) means rc() falls back to the primary client — zero behavior change when unset.
 func (h *POSOrderHandler) SetReadClient(c *ent.Client) { h.readClient = c }
+
+// SetSummaryDB wires the database the All-Sales totals footer's SQL aggregate runs on (the read
+// replica's *sql.DB in production, the primary's when no replica is configured).
+func (h *POSOrderHandler) SetSummaryDB(db orders.RowQuerier) { h.summaryDB = db }
 
 // rc returns the read-replica client when one is configured, else the primary — see readClient.
 func (h *POSOrderHandler) rc() *ent.Client {
@@ -435,10 +439,13 @@ func nonCommittedOrderStatus(ps string) bool { return orders.NonCommittedStatus(
 
 // OrdersSummary handles GET /{tenantID}/pos/orders/summary — the totals footer for the
 // All-Sales / POS-Sales list. It applies the IDENTICAL filter set as ListOrders (shared
-// allSalesOrderFilters + per-cashier scoping) but aggregates every matching row instead of
-// paginating, so the footer reflects the full filtered / drilled-in dataset rather than the
-// 25 rows on screen. Bounded by ordersSummaryCap (== the export cap) so the footer and the
-// All-Sales export never disagree; a range past the cap is flagged, never silently under-counted.
+// allSalesOrderFilters + per-cashier scoping) and aggregates every matching order in ONE SQL
+// statement (orders.SummaryAggregatesSQL, the SQL twin of ComputeSettlement), so the footer
+// covers the full filtered range with no row cap; Truncated is always false.
+//
+// Cut over from the Go summing path on 2026-11-10 after shadow mode: 76 live comparisons with no
+// mismatch and no failure, the parity test green on every settlement branch, and the largest
+// tenant's all-time range (8,643 orders, past the old 5,000 cap) answered in about 116 ms.
 func (h *POSOrderHandler) OrdersSummary(w http.ResponseWriter, r *http.Request) {
 	tenantID := httpware.GetTenantID(r.Context())
 	if tenantID == "" {
@@ -461,83 +468,34 @@ func (h *POSOrderHandler) OrdersSummary(w http.ResponseWriter, r *http.Request) 
 	extraFilters, paymentStatusFilter := allSalesOrderFilters(r, h.client, tid, loc)
 	filters = append(filters, extraFilters...)
 
-	// Read replica, like ListOrders: this footer reloads on every filter or search change and
-	// can scan thousands of orders, so it must not load the primary.
-	baseQ := h.rc().POSOrder.Query().Where(filters...)
-	totalMatching, _ := baseQ.Clone().Count(r.Context())
-	list, err := baseQ.WithLines().WithPayments().
-		Order(orderByEffectiveDate(true)).
-		Limit(allSalesExportCap).
-		All(r.Context())
-	if err != nil {
-		h.log.Error("orders summary query failed", zap.Error(err))
+	if h.summaryDB == nil {
+		h.log.Error("orders summary: no summary database wired (SetSummaryDB)")
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-
-	items := h.enrichOrderList(r.Context(), tid, list)
-	truncated := totalMatching > len(list)
-	sum := buildOrdersSummary(items, totalMatching, truncated, paymentStatusFilter)
-	// TODO(2026-11-17): cut over to the SQL aggregate. Serve orders.SummaryAggregatesSQL
-	// (Truncated always false, no 5,000 cap), then delete the Go summing path above
-	// (the capped load, enrichOrderList here and buildOrdersSummary) and this shadow call.
-	h.shadowOrdersSummary(r, tid, filters, paymentStatusFilter, sum)
-	jsonOK(w, sum)
-}
-
-// buildOrdersSummary is the Go summing path of OrdersSummary, kept as its own function so the
-// SQL shadow and the parity test compare against exactly what the endpoint serves.
-func buildOrdersSummary(items []orderListItem, totalMatching int, truncated bool, paymentStatusFilter string) ordersSummary {
-	// paid/partial/due/overdue depend on the server-derived settlement (sell-returns netted in,
-	// per orders.ComputeSettlement) — exact-match it here rather than trusting the coarse SQL
-	// predicate allSalesOrderFilters applied, for the same reason ListOrders does (see its comment).
-	if paymentStatusFilter != "" {
-		filtered := make([]orderListItem, 0, len(items))
-		for _, it := range items {
-			if it.PaymentStatus == paymentStatusFilter {
-				filtered = append(filtered, it)
-			}
-		}
-		items = filtered
-		if !truncated {
-			totalMatching = len(items)
-		}
+	// Read replica (or the primary when none is configured): this footer reloads on every
+	// filter or search change. paymentStatusFilter is matched on the derived settlement status
+	// inside the statement, exactly like the list's exact-match filter.
+	agg, err := orders.SummaryAggregatesSQL(r.Context(), h.summaryDB, tid, filters, paymentStatusFilter, time.Now())
+	if err != nil {
+		h.log.Error("orders summary query failed", zap.String("tenant_id", tid.String()), zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
 	}
-	sum := ordersSummary{
-		Count:         len(items),
-		TotalMatching: totalMatching,
-		Truncated:     truncated,
-		StatusCounts:  map[string]int{},
-		StatusAmounts: map[string]float64{},
-		MethodCounts:  map[string]int{},
-		MethodAmounts: map[string]float64{},
-	}
-	for _, it := range items {
-		if it.PaymentStatus != "" {
-			sum.StatusCounts[it.PaymentStatus]++
-			sum.StatusAmounts[it.PaymentStatus] += it.TotalAmount
-		}
-		// Only settled sales contribute a method; unpaid/due sales have no tender yet and are
-		// captured by the status breakdown instead (so the two breakdowns need not sum equal).
-		if it.PaymentMethod != "" {
-			sum.MethodCounts[it.PaymentMethod]++
-			sum.MethodAmounts[it.PaymentMethod] += it.TotalAmount
-		}
-		// Voided/cancelled/draft rows stay visible above (status counts/amounts) but never
-		// contribute to the headline Total/Paid/Due/Items figures — those must reconcile with
-		// the Retail Overview dashboard (which only counts status=="completed") and with
-		// treasury's AR outstanding figure, neither of which recognizes a reversed or
-		// not-yet-finalized order as a real sale.
-		if nonCommittedOrderStatus(it.PaymentStatus) {
-			continue
-		}
-		sum.ItemCount += it.ItemCount
-		sum.SumTotal += it.TotalAmount
-		sum.SumPaid += it.TotalPaid
-		sum.SumDue += it.AmountDue
-		sum.SumReturn += it.ReturnTotal
-	}
-	return sum
+	jsonOK(w, ordersSummary{
+		Count:         agg.Count,
+		TotalMatching: agg.Count,
+		Truncated:     false,
+		ItemCount:     agg.ItemCount,
+		SumTotal:      agg.SumTotal,
+		SumPaid:       agg.SumPaid,
+		SumDue:        agg.SumDue,
+		SumReturn:     agg.SumReturn,
+		StatusCounts:  agg.StatusCounts,
+		StatusAmounts: agg.StatusAmounts,
+		MethodCounts:  agg.MethodCounts,
+		MethodAmounts: agg.MethodAmounts,
+	})
 }
 
 // orderListItem wraps a POSOrder with the derived columns the All-Sales table needs
