@@ -16,7 +16,6 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entcommissionrule "github.com/bengobox/pos-service/internal/ent/commissionrule"
-	entloyalty "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	outletsettingpredicate "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entcatalogoverride "github.com/bengobox/pos-service/internal/ent/poscatalogoverride"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
@@ -27,6 +26,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	entuser "github.com/bengobox/pos-service/internal/ent/user"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/notifications"
 	"github.com/bengobox/pos-service/internal/modules/orders"
@@ -35,7 +35,6 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/payref"
 	"github.com/bengobox/pos-service/internal/platform/events"
-	"github.com/bengobox/pos-service/internal/platform/marketflow"
 )
 
 // Shared "Walk-in" customer used to attribute transactions that need a customer but have none
@@ -174,7 +173,7 @@ type Service struct {
 	treasuryClient  *treasury.Client
 	inventoryClient *inventory.Client
 	publisher       *events.Publisher
-	marketflow      *marketflow.Client
+	customers       *customers.Resolver
 	staffCredit     *staffcredit.Service
 	log             *zap.Logger
 	defaultCurrency string
@@ -265,10 +264,10 @@ func (s *Service) SetStaffCredit(sc *staffcredit.Service) {
 	s.staffCredit = sc
 }
 
-// SetMarketFlowClient injects the marketflow CRM client, used to resolve the shared "Walk-in"
-// customer when an on-account sale has no customer attached.
-func (s *Service) SetMarketFlowClient(c *marketflow.Client) {
-	s.marketflow = c
+// SetCustomerResolver injects the CRM customer resolver, used to link a credit customer (or the
+// shared "Walk-in" customer) to a CRM contact when no loyalty account carries the link yet.
+func (s *Service) SetCustomerResolver(r *customers.Resolver) {
+	s.customers = r
 }
 
 // SetPrintQueue wires the background print-job queue (final receipt on full payment).
@@ -795,9 +794,7 @@ func (s *Service) ResolveCrmContactID(ctx context.Context, tenantID uuid.UUID, p
 	if strings.TrimSpace(phone) == "" {
 		return ""
 	}
-	acc, err := s.client.LoyaltyAccount.Query().
-		Where(entloyalty.TenantID(tenantID), entloyalty.CustomerPhone(phone)).
-		First(ctx)
+	acc, err := customers.FindAccountIn(ctx, s.client, tenantID, phone)
 	if err != nil || acc == nil || acc.CrmContactID == nil {
 		return ""
 	}
@@ -822,14 +819,18 @@ func (s *Service) ResolveOrCreateCrmContactID(ctx context.Context, tenantID uuid
 	if crmID := s.ResolveCrmContactID(ctx, tenantID, phone); crmID != "" {
 		return crmID
 	}
-	if strings.TrimSpace(phone) == "" || s.marketflow == nil || !s.marketflow.Enabled() {
+	if strings.TrimSpace(phone) == "" || s.customers == nil {
 		return ""
 	}
-	crmID := s.marketflow.UpsertContactByPhone(ctx, tenantID, phone, name)
-	if crmID == uuid.Nil {
+	ident, err := s.customers.Link(ctx, tenantID, phone, "", name)
+	if err != nil {
+		s.log.Warn("payments: crm refused the credit customer, using phone only", zap.Error(err))
 		return ""
 	}
-	return crmID.String()
+	if ident.CrmContactID == nil {
+		return ""
+	}
+	return ident.CrmContactID.String()
 }
 
 // staffCreditFromOrderParty extracts the staff BILL-TO party from an order's metadata

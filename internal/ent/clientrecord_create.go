@@ -84,6 +84,12 @@ func (_c *ClientRecordCreate) SetPreferences(v map[string]interface{}) *ClientRe
 	return _c
 }
 
+// SetMetadata sets the "metadata" field.
+func (_c *ClientRecordCreate) SetMetadata(v map[string]interface{}) *ClientRecordCreate {
+	_c.mutation.SetMetadata(v)
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *ClientRecordCreate) SetCreatedAt(v time.Time) *ClientRecordCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -254,6 +260,10 @@ func (_c *ClientRecordCreate) createSpec() (*ClientRecord, *sqlgraph.CreateSpec)
 		_spec.SetField(clientrecord.FieldPreferences, field.TypeJSON, value)
 		_node.Preferences = value
 	}
+	if value, ok := _c.mutation.Metadata(); ok {
+		_spec.SetField(clientrecord.FieldMetadata, field.TypeJSON, value)
+		_node.Metadata = value
+	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(clientrecord.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
@@ -407,6 +417,24 @@ func (u *ClientRecordUpsert) UpdatePreferences() *ClientRecordUpsert {
 // ClearPreferences clears the value of the "preferences" field.
 func (u *ClientRecordUpsert) ClearPreferences() *ClientRecordUpsert {
 	u.SetNull(clientrecord.FieldPreferences)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ClientRecordUpsert) SetMetadata(v map[string]interface{}) *ClientRecordUpsert {
+	u.Set(clientrecord.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ClientRecordUpsert) UpdateMetadata() *ClientRecordUpsert {
+	u.SetExcluded(clientrecord.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ClientRecordUpsert) ClearMetadata() *ClientRecordUpsert {
+	u.SetNull(clientrecord.FieldMetadata)
 	return u
 }
 
@@ -582,6 +610,27 @@ func (u *ClientRecordUpsertOne) UpdatePreferences() *ClientRecordUpsertOne {
 func (u *ClientRecordUpsertOne) ClearPreferences() *ClientRecordUpsertOne {
 	return u.Update(func(s *ClientRecordUpsert) {
 		s.ClearPreferences()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ClientRecordUpsertOne) SetMetadata(v map[string]interface{}) *ClientRecordUpsertOne {
+	return u.Update(func(s *ClientRecordUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ClientRecordUpsertOne) UpdateMetadata() *ClientRecordUpsertOne {
+	return u.Update(func(s *ClientRecordUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ClientRecordUpsertOne) ClearMetadata() *ClientRecordUpsertOne {
+	return u.Update(func(s *ClientRecordUpsert) {
+		s.ClearMetadata()
 	})
 }
 
@@ -926,6 +975,27 @@ func (u *ClientRecordUpsertBulk) UpdatePreferences() *ClientRecordUpsertBulk {
 func (u *ClientRecordUpsertBulk) ClearPreferences() *ClientRecordUpsertBulk {
 	return u.Update(func(s *ClientRecordUpsert) {
 		s.ClearPreferences()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ClientRecordUpsertBulk) SetMetadata(v map[string]interface{}) *ClientRecordUpsertBulk {
+	return u.Update(func(s *ClientRecordUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ClientRecordUpsertBulk) UpdateMetadata() *ClientRecordUpsertBulk {
+	return u.Update(func(s *ClientRecordUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ClientRecordUpsertBulk) ClearMetadata() *ClientRecordUpsertBulk {
+	return u.Update(func(s *ClientRecordUpsert) {
+		s.ClearMetadata()
 	})
 }
 

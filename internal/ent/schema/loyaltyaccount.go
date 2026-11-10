@@ -24,6 +24,7 @@ func (LoyaltyAccount) Fields() []ent.Field {
 		field.Int("lifetime_points").Default(0),
 		field.UUID("program_id", uuid.UUID{}).Optional().Nillable(),
 		field.UUID("crm_contact_id", uuid.UUID{}).Optional().Nillable().Comment("MarketFlow CRM contact reference — never duplicate contact data here"),
+		field.JSON("metadata", map[string]any{}).Optional().Comment("Free-form flags, e.g. crm_unlinked_at when the CRM contact was deleted"),
 		field.Time("created_at").Default(time.Now).Immutable(),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}

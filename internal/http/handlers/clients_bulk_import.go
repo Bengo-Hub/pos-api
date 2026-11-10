@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
-	entclient "github.com/bengobox/pos-service/internal/ent/clientrecord"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 )
 
 type bulkClientRow struct {
@@ -94,18 +94,27 @@ func (h *ClientHandler) BulkImport(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, result)
 }
 
-// upsertClientRow applies the same phone-based upsert rule as CreateOrUpsert.
+// upsertClientRow applies the same phone-based upsert rule as CreateOrUpsert, without calling
+// the CRM: a new row without a crm_contact_id is saved unlinked and the reconciler links it.
 func (h *ClientHandler) upsertClientRow(ctx context.Context, tid uuid.UUID, row bulkClientRow) (uuid.UUID, string, error) {
 	if row.Phone == "" {
 		return uuid.Nil, "failed", fmt.Errorf("phone is required")
 	}
 
-	existing, _ := h.db.ClientRecord.Query().
-		Where(entclient.TenantID(tid), entclient.Phone(row.Phone)).
-		Only(ctx)
+	// A row that names a CRM contact prefers the record already linked to it.
+	var preferID *uuid.UUID
+	if id, parseErr := uuid.Parse(row.CRMContactID); parseErr == nil {
+		preferID = &id
+	}
+	existing, _ := customers.FindClientForContact(ctx, h.db, tid, row.Phone, preferID)
 
 	if existing != nil {
 		upd := existing.Update()
+		// Re-importing a client whose CRM contact was deleted is an explicit registration, as in
+		// CreateOrUpsert: drop the marker so the given id is kept or the reconciler links it.
+		if customers.IsUnlinked(existing.Metadata) {
+			upd = upd.SetMetadata(customers.WithoutUnlinked(existing.Metadata))
+		}
 		if row.Notes != "" {
 			upd = upd.SetNotes(row.Notes)
 		}
@@ -133,22 +142,25 @@ func (h *ClientHandler) upsertClientRow(ctx context.Context, tid uuid.UUID, row 
 		return updated.ID, "updated", nil
 	}
 
+	phone := customers.NormalisePhone(row.Phone)
+	var crmID *uuid.UUID
+	if row.CRMContactID != "" {
+		id, parseErr := uuid.Parse(row.CRMContactID)
+		if parseErr != nil {
+			return uuid.Nil, "failed", fmt.Errorf("invalid crm_contact_id: %w", parseErr)
+		}
+		crmID = &id
+	}
 	c := h.db.ClientRecord.Create().
 		SetTenantID(tid).
-		SetPhone(row.Phone)
+		SetPhone(phone).
+		SetNillableCrmContactID(crmID)
 	if row.OutletID != "" {
 		oid, parseErr := uuid.Parse(row.OutletID)
 		if parseErr != nil {
 			return uuid.Nil, "failed", fmt.Errorf("invalid outlet_id: %w", parseErr)
 		}
 		c = c.SetOutletID(oid)
-	}
-	if row.CRMContactID != "" {
-		crmID, parseErr := uuid.Parse(row.CRMContactID)
-		if parseErr != nil {
-			return uuid.Nil, "failed", fmt.Errorf("invalid crm_contact_id: %w", parseErr)
-		}
-		c = c.SetCrmContactID(crmID)
 	}
 	if row.Notes != "" {
 		c = c.SetNotes(row.Notes)

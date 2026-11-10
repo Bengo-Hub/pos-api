@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -13,26 +12,26 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entclient "github.com/bengobox/pos-service/internal/ent/clientrecord"
 	entorder "github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
-	"github.com/bengobox/pos-service/internal/platform/marketflow"
 )
 
 // ClientHandler manages POS client records. Contact master data lives in MarketFlow CRM.
 // This handler stores only POS-specific data (notes, preferences) keyed by phone + crm_contact_id.
 type ClientHandler struct {
-	log        *zap.Logger
-	db         *ent.Client
-	marketflow *marketflow.Client
-	treasury   *treasury.Client // credit-terms proxy (clients_credit.go)
+	log       *zap.Logger
+	db        *ent.Client
+	customers *customers.Resolver
+	treasury  *treasury.Client // credit-terms proxy (clients_credit.go)
 }
 
 func NewClientHandler(log *zap.Logger, db *ent.Client) *ClientHandler {
 	return &ClientHandler{log: log, db: db}
 }
 
-// SetMarketFlowClient wires the MarketFlow CRM S2S client for contact auto-sync.
-func (h *ClientHandler) SetMarketFlowClient(mf *marketflow.Client) {
-	h.marketflow = mf
+// SetCustomerResolver wires the resolver that links new client records to the CRM.
+func (h *ClientHandler) SetCustomerResolver(res *customers.Resolver) {
+	h.customers = res
 }
 
 // List handles GET /{tenantID}/pos/clients?phone={phone}&crm_contact_id={id}
@@ -46,7 +45,17 @@ func (h *ClientHandler) List(w http.ResponseWriter, r *http.Request) {
 	q := h.db.ClientRecord.Query().Where(entclient.TenantID(tid))
 
 	if phone := r.URL.Query().Get("phone"); phone != "" {
-		q = q.Where(entclient.Phone(phone))
+		// Every stored spelling of the number, since records are now kept in E.164.
+		matches, findErr := customers.FindClientsIn(r.Context(), h.db, tid, phone, 50)
+		if findErr != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		ids := make([]uuid.UUID, len(matches))
+		for i, m := range matches {
+			ids[i] = m.ID
+		}
+		q = q.Where(entclient.IDIn(ids...))
 	}
 	if crmIDStr := r.URL.Query().Get("crm_contact_id"); crmIDStr != "" {
 		if crmID, parseErr := uuid.Parse(crmIDStr); parseErr == nil {
@@ -90,12 +99,33 @@ func (h *ClientHandler) CreateOrUpsert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	existing, _ := h.db.ClientRecord.Query().
-		Where(entclient.TenantID(tid), entclient.Phone(input.Phone)).
-		Only(r.Context())
+	// When staff picked a CRM contact, prefer the record already linked to it.
+	var preferID *uuid.UUID
+	if id, parseErr := uuid.Parse(input.CRMContactID); parseErr == nil {
+		preferID = &id
+	}
+	existing, _ := customers.FindClientForContact(r.Context(), h.db, tid, input.Phone, preferID)
 
 	if existing != nil {
+		// The CRM contact was deleted earlier and staff are registering the client again, so
+		// link it again (or take the contact id they picked).
+		if customers.IsUnlinked(existing.Metadata) && input.CRMContactID == "" {
+			relinked, relinkErr := h.customers.RelinkClient(r.Context(), existing, input.Phone)
+			if relinkErr != nil {
+				if msg, rejected := customers.RejectionMessage(relinkErr); rejected {
+					jsonError(w, msg, http.StatusBadRequest)
+					return
+				}
+				h.log.Error("client: relink failed", zap.Error(relinkErr))
+				jsonError(w, "failed to update client", http.StatusInternalServerError)
+				return
+			}
+			existing = relinked
+		}
 		upd := existing.Update()
+		if input.CRMContactID != "" && customers.IsUnlinked(existing.Metadata) {
+			upd = upd.SetMetadata(customers.WithoutUnlinked(existing.Metadata))
+		}
 		if input.Notes != "" {
 			upd = upd.SetNotes(input.Notes)
 		}
@@ -116,18 +146,39 @@ func (h *ClientHandler) CreateOrUpsert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	phone := customers.NormalisePhone(input.Phone)
+	var crmID *uuid.UUID
+	if input.CRMContactID != "" {
+		if id, parseErr := uuid.Parse(input.CRMContactID); parseErr == nil {
+			crmID = &id
+		}
+	}
+	if crmID == nil {
+		// Link to the CRM before saving. An outage saves the record unlinked for the reconciler.
+		ident, linkErr := h.customers.Link(r.Context(), tid, input.Phone, "", "")
+		if linkErr != nil {
+			if msg, rejected := customers.RejectionMessage(linkErr); rejected {
+				jsonError(w, msg, http.StatusBadRequest)
+				return
+			}
+			h.log.Error("client: crm link failed", zap.Error(linkErr))
+			jsonError(w, "failed to create client", http.StatusInternalServerError)
+			return
+		}
+		crmID = ident.CrmContactID
+		if ident.Phone != "" {
+			phone = ident.Phone
+		}
+	}
+
 	c := h.db.ClientRecord.Create().
 		SetTenantID(tid).
-		SetPhone(input.Phone)
+		SetPhone(phone).
+		SetNillableCrmContactID(crmID)
 
 	if input.OutletID != "" {
 		if oid, parseErr := uuid.Parse(input.OutletID); parseErr == nil {
 			c = c.SetOutletID(oid)
-		}
-	}
-	if input.CRMContactID != "" {
-		if crmID, parseErr := uuid.Parse(input.CRMContactID); parseErr == nil {
-			c = c.SetCrmContactID(crmID)
 		}
 	}
 	if input.Notes != "" {
@@ -142,17 +193,6 @@ func (h *ClientHandler) CreateOrUpsert(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("create client failed", zap.Error(err))
 		jsonError(w, "failed to create client: "+err.Error(), http.StatusInternalServerError)
 		return
-	}
-	// Async: link to MarketFlow CRM if crm_contact_id not already set.
-	if h.marketflow != nil && h.marketflow.Enabled() && client.CrmContactID == nil {
-		go func(id uuid.UUID, tenantID uuid.UUID, phone string) {
-			crmID := h.marketflow.UpsertContactByPhone(context.Background(), tenantID, phone, "")
-			if crmID != uuid.Nil {
-				if err := h.db.ClientRecord.UpdateOneID(id).SetCrmContactID(crmID).Exec(context.Background()); err != nil {
-					h.log.Warn("client: failed to write crm_contact_id", zap.Error(err))
-				}
-			}
-		}(client.ID, tid, client.Phone)
 	}
 	w.WriteHeader(http.StatusCreated)
 	jsonOK(w, client)

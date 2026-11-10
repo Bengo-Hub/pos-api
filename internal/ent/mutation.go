@@ -8141,6 +8141,7 @@ type ClientRecordMutation struct {
 	phone          *string
 	notes          *string
 	preferences    *map[string]interface{}
+	metadata       *map[string]interface{}
 	created_at     *time.Time
 	updated_at     *time.Time
 	clearedFields  map[string]struct{}
@@ -8521,6 +8522,55 @@ func (m *ClientRecordMutation) ResetPreferences() {
 	delete(m.clearedFields, clientrecord.FieldPreferences)
 }
 
+// SetMetadata sets the "metadata" field.
+func (m *ClientRecordMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *ClientRecordMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the ClientRecord entity.
+// If the ClientRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientRecordMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *ClientRecordMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[clientrecord.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *ClientRecordMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[clientrecord.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *ClientRecordMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, clientrecord.FieldMetadata)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *ClientRecordMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -8627,7 +8677,7 @@ func (m *ClientRecordMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ClientRecordMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.tenant_id != nil {
 		fields = append(fields, clientrecord.FieldTenantID)
 	}
@@ -8645,6 +8695,9 @@ func (m *ClientRecordMutation) Fields() []string {
 	}
 	if m.preferences != nil {
 		fields = append(fields, clientrecord.FieldPreferences)
+	}
+	if m.metadata != nil {
+		fields = append(fields, clientrecord.FieldMetadata)
 	}
 	if m.created_at != nil {
 		fields = append(fields, clientrecord.FieldCreatedAt)
@@ -8672,6 +8725,8 @@ func (m *ClientRecordMutation) Field(name string) (ent.Value, bool) {
 		return m.Notes()
 	case clientrecord.FieldPreferences:
 		return m.Preferences()
+	case clientrecord.FieldMetadata:
+		return m.Metadata()
 	case clientrecord.FieldCreatedAt:
 		return m.CreatedAt()
 	case clientrecord.FieldUpdatedAt:
@@ -8697,6 +8752,8 @@ func (m *ClientRecordMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldNotes(ctx)
 	case clientrecord.FieldPreferences:
 		return m.OldPreferences(ctx)
+	case clientrecord.FieldMetadata:
+		return m.OldMetadata(ctx)
 	case clientrecord.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case clientrecord.FieldUpdatedAt:
@@ -8751,6 +8808,13 @@ func (m *ClientRecordMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPreferences(v)
+		return nil
+	case clientrecord.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
 		return nil
 	case clientrecord.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -8808,6 +8872,9 @@ func (m *ClientRecordMutation) ClearedFields() []string {
 	if m.FieldCleared(clientrecord.FieldPreferences) {
 		fields = append(fields, clientrecord.FieldPreferences)
 	}
+	if m.FieldCleared(clientrecord.FieldMetadata) {
+		fields = append(fields, clientrecord.FieldMetadata)
+	}
 	return fields
 }
 
@@ -8834,6 +8901,9 @@ func (m *ClientRecordMutation) ClearField(name string) error {
 	case clientrecord.FieldPreferences:
 		m.ClearPreferences()
 		return nil
+	case clientrecord.FieldMetadata:
+		m.ClearMetadata()
+		return nil
 	}
 	return fmt.Errorf("unknown ClientRecord nullable field %s", name)
 }
@@ -8859,6 +8929,9 @@ func (m *ClientRecordMutation) ResetField(name string) error {
 		return nil
 	case clientrecord.FieldPreferences:
 		m.ResetPreferences()
+		return nil
+	case clientrecord.FieldMetadata:
+		m.ResetMetadata()
 		return nil
 	case clientrecord.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -35521,6 +35594,7 @@ type LoyaltyAccountMutation struct {
 	addlifetime_points *int
 	program_id         *uuid.UUID
 	crm_contact_id     *uuid.UUID
+	metadata           *map[string]interface{}
 	created_at         *time.Time
 	updated_at         *time.Time
 	clearedFields      map[string]struct{}
@@ -36049,6 +36123,55 @@ func (m *LoyaltyAccountMutation) ResetCrmContactID() {
 	delete(m.clearedFields, loyaltyaccount.FieldCrmContactID)
 }
 
+// SetMetadata sets the "metadata" field.
+func (m *LoyaltyAccountMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *LoyaltyAccountMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the LoyaltyAccount entity.
+// If the LoyaltyAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoyaltyAccountMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *LoyaltyAccountMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[loyaltyaccount.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *LoyaltyAccountMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[loyaltyaccount.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *LoyaltyAccountMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, loyaltyaccount.FieldMetadata)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *LoyaltyAccountMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -36155,7 +36278,7 @@ func (m *LoyaltyAccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *LoyaltyAccountMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 12)
 	if m.tenant_id != nil {
 		fields = append(fields, loyaltyaccount.FieldTenantID)
 	}
@@ -36182,6 +36305,9 @@ func (m *LoyaltyAccountMutation) Fields() []string {
 	}
 	if m.crm_contact_id != nil {
 		fields = append(fields, loyaltyaccount.FieldCrmContactID)
+	}
+	if m.metadata != nil {
+		fields = append(fields, loyaltyaccount.FieldMetadata)
 	}
 	if m.created_at != nil {
 		fields = append(fields, loyaltyaccount.FieldCreatedAt)
@@ -36215,6 +36341,8 @@ func (m *LoyaltyAccountMutation) Field(name string) (ent.Value, bool) {
 		return m.ProgramID()
 	case loyaltyaccount.FieldCrmContactID:
 		return m.CrmContactID()
+	case loyaltyaccount.FieldMetadata:
+		return m.Metadata()
 	case loyaltyaccount.FieldCreatedAt:
 		return m.CreatedAt()
 	case loyaltyaccount.FieldUpdatedAt:
@@ -36246,6 +36374,8 @@ func (m *LoyaltyAccountMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldProgramID(ctx)
 	case loyaltyaccount.FieldCrmContactID:
 		return m.OldCrmContactID(ctx)
+	case loyaltyaccount.FieldMetadata:
+		return m.OldMetadata(ctx)
 	case loyaltyaccount.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case loyaltyaccount.FieldUpdatedAt:
@@ -36321,6 +36451,13 @@ func (m *LoyaltyAccountMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCrmContactID(v)
+		return nil
+	case loyaltyaccount.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
 		return nil
 	case loyaltyaccount.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -36405,6 +36542,9 @@ func (m *LoyaltyAccountMutation) ClearedFields() []string {
 	if m.FieldCleared(loyaltyaccount.FieldCrmContactID) {
 		fields = append(fields, loyaltyaccount.FieldCrmContactID)
 	}
+	if m.FieldCleared(loyaltyaccount.FieldMetadata) {
+		fields = append(fields, loyaltyaccount.FieldMetadata)
+	}
 	return fields
 }
 
@@ -36430,6 +36570,9 @@ func (m *LoyaltyAccountMutation) ClearField(name string) error {
 		return nil
 	case loyaltyaccount.FieldCrmContactID:
 		m.ClearCrmContactID()
+		return nil
+	case loyaltyaccount.FieldMetadata:
+		m.ClearMetadata()
 		return nil
 	}
 	return fmt.Errorf("unknown LoyaltyAccount nullable field %s", name)
@@ -36465,6 +36608,9 @@ func (m *LoyaltyAccountMutation) ResetField(name string) error {
 		return nil
 	case loyaltyaccount.FieldCrmContactID:
 		m.ResetCrmContactID()
+		return nil
+	case loyaltyaccount.FieldMetadata:
+		m.ResetMetadata()
 		return nil
 	case loyaltyaccount.FieldCreatedAt:
 		m.ResetCreatedAt()

@@ -380,6 +380,16 @@ func PreferencesNotNil() predicate.ClientRecord {
 	return predicate.ClientRecord(sql.FieldNotNull(FieldPreferences))
 }
 
+// MetadataIsNil applies the IsNil predicate on the "metadata" field.
+func MetadataIsNil() predicate.ClientRecord {
+	return predicate.ClientRecord(sql.FieldIsNull(FieldMetadata))
+}
+
+// MetadataNotNil applies the NotNil predicate on the "metadata" field.
+func MetadataNotNil() predicate.ClientRecord {
+	return predicate.ClientRecord(sql.FieldNotNull(FieldMetadata))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.ClientRecord {
 	return predicate.ClientRecord(sql.FieldEQ(FieldCreatedAt, v))

@@ -27,6 +27,7 @@ import (
 	"github.com/Bengo-Hub/httpware/tenantexport"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	eventslib "github.com/Bengo-Hub/shared-events"
+	"github.com/Bengo-Hub/shared-service-client/crm"
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/config"
 	"github.com/bengobox/pos-service/internal/ent"
@@ -34,6 +35,7 @@ import (
 	handlers "github.com/bengobox/pos-service/internal/http/handlers"
 	router "github.com/bengobox/pos-service/internal/http/router"
 	catalogmodule "github.com/bengobox/pos-service/internal/modules/catalog"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 	"github.com/bengobox/pos-service/internal/modules/documents"
 	"github.com/bengobox/pos-service/internal/modules/identity"
 	inventorymodule "github.com/bengobox/pos-service/internal/modules/inventory"
@@ -58,7 +60,6 @@ import (
 	"github.com/bengobox/pos-service/internal/platform/erp"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	logisticsclient "github.com/bengobox/pos-service/internal/platform/logistics"
-	"github.com/bengobox/pos-service/internal/platform/marketflow"
 	orderingclient "github.com/bengobox/pos-service/internal/platform/ordering"
 	"github.com/bengobox/pos-service/internal/platform/scheduler"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
@@ -89,6 +90,8 @@ type App struct {
 	creditSettlementSyncReconciler *paymentmodule.CreditSettlementSyncReconciler
 	roomNightlyBillingScheduler    *scheduler.RoomNightlyBillingScheduler
 	damageReportReminderScheduler  *scheduler.DamageReportReminderScheduler
+	// customerReconciler links loyalty accounts and client records saved while the CRM was down.
+	customerReconciler             *customers.Reconciler
 }
 
 // newReadOnlyEntClient opens a separate Ent client against cfg.ReadOnlyURL (a read replica, via
@@ -287,8 +290,12 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
-	// MarketFlow CRM S2S client (async contact upsert on loyalty account creation)
-	mfClient := marketflow.NewClient(cfg.MarketFlow.ServiceURL, cfg.MarketFlow.APIKey, log)
+	// MarketFlow CRM owns customer identity. The resolver links loyalty accounts and client
+	// records to CRM contacts when they are created; the reconciler links any saved while the
+	// CRM was down.
+	crmClient := crm.New(cfg.MarketFlow.ServiceURL, cfg.MarketFlow.APIKey, log)
+	customerResolver := customers.NewResolver(entClient, crmClient, log)
+	customerReconciler := customers.NewReconciler(customerResolver, sqlDB, log)
 
 	// Treasury S2S client (thin proxy; pos-api delegates all payment processing to treasury-api)
 	treasuryClient := treasurymodule.NewClient(cfg.Treasury.ServiceURL, cfg.Treasury.InternalServiceKey, cfg.Treasury.RequestTimeout)
@@ -326,7 +333,7 @@ func New(ctx context.Context) (*App, error) {
 	paymentSvc := paymentmodule.NewService(entClient, orderSvc, cfg.App.DefaultCurrency, log)
 	paymentSvc.SetTreasuryClient(treasuryClient)
 	paymentSvc.SetInventoryClient(inventoryClient)
-	paymentSvc.SetMarketFlowClient(mfClient)
+	paymentSvc.SetCustomerResolver(customerResolver)
 	if pub := orderSvc.GetPublisher(); pub != nil {
 		paymentSvc.SetPublisher(pub)
 	}
@@ -416,6 +423,7 @@ func New(ctx context.Context) (*App, error) {
 	hotelHandler.SetTreasuryClient(treasuryClient)
 	hotelHandler.SetInventoryClient(inventoryClient)
 	hotelHandler.SetSubscriptionsClient(subsClient)
+	hotelHandler.SetCustomerResolver(customerResolver)
 	kdsHandler := handlers.NewKDSHandler(log, entClient)
 	kdsHandler.SetKDSCategorySource(kdsCategorySource)
 	kdsHandler.Hub().SetRelay(relay)
@@ -476,7 +484,7 @@ func New(ctx context.Context) (*App, error) {
 	payrollHandler := handlers.NewPayrollHandler(log, entClient, treasuryClient)
 
 	// Loyalty programs (Sprint 10)
-	loyaltyHandler := handlers.NewLoyaltyHandler(log, entClient, mfClient)
+	loyaltyHandler := handlers.NewLoyaltyHandler(log, entClient, customerResolver)
 	if pub := orderSvc.GetPublisher(); pub != nil {
 		loyaltyHandler.SetPublisher(pub)
 	}
@@ -773,6 +781,15 @@ func New(ctx context.Context) (*App, error) {
 		}
 	}
 
+	// Subscribe to crm.contact.updated and crm.contact.deleted → refresh the name/phone/email
+	// snapshot kept on linked records, or clear the link of a deleted contact (points are kept).
+	if natsConn != nil {
+		crmUpdateSub := events.NewCRMContactUpdatedSubscriber(customerResolver, log)
+		if err := crmUpdateSub.Subscribe(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to crm.contact.updated events", zap.Error(err))
+		}
+	}
+
 	// Webhook dispatcher: fan-out pos.> NATS events to matching webhook subscriptions with HTTP delivery + backoff
 	if natsConn != nil {
 		webhookDispatcher := webhookspkg.NewDispatcher(entClient, log)
@@ -816,7 +833,7 @@ func New(ctx context.Context) (*App, error) {
 	commissionRuleHandler := handlers.NewCommissionRuleHandler(log, entClient)
 	packageHandler := handlers.NewPackageHandler(log, entClient)
 	clientHandler := handlers.NewClientHandler(log, entClient)
-	clientHandler.SetMarketFlowClient(mfClient)
+	clientHandler.SetCustomerResolver(customerResolver)
 	clientHandler.SetTreasuryClient(treasuryClient)
 	channelHandler := handlers.NewChannelHandler(log, entClient)
 	printHandler := handlers.NewPrintHandler(log, entClient)
@@ -891,6 +908,7 @@ func New(ctx context.Context) (*App, error) {
 		creditSettlementSyncReconciler: creditSettlementSyncReconciler,
 		roomNightlyBillingScheduler:    roomNightlyBilling,
 		damageReportReminderScheduler:  damageReportReminder,
+		customerReconciler:             customerReconciler,
 	}, nil
 }
 
@@ -960,6 +978,12 @@ func (a *App) Run(ctx context.Context) error {
 	// Start damage-report review SLA reminders
 	if a.damageReportReminderScheduler != nil {
 		go a.damageReportReminderScheduler.Start(ctx)
+	}
+
+	// Link loyalty accounts and client records left unlinked by a CRM outage, every 10 min
+	// under a Postgres advisory lock so one replica runs it.
+	if a.customerReconciler != nil {
+		go a.customerReconciler.Run(ctx)
 	}
 
 	a.log.Info("pos service starting", zap.String("addr", a.httpServer.Addr))

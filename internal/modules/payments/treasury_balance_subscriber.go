@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/clientrecord"
 	"github.com/bengobox/pos-service/internal/ent/customerbalancecache"
 	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 	"github.com/bengobox/pos-service/internal/modules/notifications"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
@@ -291,20 +292,25 @@ func (s *TreasurySubscriber) subscribeCustomerDeleted(js nats.JetStreamContext) 
 				s.log.Info("treasury.customer.deleted: client record(s) removed", zap.Int("count", n))
 			}
 		} else if identifier != "" {
-			if n, derr := s.client.LoyaltyAccount.Delete().
-				Where(loyaltyaccount.TenantID(tenantID), loyaltyaccount.CustomerPhone(identifier)).
-				Exec(ctx); derr != nil {
-				s.log.Warn("treasury.customer.deleted: loyalty account cleanup failed", zap.Error(derr))
-			} else if n > 0 {
-				s.log.Info("treasury.customer.deleted: loyalty account(s) removed", zap.Int("count", n))
+			// Match any stored spelling of the phone (records are now kept in E.164).
+			if acc, ferr := customers.FindAccountIn(ctx, s.client, tenantID, identifier); ferr != nil {
+				s.log.Warn("treasury.customer.deleted: loyalty account lookup failed", zap.Error(ferr))
+			} else if acc != nil {
+				if derr := s.client.LoyaltyAccount.DeleteOneID(acc.ID).Exec(ctx); derr != nil {
+					s.log.Warn("treasury.customer.deleted: loyalty account cleanup failed", zap.Error(derr))
+				} else {
+					s.log.Info("treasury.customer.deleted: loyalty account(s) removed", zap.Int("count", 1))
+				}
 			}
 
-			if n, derr := s.client.ClientRecord.Delete().
-				Where(clientrecord.TenantID(tenantID), clientrecord.Phone(identifier)).
-				Exec(ctx); derr != nil {
-				s.log.Warn("treasury.customer.deleted: client record cleanup failed", zap.Error(derr))
-			} else if n > 0 {
-				s.log.Info("treasury.customer.deleted: client record(s) removed", zap.Int("count", n))
+			if rec, ferr := customers.FindClientIn(ctx, s.client, tenantID, identifier); ferr != nil {
+				s.log.Warn("treasury.customer.deleted: client record lookup failed", zap.Error(ferr))
+			} else if rec != nil {
+				if derr := s.client.ClientRecord.DeleteOneID(rec.ID).Exec(ctx); derr != nil {
+					s.log.Warn("treasury.customer.deleted: client record cleanup failed", zap.Error(derr))
+				} else {
+					s.log.Info("treasury.customer.deleted: client record(s) removed", zap.Int("count", 1))
+				}
 			}
 		}
 	}, nats.Durable("pos-treasury-customer-deleted"), nats.ManualAck())

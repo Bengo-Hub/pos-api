@@ -31,6 +31,8 @@ type ClientRecord struct {
 	Notes string `json:"notes,omitempty"`
 	// POS-specific: preferred stylist, allergens, product preferences
 	Preferences map[string]interface{} `json:"preferences,omitempty"`
+	// Free-form flags, e.g. crm_unlinked_at when the CRM contact was deleted
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -45,7 +47,7 @@ func (*ClientRecord) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case clientrecord.FieldOutletID, clientrecord.FieldCrmContactID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
-		case clientrecord.FieldPreferences:
+		case clientrecord.FieldPreferences, clientrecord.FieldMetadata:
 			values[i] = new([]byte)
 		case clientrecord.FieldPhone, clientrecord.FieldNotes:
 			values[i] = new(sql.NullString)
@@ -112,6 +114,14 @@ func (_m *ClientRecord) assignValues(columns []string, values []any) error {
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.Preferences); err != nil {
 					return fmt.Errorf("unmarshal field preferences: %w", err)
+				}
+			}
+		case clientrecord.FieldMetadata:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field metadata", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Metadata); err != nil {
+					return fmt.Errorf("unmarshal field metadata: %w", err)
 				}
 			}
 		case clientrecord.FieldCreatedAt:
@@ -183,6 +193,9 @@ func (_m *ClientRecord) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("preferences=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Preferences))
+	builder.WriteString(", ")
+	builder.WriteString("metadata=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

@@ -14,6 +14,7 @@ import (
 	entoutletsetting "github.com/bengobox/pos-service/internal/ent/outletsetting"
 	entroombooking "github.com/bengobox/pos-service/internal/ent/roombooking"
 	entroomguest "github.com/bengobox/pos-service/internal/ent/roomguest"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 )
 
 // bookingPolicy is the tenant/outlet amendment & cancellation policy, stored in
@@ -177,6 +178,8 @@ func (h *HotelHandler) CreateRoomBooking(w http.ResponseWriter, r *http.Request)
 
 	outletID, _ := uuid.Parse(httpware.GetOutletID(r.Context()))
 	createdBy, _ := uuid.Parse(input.CreatedBy)
+	// The lead guest is linked to the CRM; a refusal or outage saves the booking unlinked.
+	crmContactID := h.linkGuest(r.Context(), tid, input.CRMContactID, input.Phone, input.Email, input.LeadGuestName, "room_booking")
 
 	b := h.client.RoomBooking.Create().
 		SetTenantID(tid).
@@ -184,7 +187,7 @@ func (h *HotelHandler) CreateRoomBooking(w http.ResponseWriter, r *http.Request)
 		SetConfirmationNo(input.ConfirmationNo).
 		SetLeadGuestName(input.LeadGuestName).
 		SetEmail(input.Email).
-		SetPhone(input.Phone).
+		SetPhone(customers.NormalisePhone(input.Phone)).
 		SetRoomsCount(input.RoomsCount).
 		SetArrivalDate(input.ArrivalDate).
 		SetDepartureDate(input.DepartureDate).
@@ -196,9 +199,7 @@ func (h *HotelHandler) CreateRoomBooking(w http.ResponseWriter, r *http.Request)
 	if bundleID, perr := uuid.Parse(input.InventoryRatePlanBundleID); perr == nil {
 		b = b.SetInventoryRatePlanBundleID(bundleID)
 	}
-	if crmID, perr := uuid.Parse(input.CRMContactID); perr == nil {
-		b = b.SetCrmContactID(crmID)
-	}
+	b = b.SetNillableCrmContactID(crmContactID)
 	if len(input.Metadata) > 0 {
 		b = b.SetMetadata(input.Metadata)
 	}

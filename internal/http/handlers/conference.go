@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	enteventbooking "github.com/bengobox/pos-service/internal/ent/eventbooking"
 	entmeal "github.com/bengobox/pos-service/internal/ent/mealentitlement"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 )
 
 type eventBookingInput struct {
@@ -127,6 +128,8 @@ func (h *HotelHandler) CreateEventBooking(w http.ResponseWriter, r *http.Request
 
 	outletID, _ := uuid.Parse(httpware.GetOutletID(r.Context()))
 	createdBy, _ := uuid.Parse(in.CreatedBy)
+	// The event client is linked to the CRM; a refusal or outage saves the booking unlinked.
+	crmContactID := h.linkGuest(r.Context(), tid, in.CRMContactID, in.ContactPhone, in.ContactEmail, in.ClientName, "event_booking")
 
 	// Derive the authoritative total from the linked inventory bundle when present
 	// (capacity-aware: flat hall-hire stays fixed; per-delegate packages scale with
@@ -144,7 +147,7 @@ func (h *HotelHandler) CreateEventBooking(w http.ResponseWriter, r *http.Request
 		SetFacilityID(facilityID).
 		SetTitle(in.Title).
 		SetClientName(in.ClientName).
-		SetContactPhone(in.ContactPhone).
+		SetContactPhone(customers.NormalisePhone(in.ContactPhone)).
 		SetContactEmail(in.ContactEmail).
 		SetStartAt(in.StartAt).
 		SetEndAt(in.EndAt).
@@ -167,9 +170,7 @@ func (h *HotelHandler) CreateEventBooking(w http.ResponseWriter, r *http.Request
 	if bundleID, perr := uuid.Parse(in.InventoryBundleID); perr == nil {
 		b = b.SetInventoryBundleID(bundleID)
 	}
-	if crmID, perr := uuid.Parse(in.CRMContactID); perr == nil {
-		b = b.SetCrmContactID(crmID)
-	}
+	b = b.SetNillableCrmContactID(crmContactID)
 	if len(priceMeta) > 0 {
 		b = b.SetMetadata(priceMeta)
 	}

@@ -7,10 +7,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Bengo-Hub/shared-service-client/crm"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	"github.com/bengobox/pos-service/internal/platform/marketflow"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 )
 
 // TestResolveOrCreateCrmContactID_FallsBackToMarketflowWhenNoLoyaltyLink is the regression test
@@ -30,7 +31,7 @@ func TestResolveOrCreateCrmContactID_FallsBackToMarketflowWhenNoLoyaltyLink(t *t
 		_ = json.NewEncoder(w).Encode(map[string]string{"id": wantID.String()})
 	}))
 	defer srv.Close()
-	svc.SetMarketFlowClient(marketflow.NewClient(srv.URL, "test-key", zap.NewNop()))
+	svc.SetCustomerResolver(customers.NewResolver(nil, crm.New(srv.URL, "test-key", zap.NewNop()), zap.NewNop()))
 
 	tid := uuid.New()
 	got := svc.ResolveOrCreateCrmContactID(context.Background(), tid, "+254700000005", "Jane Doe")
@@ -69,7 +70,7 @@ func TestResolveOrCreateCrmContactID_PrefersExistingLoyaltyLink(t *testing.T) {
 // phone-only behaviour rather than erroring.
 func TestResolveOrCreateCrmContactID_DegradesGracefullyWhenMarketflowUnavailable(t *testing.T) {
 	svc, _ := newTestPaymentsService(t)
-	// marketflow client left nil (never configured) — Enabled() would be false even if set with no URL.
+	// No customer resolver configured, so the CRM is never called.
 	got := svc.ResolveOrCreateCrmContactID(context.Background(), uuid.New(), "+254700000007", "No CRM Customer")
 	if got != "" {
 		t.Errorf("ResolveOrCreateCrmContactID = %q, want empty string when marketflow is unavailable", got)

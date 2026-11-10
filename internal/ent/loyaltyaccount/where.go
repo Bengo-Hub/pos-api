@@ -585,6 +585,16 @@ func CrmContactIDNotNil() predicate.LoyaltyAccount {
 	return predicate.LoyaltyAccount(sql.FieldNotNull(FieldCrmContactID))
 }
 
+// MetadataIsNil applies the IsNil predicate on the "metadata" field.
+func MetadataIsNil() predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldIsNull(FieldMetadata))
+}
+
+// MetadataNotNil applies the NotNil predicate on the "metadata" field.
+func MetadataNotNil() predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(sql.FieldNotNull(FieldMetadata))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.LoyaltyAccount {
 	return predicate.LoyaltyAccount(sql.FieldEQ(FieldCreatedAt, v))

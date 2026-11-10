@@ -20,19 +20,21 @@ import (
 	entpospayment "github.com/bengobox/pos-service/internal/ent/pospayment"
 	entref "github.com/bengobox/pos-service/internal/ent/referral"
 	enttender "github.com/bengobox/pos-service/internal/ent/tender"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 	"github.com/bengobox/pos-service/internal/platform/events"
-	"github.com/bengobox/pos-service/internal/platform/marketflow"
 )
 
 type LoyaltyHandler struct {
-	log        *zap.Logger
-	db         *ent.Client
-	marketflow *marketflow.Client
-	publisher  *events.Publisher
+	log       *zap.Logger
+	db        *ent.Client
+	customers *customers.Resolver
+	publisher *events.Publisher
 }
 
-func NewLoyaltyHandler(log *zap.Logger, db *ent.Client, mf *marketflow.Client) *LoyaltyHandler {
-	return &LoyaltyHandler{log: log, db: db, marketflow: mf}
+// NewLoyaltyHandler builds the handler. res links new accounts to the CRM; nil saves them
+// unlinked for the reconciler.
+func NewLoyaltyHandler(log *zap.Logger, db *ent.Client, res *customers.Resolver) *LoyaltyHandler {
+	return &LoyaltyHandler{log: log, db: db, customers: res}
 }
 
 // SetPublisher wires the NATS event publisher (optional — if nil, events are skipped).
@@ -262,7 +264,7 @@ func (h *LoyaltyHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 	phoneParam := strings.TrimSpace(r.URL.Query().Get("phone"))
 	nameParam := strings.TrimSpace(r.URL.Query().Get("name"))
 	emailParam := strings.TrimSpace(r.URL.Query().Get("email"))
-	if h.marketflow != nil && h.marketflow.Enabled() && p.Offset == 0 && (phoneParam != "" || nameParam != "" || emailParam != "") {
+	if h.customers != nil && p.Offset == 0 && (phoneParam != "" || nameParam != "" || emailParam != "") {
 		needle := nameParam
 		if needle == "" {
 			needle = emailParam
@@ -285,8 +287,8 @@ func (h *LoyaltyHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 				seen["ph:"+d] = true
 			}
 		}
-		for _, c := range h.marketflow.SearchContacts(r.Context(), tid, needle, 10) {
-			if c.ID != "" && seen["crm:"+c.ID] {
+		for _, c := range h.customers.Search(r.Context(), tid, needle, 10) {
+			if c.ID == uuid.Nil || seen["crm:"+c.ID.String()] {
 				continue
 			}
 			if d := nationalSubscriberDigits(c.Phone); d != "" && seen["ph:"+d] {
@@ -299,7 +301,7 @@ func (h *LoyaltyHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 				"customer_name":   name,
 				"customer_phone":  c.Phone,
 				"customer_email":  c.Email,
-				"crm_contact_id":  c.ID,
+				"crm_contact_id":  c.ID.String(),
 				"points_balance":  0,
 				"lifetime_points": 0,
 				"source":          "crm",
@@ -336,18 +338,65 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	// Pre-check: this customer may already have a loyalty account (tenant_id, customer_phone
 	// is unique). Return the existing account instead of racing the DB constraint, so the
 	// client can treat "already registered" as a normal success path, not an error.
-	if existing, existErr := h.db.LoyaltyAccount.Query().
-		Where(entla.TenantID(tid), entla.CustomerPhone(body.CustomerPhone)).
-		First(r.Context()); existErr == nil {
+	if existing, existErr := customers.FindAccountIn(r.Context(), h.db, tid, body.CustomerPhone); existErr == nil && existing != nil {
+		// The CRM contact was deleted earlier and the customer is registering again with their
+		// details, so link the account again.
+		if customers.IsUnlinked(existing.Metadata) {
+			relinked, err := h.customers.RelinkAccount(r.Context(), existing, body.CustomerPhone, body.CustomerEmail, body.CustomerName)
+			if err != nil {
+				if msg, rejected := customers.RejectionMessage(err); rejected {
+					jsonError(w, msg, http.StatusBadRequest)
+					return
+				}
+				h.log.Error("loyalty: relink failed", zap.Error(err))
+				jsonError(w, "failed to create account", http.StatusInternalServerError)
+				return
+			}
+			existing = relinked
+		}
 		jsonOK(w, existing)
 		return
 	}
+	// Link to the CRM first, so the account is stored with its contact id and the CRM's
+	// view of name, phone and email. A CRM outage still creates the account unlinked.
+	ident, linkErr := h.customers.Link(r.Context(), tid, body.CustomerPhone, body.CustomerEmail, body.CustomerName)
+	if linkErr != nil {
+		if msg, rejected := customers.RejectionMessage(linkErr); rejected {
+			jsonError(w, msg, http.StatusBadRequest)
+			return
+		}
+		h.log.Error("loyalty: crm link failed", zap.Error(linkErr))
+		jsonError(w, "failed to create account", http.StatusInternalServerError)
+		return
+	}
+	if ident.CrmContactID != nil && !customers.SamePhone(ident.Phone, body.CustomerPhone) {
+		// The CRM matched the customer by email and keeps a different phone, which wins.
+		h.log.Info("loyalty: crm contact has another phone, storing the crm phone",
+			zap.String("tenant_id", tid.String()), zap.String("crm_contact_id", ident.CrmContactID.String()))
+	}
+	// The CRM may know this customer under another phone spelling that already has an account.
+	if existing, existErr := customers.FindAccountForContact(r.Context(), h.db, tid, ident.Phone, ident.CrmContactID); existErr == nil && existing != nil {
+		if existing.CrmContactID == nil {
+			if linked, err := h.customers.AttachAccount(r.Context(), existing, ident); err == nil {
+				existing = linked
+			} else {
+				h.log.Warn("loyalty: link existing account failed", zap.Error(err))
+			}
+		}
+		jsonOK(w, existing)
+		return
+	}
+	name := ident.Name
+	if name == "" {
+		name = body.CustomerName
+	}
 	creator := h.db.LoyaltyAccount.Create().
 		SetTenantID(tid).
-		SetCustomerPhone(body.CustomerPhone).
-		SetCustomerName(body.CustomerName)
-	if e := strings.TrimSpace(body.CustomerEmail); e != "" {
-		creator = creator.SetCustomerEmail(e)
+		SetCustomerPhone(ident.Phone).
+		SetCustomerName(name).
+		SetNillableCrmContactID(ident.CrmContactID)
+	if ident.Email != "" {
+		creator = creator.SetCustomerEmail(ident.Email)
 	}
 	if body.CustomerID != nil {
 		if cid, err := uuid.Parse(*body.CustomerID); err == nil {
@@ -370,9 +419,7 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			// Lost a race against a concurrent registration of the same phone number.
-			if existing, existErr := h.db.LoyaltyAccount.Query().
-				Where(entla.TenantID(tid), entla.CustomerPhone(body.CustomerPhone)).
-				First(r.Context()); existErr == nil {
+			if existing, existErr := customers.FindAccountForContact(r.Context(), h.db, tid, ident.Phone, ident.CrmContactID); existErr == nil && existing != nil {
 				jsonOK(w, existing)
 				return
 			}
@@ -382,19 +429,6 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("create loyalty account failed", zap.Error(err))
 		jsonError(w, "failed to create account", http.StatusInternalServerError)
 		return
-	}
-	// Async: link to MarketFlow CRM so tier-upgrade events can find the contact.
-	if h.marketflow != nil && h.marketflow.Enabled() {
-		go func(accID uuid.UUID, tenantID uuid.UUID, phone, email, name string) {
-			crmID := h.marketflow.UpsertContact(context.Background(), tenantID, phone, email, name)
-			if crmID != uuid.Nil {
-				if err := h.db.LoyaltyAccount.UpdateOneID(accID).
-					SetCrmContactID(crmID).
-					Exec(context.Background()); err != nil {
-					h.log.Warn("loyalty: failed to write crm_contact_id", zap.Error(err))
-				}
-			}
-		}(acc.ID, tid, body.CustomerPhone, strings.TrimSpace(body.CustomerEmail), body.CustomerName)
 	}
 	jsonOK(w, acc)
 }

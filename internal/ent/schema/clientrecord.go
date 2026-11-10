@@ -24,6 +24,7 @@ func (ClientRecord) Fields() []ent.Field {
 		field.String("phone").NotEmpty().Comment("Primary lookup key per tenant; synced from CRM on link"),
 		field.String("notes").Optional().Comment("POS-specific stylist notes, service history notes"),
 		field.JSON("preferences", map[string]any{}).Optional().Comment("POS-specific: preferred stylist, allergens, product preferences"),
+		field.JSON("metadata", map[string]any{}).Optional().Comment("Free-form flags, e.g. crm_unlinked_at when the CRM contact was deleted"),
 		field.Time("created_at").Default(time.Now).Immutable(),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}

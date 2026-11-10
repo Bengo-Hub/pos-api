@@ -9,11 +9,11 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/bengobox/pos-service/internal/ent"
-	entla "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	entposrefund "github.com/bengobox/pos-service/internal/ent/posrefund"
 	entposreturn "github.com/bengobox/pos-service/internal/ent/posreturn"
 	entposreversal "github.com/bengobox/pos-service/internal/ent/posreversal"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
 
@@ -222,9 +222,7 @@ func ResolveOrderCustomer(ctx context.Context, client *ent.Client, tenantID, ord
 		phone = *order.CustomerPhone
 	}
 	if phone != "" {
-		if acc, accErr := client.LoyaltyAccount.Query().
-			Where(entla.TenantID(tenantID), entla.CustomerPhone(phone)).
-			First(ctx); accErr == nil && acc != nil && acc.CrmContactID != nil {
+		if acc, accErr := customers.FindAccountIn(ctx, client, tenantID, phone); accErr == nil && acc != nil && acc.CrmContactID != nil {
 			crmContactID = acc.CrmContactID.String()
 		}
 	} else if sid, _ := order.Metadata["staff_member_id"].(string); sid != "" {

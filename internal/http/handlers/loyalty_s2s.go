@@ -12,8 +12,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent"
-	entla "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	entlp "github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 )
 
 // Loyalty S2S endpoints.
@@ -34,23 +34,31 @@ func s2sTenantUUID(r *http.Request) (uuid.UUID, error) {
 }
 
 // findOrCreateAccountByPhone returns the tenant's loyalty account for the given phone, creating
-// one (and linking it to the tenant's active program + async CRM contact) when none exists. This
+// one (linked to the tenant's active program and to its CRM contact) when none exists. This
 // mirrors the CreateAccount handler's resolution logic so S2S earn/redeem can be call-and-forget.
+// A CRM rejection of the phone is returned as the error (see customers.RejectionMessage).
 func (h *LoyaltyHandler) findOrCreateAccountByPhone(ctx context.Context, tid uuid.UUID, phone, name string) (*ent.LoyaltyAccount, error) {
 	phone = strings.TrimSpace(phone)
-	if acc, err := h.db.LoyaltyAccount.Query().
-		Where(entla.TenantID(tid), entla.CustomerPhone(phone)).
-		First(ctx); err == nil && acc != nil {
-		return acc, nil
+	if acc, err := customers.FindAccountIn(ctx, h.db, tid, phone); err != nil || acc != nil {
+		return acc, err
 	}
 
-	if name == "" {
-		name = phone // fall back to the phone as the display name when none is supplied
+	ident, err := h.customers.Link(ctx, tid, phone, "", name)
+	if err != nil {
+		return nil, err
+	}
+	displayName := ident.Name
+	if displayName == "" {
+		displayName = ident.Phone // fall back to the phone as the display name when none is supplied
 	}
 	creator := h.db.LoyaltyAccount.Create().
 		SetTenantID(tid).
-		SetCustomerPhone(phone).
-		SetCustomerName(name)
+		SetCustomerPhone(ident.Phone).
+		SetCustomerName(displayName).
+		SetNillableCrmContactID(ident.CrmContactID)
+	if ident.Email != "" {
+		creator = creator.SetCustomerEmail(ident.Email)
+	}
 	// Auto-link to the tenant's active loyalty program when one exists.
 	if prog, progErr := h.db.LoyaltyProgram.Query().
 		Where(entlp.TenantID(tid), entlp.IsActive(true)).
@@ -59,20 +67,26 @@ func (h *LoyaltyHandler) findOrCreateAccountByPhone(ctx context.Context, tid uui
 	}
 	acc, err := creator.Save(ctx)
 	if err != nil {
+		if ent.IsConstraintError(err) {
+			// A concurrent call created the same phone first.
+			if existing, findErr := customers.FindAccountForContact(ctx, h.db, tid, ident.Phone, ident.CrmContactID); findErr == nil && existing != nil {
+				return existing, nil
+			}
+		}
 		return nil, err
 	}
-	// Async: link to MarketFlow CRM so tier-upgrade events can find the contact (best-effort).
-	if h.marketflow != nil && h.marketflow.Enabled() {
-		go func(accID, tenantID uuid.UUID, p, n string) {
-			crmID := h.marketflow.UpsertContactByPhone(context.Background(), tenantID, p, n)
-			if crmID != uuid.Nil {
-				if err := h.db.LoyaltyAccount.UpdateOneID(accID).SetCrmContactID(crmID).Exec(context.Background()); err != nil {
-					h.log.Warn("loyalty s2s: failed to write crm_contact_id", zap.Error(err))
-				}
-			}
-		}(acc.ID, tid, phone, name)
-	}
 	return acc, nil
+}
+
+// s2sResolveError answers a failed find-or-create: 400 with the CRM's message when the CRM
+// refused the customer, 500 otherwise.
+func (h *LoyaltyHandler) s2sResolveError(w http.ResponseWriter, op string, err error) {
+	if msg, rejected := customers.RejectionMessage(err); rejected {
+		jsonError(w, msg, http.StatusBadRequest)
+		return
+	}
+	h.log.Error(op+": find-or-create account failed", zap.Error(err))
+	jsonError(w, "failed to resolve loyalty account", http.StatusInternalServerError)
 }
 
 // S2SEarn handles POST /api/v1/s2s/{tenant}/loyalty/earn.
@@ -104,8 +118,7 @@ func (h *LoyaltyHandler) S2SEarn(w http.ResponseWriter, r *http.Request) {
 	}
 	acc, err := h.findOrCreateAccountByPhone(r.Context(), tid, body.CustomerPhone, body.CustomerName)
 	if err != nil {
-		h.log.Error("s2s earn: find-or-create account failed", zap.Error(err))
-		jsonError(w, "failed to resolve loyalty account", http.StatusInternalServerError)
+		h.s2sResolveError(w, "s2s earn", err)
 		return
 	}
 	newBalance, tx, err := h.applyEarn(r.Context(), tid, acc.ID, body.Points, body.OrderID, "Earned via S2S (ordering)")
@@ -146,8 +159,7 @@ func (h *LoyaltyHandler) S2SRedeem(w http.ResponseWriter, r *http.Request) {
 	}
 	acc, err := h.findOrCreateAccountByPhone(r.Context(), tid, body.CustomerPhone, body.CustomerName)
 	if err != nil {
-		h.log.Error("s2s redeem: find-or-create account failed", zap.Error(err))
-		jsonError(w, "failed to resolve loyalty account", http.StatusInternalServerError)
+		h.s2sResolveError(w, "s2s redeem", err)
 		return
 	}
 	// Cheap early-reject; applyRedeem re-validates the authoritative locked balance itself.
@@ -181,9 +193,7 @@ func (h *LoyaltyHandler) S2SBalance(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "phone is required", http.StatusBadRequest)
 		return
 	}
-	acc, err := h.db.LoyaltyAccount.Query().
-		Where(entla.TenantID(tid), entla.CustomerPhone(phone)).
-		First(r.Context())
+	acc, err := customers.FindAccountIn(r.Context(), h.db, tid, phone)
 	if err != nil || acc == nil {
 		// No account yet — report a zero balance rather than 404 so callers can treat it uniformly.
 		jsonOK(w, map[string]any{"customer_phone": phone, "balance": 0, "exists": false})

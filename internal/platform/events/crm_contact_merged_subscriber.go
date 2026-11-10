@@ -54,27 +54,9 @@ func (s *CRMContactMergedSubscriber) Subscribe(nc *nats.Conn) error {
 		return fmt.Errorf("crm contact-merged subscriber: jetstream init: %w", err)
 	}
 
-	// Bind to whichever stream marketflow-api created for crm.> (it is not named "crm" in prod);
-	// create "crm" only when no stream carries the subject. Assuming the name and creating it failed
-	// with "subjects overlap with an existing stream", so this subscriber never ran (seen
-	// 2026-10-07: 39 merges reached treasury, none reached pos). Same rule as treasury-api's
-	// events.StreamFor.
-	stream, err := js.StreamNameBySubject("crm.contact.merged")
-	if err != nil || stream == "" {
-		stream = "crm"
-		if _, addErr := js.AddStream(&nats.StreamConfig{
-			Name:      stream,
-			Subjects:  []string{"crm.>"},
-			Retention: nats.LimitsPolicy,
-			MaxAge:    72 * time.Hour,
-			Storage:   nats.FileStorage,
-		}); addErr != nil && addErr != nats.ErrStreamNameAlreadyInUse {
-			if name, lookupErr := js.StreamNameBySubject("crm.contact.merged"); lookupErr == nil && name != "" {
-				stream = name
-			} else {
-				return fmt.Errorf("crm contact-merged subscriber: ensure crm stream: %w", addErr)
-			}
-		}
+	stream, err := crmStreamFor(js, "crm.contact.merged")
+	if err != nil {
+		return fmt.Errorf("crm contact-merged subscriber: %w", err)
 	}
 
 	sharedevents.SubscribeQueueWithRebind(s.log, js, stream, "crm.contact.merged", "pos-contact-merged",
@@ -88,6 +70,32 @@ func (s *CRMContactMergedSubscriber) Subscribe(nc *nats.Conn) error {
 
 	s.log.Info("crm.contact.merged subscription registered")
 	return nil
+}
+
+// crmStreamFor returns the stream that carries subject. It binds to whichever stream
+// marketflow-api created for crm.> (it is not named "crm" in prod) and creates "crm" only when
+// no stream carries the subject. Assuming the name and creating it failed with "subjects overlap
+// with an existing stream", so the merge subscriber never ran (seen 2026-10-07: 39 merges
+// reached treasury, none reached pos). Same rule as treasury-api's events.StreamFor.
+func crmStreamFor(js nats.JetStreamContext, subject string) (string, error) {
+	stream, err := js.StreamNameBySubject(subject)
+	if err == nil && stream != "" {
+		return stream, nil
+	}
+	stream = "crm"
+	if _, addErr := js.AddStream(&nats.StreamConfig{
+		Name:      stream,
+		Subjects:  []string{"crm.>"},
+		Retention: nats.LimitsPolicy,
+		MaxAge:    72 * time.Hour,
+		Storage:   nats.FileStorage,
+	}); addErr != nil && addErr != nats.ErrStreamNameAlreadyInUse {
+		if name, lookupErr := js.StreamNameBySubject(subject); lookupErr == nil && name != "" {
+			return name, nil
+		}
+		return "", fmt.Errorf("ensure crm stream: %w", addErr)
+	}
+	return stream, nil
 }
 
 func (s *CRMContactMergedSubscriber) handle(msg *nats.Msg) {

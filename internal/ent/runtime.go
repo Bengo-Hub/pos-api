@@ -319,11 +319,11 @@ func init() {
 	// clientrecord.PhoneValidator is a validator for the "phone" field. It is called by the builders before save.
 	clientrecord.PhoneValidator = clientrecordDescPhone.Validators[0].(func(string) error)
 	// clientrecordDescCreatedAt is the schema descriptor for created_at field.
-	clientrecordDescCreatedAt := clientrecordFields[7].Descriptor()
+	clientrecordDescCreatedAt := clientrecordFields[8].Descriptor()
 	// clientrecord.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientrecord.DefaultCreatedAt = clientrecordDescCreatedAt.Default.(func() time.Time)
 	// clientrecordDescUpdatedAt is the schema descriptor for updated_at field.
-	clientrecordDescUpdatedAt := clientrecordFields[8].Descriptor()
+	clientrecordDescUpdatedAt := clientrecordFields[9].Descriptor()
 	// clientrecord.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	clientrecord.DefaultUpdatedAt = clientrecordDescUpdatedAt.Default.(func() time.Time)
 	// clientrecord.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1025,11 +1025,11 @@ func init() {
 	// loyaltyaccount.DefaultLifetimePoints holds the default value on creation for the lifetime_points field.
 	loyaltyaccount.DefaultLifetimePoints = loyaltyaccountDescLifetimePoints.Default.(int)
 	// loyaltyaccountDescCreatedAt is the schema descriptor for created_at field.
-	loyaltyaccountDescCreatedAt := loyaltyaccountFields[10].Descriptor()
+	loyaltyaccountDescCreatedAt := loyaltyaccountFields[11].Descriptor()
 	// loyaltyaccount.DefaultCreatedAt holds the default value on creation for the created_at field.
 	loyaltyaccount.DefaultCreatedAt = loyaltyaccountDescCreatedAt.Default.(func() time.Time)
 	// loyaltyaccountDescUpdatedAt is the schema descriptor for updated_at field.
-	loyaltyaccountDescUpdatedAt := loyaltyaccountFields[11].Descriptor()
+	loyaltyaccountDescUpdatedAt := loyaltyaccountFields[12].Descriptor()
 	// loyaltyaccount.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	loyaltyaccount.DefaultUpdatedAt = loyaltyaccountDescUpdatedAt.Default.(func() time.Time)
 	// loyaltyaccount.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

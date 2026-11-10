@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/Bengo-Hub/httpware"
 	"github.com/Bengo-Hub/httpware/objectstore"
+	"github.com/Bengo-Hub/shared-service-client/crm"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -18,8 +20,10 @@ import (
 	entfacility "github.com/bengobox/pos-service/internal/ent/facility"
 	entfacilitybooking "github.com/bengobox/pos-service/internal/ent/facilitybooking"
 	entroom "github.com/bengobox/pos-service/internal/ent/room"
+	entroombooking "github.com/bengobox/pos-service/internal/ent/roombooking"
 	entroomfolioitem "github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	entroomguest "github.com/bengobox/pos-service/internal/ent/roomguest"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	treasury "github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -36,10 +40,46 @@ type HotelHandler struct {
 	subsClient      *subscriptions.Client
 	// media is the shared object storage holding damage and found-item photos (private keys).
 	media *objectstore.Store
+	// customers links guests, bookings and event clients to their CRM contact.
+	customers *customers.Resolver
 }
 
 // SetMediaStore wires the shared object storage for damage evidence and found-item photos.
 func (h *HotelHandler) SetMediaStore(m *objectstore.Store) { h.media = m }
+
+// SetCustomerResolver wires the resolver that links guests and bookings to the CRM.
+func (h *HotelHandler) SetCustomerResolver(res *customers.Resolver) { h.customers = res }
+
+// linkGuest returns the CRM contact id for a guest. A valid id sent by the client is used as is.
+// Otherwise the guest's phone, email and name go to the CRM within Link's 2s budget. Only those
+// three fields are sent; ID numbers, nationality and party size stay local.
+//
+// A guest is never turned away because of the CRM: a refusal or an outage gives nil and the
+// record is saved unlinked. The reconciler does not cover guests or bookings, so such a record
+// stays unlinked; the guest is linked again at their next check-in or booking. Logs carry ids
+// only.
+func (h *HotelHandler) linkGuest(ctx context.Context, tid uuid.UUID, given, phone, email, name, what string) *uuid.UUID {
+	if id, err := uuid.Parse(strings.TrimSpace(given)); err == nil && id != uuid.Nil {
+		return &id
+	}
+	if strings.TrimSpace(phone) == "" && strings.TrimSpace(email) == "" {
+		return nil
+	}
+	ident, err := h.customers.Link(ctx, tid, phone, email, name)
+	if err != nil {
+		var ce *crm.Error
+		status := 0
+		if errors.As(err, &ce) {
+			status = ce.Status
+		}
+		_, rejected := customers.RejectionMessage(err)
+		h.log.Warn("crm did not link the guest, saving unlinked",
+			zap.String("tenant_id", tid.String()), zap.String("record", what),
+			zap.Bool("rejected", rejected), zap.Int("status", status))
+		return nil
+	}
+	return ident.CrmContactID
+}
 
 func NewHotelHandler(log *zap.Logger, client *ent.Client, publisher *events.Publisher) *HotelHandler {
 	return &HotelHandler{log: log, client: client, publisher: publisher}
@@ -388,6 +428,22 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 	totalCharge := nightlyRate * float64(input.Nights)
 	checkedInBy, _ := uuid.Parse(input.CheckedBy)
 
+	// A check-in from a booking inherits the booking's contact when the body has none, which
+	// keeps the same contact and skips the CRM call.
+	givenContact := input.CRMContactID
+	if strings.TrimSpace(givenContact) == "" {
+		if bookingID, perr := uuid.Parse(input.BookingID); perr == nil {
+			bk, berr := h.client.RoomBooking.Query().
+				Where(entroombooking.ID(bookingID), entroombooking.TenantID(tid)).
+				Only(r.Context())
+			if berr == nil && bk.CrmContactID != nil {
+				givenContact = bk.CrmContactID.String()
+			}
+		}
+	}
+	// Link the guest to the CRM before the transaction opens, so a slow CRM never holds it.
+	crmContactID := h.linkGuest(r.Context(), tid, givenContact, input.Phone, input.Email, input.GuestName, "room_guest")
+
 	tx, err := h.client.Tx(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -398,7 +454,7 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		SetTenantID(tid).
 		SetRoomID(roomID).
 		SetGuestName(input.GuestName).
-		SetPhone(input.Phone).
+		SetPhone(customers.NormalisePhone(input.Phone)).
 		SetIDNumber(input.IDNumber).
 		SetCheckInDate(now).
 		SetNights(input.Nights).
@@ -443,9 +499,7 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 	if bookingID, perr := uuid.Parse(input.BookingID); perr == nil {
 		guestBuilder = guestBuilder.SetBookingID(bookingID)
 	}
-	if crmID, perr := uuid.Parse(input.CRMContactID); perr == nil {
-		guestBuilder = guestBuilder.SetCrmContactID(crmID)
-	}
+	guestBuilder = guestBuilder.SetNillableCrmContactID(crmContactID)
 	guest, err := guestBuilder.Save(r.Context())
 	if err != nil {
 		_ = tx.Rollback()

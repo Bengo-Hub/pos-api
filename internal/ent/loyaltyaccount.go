@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -36,6 +37,8 @@ type LoyaltyAccount struct {
 	ProgramID *uuid.UUID `json:"program_id,omitempty"`
 	// MarketFlow CRM contact reference — never duplicate contact data here
 	CrmContactID *uuid.UUID `json:"crm_contact_id,omitempty"`
+	// Free-form flags, e.g. crm_unlinked_at when the CRM contact was deleted
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -50,6 +53,8 @@ func (*LoyaltyAccount) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case loyaltyaccount.FieldCustomerID, loyaltyaccount.FieldProgramID, loyaltyaccount.FieldCrmContactID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case loyaltyaccount.FieldMetadata:
+			values[i] = new([]byte)
 		case loyaltyaccount.FieldPointsBalance, loyaltyaccount.FieldLifetimePoints:
 			values[i] = new(sql.NullInt64)
 		case loyaltyaccount.FieldCustomerPhone, loyaltyaccount.FieldCustomerName, loyaltyaccount.FieldCustomerEmail:
@@ -136,6 +141,14 @@ func (_m *LoyaltyAccount) assignValues(columns []string, values []any) error {
 				_m.CrmContactID = new(uuid.UUID)
 				*_m.CrmContactID = *value.S.(*uuid.UUID)
 			}
+		case loyaltyaccount.FieldMetadata:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field metadata", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Metadata); err != nil {
+					return fmt.Errorf("unmarshal field metadata: %w", err)
+				}
+			}
 		case loyaltyaccount.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -216,6 +229,9 @@ func (_m *LoyaltyAccount) String() string {
 		builder.WriteString("crm_contact_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("metadata=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

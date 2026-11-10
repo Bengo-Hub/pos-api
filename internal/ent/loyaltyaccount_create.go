@@ -126,6 +126,12 @@ func (_c *LoyaltyAccountCreate) SetNillableCrmContactID(v *uuid.UUID) *LoyaltyAc
 	return _c
 }
 
+// SetMetadata sets the "metadata" field.
+func (_c *LoyaltyAccountCreate) SetMetadata(v map[string]interface{}) *LoyaltyAccountCreate {
+	_c.mutation.SetMetadata(v)
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *LoyaltyAccountCreate) SetCreatedAt(v time.Time) *LoyaltyAccountCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -330,6 +336,10 @@ func (_c *LoyaltyAccountCreate) createSpec() (*LoyaltyAccount, *sqlgraph.CreateS
 		_spec.SetField(loyaltyaccount.FieldCrmContactID, field.TypeUUID, value)
 		_node.CrmContactID = &value
 	}
+	if value, ok := _c.mutation.Metadata(); ok {
+		_spec.SetField(loyaltyaccount.FieldMetadata, field.TypeJSON, value)
+		_node.Metadata = value
+	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(loyaltyaccount.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
@@ -531,6 +541,24 @@ func (u *LoyaltyAccountUpsert) UpdateCrmContactID() *LoyaltyAccountUpsert {
 // ClearCrmContactID clears the value of the "crm_contact_id" field.
 func (u *LoyaltyAccountUpsert) ClearCrmContactID() *LoyaltyAccountUpsert {
 	u.SetNull(loyaltyaccount.FieldCrmContactID)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *LoyaltyAccountUpsert) SetMetadata(v map[string]interface{}) *LoyaltyAccountUpsert {
+	u.Set(loyaltyaccount.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *LoyaltyAccountUpsert) UpdateMetadata() *LoyaltyAccountUpsert {
+	u.SetExcluded(loyaltyaccount.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *LoyaltyAccountUpsert) ClearMetadata() *LoyaltyAccountUpsert {
+	u.SetNull(loyaltyaccount.FieldMetadata)
 	return u
 }
 
@@ -762,6 +790,27 @@ func (u *LoyaltyAccountUpsertOne) UpdateCrmContactID() *LoyaltyAccountUpsertOne 
 func (u *LoyaltyAccountUpsertOne) ClearCrmContactID() *LoyaltyAccountUpsertOne {
 	return u.Update(func(s *LoyaltyAccountUpsert) {
 		s.ClearCrmContactID()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *LoyaltyAccountUpsertOne) SetMetadata(v map[string]interface{}) *LoyaltyAccountUpsertOne {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *LoyaltyAccountUpsertOne) UpdateMetadata() *LoyaltyAccountUpsertOne {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *LoyaltyAccountUpsertOne) ClearMetadata() *LoyaltyAccountUpsertOne {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.ClearMetadata()
 	})
 }
 
@@ -1162,6 +1211,27 @@ func (u *LoyaltyAccountUpsertBulk) UpdateCrmContactID() *LoyaltyAccountUpsertBul
 func (u *LoyaltyAccountUpsertBulk) ClearCrmContactID() *LoyaltyAccountUpsertBulk {
 	return u.Update(func(s *LoyaltyAccountUpsert) {
 		s.ClearCrmContactID()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *LoyaltyAccountUpsertBulk) SetMetadata(v map[string]interface{}) *LoyaltyAccountUpsertBulk {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *LoyaltyAccountUpsertBulk) UpdateMetadata() *LoyaltyAccountUpsertBulk {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *LoyaltyAccountUpsertBulk) ClearMetadata() *LoyaltyAccountUpsertBulk {
+	return u.Update(func(s *LoyaltyAccountUpsert) {
+		s.ClearMetadata()
 	})
 }
 

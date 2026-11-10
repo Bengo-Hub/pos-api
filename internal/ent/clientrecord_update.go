@@ -129,6 +129,18 @@ func (_u *ClientRecordUpdate) ClearPreferences() *ClientRecordUpdate {
 	return _u
 }
 
+// SetMetadata sets the "metadata" field.
+func (_u *ClientRecordUpdate) SetMetadata(v map[string]interface{}) *ClientRecordUpdate {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *ClientRecordUpdate) ClearMetadata() *ClientRecordUpdate {
+	_u.mutation.ClearMetadata()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *ClientRecordUpdate) SetUpdatedAt(v time.Time) *ClientRecordUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -227,6 +239,12 @@ func (_u *ClientRecordUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.PreferencesCleared() {
 		_spec.ClearField(clientrecord.FieldPreferences, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(clientrecord.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(clientrecord.FieldMetadata, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(clientrecord.FieldUpdatedAt, field.TypeTime, value)
@@ -348,6 +366,18 @@ func (_u *ClientRecordUpdateOne) SetPreferences(v map[string]interface{}) *Clien
 // ClearPreferences clears the value of the "preferences" field.
 func (_u *ClientRecordUpdateOne) ClearPreferences() *ClientRecordUpdateOne {
 	_u.mutation.ClearPreferences()
+	return _u
+}
+
+// SetMetadata sets the "metadata" field.
+func (_u *ClientRecordUpdateOne) SetMetadata(v map[string]interface{}) *ClientRecordUpdateOne {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *ClientRecordUpdateOne) ClearMetadata() *ClientRecordUpdateOne {
+	_u.mutation.ClearMetadata()
 	return _u
 }
 
@@ -479,6 +509,12 @@ func (_u *ClientRecordUpdateOne) sqlSave(ctx context.Context) (_node *ClientReco
 	}
 	if _u.mutation.PreferencesCleared() {
 		_spec.ClearField(clientrecord.FieldPreferences, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(clientrecord.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(clientrecord.FieldMetadata, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(clientrecord.FieldUpdatedAt, field.TypeTime, value)

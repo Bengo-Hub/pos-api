@@ -249,6 +249,7 @@ var (
 		{Name: "phone", Type: field.TypeString},
 		{Name: "notes", Type: field.TypeString, Nullable: true},
 		{Name: "preferences", Type: field.TypeJSON, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -1105,6 +1106,7 @@ var (
 		{Name: "lifetime_points", Type: field.TypeInt, Default: 0},
 		{Name: "program_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "crm_contact_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}

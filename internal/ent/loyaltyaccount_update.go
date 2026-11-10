@@ -193,6 +193,18 @@ func (_u *LoyaltyAccountUpdate) ClearCrmContactID() *LoyaltyAccountUpdate {
 	return _u
 }
 
+// SetMetadata sets the "metadata" field.
+func (_u *LoyaltyAccountUpdate) SetMetadata(v map[string]interface{}) *LoyaltyAccountUpdate {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *LoyaltyAccountUpdate) ClearMetadata() *LoyaltyAccountUpdate {
+	_u.mutation.ClearMetadata()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *LoyaltyAccountUpdate) SetUpdatedAt(v time.Time) *LoyaltyAccountUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -311,6 +323,12 @@ func (_u *LoyaltyAccountUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if _u.mutation.CrmContactIDCleared() {
 		_spec.ClearField(loyaltyaccount.FieldCrmContactID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(loyaltyaccount.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(loyaltyaccount.FieldMetadata, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(loyaltyaccount.FieldUpdatedAt, field.TypeTime, value)
@@ -499,6 +517,18 @@ func (_u *LoyaltyAccountUpdateOne) ClearCrmContactID() *LoyaltyAccountUpdateOne 
 	return _u
 }
 
+// SetMetadata sets the "metadata" field.
+func (_u *LoyaltyAccountUpdateOne) SetMetadata(v map[string]interface{}) *LoyaltyAccountUpdateOne {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *LoyaltyAccountUpdateOne) ClearMetadata() *LoyaltyAccountUpdateOne {
+	_u.mutation.ClearMetadata()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *LoyaltyAccountUpdateOne) SetUpdatedAt(v time.Time) *LoyaltyAccountUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -647,6 +677,12 @@ func (_u *LoyaltyAccountUpdateOne) sqlSave(ctx context.Context) (_node *LoyaltyA
 	}
 	if _u.mutation.CrmContactIDCleared() {
 		_spec.ClearField(loyaltyaccount.FieldCrmContactID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(loyaltyaccount.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(loyaltyaccount.FieldMetadata, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(loyaltyaccount.FieldUpdatedAt, field.TypeTime, value)

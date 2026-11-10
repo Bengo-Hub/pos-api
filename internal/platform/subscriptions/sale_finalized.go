@@ -14,9 +14,9 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	entcommrule "github.com/bengobox/pos-service/internal/ent/commissionrule"
-	entaccount "github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
 	entprogram "github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
 	entreferral "github.com/bengobox/pos-service/internal/ent/referral"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
@@ -160,23 +160,14 @@ func isWalkInPhone(phone string) bool {
 }
 
 // resolveLoyaltyAccount finds the tenant's loyalty account for a phone, tolerating format
-// differences. It tries an exact match first (fast path), then falls back to matching on the
-// 9-digit national subscriber number so an order stored as "+254 743 793901" still credits an
-// account stored as "0743793901". Returns nil (no error) when no account exists.
+// differences (see customers.FindAccountIn). Returns nil when no account exists.
 func (s *SaleFinalizedSubscriber) resolveLoyaltyAccount(ctx context.Context, tenantID uuid.UUID, phone string) *ent.LoyaltyAccount {
-	if acc, err := s.db.LoyaltyAccount.Query().
-		Where(entaccount.TenantID(tenantID), entaccount.CustomerPhone(phone)).
-		First(ctx); err == nil && acc != nil {
-		return acc
+	acc, err := customers.FindAccountIn(ctx, s.db, tenantID, phone)
+	if err != nil {
+		s.logger.Warn("sale.finalized: loyalty account lookup failed", zap.Error(err))
+		return nil
 	}
-	if nat := nationalSubscriberDigits(phone); nat != "" {
-		if acc, err := s.db.LoyaltyAccount.Query().
-			Where(entaccount.TenantID(tenantID), entaccount.CustomerPhoneHasSuffix(nat)).
-			First(ctx); err == nil && acc != nil {
-			return acc
-		}
-	}
-	return nil
+	return acc
 }
 
 func (s *SaleFinalizedSubscriber) autoEarnLoyalty(ctx context.Context, tenantID, orderID uuid.UUID, p saleFinalizedPayload) {
