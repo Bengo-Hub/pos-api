@@ -447,16 +447,17 @@ func New(ctx context.Context) (*App, error) {
 	kdsHandler.SetNotifHub(notificationsHandler.Hub())
 	queueHandler := handlers.NewQueueHandler(log, entClient)
 
-	// Terminal PIN auth — TERMINAL_JWT_SECRET must be set in production.
-	// Falls back to INTERNAL_SERVICE_KEY only to prevent a hard startup failure in dev/local environments.
-	terminalJWTSecret := []byte(cfg.Auth.TerminalJWTSecret)
-	if len(terminalJWTSecret) == 0 {
-		log.Warn("TERMINAL_JWT_SECRET is not set; falling back to INTERNAL_SERVICE_KEY for terminal JWT signing — set TERMINAL_JWT_SECRET in production")
-		terminalJWTSecret = []byte(cfg.Treasury.InternalServiceKey)
+	// Terminal PIN auth. Outside local/dev the service refuses to start without a dedicated
+	// TERMINAL_JWT_SECRET, because every service holds INTERNAL_SERVICE_KEY.
+	terminalJWTSecret, err := resolveTerminalJWTSecret(log, cfg.App.Env, cfg.Auth.TerminalJWTSecret,
+		cfg.Auth.APIKey, cfg.Treasury.InternalServiceKey)
+	if err != nil {
+		return nil, err
 	}
 	pinAuthHandler := handlers.NewPINAuthHandler(log, entClient, terminalJWTSecret, subsClient, cfg.Auth.ServiceURL, cfg.Auth.APIKey)
 	pinAuthHandler.SetAuditService(auditSvc)
 	pinAuthHandler.SetPlatformRepairPINHash(cfg.Auth.PlatformRepairPINHash)
+	pinAuthHandler.SetPlatformTenantID(cfg.Auth.PlatformTenantID)
 	// Order handler verifies manager step-up approval tokens with the same secret.
 	orderHandler.SetTerminalSecret(terminalJWTSecret)
 	// Payment handler verifies manager approval (step-up token or one-time code) for the

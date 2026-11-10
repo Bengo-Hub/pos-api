@@ -67,7 +67,7 @@ func (h *RBACHandler) AssignRole(w http.ResponseWriter, r *http.Request) {
 	// Guardrail: a manager may not assign a privileged (admin/manager) role — only an
 	// admin may. Resolve the target role's code so the check works for system roles too.
 	if role, gerr := h.rbacRepo.GetRole(r.Context(), tid, req.RoleID); gerr == nil {
-		if managementProtectedRoles[canonicalizeRole(role.RoleCode)] && !requesterIsAdminLevel(r) {
+		if privilegedStaffRole(role.RoleCode) && !requesterIsAdminLevel(r) {
 			jsonError(w, "managers cannot assign admin or manager roles", http.StatusForbidden)
 			return
 		}

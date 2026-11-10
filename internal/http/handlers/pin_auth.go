@@ -96,8 +96,12 @@ type PINAuthHandler struct {
 	log    *zap.Logger
 	client *ent.Client
 	// jwtSecret is the HMAC-SHA256 secret used to sign short-lived terminal JWTs.
-	// Loaded from env TERMINAL_JWT_SECRET; falls back to INTERNAL_SERVICE_KEY if absent.
+	// Loaded from env TERMINAL_JWT_SECRET (app.resolveTerminalJWTSecret refuses a missing or
+	// shared secret outside local/dev).
 	jwtSecret []byte
+	// platformTenantID is the platform (codevertex) tenant. Only a PIN session on this tenant may
+	// carry platform owner. uuid.Nil disables platform owner on PIN sessions entirely.
+	platformTenantID uuid.UUID
 	// subsClient fetches the tenant's subscription so the terminal JWT carries the same
 	// entitlements as an SSO session (features/limits/status + demo/owner bypass flags).
 	subsClient *subscriptions.Client
@@ -119,6 +123,20 @@ type PINAuthHandler struct {
 // PLATFORM_REPAIR_PIN_HASH). Never a literal PIN — always a hash loaded from a k8s Secret.
 func (h *PINAuthHandler) SetPlatformRepairPINHash(hash string) {
 	h.platformRepairPINHash = hash
+}
+
+// SetPlatformTenantID wires the platform tenant UUID (config PLATFORM_TENANT_ID). An empty or
+// invalid value leaves it unset, so no PIN session is ever a platform owner.
+func (h *PINAuthHandler) SetPlatformTenantID(id string) {
+	parsed, err := uuid.Parse(strings.TrimSpace(id))
+	if err != nil {
+		if id != "" {
+			h.log.Warn("invalid PLATFORM_TENANT_ID; PIN sessions will never carry platform owner", zap.String("value", id))
+		}
+		h.platformTenantID = uuid.Nil
+		return
+	}
+	h.platformTenantID = parsed
 }
 
 func NewPINAuthHandler(log *zap.Logger, client *ent.Client, jwtSecret []byte, subsClient *subscriptions.Client, authURL, internalKey string) *PINAuthHandler {
@@ -210,8 +228,10 @@ const lockoutDuration = 15 * time.Minute
 
 // ── GET /{tenant}/pos/staff — list staff for the PIN selector UI ───────────────
 
-// ListStaff returns minimal staff info for the PIN keypad selector screen.
-// Does NOT include pin_hash — only name, user_id, has_pin.
+// ListStaff returns minimal staff info for the PIN keypad selector screen. Never pin_hash.
+// An unauthenticated caller gets only what the picker needs: the opaque staff id, the display
+// name and has_pin. user_id and role go only to a caller signed in to this tenant, because the
+// public list used to hand anyone the auth user ids and roles of a tenant's admins.
 // When ?outlet_id= is provided, the result is filtered to roles appropriate for
 // that outlet's use case (e.g. retail shows manager/cashier only).
 func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
@@ -246,21 +266,47 @@ func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type staffItem struct {
-		UserID string `json:"user_id"`
+		ID     string `json:"id"`
+		UserID string `json:"user_id,omitempty"`
 		Name   string `json:"name"`
-		Role   string `json:"role"`
+		Role   string `json:"role,omitempty"`
 		HasPIN bool   `json:"has_pin"`
 	}
+	signedIn := callerSignedInToTenant(r, tid)
 	out := make([]staffItem, 0, len(members))
 	for _, m := range members {
-		out = append(out, staffItem{
-			UserID: m.UserID.String(),
+		item := staffItem{
+			ID:     m.ID.String(),
 			Name:   m.Name,
-			Role:   m.Role,
 			HasPIN: m.PinHash != nil,
-		})
+		}
+		if signedIn {
+			item.UserID = m.UserID.String()
+			item.Role = m.Role
+		}
+		out = append(out, item)
 	}
 	jsonOK(w, pagination.NewResponse(out, total, p))
+}
+
+// callerSignedInToTenant reports whether the request carries verified claims for tenant tid.
+// Claims exist only when an auth middleware validated a token, so a public caller gets false.
+func callerSignedInToTenant(r *http.Request, tid uuid.UUID) bool {
+	claims, ok := authclient.ClaimsFromContext(r.Context())
+	if !ok || claims == nil || claims.Subject == "" {
+		return false
+	}
+	if isSSOPlatformOwner(claims) {
+		return true
+	}
+	ctid, err := uuid.Parse(claims.TenantID)
+	return err == nil && ctid == tid
+}
+
+// isSSOPlatformOwner reports a platform owner proven by an auth-api SSO token. A terminal token
+// (issuer pos-terminal) is minted by pos itself and never counts here.
+func isSSOPlatformOwner(claims *authclient.Claims) bool {
+	return claims != nil && claims.IsPlatformOwner && claims.Issuer != terminalIssuer
 }
 
 // checkMaintenanceGate is called first in both PIN-login handlers, before any StaffMember lookup.
@@ -274,9 +320,10 @@ func (h *PINAuthHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 //
 // The one thing this DOES still special-case here, before identity is known: if the tenant is
 // currently inside a scheduled maintenance window and the submitted PIN matches the platform
-// override PIN (h.platformRepairPINHash), it mints a platform-owner bypass session directly —
-// for a platform engineer who has no ordinary StaffMember/PIN of their own on this tenant and
-// needs terminal access for the repair work itself. Any other PIN, window active or not, falls
+// override PIN (h.platformRepairPINHash), it mints a repair session for THIS tenant only, for a
+// platform engineer who has no ordinary StaffMember/PIN of their own on this tenant and needs
+// terminal access for the repair work itself. The session is not a platform owner: it passes the
+// maintenance gate and subscription gating for this tenant and nothing on any other tenant. Any other PIN, window active or not, falls
 // through to normal StaffMember/bcrypt validation unchanged.
 //
 // Returns handled=true only when it already wrote the override-PIN success response.
@@ -331,7 +378,8 @@ func (h *PINAuthHandler) checkMaintenanceGate(w http.ResponseWriter, r *http.Req
 			"is_hq_user":        isHQ,
 			"permissions":       permissions,
 			"is_demo":           false,
-			"is_platform_owner": true,
+			"is_platform_owner": false,
+			"platform_repair":   true,
 		},
 	})
 	return true
@@ -341,7 +389,9 @@ func (h *PINAuthHandler) checkMaintenanceGate(w http.ResponseWriter, r *http.Req
 
 type pinLoginInput struct {
 	UserID string `json:"user_id"`
-	PIN    string `json:"pin"` // 4-6 digit string (never stored raw)
+	// StaffID is the opaque staff id the public staff list returns. Either it or user_id works.
+	StaffID string `json:"staff_id"`
+	PIN     string `json:"pin"` // 4-6 digit string (never stored raw)
 }
 
 func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -352,8 +402,8 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input pinLoginInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.UserID == "" || input.PIN == "" {
-		jsonError(w, "user_id and pin are required", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || (input.UserID == "" && input.StaffID == "") || input.PIN == "" {
+		jsonError(w, "user_id or staff_id, and pin, are required", http.StatusBadRequest)
 		return
 	}
 
@@ -361,14 +411,25 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := uuid.Parse(input.UserID)
-	if err != nil {
-		jsonError(w, "invalid user_id", http.StatusBadRequest)
-		return
+	who := []predicate.StaffMember{entstaff.TenantID(tid), entstaff.IsActive(true)}
+	if input.StaffID != "" {
+		staffID, perr := uuid.Parse(input.StaffID)
+		if perr != nil {
+			jsonError(w, "invalid staff_id", http.StatusBadRequest)
+			return
+		}
+		who = append(who, entstaff.ID(staffID))
+	} else {
+		userID, perr := uuid.Parse(input.UserID)
+		if perr != nil {
+			jsonError(w, "invalid user_id", http.StatusBadRequest)
+			return
+		}
+		who = append(who, entstaff.UserID(userID))
 	}
 
 	member, err := h.client.StaffMember.Query().
-		Where(entstaff.TenantID(tid), entstaff.UserID(userID), entstaff.IsActive(true)).
+		Where(who...).
 		Only(r.Context())
 	if err != nil {
 		// Return 401 to avoid user enumeration
@@ -418,8 +479,9 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Resolve subscription entitlements + bypass flags so the terminal JWT gates exactly
-	// like an SSO session (and exempts demo / platform-owner tenants and platform admins).
+	// Resolve subscription entitlements + bypass flags so the terminal JWT gates exactly like an
+	// SSO session. Demo comes from the demo slug, gating exemption from subscriptions-api's
+	// sub_exempt, and platform owner only for a platform admin on the platform tenant.
 	subEnt := h.sessionEntitlements(r.Context(), tid, member)
 	sessionOutletID = h.applyOutletLimit(r.Context(), tid, member, sessionOutletID, &subEnt)
 
@@ -459,8 +521,8 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			// first render (no fallback to the hardcoded client ROLE_PERMISSIONS[role] map, which
 			// still lists perms a tenant may have removed via a per-tenant role override).
 			"permissions": permissions,
-			// Surface the bypass flags so pos-ui's useSubscription exempts demo/platform
-			// PIN sessions (it derives isDemo/isPlatformOwner from the user object).
+			// Surface the bypass flags for pos-ui. is_platform_owner is true only for a platform
+			// admin signed in on the platform tenant (see sessionEntitlements).
 			"is_demo":           subEnt.IsDemo,
 			"is_platform_owner": subEnt.IsPlatformOwner,
 		},
@@ -498,6 +560,14 @@ func (h *PINAuthHandler) SetPIN(w http.ResponseWriter, r *http.Request) {
 		Only(r.Context())
 	if err != nil {
 		jsonError(w, "staff member not found", http.StatusNotFound)
+		return
+	}
+
+	// Resetting a PIN is signing in as that person. Only an admin-level caller may reset the PIN
+	// of admin or manager tier staff (owner, superuser and other aliases included); anyone may
+	// still change their own.
+	if privilegedStaffRole(member.Role) && !requesterIsAdminLevel(r) && !callerIsUser(r, member.UserID) {
+		jsonError(w, "only an admin can set the PIN of admin or manager-level staff", http.StatusForbidden)
 		return
 	}
 
@@ -629,18 +699,23 @@ func (h *PINAuthHandler) AuthMe(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// fetchEmailVerification returns auth-api's computed email-verification block for the user
-// (opaque JSON, forwarded verbatim to the UI). Best-effort: returns nil on any error so
-// /auth/me never fails because of it.
-// sessionEntitlements is resolveTerminalEntitlements plus the person: a platform admin signing in
-// with a staff PIN at a tenant is a platform owner there, exactly as auth marks their SSO token
-// (auth-api IsPlatformOwner: admin or superuser in the platform tenant). Without it a PIN session
-// never carried that, so platform-owner-only actions (deleting test sales, approval overrides)
-// were missing for platform admins on the till. Asked only for admin-level staff; any failure
-// leaves it false.
+// sessionEntitlements is resolveTerminalEntitlements plus the person. A PIN session carries
+// platform owner only when BOTH hold:
+//   - it signs in on the configured platform tenant (PLATFORM_TENANT_ID), and
+//   - auth-api says the staff row's user is a platform owner.
+//
+// auth-api answers the second question for the user globally, and a tenant admin decides which
+// user a staff row points at. Without the tenant check, an admin of any tenant could point a
+// staff row at a platform admin, set its PIN and mint a platform-owner token valid on every
+// tenant. On the platform tenant the staff rows are managed by platform staff only.
+// Asked only for admin-level staff; any failure leaves it false.
 func (h *PINAuthHandler) sessionEntitlements(ctx context.Context, tid uuid.UUID, member *ent.StaffMember) terminalEntitlements {
 	subEnt := h.resolveTerminalEntitlements(ctx, tid)
-	if !subEnt.IsPlatformOwner && posrole.IsAdminLevel(member.Role) && h.isPlatformOwnerUser(ctx, member.UserID) {
+	subEnt.IsPlatformOwner = false
+	if h.platformTenantID == uuid.Nil || tid != h.platformTenantID || member.TenantID != h.platformTenantID {
+		return subEnt
+	}
+	if posrole.IsAdminLevel(member.Role) && h.isPlatformOwnerUser(ctx, member.UserID) {
 		subEnt.IsPlatformOwner = true
 	}
 	return subEnt
@@ -677,6 +752,9 @@ func (h *PINAuthHandler) isPlatformOwnerUser(ctx context.Context, userID uuid.UU
 	return out.IsPlatformOwner
 }
 
+// fetchEmailVerification returns auth-api's computed email-verification block for the user
+// (opaque JSON, forwarded verbatim to the UI). Best-effort: returns nil on any error so
+// /auth/me never fails because of it.
 func (h *PINAuthHandler) fetchEmailVerification(ctx context.Context, userID uuid.UUID) json.RawMessage {
 	if h.authURL == "" || h.internalKey == "" {
 		return nil

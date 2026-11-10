@@ -220,7 +220,10 @@ func New(
 				Required:     true,
 			}))
 			if pinAuth != nil {
-				pub.Get("/{tenantID}/pos/staff", pinAuth.ListStaff)
+				// Public for the PIN picker, which gets only staff id, name and has_pin. A caller
+				// that sends a token is verified first, and only one signed in to this tenant also
+				// gets user_id and role (the signed-in pages filter and set PINs by user_id).
+				pub.With(pinAuth.OptionalAnyAuth(authMiddleware)).Get("/{tenantID}/pos/staff", pinAuth.ListStaff)
 				// Dedicated, much stricter per-IP limit on the actual PIN-guess surface (bcrypt
 				// compare against a candidate set), stacked on top of the general limiter above —
 				// see PINRateLimit's doc comment for why (PIN uniqueness is per-tenant only, so a

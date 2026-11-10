@@ -14,14 +14,19 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
+	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
 )
+
+// terminalIssuer is the iss claim of every token pos-api signs itself (PIN sessions).
+const terminalIssuer = "pos-terminal"
 
 // terminalClaims are embedded in short-lived JWTs issued to POS terminals after PIN login.
 // Mirrors the SSO JWT shape so pos-ui can use the same claim parsing path AND so the
 // subscription gate (SubscriptionGate / RequireFeature / CheckStructuralLimit) sees the
 // same entitlements + bypass flags it would for an SSO session. Without these, every PIN
-// session was treated as having zero features (→ 403 on feature-gated routes) and demo /
-// platform-owner tenants were not exempted.
+// session was treated as having zero features (→ 403 on feature-gated routes). Gating
+// exemption comes from sub_exempt and the demo flag. is_platform_owner is set only for a
+// platform admin signed in on the platform tenant, never from a tenant slug.
 type terminalClaims struct {
 	UserID        string   `json:"user_id"`
 	TenantID      string   `json:"tenant_id"`
@@ -63,6 +68,9 @@ type terminalClaims struct {
 	// the tenant's real status.
 	SupportFeeStatus string `json:"support_fee_status,omitempty"`
 	SupportFeeDueAt  *int64 `json:"support_fee_due_at,omitempty"`
+	// PlatformRepair marks the maintenance-window override session. It lets the token through
+	// its own tenant's maintenance gate and nothing else (see RequireAnyAuth).
+	PlatformRepair bool `json:"platform_repair,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -155,7 +163,7 @@ func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutlet
 		SupportFeeDueAt:      ent2.SupportFeeDueAtUnix,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   member.UserID.String(),
-			Issuer:    "pos-terminal",
+			Issuer:    terminalIssuer,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(4 * time.Hour)),
 		},
@@ -173,9 +181,13 @@ func issueTerminalJWT(member *ent.StaffMember, tenantID uuid.UUID, sessionOutlet
 // override PIN at a tenant's PIN pad while that tenant is inside a scheduled maintenance window
 // (see checkMaintenanceGate in pin_auth.go). There is no StaffMember behind this session — the
 // subject is a fresh random id — so Role is pinned to "admin" (the standard full-access POS role
-// code) purely to give real RBAC permissions for the tenant's own resources; IsPlatformOwner=true
-// is the separate flag that actually bypasses the maintenance/subscription/service-access gates a
-// real tenant admin does NOT bypass.
+// code) purely to give real RBAC permissions for the tenant's own resources.
+//
+// The token is scoped to tenantID. IsPlatformOwner stays false, because TenantV2 lets a platform
+// owner act on every tenant and this token is earned with a short shared PIN. Instead:
+//   - PlatformRepair lets it past this tenant's maintenance gate only,
+//   - SubscriptionExempt lets it past subscription, service-access and support-fee gating,
+//     which TenantV2 already confines to this tenant.
 func issuePlatformRepairOverrideJWT(tenantID uuid.UUID, tenantSlug string, outletID uuid.UUID, secret []byte, client *ent.Client, ctx context.Context) (string, []string, error) {
 	permissions, err := resolveRolePermissions(ctx, client, tenantID, "admin")
 	if err != nil {
@@ -205,11 +217,13 @@ func issuePlatformRepairOverrideJWT(tenantID uuid.UUID, tenantSlug string, outle
 		IsHQUser:        isHQ,
 		Name:            "Platform Repair Access",
 		Role:            "admin",
-		Permissions:     permissions,
-		IsPlatformOwner: true,
+		Permissions:        permissions,
+		IsPlatformOwner:    false,
+		SubscriptionExempt: true,
+		PlatformRepair:     true,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   sessionUserID.String(),
-			Issuer:    "pos-terminal",
+			Issuer:    terminalIssuer,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(1 * time.Hour)),
 		},
@@ -237,7 +251,7 @@ func validateTerminalJWT(tokenStr string, secret []byte) (*terminalClaims, error
 	if !ok || !token.Valid {
 		return nil, fmt.Errorf("invalid terminal JWT")
 	}
-	if claims.Issuer != "pos-terminal" {
+	if claims.Issuer != terminalIssuer {
 		return nil, fmt.Errorf("not a terminal JWT")
 	}
 	return claims, nil
@@ -258,7 +272,8 @@ func terminalToAuthClaims(tc *terminalClaims) *authclient.Claims {
 		Permissions:   tc.Permissions,
 		// Carry the subscription snapshot + bypass flags so RequireFeature /
 		// CheckStructuralLimit / SubscriptionGate treat a PIN session exactly like an SSO
-		// session (and exempt demo / platform-owner tenants).
+		// session. IsPlatformOwner is true only when sessionEntitlements granted it on the
+		// platform tenant; the repair token never carries it.
 		IsPlatformOwner:      tc.IsPlatformOwner,
 		IsDemo:               tc.IsDemo,
 		BillingMode:          tc.BillingMode,
@@ -298,6 +313,9 @@ func (h *PINAuthHandler) RequireAnyAuth(ssoAuth *authclient.AuthMiddleware) func
 				tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 				if tc, err := validateTerminalJWT(tokenStr, h.jwtSecret); err == nil {
 					ctx := authclient.ContextWithClaims(r.Context(), terminalToAuthClaims(tc))
+					if tc.PlatformRepair {
+						ctx = outletmw.WithPlatformRepair(ctx, tc.TenantID)
+					}
 					next.ServeHTTP(w, r.WithContext(ctx))
 					return
 				}
@@ -308,6 +326,22 @@ func (h *PINAuthHandler) RequireAnyAuth(ssoAuth *authclient.AuthMiddleware) func
 				return
 			}
 			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// OptionalAnyAuth is RequireAnyAuth for a public route: a request with no token goes through
+// unauthenticated, a request with a token must pass RequireAnyAuth. Handlers then tell a signed
+// in caller from a public one by the claims in the context.
+func (h *PINAuthHandler) OptionalAnyAuth(ssoAuth *authclient.AuthMiddleware) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		withAuth := h.RequireAnyAuth(ssoAuth)(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("Authorization") == "" && r.URL.Query().Get("access_token") == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+			withAuth.ServeHTTP(w, r)
 		})
 	}
 }

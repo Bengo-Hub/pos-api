@@ -148,8 +148,11 @@ type AuthConfig struct {
 	// role-registry sync POST /api/v1/s2s/roles/sync). Same INTERNAL_SERVICE_KEY as inbound.
 	APIKey string `envconfig:"INTERNAL_SERVICE_KEY"`
 	// TerminalJWTSecret is the HMAC-SHA256 secret for signing short-lived terminal JWTs issued after PIN login.
-	// Falls back to INTERNAL_SERVICE_KEY when not set.
+	// Required outside local/dev, and it must differ from INTERNAL_SERVICE_KEY (see app.resolveTerminalJWTSecret).
 	TerminalJWTSecret string `envconfig:"TERMINAL_JWT_SECRET"`
+	// PlatformTenantID is the auth-api UUID of the platform (codevertex) tenant. A PIN session
+	// may carry platform owner only when it signs in on this tenant. Not a secret.
+	PlatformTenantID string `envconfig:"PLATFORM_TENANT_ID" default:"4414b8d9-6b00-4ad1-a0b4-3094cbc5e398"`
 	// PlatformRepairPINHash is the bcrypt hash of the platform-wide override PIN that lets a
 	// platform owner into a terminal PIN pad while that tenant is inside a scheduled maintenance
 	// window (see internal/http/middleware/maintenance.go). Never a literal PIN in source or

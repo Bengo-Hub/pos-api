@@ -52,9 +52,23 @@ func getTenantForMaintenanceCheck(ctx context.Context, client *ent.Client, tenan
 	return t
 }
 
+type platformRepairKey struct{}
+
+// WithPlatformRepair marks the request as the maintenance override (repair PIN) session for
+// tenantID. Set only by the terminal auth middleware from a verified token.
+func WithPlatformRepair(ctx context.Context, tenantID string) context.Context {
+	return context.WithValue(ctx, platformRepairKey{}, tenantID)
+}
+
+// platformRepairTenant returns the tenant a repair session is scoped to, or "".
+func platformRepairTenant(ctx context.Context) string {
+	tid, _ := ctx.Value(platformRepairKey{}).(string)
+	return tid
+}
+
 // RequireNotUnderMaintenance blocks every request for a tenant currently inside a scheduled
-// maintenance window, for everyone except platform owners (who need full access to actually do
-// the repair work). Mounted tenant-wide in router.go's protected route chain, ahead of the
+// maintenance window, for everyone except platform owners and the repair PIN session of that
+// same tenant (who need access to actually do the repair work). Mounted tenant-wide in router.go's protected route chain, ahead of the
 // per-route RBAC/use-case gates, so a maintenance window always wins over anything else.
 //
 // Deliberately checks claims.TenantUUID() (the JWT's own tenant claim) rather than depending on
@@ -74,6 +88,11 @@ func RequireNotUnderMaintenance(client *ent.Client) func(http.Handler) http.Hand
 			}
 			tid, err := claims.TenantUUID()
 			if err != nil || tid == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			if rt := platformRepairTenant(r.Context()); rt != "" && rt == tid.String() {
 				next.ServeHTTP(w, r)
 				return
 			}

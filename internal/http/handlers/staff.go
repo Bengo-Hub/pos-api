@@ -70,10 +70,23 @@ func NewStaffHandler(log *zap.Logger, client *ent.Client, authURL, internalKey s
 	}
 }
 
-// managerRoles that may NOT be created/edited/deactivated by a manager (only admin can).
-var managementProtectedRoles = map[string]bool{
-	"admin":   true,
-	"manager": true,
+// privilegedStaffRole reports whether a raw role is admin or manager tier after canonicalising
+// (lowercase, trim, aliases such as owner, superuser, super_admin, pos_admin, store_manager).
+// Only an admin-level caller may create, edit, promote, deactivate or reset the PIN of such
+// staff. The old guard compared the raw string with {"admin","manager"}, so a manager could
+// create "owner" or "superuser" staff, and " Admin" slipped past too.
+func privilegedStaffRole(role string) bool {
+	return posrole.IsAdminLevel(role)
+}
+
+// callerIsUser reports whether the signed-in caller is the given auth user.
+func callerIsUser(r *http.Request, userID uuid.UUID) bool {
+	claims, ok := authclient.ClaimsFromContext(r.Context())
+	if !ok || claims == nil || userID == uuid.Nil {
+		return false
+	}
+	sub, err := uuid.Parse(claims.Subject)
+	return err == nil && sub == userID
 }
 
 // posRoleRank ranks POS roles so the highest-privilege one wins when a principal carries
@@ -297,6 +310,39 @@ func (h *StaffHandler) provisionAuthMember(ctx context.Context, tenantID uuid.UU
 	return id, nil
 }
 
+// isTenantMember asks auth-api whether userID holds a membership in tenantID, through the S2S
+// member lookup pos already uses for PIN outlet limits
+// (GET /api/v1/s2s/tenants/{tenant}/members/{user}/outlet-limit: 200 member, 404 not a member).
+// Any other answer is an error, so the caller fails closed.
+func (h *StaffHandler) isTenantMember(ctx context.Context, tenantID, userID uuid.UUID) (bool, error) {
+	authBase := h.authURL
+	if envURL := os.Getenv("AUTH_API_URL"); envURL != "" {
+		authBase = envURL
+	}
+	if authBase == "" || h.internalKey == "" {
+		return false, fmt.Errorf("auth S2S not configured (AUTH_SERVICE_URL / INTERNAL_SERVICE_KEY)")
+	}
+	url := strings.TrimRight(authBase, "/") + "/api/v1/s2s/tenants/" + tenantID.String() + "/members/" + userID.String() + "/outlet-limit"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("X-API-Key", h.internalKey)
+	resp, err := h.http.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("auth member lookup: %w", err)
+	}
+	defer resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	default:
+		return false, fmt.Errorf("auth member lookup: HTTP %d", resp.StatusCode)
+	}
+}
+
 // syncAuthMemberRoles pushes a staff member's (base) role to auth-service by user_id so the SSO
 // JWT `roles` claim reflects a role change made in the POS Team UI. Without this, editing a
 // member's role via UpdateStaff only touched the local StaffMember.Role and the JWT roles claim
@@ -359,9 +405,10 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Manager cannot create admin or manager-level accounts
-	if managementProtectedRoles[input.Role] && requesterRole(r) == "manager" {
-		jsonError(w, "managers cannot create admin or manager-level staff", http.StatusForbidden)
+	// Only an admin-level caller may create admin or manager-tier staff (any alias).
+	input.Role = strings.TrimSpace(input.Role)
+	if privilegedStaffRole(input.Role) && !requesterIsAdminLevel(r) {
+		jsonError(w, "only an admin can create admin or manager-level staff", http.StatusForbidden)
 		return
 	}
 
@@ -388,18 +435,42 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve the REAL auth-service user id. When a user_id override is supplied we
-	// trust it; otherwise we provision the user in auth-service by email (S2S) and use
-	// the id it returns. We NEVER mint our own id — that produced orphan users that SSO
-	// later duplicated (Berita Nyambura incident).
+	// Resolve the REAL auth-service user id. A user_id override is honoured only when that user
+	// is already a member of this tenant in auth-api, or the caller is an SSO platform owner.
+	// Trusting it blindly let a tenant admin point a staff row at any auth user (a platform
+	// admin included), set its PIN and sign in as them. Otherwise we provision the user in
+	// auth-service by email (S2S) and use the id it returns. We NEVER mint our own id, which
+	// produced orphan users that SSO later duplicated (Berita Nyambura incident).
 	var userID uuid.UUID
+	useOverride := false
 	if input.UserID != "" {
-		userID, err = uuid.Parse(input.UserID)
-		if err != nil {
+		override, perr := uuid.Parse(input.UserID)
+		if perr != nil {
 			jsonError(w, "invalid user_id", http.StatusBadRequest)
 			return
 		}
-	} else {
+		claims, _ := authclient.ClaimsFromContext(r.Context())
+		if isSSOPlatformOwner(claims) {
+			useOverride = true
+		} else {
+			member, merr := h.isTenantMember(r.Context(), tid, override)
+			if merr != nil {
+				h.log.Error("verify staff user_id membership", zap.Error(merr))
+				jsonError(w, "could not verify user_id with auth-service", http.StatusBadGateway)
+				return
+			}
+			if member {
+				useOverride = true
+			} else if input.Email == "" || !strings.Contains(input.Email, "@") {
+				jsonError(w, "user_id is not a member of this tenant", http.StatusForbidden)
+				return
+			}
+		}
+		if useOverride {
+			userID = override
+		}
+	}
+	if !useOverride {
 		userID, err = h.provisionAuthMember(r.Context(), tid, input.Email, input.Name, input.Role, input.Phone, input.OutletID)
 		if err != nil {
 			h.log.Error("provision auth member", zap.Error(err))
@@ -526,14 +597,19 @@ func (h *StaffHandler) UpdateStaff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Manager cannot update admin or manager-level staff
-	if managementProtectedRoles[member.Role] && requesterRole(r) == "manager" {
-		jsonError(w, "managers cannot edit admin or manager-level staff", http.StatusForbidden)
+	// Only an admin-level caller may edit admin or manager-tier staff, or promote anyone into
+	// that tier (any alias, compared after canonicalising).
+	if privilegedStaffRole(member.Role) && !requesterIsAdminLevel(r) {
+		jsonError(w, "only an admin can edit admin or manager-level staff", http.StatusForbidden)
 		return
 	}
-	if input.Role != nil && managementProtectedRoles[*input.Role] && requesterRole(r) == "manager" {
-		jsonError(w, "managers cannot assign admin or manager role", http.StatusForbidden)
-		return
+	if input.Role != nil {
+		trimmed := strings.TrimSpace(*input.Role)
+		input.Role = &trimmed
+		if privilegedStaffRole(trimmed) && !requesterIsAdminLevel(r) {
+			jsonError(w, "only an admin can assign an admin or manager role", http.StatusForbidden)
+			return
+		}
 	}
 
 	upd := h.client.StaffMember.UpdateOne(member)
@@ -639,9 +715,9 @@ func (h *StaffHandler) DeactivateStaff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Manager cannot deactivate admin or manager-level staff
-	if managementProtectedRoles[member.Role] && requesterRole(r) == "manager" {
-		jsonError(w, "managers cannot deactivate admin or manager-level staff", http.StatusForbidden)
+	// Only an admin-level caller may deactivate admin or manager-tier staff.
+	if privilegedStaffRole(member.Role) && !requesterIsAdminLevel(r) {
+		jsonError(w, "only an admin can deactivate admin or manager-level staff", http.StatusForbidden)
 		return
 	}
 
