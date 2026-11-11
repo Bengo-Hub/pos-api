@@ -54,8 +54,29 @@ func notUnlinked(sel *sql.Selector, column string) {
 	))
 }
 
+// accountNotUnlinked also leaves out merged shells (see MergeDuplicateAccounts): a shell is
+// emptied and unlinked on purpose and must never be linked to the CRM again.
 func accountNotUnlinked() predicate.LoyaltyAccount {
-	return predicate.LoyaltyAccount(func(sel *sql.Selector) { notUnlinked(sel, entla.FieldMetadata) })
+	return predicate.LoyaltyAccount(func(sel *sql.Selector) {
+		notUnlinked(sel, entla.FieldMetadata)
+		notMerged(sel)
+	})
+}
+
+// AccountNotMerged matches loyalty accounts that are not merged shells. It runs in SQL.
+func AccountNotMerged() predicate.LoyaltyAccount {
+	return predicate.LoyaltyAccount(notMerged)
+}
+
+// notMerged agrees with IsMerged: a row is a shell only when merged_into is a non-empty string,
+// so a missing key and an empty value both count as live.
+func notMerged(sel *sql.Selector) {
+	col := sel.C(entla.FieldMetadata)
+	sel.Where(sql.Or(
+		sql.IsNull(col),
+		sql.Not(sqljson.HasKey(col, sqljson.Path(MergedIntoKey))),
+		sqljson.ValueEQ(col, "", sqljson.Path(MergedIntoKey)),
+	))
 }
 
 func clientNotUnlinked() predicate.ClientRecord {

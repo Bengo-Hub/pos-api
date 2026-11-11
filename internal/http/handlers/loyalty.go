@@ -223,6 +223,10 @@ func (h *LoyaltyHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := h.db.LoyaltyAccount.Query().Where(entla.TenantID(tid))
+	// Merged shells (empty accounts left by the duplicate merge) are hidden unless asked for.
+	if r.URL.Query().Get("include_merged") != "true" {
+		q = q.Where(customers.AccountNotMerged())
+	}
 	if phone := r.URL.Query().Get("phone"); strings.TrimSpace(phone) != "" {
 		// Match on the national subscriber number (last 9 digits) so the search is format-agnostic:
 		// "+254 792 548766", "254792548766" and "0792548766" all normalize to "792548766", a substring
@@ -338,7 +342,17 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	// Pre-check: this customer may already have a loyalty account (tenant_id, customer_phone
 	// is unique). Return the existing account instead of racing the DB constraint, so the
 	// client can treat "already registered" as a normal success path, not an error.
-	if existing, existErr := customers.FindAccountIn(r.Context(), h.db, tid, body.CustomerPhone); existErr == nil && existing != nil {
+	// A failed lookup never falls through to create: that would put a second account beside
+	// the customer's real one (for example when a merged shell's survivor cannot be reached).
+	// FindAccountForCreate releases merged shells whose survivor was deleted, so a number is
+	// never locked out of registration (see customers.FindAccountForCreate).
+	existing, existErr := customers.FindAccountForCreate(r.Context(), h.db, tid, body.CustomerPhone, nil)
+	if existErr != nil {
+		h.log.Error("loyalty: account lookup failed", zap.Error(existErr))
+		jsonError(w, "failed to look up account", http.StatusInternalServerError)
+		return
+	}
+	if existing != nil {
 		// The CRM contact was deleted earlier and the customer is registering again with their
 		// details, so link the account again.
 		if customers.IsUnlinked(existing.Metadata) {
@@ -375,7 +389,13 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 			zap.String("tenant_id", tid.String()), zap.String("crm_contact_id", ident.CrmContactID.String()))
 	}
 	// The CRM may know this customer under another phone spelling that already has an account.
-	if existing, existErr := customers.FindAccountForContact(r.Context(), h.db, tid, ident.Phone, ident.CrmContactID); existErr == nil && existing != nil {
+	existing, existErr = customers.FindAccountForCreate(r.Context(), h.db, tid, ident.Phone, ident.CrmContactID)
+	if existErr != nil {
+		h.log.Error("loyalty: account lookup failed", zap.Error(existErr))
+		jsonError(w, "failed to look up account", http.StatusInternalServerError)
+		return
+	}
+	if existing != nil {
 		if existing.CrmContactID == nil {
 			if linked, err := h.customers.AttachAccount(r.Context(), existing, ident); err == nil {
 				existing = linked
@@ -419,7 +439,7 @@ func (h *LoyaltyHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			// Lost a race against a concurrent registration of the same phone number.
-			if existing, existErr := customers.FindAccountForContact(r.Context(), h.db, tid, ident.Phone, ident.CrmContactID); existErr == nil && existing != nil {
+			if existing, existErr := customers.FindAccountForCreate(r.Context(), h.db, tid, ident.Phone, ident.CrmContactID); existErr == nil && existing != nil {
 				jsonOK(w, existing)
 				return
 			}
@@ -494,7 +514,8 @@ func (h *LoyaltyHandler) Earn(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "failed to update account", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"balance": newBalance, "transaction": tx})
+	// account_id is the account credited: the survivor when the URL named a merged shell.
+	jsonOK(w, map[string]any{"account_id": tx.AccountID, "balance": newBalance, "transaction": tx})
 }
 
 // applyEarn is the shared core for crediting loyalty points to an account: it updates the
@@ -509,56 +530,24 @@ func (h *LoyaltyHandler) Earn(w http.ResponseWriter, r *http.Request) {
 // each read the same starting balance, each add their own points to it, and the second SET simply
 // overwrote the first's effect, silently losing one of the two credits. Locking here (not just at
 // the caller) is what actually closes the race for every caller of this shared function.
+//
+// The core now lives in customers.EarnPoints: it locks the row, follows a merged shell to its
+// survivor (so points never land on an emptied duplicate, including a call that was waiting on
+// the lock while the merge committed), and adds the points in SQL. The returned transaction's
+// AccountID is the account actually credited.
 func (h *LoyaltyHandler) applyEarn(ctx context.Context, tid, accountID uuid.UUID, points int, orderID *string, notes string) (int, *ent.LoyaltyTransaction, error) {
-	tx, err := h.db.Tx(ctx)
-	if err != nil {
-		return 0, nil, err
-	}
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback()
-		}
-	}()
-
-	acc, err := tx.LoyaltyAccount.Query().
-		Where(entla.ID(accountID), entla.TenantID(tid)).
-		ForUpdate().
-		Only(ctx)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	newBalance := acc.PointsBalance + points
-	if _, err := tx.LoyaltyAccount.UpdateOneID(acc.ID).
-		SetPointsBalance(newBalance).
-		SetLifetimePoints(acc.LifetimePoints + points).
-		Save(ctx); err != nil {
-		return 0, nil, err
-	}
-	txCreator := tx.LoyaltyTransaction.Create().
-		SetTenantID(tid).
-		SetAccountID(acc.ID).
-		SetTypeField("earn").
-		SetPoints(points).
-		SetBalanceAfter(newBalance)
+	var oid *uuid.UUID
 	if orderID != nil {
-		if oid, err := uuid.Parse(*orderID); err == nil {
-			txCreator = txCreator.SetOrderID(oid)
+		if parsed, err := uuid.Parse(*orderID); err == nil {
+			oid = &parsed
 		}
 	}
-	if notes != "" {
-		txCreator = txCreator.SetNotes(notes)
-	}
-	ltx, err := txCreator.Save(ctx)
+	res, err := customers.EarnPoints(ctx, h.db, tid, accountID, points, oid, notes)
 	if err != nil {
-		h.log.Warn("earn: failed to create transaction record", zap.Error(err))
-	}
-
-	if err := tx.Commit(); err != nil {
 		return 0, nil, err
 	}
-	committed = true
+	acc, ltx := res.Account, res.Transaction
+	newBalance := acc.PointsBalance
 
 	// Publish event for notifications-service (WhatsApp/SMS "You earned X pts" message).
 	// Best-effort, after commit so a publish failure never rolls back a real balance change.
@@ -614,12 +603,18 @@ func (h *LoyaltyHandler) Redeem(w http.ResponseWriter, r *http.Request) {
 	// The authoritative balance check now happens inside applyRedeem, under the same lock as the
 	// deduction (see its doc comment) -- this pre-check is just a cheap early-reject for the
 	// common case so a request that's obviously going to fail doesn't even open a transaction.
+	if respondAccountMerged(w, acc) {
+		return
+	}
 	if acc.PointsBalance < body.Points {
 		jsonError(w, "insufficient points balance", http.StatusUnprocessableEntity)
 		return
 	}
-	newBalance, tx, err := h.applyRedeem(r.Context(), tid, acc.ID, body.Points, body.OrderID, body.Notes)
+	newBalance, tx, err := h.applyRedeem(r.Context(), tid, acc.ID, body.Points, body.OrderID, body.Notes, false)
 	if err != nil {
+		if respondMergedError(w, err) {
+			return
+		}
 		if errors.Is(err, ErrInsufficientLoyaltyPoints) {
 			jsonError(w, "insufficient points balance", http.StatusUnprocessableEntity)
 			return
@@ -629,6 +624,39 @@ func (h *LoyaltyHandler) Redeem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonOK(w, map[string]any{"balance": newBalance, "transaction": tx})
+}
+
+// loyaltyAccountMergedCode is the error code a till gets when it names a merged shell for a
+// redemption. The till looks the customer up again (by phone) and retries on the survivor.
+const loyaltyAccountMergedCode = "loyalty_account_merged"
+
+func writeAccountMerged(w http.ResponseWriter, shell, survivor uuid.UUID) {
+	respondJSON(w, http.StatusConflict, map[string]any{
+		"error":               "this loyalty account was merged into another account; look the customer up again",
+		"code":                loyaltyAccountMergedCode,
+		"account_id":          shell,
+		"survivor_account_id": survivor,
+	})
+}
+
+// respondAccountMerged answers 409 when a pre-read account is a merged shell.
+func respondAccountMerged(w http.ResponseWriter, acc *ent.LoyaltyAccount) bool {
+	if acc == nil || !customers.IsMerged(acc.Metadata) {
+		return false
+	}
+	survivor, _ := uuid.Parse(fmt.Sprint(acc.Metadata[customers.MergedIntoKey]))
+	writeAccountMerged(w, acc.ID, survivor)
+	return true
+}
+
+// respondMergedError answers 409 when the locked account turned out to be a merged shell.
+func respondMergedError(w http.ResponseWriter, err error) bool {
+	var me *customers.MergedError
+	if !errors.As(err, &me) {
+		return false
+	}
+	writeAccountMerged(w, me.AccountID, me.SurvivorID)
+	return true
 }
 
 // ErrInsufficientLoyaltyPoints is returned by applyRedeem when the account's LOCKED (authoritative,
@@ -648,7 +676,12 @@ var ErrInsufficientLoyaltyPoints = errors.New("insufficient loyalty points balan
 // first's effect -- silently redeeming points without properly debiting them (or worse, if the
 // two writes race the other direction, letting the balance go negative). Locking + re-validating
 // here is what actually makes "sufficient balance" an atomic, enforced guarantee.
-func (h *LoyaltyHandler) applyRedeem(ctx context.Context, tid, accountID uuid.UUID, points int, orderID *string, notes string) (int, *ent.LoyaltyTransaction, error) {
+//
+// followMerged decides what happens when the locked row is a merged shell (see
+// customers.LockAccount): the S2S path resolves the customer by phone, so it follows the shell
+// to the survivor; the staff path names an account id the till showed, so it gets a
+// *customers.MergedError and answers 409 for the till to look the customer up again.
+func (h *LoyaltyHandler) applyRedeem(ctx context.Context, tid, accountID uuid.UUID, points int, orderID *string, notes string, followMerged bool) (int, *ent.LoyaltyTransaction, error) {
 	tx, err := h.db.Tx(ctx)
 	if err != nil {
 		return 0, nil, err
@@ -660,10 +693,7 @@ func (h *LoyaltyHandler) applyRedeem(ctx context.Context, tid, accountID uuid.UU
 		}
 	}()
 
-	acc, err := tx.LoyaltyAccount.Query().
-		Where(entla.ID(accountID), entla.TenantID(tid)).
-		ForUpdate().
-		Only(ctx)
+	acc, err := customers.LockAccount(ctx, tx, tid, accountID, followMerged)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -865,6 +895,9 @@ func (h *LoyaltyHandler) RedeemToOrder(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "points must be positive", http.StatusBadRequest)
 		return
 	}
+	if respondAccountMerged(w, acc) {
+		return
+	}
 	if acc.PointsBalance < body.Points {
 		jsonError(w, "insufficient points balance", http.StatusUnprocessableEntity)
 		return
@@ -922,11 +955,13 @@ func (h *LoyaltyHandler) RedeemToOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	lockedAcc, err := tx.LoyaltyAccount.Query().
-		Where(entla.ID(aid), entla.TenantID(tid)).
-		ForUpdate().
-		Only(r.Context())
+	// A merged shell answers 409 here too, including a call that waited on the lock while the
+	// merge committed: the till must look the customer up again before paying with points.
+	lockedAcc, err := customers.LockAccount(r.Context(), tx, tid, aid, false)
 	if err != nil {
+		if respondMergedError(w, err) {
+			return
+		}
 		h.log.Error("redeem-to-order: lock account failed", zap.Error(err))
 		jsonError(w, "failed to update account", http.StatusInternalServerError)
 		return

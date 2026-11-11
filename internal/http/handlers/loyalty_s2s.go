@@ -39,7 +39,9 @@ func s2sTenantUUID(r *http.Request) (uuid.UUID, error) {
 // A CRM rejection of the phone is returned as the error (see customers.RejectionMessage).
 func (h *LoyaltyHandler) findOrCreateAccountByPhone(ctx context.Context, tid uuid.UUID, phone, name string) (*ent.LoyaltyAccount, error) {
 	phone = strings.TrimSpace(phone)
-	if acc, err := customers.FindAccountIn(ctx, h.db, tid, phone); err != nil || acc != nil {
+	// FindAccountForCreate releases merged shells whose survivor was deleted, so the number is
+	// never locked out of loyalty (see customers.FindAccountForCreate).
+	if acc, err := customers.FindAccountForCreate(ctx, h.db, tid, phone, nil); err != nil || acc != nil {
 		return acc, err
 	}
 
@@ -69,7 +71,7 @@ func (h *LoyaltyHandler) findOrCreateAccountByPhone(ctx context.Context, tid uui
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			// A concurrent call created the same phone first.
-			if existing, findErr := customers.FindAccountForContact(ctx, h.db, tid, ident.Phone, ident.CrmContactID); findErr == nil && existing != nil {
+			if existing, findErr := customers.FindAccountForCreate(ctx, h.db, tid, ident.Phone, ident.CrmContactID); findErr == nil && existing != nil {
 				return existing, nil
 			}
 		}
@@ -127,7 +129,16 @@ func (h *LoyaltyHandler) S2SEarn(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "failed to credit points", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"account_id": acc.ID, "balance": newBalance, "transaction": tx})
+	jsonOK(w, map[string]any{"account_id": debitedAccount(acc.ID, tx), "balance": newBalance, "transaction": tx})
+}
+
+// debitedAccount is the account a loyalty transaction landed on: the survivor when the
+// resolved account was merged in between. Falls back to the resolved id.
+func debitedAccount(resolved uuid.UUID, tx *ent.LoyaltyTransaction) uuid.UUID {
+	if tx != nil && tx.AccountID != uuid.Nil {
+		return tx.AccountID
+	}
+	return resolved
 }
 
 // S2SRedeem handles POST /api/v1/s2s/{tenant}/loyalty/redeem.
@@ -167,7 +178,8 @@ func (h *LoyaltyHandler) S2SRedeem(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "insufficient points balance", http.StatusUnprocessableEntity)
 		return
 	}
-	newBalance, tx, err := h.applyRedeem(r.Context(), tid, acc.ID, body.Points, body.OrderID, "Redeemed via S2S (ordering)")
+	// Resolved by phone, so a shell merged since the lookup is followed to its survivor.
+	newBalance, tx, err := h.applyRedeem(r.Context(), tid, acc.ID, body.Points, body.OrderID, "Redeemed via S2S (ordering)", true)
 	if err != nil {
 		if errors.Is(err, ErrInsufficientLoyaltyPoints) {
 			jsonError(w, "insufficient points balance", http.StatusUnprocessableEntity)
@@ -177,7 +189,7 @@ func (h *LoyaltyHandler) S2SRedeem(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "failed to debit points", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]any{"account_id": acc.ID, "balance": newBalance, "transaction": tx})
+	jsonOK(w, map[string]any{"account_id": debitedAccount(acc.ID, tx), "balance": newBalance, "transaction": tx})
 }
 
 // S2SBalance handles GET /api/v1/s2s/{tenant}/loyalty/balance?phone=...

@@ -93,6 +93,51 @@ func TestCustomerDeletedKeepsAccountWithPoints(t *testing.T) {
 	}
 }
 
+// TestCustomerDeletedRemovesMergedShells deletes the customer behind a merged survivor that holds
+// no points. The empty shells merged into it go with it, so the phone number can register again;
+// a shell that somehow holds points is kept.
+func TestCustomerDeletedRemovesMergedShells(t *testing.T) {
+	_, client := newTestPaymentsService(t)
+	ctx := context.Background()
+	tenantID := uuid.New()
+	sub := NewTreasurySubscriber(client, nil, zap.NewNop())
+	t0 := time.Date(2025, 3, 1, 9, 0, 0, 0, time.UTC)
+
+	contactID := uuid.New()
+	shell := client.LoyaltyAccount.Create().
+		SetTenantID(tenantID).SetCustomerPhone("0712345678").SetCustomerName("Shell").
+		SetPointsBalance(10).SetLifetimePoints(10).SetCreatedAt(t0).
+		SaveX(ctx)
+	survivor := client.LoyaltyAccount.Create().
+		SetTenantID(tenantID).SetCustomerPhone("+254712345678").SetCustomerName("Survivor").
+		SetPointsBalance(90).SetLifetimePoints(90).SetCreatedAt(t0.Add(time.Hour)).SetCrmContactID(contactID).
+		SaveX(ctx)
+	rep, err := customers.MergeDuplicateAccounts(ctx, client, customers.MergeOptions{TenantID: &tenantID, Apply: true}, t0)
+	if err != nil || rep.Merged != 1 {
+		t.Fatalf("merge = %+v, %v", rep, err)
+	}
+	// The customer spends every point, then is deleted in treasury.
+	client.LoyaltyAccount.UpdateOneID(survivor.ID).SetPointsBalance(0).ExecX(ctx)
+	// A shell holding points is never deleted (it cannot happen through the merge, but if it does
+	// a person must look at it).
+	odd := client.LoyaltyAccount.Create().
+		SetTenantID(tenantID).SetCustomerPhone("254712345678").SetCustomerName("Odd Shell").
+		SetPointsBalance(5).SetMetadata(map[string]any{customers.MergedIntoKey: survivor.ID.String()}).
+		SaveX(ctx)
+
+	sub.cleanupDeletedCustomer(ctx, tenantID, &contactID, "")
+
+	if _, err := client.LoyaltyAccount.Get(ctx, survivor.ID); !ent.IsNotFound(err) {
+		t.Errorf("survivor should be deleted, got err=%v", err)
+	}
+	if _, err := client.LoyaltyAccount.Get(ctx, shell.ID); !ent.IsNotFound(err) {
+		t.Errorf("empty shell should be deleted with its survivor, got err=%v", err)
+	}
+	if got, err := client.LoyaltyAccount.Get(ctx, odd.ID); err != nil || got.PointsBalance != 5 {
+		t.Errorf("shell holding points must be kept: %v, %v", got, err)
+	}
+}
+
 // TestResolveReconcileTarget_NilClientFallsBackToEventPayload confirms the pre-existing fail-open
 // posture is preserved when no treasury client is wired at all.
 func TestResolveReconcileTarget_NilClientFallsBackToEventPayload(t *testing.T) {

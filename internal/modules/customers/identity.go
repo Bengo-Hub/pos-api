@@ -224,7 +224,7 @@ func FindAccountForContact(ctx context.Context, db *ent.Client, tenantID uuid.UU
 		return nil, err
 	}
 	if !ok {
-		return pickAccount(tenantID, rows, contactID), nil
+		return pickLive(ctx, db, tenantID, rows, contactID)
 	}
 	hits := make([]*ent.LoyaltyAccount, 0, len(rows))
 	for _, a := range rows {
@@ -233,7 +233,7 @@ func FindAccountForContact(ctx context.Context, db *ent.Client, tenantID uuid.UU
 		}
 	}
 	if len(hits) > 0 {
-		return pickAccount(tenantID, hits, contactID), nil
+		return pickLive(ctx, db, tenantID, hits, contactID)
 	}
 	cands, err := db.LoyaltyAccount.Query().
 		Where(entla.TenantID(tenantID), entla.CustomerPhoneHasSuffix(contact.SubscriberDigits(norm))).
@@ -249,7 +249,17 @@ func FindAccountForContact(ctx context.Context, db *ent.Client, tenantID uuid.UU
 			matches = append(matches, c)
 		}
 	}
-	return pickAccount(tenantID, matches, contactID), nil
+	return pickLive(ctx, db, tenantID, matches, contactID)
+}
+
+// pickLive is pickAccount over rows with merged shells swapped for their survivors (see
+// MergeDuplicateAccounts), so points never land on an emptied shell.
+func pickLive(ctx context.Context, db *ent.Client, tenantID uuid.UUID, rows []*ent.LoyaltyAccount, contactID *uuid.UUID) (*ent.LoyaltyAccount, error) {
+	live, err := followMerged(ctx, db, tenantID, rows)
+	if err != nil {
+		return nil, err
+	}
+	return pickAccount(tenantID, live, contactID), nil
 }
 
 // lookupSpellings returns the E.164 form of raw, the spellings to match exactly in one indexed
@@ -296,6 +306,24 @@ func hasLink(link *uuid.UUID) bool {
 // then the lowest id. Points come before the link so the pick stays on the same row when the
 // reconciler later links a busy legacy row; points earned in between are never stranded.
 func pickAccount(tenantID uuid.UUID, rows []*ent.LoyaltyAccount, contactID *uuid.UUID) *ent.LoyaltyAccount {
+	best := chooseAccount(rows, contactID)
+	if best != nil && len(rows) > 1 {
+		others := make([]string, 0, len(rows)-1)
+		for _, a := range rows {
+			if a.ID != best.ID {
+				others = append(others, a.ID.String())
+			}
+		}
+		ambiguityLog().Warn("phone matches several loyalty accounts, picked one",
+			zap.String("tenant_id", tenantID.String()), zap.String("account_id", best.ID.String()),
+			zap.Strings("other_account_ids", others))
+	}
+	return best
+}
+
+// chooseAccount is pickAccount without the log line. The duplicate account merge uses it so
+// the survivor is the row every lookup would have picked.
+func chooseAccount(rows []*ent.LoyaltyAccount, contactID *uuid.UUID) *ent.LoyaltyAccount {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -325,17 +353,6 @@ func pickAccount(tenantID uuid.UUID, rows []*ent.LoyaltyAccount, contactID *uuid
 		if olderRow(a.CreatedAt, a.ID, best.CreatedAt, best.ID) {
 			best = a
 		}
-	}
-	if len(rows) > 1 {
-		others := make([]string, 0, len(rows)-1)
-		for _, a := range rows {
-			if a.ID != best.ID {
-				others = append(others, a.ID.String())
-			}
-		}
-		ambiguityLog().Warn("phone matches several loyalty accounts, picked one",
-			zap.String("tenant_id", tenantID.String()), zap.String("account_id", best.ID.String()),
-			zap.Strings("other_account_ids", others))
 	}
 	return best
 }

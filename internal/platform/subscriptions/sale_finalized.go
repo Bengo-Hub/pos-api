@@ -198,30 +198,19 @@ func (s *SaleFinalizedSubscriber) autoEarnLoyalty(ctx context.Context, tenantID,
 		return
 	}
 
-	newBalance := account.PointsBalance + pointsEarned
-	newLifetime := account.LifetimePoints + pointsEarned
-
-	_, err = s.db.LoyaltyAccount.UpdateOneID(account.ID).
-		SetPointsBalance(newBalance).
-		SetLifetimePoints(newLifetime).
-		Save(ctx)
+	// Locked, atomic credit (customers.EarnPoints): the old read-then-SET wrote back a balance
+	// read before the update, which could wipe points added in between (a concurrent earn, or
+	// the duplicate account merge crediting this account). A merged shell is followed to its
+	// survivor so the sale never credits an emptied duplicate.
+	res, err := customers.EarnPoints(ctx, s.db, tenantID, account.ID, pointsEarned, &orderID, "Auto-earn on sale")
 	if err != nil {
-		s.logger.Error("sale.finalized: failed to update loyalty balance", zap.Error(err))
+		s.logger.Error("sale.finalized: failed to credit loyalty points", zap.Error(err))
 		return
 	}
-
-	_, err = s.db.LoyaltyTransaction.Create().
-		SetTenantID(tenantID).
-		SetAccountID(account.ID).
-		SetOrderID(orderID).
-		SetTypeField("earn").
-		SetPoints(pointsEarned).
-		SetBalanceAfter(newBalance).
-		SetNotes("Auto-earn on sale").
-		Save(ctx)
-	if err != nil {
-		s.logger.Error("sale.finalized: failed to create loyalty transaction", zap.Error(err))
-	}
+	previousLifetime := res.PreviousLifetime
+	account = res.Account
+	newBalance := account.PointsBalance
+	newLifetime := account.LifetimePoints
 
 	// Notify the customer they earned points (notifications-service → WhatsApp/SMS "You earned X pts").
 	if s.publisher != nil {
@@ -237,7 +226,7 @@ func (s *SaleFinalizedSubscriber) autoEarnLoyalty(ctx context.Context, tenantID,
 	}
 
 	// Publish tier upgrade event if the customer crossed a tier threshold.
-	oldTier := evaluateTier(prog.TierThresholds, account.LifetimePoints)
+	oldTier := evaluateTier(prog.TierThresholds, previousLifetime)
 	newTier := evaluateTier(prog.TierThresholds, newLifetime)
 	if oldTier != newTier && s.publisher != nil {
 		crmContactID := ""
@@ -297,31 +286,19 @@ func (s *SaleFinalizedSubscriber) autoClaimReferral(ctx context.Context, tenantI
 		return
 	}
 
-	newBalance := referrer.PointsBalance + ref.BonusPoints
-	newLifetime := referrer.LifetimePoints + ref.BonusPoints
+	newBalance := referrer.PointsBalance
+	var txnID *uuid.UUID
 	if ref.BonusPoints > 0 {
-		if _, err := s.db.LoyaltyAccount.UpdateOneID(referrer.ID).
-			SetPointsBalance(newBalance).
-			SetLifetimePoints(newLifetime).
-			Save(ctx); err != nil {
+		// Locked, atomic credit that follows a merged shell (see autoEarnLoyalty).
+		res, err := customers.CreditPoints(ctx, s.db, tenantID, referrer.ID, ref.BonusPoints, "referral", &orderID,
+			"Referral bonus: "+p.CustomerPhone)
+		if err != nil {
 			s.logger.Error("referral: failed to credit referrer", zap.Error(err))
 			return
 		}
-	}
-
-	var txnID *uuid.UUID
-	if ref.BonusPoints > 0 {
-		if txn, err := s.db.LoyaltyTransaction.Create().
-			SetTenantID(tenantID).
-			SetAccountID(referrer.ID).
-			SetOrderID(orderID).
-			SetTypeField("referral").
-			SetPoints(ref.BonusPoints).
-			SetBalanceAfter(newBalance).
-			SetNotes("Referral bonus: " + p.CustomerPhone).
-			Save(ctx); err == nil {
-			txnID = &txn.ID
-		}
+		referrer = res.Account
+		newBalance = referrer.PointsBalance
+		txnID = &res.Transaction.ID
 	}
 
 	upd := s.db.Referral.UpdateOneID(ref.ID).SetStatus("earned").SetEarnedAt(time.Now())

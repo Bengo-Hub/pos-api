@@ -91,6 +91,7 @@ func New(
 	catalogCostBackfill *handlers.CatalogCostBackfillHandler,
 	maintenanceWindow *handlers.MaintenanceWindowHandler,
 	tenantExport http.Handler,
+	loyaltyMerge *handlers.LoyaltyMergeHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -157,7 +158,7 @@ func New(
 				}
 
 				// Platform-owner-only recovery tools.
-				if recipeCOGSBackfill != nil || catalogCostBackfill != nil {
+				if recipeCOGSBackfill != nil || catalogCostBackfill != nil || loyaltyMerge != nil {
 					admin.Group(func(platform chi.Router) {
 						platform.Use(requirePlatformOwner)
 						// One-time recipe-COGS backfill (see pos_cogs_backfill.go), fleet-wide.
@@ -168,6 +169,11 @@ func New(
 						// pos_catalog_cost_backfill.go) — same gate, tenant-scoped or fleet-wide.
 						if catalogCostBackfill != nil {
 							catalogCostBackfill.RegisterRoutes(platform)
+						}
+						// One-off merge of duplicate loyalty accounts (see loyalty_merge.go),
+						// dry run unless the body says "dry_run": false.
+						if loyaltyMerge != nil {
+							loyaltyMerge.RegisterRoutes(platform)
 						}
 					})
 				}

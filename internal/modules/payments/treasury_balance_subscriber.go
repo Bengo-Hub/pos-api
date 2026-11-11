@@ -280,11 +280,28 @@ func (s *TreasurySubscriber) removeOrKeepAccount(ctx context.Context, acc *ent.L
 			zap.String("account_id", acc.ID.String()))
 		return
 	}
-	if err := s.client.LoyaltyAccount.DeleteOneID(acc.ID).Exec(ctx); err != nil {
+	// The empty shells merged into this account go with it, in the same transaction; otherwise
+	// they would point at a missing row and lock the phone number out of loyalty.
+	res, err := customers.DeleteAccountWithShells(ctx, s.client, acc.TenantID, acc.ID)
+	if err != nil {
 		s.log.Warn("treasury.customer.deleted: loyalty account cleanup failed", zap.Error(err))
 		return
 	}
-	s.log.Info("treasury.customer.deleted: loyalty account(s) removed", zap.Int("count", 1))
+	if len(res.ShellsKept) > 0 {
+		kept := make([]string, 0, len(res.ShellsKept))
+		for _, id := range res.ShellsKept {
+			kept = append(kept, id.String())
+		}
+		s.log.Warn("treasury.customer.deleted: merged shells holding points were kept",
+			zap.String("account_id", acc.ID.String()), zap.Strings("shell_ids", kept))
+	}
+	if !res.Deleted {
+		s.log.Info("treasury.customer.deleted: loyalty account gained points, kept",
+			zap.String("account_id", acc.ID.String()))
+		return
+	}
+	s.log.Info("treasury.customer.deleted: loyalty account(s) removed",
+		zap.Int("count", 1), zap.Int("merged_shells", res.ShellsDeleted))
 }
 
 // cleanupDeletedCustomer is the body of the treasury.customer.deleted handler.

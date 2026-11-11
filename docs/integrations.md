@@ -383,10 +383,36 @@ marketflow-api owns customer identity. pos-api keeps `crm_contact_id` on loyalty
 
 - **Client.** `github.com/Bengo-Hub/shared-service-client/crm` (v0.5.0), configured with `MARKETFLOW_API_URL` and `INTERNAL_SERVICE_KEY`.
 - **Creating a customer.** Staff-created loyalty accounts and client records upsert the contact first. A CRM answer of 400 or 422 is shown to the user. An outage (401, 403, 429, 5xx, no answer) saves the record unlinked within 2 seconds, and the reconciler links it later. A sale never waits on the CRM.
-- **Phone lookup.** One indexed lookup matches every common spelling of a number (+254..., 254..., 07..., bare digits). Among duplicate accounts the busiest wins (most points), then the CRM-linked one, then the oldest. A new account is never created when one exists.
+- **Phone lookup.** One indexed lookup matches every common spelling of a number (+254..., 254..., 07..., bare digits). Among duplicate accounts the one with the most lifetime points wins, then the CRM-linked one, then the oldest, then the lowest id. A merged shell (see below) is never picked: the lookup moves on to the account it was merged into. A new account is never created when one exists.
 - **Snapshots.** `crm.contact.updated` refreshes the snapshot from the CRM. `crm.contact.deleted` clears the link and sets `metadata.crm_unlinked_at` on the loyalty account or client record, and the reconciler skips marked rows. A staff create or edit clears the mark and links again.
 - **Loyalty is never destroyed by a customer delete.** When treasury deletes a customer, POS deletes its rows except a loyalty account that still holds points. That one is unlinked and marked instead.
 - **Hotel guests.** The guest register keeps the details typed at check-in and never takes data from the CRM. Guest edit, booking edit and the public booking widget do not link guests yet.
+
+### Merging duplicate loyalty accounts
+
+Older tills saved the same customer more than once when the phone was typed in a different way (0712..., 254712..., +254712...). I merge those accounts with a one-off tool. It is safe to run more than once.
+
+**What it does.** For each tenant it groups loyalty accounts whose phones are the same number once written in full international form. Kenyan spellings group together. A foreign number never groups with a Kenyan one, and a phone that is not a valid number is never grouped. In each group the survivor is the account a phone lookup would pick when no CRM contact is given: the one with the most lifetime points; on a tie, the one linked to the CRM; then the oldest; then the lowest id. The survivor gains the points and lifetime points of the others and takes over their loyalty transactions, referrals, layaway plans and loyalty tender payments. It keeps its own CRM link. If it has none, it takes the link of the other account with the most lifetime points that has one. The other accounts stay behind as empty, unlinked shells with `merged_into`, `merged_at` and `merged_reason` in their metadata; a shell that was linked also keeps its old contact id as `merged_crm_contact_id`, and the report flags the group with `contact_conflict` when the accounts were linked to different contacts, so I can check those by hand. Each group runs in its own transaction; if an account changes while it is being merged (a sale in the middle, say), that group is refused and shown in the report, and a second run picks it up.
+
+**After the merge.** Phone lookups that land on a shell move on to its survivor, and the reconciler never links a shell again. Earning points on a shell's id (from a till that still shows the old account) credits the survivor. Redeeming points or paying with points on a shell's id answers 409 with the code `loyalty_account_merged` and the survivor's id, so the till looks the customer up again before taking points. The till does this by itself: it switches the attached customer to the survivor and reloads the balance, so the cashier only presses redeem again. The account list hides shells; add `include_merged=true` to see them. When a customer delete in treasury removes a survivor with no points, its empty shells are removed in the same transaction. If a shell is ever left pointing at a missing account, registering that number again turns the shell back into an ordinary empty account (its old marker is kept under `orphaned_merge`) instead of failing.
+
+**Dry run first.** The tool only reports unless you ask it to merge. It needs a platform owner token.
+
+```
+POST /api/v1/recovery/loyalty-merge-duplicates
+{"tenant_id": "<tenant uuid>"}
+```
+
+Send an empty body to cover every tenant. The answer lists each group with the tenant, the phone with all but its last three digits hidden, the account ids with their points, lifetime points and CRM link, the survivor, the reason it was chosen and the contact conflict flag. Names, emails and full phone numbers are never returned or logged. A body that is not exactly this JSON (a wrong type, an unknown field) is refused with 400 and nothing runs.
+
+**Real run, one tenant at a time.** Send the same request with `"dry_run": false`:
+
+```
+POST /api/v1/recovery/loyalty-merge-duplicates
+{"tenant_id": "<tenant uuid>", "dry_run": false}
+```
+
+I run the real merge per tenant, after reading that tenant's dry run, so each run stays short and its report is easy to check. A real run without a `tenant_id` is refused unless the body also says `"all_tenants": true`. Each group then shows `merged` or `refused` with the reason. Running it again reports no groups.
 
 ---
 
