@@ -320,6 +320,28 @@ func (h *HotelHandler) UpdateRoomBooking(w http.ResponseWriter, r *http.Request)
 	}
 	upd = upd.SetMetadata(meta)
 
+	// A booking saved unlinked is linked now with the fields CreateRoomBooking sends (phone,
+	// email and lead guest name after this edit). Only the contact id is stored; a refusal or
+	// outage saves the edit unlinked. The public widget never reaches this handler, so an
+	// unauthenticated caller still cannot create a CRM contact. A cancelled booking is not a
+	// customer relationship, so cancelling, or editing a booking already cancelled, never links.
+	cancelled := isCancel || existing.Status == entroombooking.StatusCancelled
+	if existing.CrmContactID == nil && !cancelled {
+		phone, email, name := existing.Phone, existing.Email, existing.LeadGuestName
+		if in.Phone != nil {
+			phone = *in.Phone
+		}
+		if in.Email != nil {
+			email = *in.Email
+		}
+		if in.LeadGuestName != nil {
+			name = *in.LeadGuestName
+		}
+		if cid := h.linkGuest(r.Context(), tid, "", phone, email, name, "room_booking"); cid != nil {
+			upd = upd.SetCrmContactID(*cid)
+		}
+	}
+
 	booking, err := upd.Save(r.Context())
 	if err != nil {
 		h.log.Error("update room booking failed", zap.Error(err))

@@ -27,6 +27,9 @@ type guestCRM struct {
 	id      uuid.UUID
 	status  int
 	refusal string
+	// answer, when set, is returned instead of echoing the upsert, so a test can tell whether
+	// the CRM's view of a contact leaked back into a local record.
+	answer *crm.Contact
 }
 
 func newGuestCRM(t *testing.T, status int) (*guestCRM, *httptest.Server) {
@@ -41,6 +44,10 @@ func newGuestCRM(t *testing.T, status int) (*guestCRM, *httptest.Server) {
 		if g.status != 0 {
 			w.WriteHeader(g.status)
 			_, _ = w.Write([]byte(g.refusal))
+			return
+		}
+		if g.answer != nil {
+			_ = json.NewEncoder(w).Encode(g.answer)
 			return
 		}
 		var in map[string]string

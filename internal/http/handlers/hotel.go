@@ -56,8 +56,8 @@ func (h *HotelHandler) SetCustomerResolver(res *customers.Resolver) { h.customer
 //
 // A guest is never turned away because of the CRM: a refusal or an outage gives nil and the
 // record is saved unlinked. The reconciler does not cover guests or bookings, so such a record
-// stays unlinked; the guest is linked again at their next check-in or booking. Logs carry ids
-// only.
+// stays unlinked; it is linked at the next staff edit of that guest or booking (UpdateGuest,
+// UpdateRoomBooking), or at the guest's next check-in or booking. Logs carry ids only.
 func (h *HotelHandler) linkGuest(ctx context.Context, tid uuid.UUID, given, phone, email, name, what string) *uuid.UUID {
 	if id, err := uuid.Parse(strings.TrimSpace(given)); err == nil && id != uuid.Nil {
 		return &id

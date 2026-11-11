@@ -150,6 +150,26 @@ func (h *HotelHandler) UpdateGuest(w http.ResponseWriter, r *http.Request) {
 		update = update.SetNights(nights).SetCheckOutDate(*input.ExpectedDepartureAt).SetExpectedDepartureAt(*input.ExpectedDepartureAt)
 	}
 
+	// A guest left unlinked at check-in (CRM down or refusing, or checked in before linking
+	// existed) is linked now, with the same three fields check-in sends: phone, email and name
+	// as they stand after this edit. Only the contact id is stored; the register keeps what the
+	// front desk typed, and a refusal or outage saves the edit unlinked (see linkGuest).
+	if guest.CrmContactID == nil {
+		phone, email, name := guest.Phone, guest.Email, guest.GuestName
+		if input.Phone != nil {
+			phone = *input.Phone
+		}
+		if input.Email != nil {
+			email = *input.Email
+		}
+		if input.GuestName != nil {
+			name = *input.GuestName
+		}
+		if id := h.linkGuest(r.Context(), tid, "", phone, email, name, "room_guest"); id != nil {
+			update = update.SetCrmContactID(*id)
+		}
+	}
+
 	updated, err := update.Save(r.Context())
 	if err != nil {
 		h.log.Error("update guest failed", zap.Error(err))
