@@ -388,8 +388,10 @@ func (h *PINAuthHandler) checkMaintenanceGate(w http.ResponseWriter, r *http.Req
 // ── POST /{tenant}/pos/auth/pin — validate PIN, return terminal JWT ────────────
 
 type pinLoginInput struct {
+	// UserID is deprecated: the public lists no longer hand out user ids, and pos-ui signs in
+	// by staff_id. Kept one release for older terminals; remove after that.
 	UserID string `json:"user_id"`
-	// StaffID is the opaque staff id the public staff list returns. Either it or user_id works.
+	// StaffID is the opaque staff id the public staff and PIN profile lists return.
 	StaffID string `json:"staff_id"`
 	PIN     string `json:"pin"` // 4-6 digit string (never stored raw)
 }
@@ -510,6 +512,7 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"expires_in":   int((4 * time.Hour).Seconds()),
 		"user": map[string]any{
 			"user_id":         member.UserID.String(),
+			"staff_id":        member.ID.String(),
 			"name":            member.Name,
 			"role":            member.Role,
 			"tenant_id":       member.TenantID.String(),
@@ -566,14 +569,22 @@ func (h *PINAuthHandler) SetPIN(w http.ResponseWriter, r *http.Request) {
 	// Resetting a PIN is signing in as that person. Only an admin-level caller may reset the PIN
 	// of admin or manager tier staff (owner, superuser and other aliases included); anyone may
 	// still change their own.
-	if privilegedStaffRole(member.Role) && !requesterIsAdminLevel(r) && !callerIsUser(r, member.UserID) {
+	// The row also acts for its person's POS role assignments, so a cashier row whose person
+	// holds an admin or manager assignment is that tier here. Fail closed.
+	privileged, perr := effectiveStaffPrivileged(r.Context(), h.client, member)
+	if perr != nil {
+		h.log.Error("set PIN: read role assignments", zap.Error(perr))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if privileged && !requesterIsAdminLevel(r) && !callerIsUser(r, member.UserID) {
 		jsonError(w, "only an admin can set the PIN of admin or manager-level staff", http.StatusForbidden)
 		return
 	}
 
 	// Admin/manager PINs are a much higher-value target than a cashier's — a collision with
-	// another tenant's admin PIN grants full cross-tenant business access.
-	if posrole.IsAdminLevel(member.Role) && weakPINs[input.PIN] {
+	// another tenant's admin PIN grants full cross-tenant business access. Same effective tier.
+	if privileged && weakPINs[input.PIN] {
 		jsonError(w, "this PIN is too common for an admin/manager account — choose a less predictable PIN", http.StatusBadRequest)
 		return
 	}
@@ -1000,6 +1011,7 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 		"expires_in":   int((4 * time.Hour).Seconds()),
 		"user": map[string]any{
 			"user_id":         member.UserID.String(),
+			"staff_id":        member.ID.String(),
 			"name":            member.Name,
 			"role":            member.Role,
 			"tenant_id":       member.TenantID.String(),
@@ -1016,8 +1028,9 @@ func (h *PINAuthHandler) IdentifyByPIN(w http.ResponseWriter, r *http.Request) {
 }
 
 // ── GET /{tenant}/pos/auth/pin/profile — return staff profiles for PIN selector ─
-// Used by pos-ui to populate the PIN selector from IndexedDB for offline fallback.
-// Returns name, user_id, roles/permissions (NO pin_hash).
+// Public. Used by pos-ui to keep the names in its offline PIN cache current. Returns only the
+// opaque staff id, display name, initials, tenant id and has_pin: never the auth user id, the
+// role or a PIN hash, because anyone can call it. The PIN login takes the staff id.
 // When ?outlet_id= is provided, result is filtered to use-case-appropriate roles.
 func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
@@ -1044,38 +1057,43 @@ func (h *PINAuthHandler) StaffProfiles(w http.ResponseWriter, r *http.Request) {
 
 	p := pagination.Parse(r)
 	total, _ := q.Clone().Count(r.Context())
-	members, err := q.WithOutlets(func(soq *ent.StaffOutletQuery) {
-		soq.Where(entstaffoutlet.IsHomeOutlet(true)).Limit(1)
-	}).Limit(p.Limit).Offset(p.Offset).All(r.Context())
+	members, err := q.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
 	type profile struct {
-		UserID   string `json:"user_id"`
+		StaffID  string `json:"staff_id"`
 		Name     string `json:"name"`
-		Role     string `json:"role"`
+		Initials string `json:"initials"`
 		TenantID string `json:"tenant_id"`
-		OutletID string `json:"outlet_id"`
 		HasPIN   bool   `json:"has_pin"`
 	}
 	out := make([]profile, 0, len(members))
 	for _, m := range members {
-		homeOutletID := ""
-		if len(m.Edges.Outlets) > 0 {
-			homeOutletID = m.Edges.Outlets[0].OutletID.String()
-		}
 		out = append(out, profile{
-			UserID:   m.UserID.String(),
+			StaffID:  m.ID.String(),
 			Name:     m.Name,
-			Role:     m.Role,
+			Initials: staffInitials(m.Name),
 			TenantID: m.TenantID.String(),
-			OutletID: homeOutletID,
 			HasPIN:   m.PinHash != nil,
 		})
 	}
 	jsonOK(w, pagination.NewResponse(out, total, p))
+}
+
+// staffInitials is the picker's avatar text: the first letter of the first two words of the
+// display name, upper case ("grace wanjiru njeri" gives "GW").
+func staffInitials(name string) string {
+	initials := make([]rune, 0, 2)
+	for _, word := range strings.Fields(name) {
+		initials = append(initials, []rune(word)[0])
+		if len(initials) == 2 {
+			break
+		}
+	}
+	return strings.ToUpper(string(initials))
 }
 
 // recordPINFailure counts one wrong PIN atomically and locks the member once the count reaches

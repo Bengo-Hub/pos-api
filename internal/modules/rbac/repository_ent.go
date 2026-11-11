@@ -10,6 +10,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrolepermission"
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
+	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/posrole"
 	"github.com/google/uuid"
 )
 
@@ -386,7 +388,18 @@ func (r *EntRepository) AssignRoleToUser(ctx context.Context, tenantID uuid.UUID
 		return errors.New("assignment cannot be nil")
 	}
 
-	builder := r.client.POSUserRoleAssignment.Create().
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("assign role to user: begin tx: %w", err)
+	}
+	// Decide on the PIN before the new assignment exists, so "existing assignments" excludes it.
+	staffID, err := clearPINIfAssignmentRaises(ctx, tx.Client(), tenantID, assignment.UserID, assignment.RoleID)
+	if err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("assign role to user: %w", err)
+	}
+
+	builder := tx.POSUserRoleAssignment.Create().
 		SetID(assignment.ID).
 		SetTenantID(tenantID).
 		SetUserID(assignment.UserID).
@@ -397,12 +410,76 @@ func (r *EntRepository) AssignRoleToUser(ctx context.Context, tenantID uuid.UUID
 		builder.SetExpiresAt(*assignment.ExpiresAt)
 	}
 
-	_, err := builder.Save(ctx)
-	if err != nil {
+	if _, err := builder.Save(ctx); err != nil {
+		_ = tx.Rollback()
 		return fmt.Errorf("assign role to user: %w", err)
 	}
-
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("assign role to user: commit: %w", err)
+	}
+	assignment.PINClearedStaffID = staffID
 	return nil
+}
+
+// clearPINIfAssignmentRaises clears the PIN of the person's staff row in the tenant when the
+// role being assigned puts them in a higher tier (staff, then manager, then admin) than both the
+// row's own role and every role already assigned to them there. A staff row inherits its
+// person's assignments, so the PIN, which may have been chosen by a manager while the person was
+// below that manager's tier, would otherwise sign in with the raised grants. The person sets a
+// new PIN. Returns the staff id when it cleared one.
+func clearPINIfAssignmentRaises(ctx context.Context, client *ent.Client, tenantID, userID, roleID uuid.UUID) (*uuid.UUID, error) {
+	newRole, err := client.POSRoleV2.Get(ctx, roleID)
+	if err != nil {
+		return nil, fmt.Errorf("read assigned role: %w", err)
+	}
+	newTier := posrole.Tier(newRole.RoleCode)
+	if newTier == 0 {
+		return nil, nil
+	}
+	row, err := client.StaffMember.Query().
+		Where(staffmember.TenantID(tenantID), staffmember.UserID(userID)).
+		Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read staff row: %w", err)
+	}
+	if row.PinHash == nil && row.PinFastHash == nil {
+		return nil, nil
+	}
+	current := posrole.Tier(row.Role)
+	held, err := client.POSUserRoleAssignment.Query().
+		Where(posuserroleassignment.TenantID(tenantID), posuserroleassignment.UserID(userID)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read existing assignments: %w", err)
+	}
+	if len(held) > 0 {
+		ids := make([]uuid.UUID, 0, len(held))
+		for _, a := range held {
+			ids = append(ids, a.RoleID)
+		}
+		codes, cerr := client.POSRoleV2.Query().Where(posrolev2.IDIn(ids...)).Select(posrolev2.FieldRoleCode).Strings(ctx)
+		if cerr != nil {
+			return nil, fmt.Errorf("read assigned role codes: %w", cerr)
+		}
+		for _, c := range codes {
+			if t := posrole.Tier(c); t > current {
+				current = t
+			}
+		}
+	}
+	if newTier <= current {
+		return nil, nil
+	}
+	if err := client.StaffMember.UpdateOne(row).
+		ClearPinHash().ClearPinFastHash().SetPinFailedAttempts(0).ClearPinLockedUntil().
+		Exec(ctx); err != nil {
+		return nil, fmt.Errorf("clear staff PIN: %w", err)
+	}
+	id := row.ID
+	return &id, nil
 }
 
 // RevokeRoleFromUser revokes a role from a user.

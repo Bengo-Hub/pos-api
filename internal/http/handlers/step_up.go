@@ -222,8 +222,11 @@ func issueCardToken(staffUserID, tenantID uuid.UUID, secret []byte) (string, err
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(secret)
 }
 
-func verifyCardToken(tokenStr string, secret []byte) (staffUserID uuid.UUID, ok bool) {
-	if tokenStr == "" {
+// verifyCardToken accepts a card only for the tenant it was minted on (Subject) and only from the
+// card issuer. Without the tenant check a card minted in a tenant someone administers, for a
+// person who is also a manager elsewhere, approved voids and refunds in that other tenant.
+func verifyCardToken(tokenStr string, tenantID uuid.UUID, secret []byte) (staffUserID uuid.UUID, ok bool) {
+	if tokenStr == "" || tenantID == uuid.Nil {
 		return uuid.Nil, false
 	}
 	claims := &cardClaims{}
@@ -233,7 +236,8 @@ func verifyCardToken(tokenStr string, secret []byte) (staffUserID uuid.UUID, ok 
 		}
 		return secret, nil
 	})
-	if err != nil || !token.Valid || claims.Purpose != "manager-card" {
+	if err != nil || !token.Valid || claims.Purpose != "manager-card" ||
+		claims.Issuer != "pos-card" || claims.Subject != tenantID.String() {
 		return uuid.Nil, false
 	}
 	id, parseErr := uuid.Parse(claims.StaffUser)
@@ -309,7 +313,7 @@ func (h *PINAuthHandler) StepUpByCard(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid outlet_id", http.StatusBadRequest)
 		return
 	}
-	staffUserID, ok := verifyCardToken(input.CardToken, h.jwtSecret)
+	staffUserID, ok := verifyCardToken(input.CardToken, tid, h.jwtSecret)
 	if !ok {
 		// 403, not 401 — same reasoning as StepUp above: this is a rejection of the SCANNED
 		// CARD, not of the calling cashier's own session, and must not risk a forced logout.

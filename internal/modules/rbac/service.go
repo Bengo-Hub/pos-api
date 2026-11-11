@@ -182,6 +182,12 @@ func (s *Service) AssignRole(ctx context.Context, tenantID uuid.UUID, userID uui
 		zap.String("role_id", roleID.String()),
 		zap.String("assigned_by", assignedBy.String()),
 	)
+	if assignment.PINClearedStaffID != nil {
+		s.logger.Info("staff PIN cleared after a role assignment raised the tier",
+			zap.String("tenant_id", tenantID.String()),
+			zap.String("staff_id", assignment.PINClearedStaffID.String()),
+		)
+	}
 
 	return nil
 }

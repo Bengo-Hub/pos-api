@@ -53,4 +53,8 @@ type UserRoleAssignment struct {
 	AssignedBy uuid.UUID  `json:"assigned_by"`
 	AssignedAt time.Time  `json:"assigned_at"`
 	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
+
+	// PINClearedStaffID is set by the repository when this assignment raised the person's tier
+	// and it cleared the PIN of their staff row in the tenant (see EntRepository.AssignRoleToUser).
+	PINClearedStaffID *uuid.UUID `json:"-"`
 }

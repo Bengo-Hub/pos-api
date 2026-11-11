@@ -165,9 +165,31 @@ Demo staff (PIN=`1234`) are seeded under `codevertex-demo` only. Urban-loft has 
 - `StaffMember` table: `{tenant_id, outlet_id, user_id, name, role, pin_hash (bcrypt), ...}`
 - `POST /{tenant}/pos/auth/pin` — validates PIN, issues short-lived 4-hour terminal JWT
   - Response includes: `outlet_use_case`, `is_hq_user`, full permissions array
-- `POST /{tenant}/pos/auth/pin/set` — manager sets/resets staff PIN
+- `POST /{tenant}/pos/auth/pin/set` — manager sets/resets staff PIN (rules below)
 - Terminal JWT claims mirror SSO JWT: `outlet_id`, `outlet_code`, `outlet_use_case`, `is_hq_user`
 - Required for: waiters, cashiers, kitchen, bar staff, receptionists on dedicated terminals
+
+#### Who may set a PIN, and on whose staff record (updated 2026-11-11)
+
+A staff record acts for the person it is bound to. It inherits that person's POS role assignments, and an auth sync later moves its role to theirs. A PIN is a way to sign in as that record, so these rules hold together:
+
+- **Tiers.** Staff roles fall into three tiers: everyone else, the manager tier (manager, store manager, supervisor) and the admin tier (admin, owner, superuser and the platform roles). "Admin level" below means the manager or admin tier, the same notion the earlier guards use.
+- **Binding a staff record.** When someone below admin creates a staff record (`POST /{tenant}/pos/staff`), I refuse it with 403 if the person, named by `user_id` or by email, is admin level in auth for this tenant, holds an admin level POS role assignment here, already has an admin level staff record here, or is a platform owner. The auth check runs before auth is asked to provision anyone, and if auth cannot answer I refuse with 502 rather than guess. An admin, owner or platform owner may bind anyone who belongs to the tenant.
+- **Raising a role clears the PIN.** When a staff edit, an auth sync (`auth.user.created`, `auth.user.updated`) or a POS role assignment (`POST /rbac/assignments`, and the sign-in path that assigns a default role) moves a person into a higher tier, I clear the PIN hash, fast hash, failed count and lockout of their staff record in that tenant, and log only the tenant and staff ids. The person then sets a new PIN. For an assignment the bar is the highest of the record's own role and every role already assigned to them. A move within a tier, or down, keeps the PIN. `auth.user.pin_set` is different: it carries the person's new PIN with the role, so that PIN applies.
+- **The auth sync stays in its tenant.** A person can belong to several tenants. `auth.user.updated` and `auth.user.pin_set` carry one tenant's roles and PIN, so I resolve that tenant from `tenant_slug` (then the event's tenant id) and touch only the person's staff record in it. Before this, the record was found by the tenant where pos first saw the person, or by user id alone, so a cashier in one tenant who ran their own tenant could set an admin role and PIN that landed on their cashier record. When the tenant cannot be resolved, or has no record for the person, `updated` changes nothing and logs ids. `pin_set` then creates the record in that tenant only, so a PIN that arrives before `auth.user.created` is not lost. When an event's services list leaves POS out, I remove the person's staff record, staff outlets and role assignments in that tenant only. Their records in other tenants stay usable, and their pos user record goes only with their last staff record. A full account deletion (`auth.user.deleted`) still removes them everywhere.
+- **Effective tier.** For editing, deactivating and setting the PIN of a record, and for the weak PIN refusal, a record counts as admin level when its own role is, or when its person holds an admin level POS role assignment in that tenant. Only an admin may do those things to such a record. Anyone may still change their own PIN.
+- **Not covered by the bind check.** auth-api's member list holds only active memberships, so a manager can still bind someone whose admin membership is suspended or invited. When it becomes active again, the `auth.user.updated` event raises the record and clears its PIN. The PIN reset check does not look at the person's auth membership tier or platform owner status. Such records only come from an admin's bind or from the sync, and the sync clears the PIN when it raises them.
+- **Follow up.** For an existing account that is not yet a member, auth-api answers the S2S member add with 202 and an invitation instead of a member. pos treats that as a failure today and answers 502 "could not provision", for admins too. It should say "invitation sent, no staff record yet". A manager adding staff by email can trigger such invitation emails.
+
+#### Manager cards (updated 2026-11-11)
+
+A manager card token is accepted only on the tenant it was minted for (its subject) and only when the card issuer minted it. A card from one tenant can no longer approve voids, discounts or refunds in another tenant where the same person is a manager.
+
+#### Public PIN profile list and sign in by staff id (updated 2026-11-11)
+
+- `GET /{tenant}/pos/auth/pin/profile` is public and returns only `staff_id`, `name`, `initials`, `tenant_id` and `has_pin` for each active staff member. It no longer returns the auth user id, the role or the home outlet.
+- `POST /{tenant}/pos/auth/pin` takes `staff_id` and `pin`. The login responses (`/auth/pin` and `/auth/pin/identify`) now also return `user.staff_id`, so the terminal can key its offline PIN cache by staff id.
+- `user_id` on `POST /{tenant}/pos/auth/pin` still works for one release so older terminals keep signing in. I remove it in the release after pos-ui's staff id change has shipped everywhere.
 
 ---
 

@@ -15,9 +15,11 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/outlet"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
+	"github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/userposrole"
+	"github.com/bengobox/pos-service/internal/posrole"
 )
 
 // staffPinFastHash computes hex(SHA256(tenantID+":"+userID+":"+pin)).
@@ -205,19 +207,13 @@ func (h *AuthEventHandler) handleUserUpdated(ctx context.Context, evt *sharedeve
 			return fmt.Errorf("query user: %w", err)
 		}
 		// User row doesn't exist (e.g. after a DB reset). Resolve tenant then create it.
-		tenantID := evt.TenantID
-		tenantSlug, _ := evt.Payload["tenant_slug"].(string)
-		if tenantSlug != "" && h.tenantSyncer != nil {
-			if tid, syncErr := h.tenantSyncer.SyncTenant(ctx, tenantSlug); syncErr == nil {
-				tenantID = tid
-			}
-		}
+		tenantID := h.eventTenant(ctx, evt)
 		if tenantID == uuid.Nil {
 			h.logger.Debug("user not found and no tenant_id in updated event, skipping",
 				zap.String("user_id", userIDStr))
 			return nil
 		}
-		created, createErr := h.client.User.Create().
+		if _, createErr := h.client.User.Create().
 			SetID(authServiceUserID).
 			SetAuthServiceUserID(authServiceUserID).
 			SetTenantID(tenantID).
@@ -226,13 +222,11 @@ func (h *AuthEventHandler) handleUserUpdated(ctx context.Context, evt *sharedeve
 			SetStatus("active").
 			SetSyncStatus("synced").
 			SetSyncAt(time.Now()).
-			Save(ctx)
-		if createErr != nil {
+			Save(ctx); createErr != nil {
 			return fmt.Errorf("create user from updated event: %w", createErr)
 		}
 		h.logger.Info("user created from auth.user.updated event (backfill)",
 			zap.String("user_id", userIDStr))
-		u = created
 	} else {
 		// Update user fields
 		update := h.client.User.UpdateOne(u)
@@ -248,31 +242,50 @@ func (h *AuthEventHandler) handleUserUpdated(ctx context.Context, evt *sharedeve
 		}
 	}
 
-	// Patch StaffMember fields if the event carries them.
-	smUpdate := h.client.StaffMember.Update().
-		Where(staffmember.TenantID(u.TenantID), staffmember.UserID(authServiceUserID))
-	smChanged := false
-	if fullName != "" {
-		smUpdate = smUpdate.SetName(fullName)
-		smChanged = true
-	}
-	// Update role if the event includes roles — ensures re-provisioning corrects stale role mappings.
-	if posRole := mapSSORoleToPOS(evt.Payload); posRole != "" {
-		smUpdate = smUpdate.SetRole(posRole)
-		smChanged = true
-	}
-	if smChanged {
-		_ = smUpdate.Exec(ctx)
-	}
-
-	// Upsert StaffOutlet rows for each outlet in the event payload.
+	// Patch the StaffMember of the EVENT's tenant only. The roles and outlets in the event are
+	// that tenant's membership; u.TenantID is merely the tenant where pos first saw the person,
+	// so patching by it applied a second tenant's roles to the first tenant's row (a cashier in
+	// tenant A who is admin of their own tenant B became admin in A). No row there, or no
+	// resolvable tenant: change nothing.
+	staffTenant := h.eventTenant(ctx, evt)
+	posRole := mapSSORoleToPOS(evt.Payload)
 	outletIDs := parseOutletIDs(evt.Payload)
-	if len(outletIDs) > 0 {
-		sm, smErr := h.client.StaffMember.Query().
-			Where(staffmember.TenantID(u.TenantID), staffmember.UserID(authServiceUserID)).
+	if staffTenant == uuid.Nil {
+		if fullName != "" || posRole != "" || len(outletIDs) > 0 {
+			h.logger.Warn("auth update: event tenant not resolvable, staff rows left unchanged",
+				zap.String("user_id", userIDStr), zap.String("event_tenant_id", evt.TenantID.String()))
+		}
+	} else if fullName != "" || posRole != "" || len(outletIDs) > 0 {
+		sm, qerr := h.client.StaffMember.Query().
+			Where(staffmember.TenantID(staffTenant), staffmember.UserID(authServiceUserID)).
 			Only(ctx)
-		if smErr == nil {
-			h.upsertStaffOutlets(ctx, sm.ID, u.TenantID, outletIDs)
+		switch {
+		case ent.IsNotFound(qerr):
+			h.logger.Info("auth update: no staff row in the event's tenant, nothing to patch",
+				zap.String("user_id", userIDStr), zap.String("tenant_id", staffTenant.String()))
+		case qerr != nil:
+			h.logger.Warn("auth update: query staff row", zap.Error(qerr),
+				zap.String("user_id", userIDStr), zap.String("tenant_id", staffTenant.String()))
+		default:
+			if fullName != "" || posRole != "" {
+				upd := sm.Update()
+				if fullName != "" {
+					upd = upd.SetName(fullName)
+				}
+				// Update role if the event includes roles — ensures re-provisioning corrects stale
+				// role mappings. A raise into a higher tier also clears the PIN (clearPINOnRaise).
+				if posRole != "" {
+					upd = upd.SetRole(posRole)
+					upd = h.clearPINOnRaise(upd, sm, posRole)
+				}
+				if err := upd.Exec(ctx); err != nil {
+					h.logger.Error("auth update: patch staff row failed", zap.Error(err),
+						zap.String("tenant_id", staffTenant.String()), zap.String("staff_id", sm.ID.String()))
+				}
+			}
+			if len(outletIDs) > 0 {
+				h.upsertStaffOutlets(ctx, sm.ID, staffTenant, outletIDs)
+			}
 		}
 	}
 
@@ -304,24 +317,26 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 		return err
 	}
 
-	// Look up by user_id only — evt.TenantID is auth-api's own tenant UUID, which
-	// is NOT guaranteed to equal pos-api's locally-synced tenant ID for the same
-	// tenant (e.g. after the tenant is deleted/recreated upstream and gets a new
-	// UUID there). Scoping this existence check to evt.TenantID caused it to
-	// permanently miss an already-created StaffMember row (created via the
-	// correctly slug-resolved auth.user.created handler), which sent every
-	// pin_set retry down the create-fallback path where it collided with the
-	// existing row on the (tenant_id, user_id) unique constraint — so the PIN
-	// hash was never applied.
+	// The PIN and role belong to the EVENT's tenant. Resolve it by tenant_slug first (pos's
+	// tenant id can differ from auth-api's after a tenant is recreated upstream), then the
+	// event's tenant id, and touch only the (tenant, user) row. Looking the row up by user_id
+	// alone wrote a PIN and role the person set in their own tenant B onto their row in tenant
+	// A, where they then signed in as admin.
+	tenantID := h.eventTenant(ctx, evt)
+	if tenantID == uuid.Nil {
+		h.logger.Warn("auth pin_set: event tenant not resolvable, no staff row changed",
+			zap.String("user_id", userIDStr), zap.String("event_tenant_id", evt.TenantID.String()))
+		return nil
+	}
 	existing, err := h.client.StaffMember.Query().
-		Where(staffmember.UserID(authServiceUserID)).
-		First(ctx)
+		Where(staffmember.TenantID(tenantID), staffmember.UserID(authServiceUserID)).
+		Only(ctx)
 	if err != nil {
 		if !ent.IsNotFound(err) {
 			return fmt.Errorf("query StaffMember: %w", err)
 		}
-		// StaffMember doesn't exist — create it so we can set the PIN.
-		tenantID := evt.TenantID
+		// No row in the event's tenant yet (pin_set can arrive before auth.user.created):
+		// create it in THAT tenant only, so the PIN is not lost.
 		name := ""
 		role := "cashier" // safe fallback
 
@@ -333,28 +348,17 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 			role = r
 		}
 
-		// Prefer tenant from local User record (most accurate tenantID).
-		u, uErr := h.client.User.Query().
-			Where(user.AuthServiceUserIDEQ(authServiceUserID)).
-			Only(ctx)
-		if uErr == nil {
-			if name == "" {
+		// The local User row supplies a name only; its tenant is wherever pos first saw the
+		// person and must not decide which tenant's row gets this PIN.
+		if name == "" {
+			if u, uErr := h.client.User.Query().Where(user.AuthServiceUserIDEQ(authServiceUserID)).Only(ctx); uErr == nil {
 				name = u.FullName
 			}
-			tenantID = u.TenantID
 		}
 		if name == "" {
 			name = userIDStr[:8]
 		}
-
-		// Ensure tenant + outlets exist locally. The pin_set event now carries
-		// tenant_slug so we can bootstrap from auth-api if needed.
 		tenantSlug, _ := evt.Payload["tenant_slug"].(string)
-		if tenantSlug != "" && h.tenantSyncer != nil {
-			if syncedID, sErr := h.tenantSyncer.SyncTenant(ctx, tenantSlug); sErr == nil {
-				tenantID = syncedID
-			}
-		}
 
 		homeOutlet, oErr := h.client.Outlet.Query().
 			Where(outlet.TenantID(tenantID), outlet.IsHq(true), outlet.StatusEQ("active"),
@@ -465,36 +469,101 @@ func (h *AuthEventHandler) handleUserDeleted(ctx context.Context, evt *sharedeve
 // posRelevance reads auth-api's services list on auth.user events (shared-events UserRelevance).
 var posRelevance = sharedevents.UserRelevance{Service: "pos"}
 
-// revoked removes the local copy of the user when the event's services list leaves POS out and
-// the copy belongs to the event's tenant (resolved by slug, since pos-api's tenant id can differ
-// from auth-api's). Reports whether the event was handled that way. Events without the list are
-// never handled here.
+// revoked removes the person's copy in the event's tenant (resolved by slug, since pos-api's
+// tenant id can differ from auth-api's) when the event's services list leaves POS out. Their
+// rows in other tenants stay; the User row goes only with the last staff row (see
+// removeLocalUserInTenant). Reports whether the event was handled that way. Events without the
+// list are never handled here.
 func (h *AuthEventHandler) revoked(ctx context.Context, evt *sharedevents.Event, authServiceUserID uuid.UUID) (bool, error) {
 	if !posRelevance.Revoked(evt.Payload) {
 		return false, nil
 	}
-	u, err := h.client.User.Query().Where(user.AuthServiceUserIDEQ(authServiceUserID)).Only(ctx)
-	if ent.IsNotFound(err) {
-		return true, nil // never provisioned here: nothing to do
+	// The revoke is about the event's tenant only. A person can work in several tenants; their
+	// staff rows elsewhere stay. (This used to compare against the User row's tenant: a revoke
+	// there deleted the person's rows in every tenant, and a revoke anywhere else did nothing.)
+	tenantID := h.eventTenant(ctx, evt)
+	if tenantID == uuid.Nil {
+		h.logger.Warn("auth revoke: event tenant not resolvable, nothing removed",
+			zap.String("user_id", authServiceUserID.String()), zap.String("event_tenant_id", evt.TenantID.String()))
+		return true, nil
 	}
+	userRemoved, err := h.removeLocalUserInTenant(ctx, authServiceUserID, tenantID)
 	if err != nil {
-		return true, fmt.Errorf("query user: %w", err)
-	}
-	tenantID := evt.TenantID
-	if slug, _ := evt.Payload["tenant_slug"].(string); slug != "" && h.tenantSyncer != nil {
-		if tid, serr := h.tenantSyncer.SyncTenant(ctx, slug); serr == nil {
-			tenantID = tid
-		}
-	}
-	if u.TenantID != tenantID {
-		return true, nil // the copy here belongs to another tenant of this person: keep it
-	}
-	if err := h.removeLocalUser(ctx, authServiceUserID); err != nil {
 		return true, fmt.Errorf("remove user outside pos: %w", err)
 	}
-	h.logger.Info("user removed: not a pos member", zap.String("user_id", authServiceUserID.String()),
-		zap.String("tenant_id", tenantID.String()))
+	h.logger.Info("user removed from tenant: not a pos member", zap.String("user_id", authServiceUserID.String()),
+		zap.String("tenant_id", tenantID.String()), zap.Bool("user_row_removed", userRemoved))
 	return true, nil
+}
+
+// removeLocalUserInTenant removes pos-api's copy of a person in ONE tenant: their staff rows
+// there (with staff outlets), their POS role assignments there and their legacy outlet roles on
+// that tenant's outlets. The person's rows in other tenants are left as they are. The User row
+// (and anything left that references it) goes only when no tenant still has a staff row for
+// them, since users carry FKs from role tables. Reports whether the User row was removed.
+func (h *AuthEventHandler) removeLocalUserInTenant(ctx context.Context, authServiceUserID, tenantID uuid.UUID) (bool, error) {
+	tx, err := h.client.Tx(ctx)
+	if err != nil {
+		return false, fmt.Errorf("start tx: %w", err)
+	}
+	fail := func(step string, err error) (bool, error) {
+		_ = tx.Rollback()
+		return false, fmt.Errorf("%s: %w", step, err)
+	}
+
+	staffIDs, err := tx.StaffMember.Query().
+		Where(staffmember.TenantID(tenantID), staffmember.UserID(authServiceUserID)).
+		IDs(ctx)
+	if err != nil {
+		return fail("query staff members", err)
+	}
+	if len(staffIDs) > 0 {
+		if _, err := tx.StaffOutlet.Delete().Where(staffoutlet.StaffMemberIDIn(staffIDs...)).Exec(ctx); err != nil {
+			return fail("delete staff outlets", err)
+		}
+		if _, err := tx.StaffMember.Delete().Where(staffmember.IDIn(staffIDs...)).Exec(ctx); err != nil {
+			return fail("delete staff members", err)
+		}
+	}
+	if _, err := tx.POSUserRoleAssignment.Delete().
+		Where(posuserroleassignment.TenantID(tenantID), posuserroleassignment.UserID(authServiceUserID)).
+		Exec(ctx); err != nil {
+		return fail("delete pos user role assignments", err)
+	}
+	outletIDs, err := tx.Outlet.Query().Where(outlet.TenantID(tenantID)).IDs(ctx)
+	if err != nil {
+		return fail("query tenant outlets", err)
+	}
+	if len(outletIDs) > 0 {
+		if _, err := tx.UserPOSRole.Delete().
+			Where(userposrole.UserID(authServiceUserID), userposrole.OutletIDIn(outletIDs...)).
+			Exec(ctx); err != nil {
+			return fail("delete user pos roles", err)
+		}
+	}
+
+	remaining, err := tx.StaffMember.Query().Where(staffmember.UserID(authServiceUserID)).Count(ctx)
+	if err != nil {
+		return fail("count remaining staff rows", err)
+	}
+	userRemoved := false
+	if remaining == 0 {
+		if _, err := tx.UserPOSRole.Delete().Where(userposrole.UserID(authServiceUserID)).Exec(ctx); err != nil {
+			return fail("delete user pos roles", err)
+		}
+		if _, err := tx.POSUserRoleAssignment.Delete().Where(posuserroleassignment.UserID(authServiceUserID)).Exec(ctx); err != nil {
+			return fail("delete pos user role assignments", err)
+		}
+		n, err := tx.User.Delete().Where(user.AuthServiceUserIDEQ(authServiceUserID)).Exec(ctx)
+		if err != nil {
+			return fail("delete user", err)
+		}
+		userRemoved = n > 0
+	}
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit: %w", err)
+	}
+	return userRemoved, nil
 }
 
 // removeLocalUser hard-deletes pos-api's copy of a user, child rows first: staff outlets, POS
@@ -544,6 +613,39 @@ func (h *AuthEventHandler) removeLocalUser(ctx context.Context, authServiceUserI
 	return nil
 }
 
+// eventTenant resolves the pos tenant an auth.user event belongs to, the way revoked() does:
+// tenant_slug through the tenant syncer (pos's tenant id can differ from auth-api's), falling
+// back to the event's tenant id. Returns uuid.Nil when neither names a tenant pos holds, so the
+// caller changes nothing rather than guess another tenant.
+func (h *AuthEventHandler) eventTenant(ctx context.Context, evt *sharedevents.Event) uuid.UUID {
+	if slug, _ := evt.Payload["tenant_slug"].(string); slug != "" && h.tenantSyncer != nil {
+		if tid, err := h.tenantSyncer.SyncTenant(ctx, slug); err == nil && tid != uuid.Nil {
+			return tid
+		}
+	}
+	if evt.TenantID == uuid.Nil {
+		return uuid.Nil
+	}
+	if ok, err := h.client.Tenant.Query().Where(tenant.ID(evt.TenantID)).Exist(ctx); err != nil || !ok {
+		return uuid.Nil
+	}
+	return evt.TenantID
+}
+
+// clearPINOnRaise adds a PIN reset to upd when newRole puts the row in a higher tier than it
+// holds (staff, then manager, then admin). The PIN may have been chosen by a manager while the
+// row sat below their tier; after the raise it would sign in at the higher tier, so the person
+// sets a new one. Logs ids only. auth.user.pin_set is not routed here: it carries the person's
+// new PIN together with the role.
+func (h *AuthEventHandler) clearPINOnRaise(upd *ent.StaffMemberUpdateOne, sm *ent.StaffMember, newRole string) *ent.StaffMemberUpdateOne {
+	if !posrole.RaisesTier(sm.Role, newRole) || (sm.PinHash == nil && sm.PinFastHash == nil) {
+		return upd
+	}
+	h.logger.Info("staff PIN cleared after a role raise from auth",
+		zap.String("tenant_id", sm.TenantID.String()), zap.String("staff_id", sm.ID.String()))
+	return upd.ClearPinHash().ClearPinFastHash().SetPinFailedAttempts(0).ClearPinLockedUntil()
+}
+
 // upsertStaffMember creates a StaffMember for the given user if one does not exist,
 // or updates name/role if they changed, then upserts StaffOutlet rows. This is idempotent.
 func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenantID uuid.UUID, name string, evt *sharedevents.Event) {
@@ -591,6 +693,7 @@ func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenant
 		}
 		if existing.Role != posRole {
 			upd = upd.SetRole(posRole)
+			upd = h.clearPINOnRaise(upd, existing, posRole)
 			changed = true
 		}
 		if changed {

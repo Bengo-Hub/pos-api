@@ -18,6 +18,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/posrolev2"
+	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	entuser "github.com/bengobox/pos-service/internal/ent/user"
@@ -255,21 +257,31 @@ type createStaffInput struct {
 	MpesaPhone     *string  `json:"mpesa_phone"`
 }
 
-// authMemberResponse mirrors auth-api's tenantMemberResponse (only the field we need).
+// authMemberResponse mirrors auth-api's tenantMemberResponse (only the fields we need). Roles is
+// the membership's roles after the add, so CreateStaff can see that an existing person it was
+// given by email is already admin or manager tier.
 type authMemberResponse struct {
-	UserID string `json:"user_id"`
+	UserID string   `json:"user_id"`
+	Roles  []string `json:"roles"`
+}
+
+// authBaseURL is the auth-api base for S2S calls. AUTH_API_URL wins, mirroring tenant.Syncer's
+// override so every S2S path hits the same base.
+func (h *StaffHandler) authBaseURL() string {
+	if envURL := os.Getenv("AUTH_API_URL"); envURL != "" {
+		return envURL
+	}
+	return h.authURL
 }
 
 // provisionAuthMember calls auth-api's S2S member endpoint to find-or-create the auth
-// user by email and attach the tenant membership, returning the REAL auth user id.
-// This is the single source of user identity — pos never invents its own user id.
-func (h *StaffHandler) provisionAuthMember(ctx context.Context, tenantID uuid.UUID, email, name, role, phone, outletID string) (uuid.UUID, error) {
-	authBase := h.authURL
-	if envURL := os.Getenv("AUTH_API_URL"); envURL != "" {
-		authBase = envURL // mirror tenant.Syncer's override so both S2S paths hit the same base
-	}
+// user by email and attach the tenant membership, returning the REAL auth user id and the
+// membership's roles. This is the single source of user identity — pos never invents its own
+// user id.
+func (h *StaffHandler) provisionAuthMember(ctx context.Context, tenantID uuid.UUID, email, name, role, phone, outletID string) (uuid.UUID, []string, error) {
+	authBase := h.authBaseURL()
 	if authBase == "" || h.internalKey == "" {
-		return uuid.Nil, fmt.Errorf("auth S2S not configured (AUTH_SERVICE_URL / INTERNAL_SERVICE_KEY)")
+		return uuid.Nil, nil, fmt.Errorf("auth S2S not configured (AUTH_SERVICE_URL / INTERNAL_SERVICE_KEY)")
 	}
 	body := map[string]any{
 		"email": strings.ToLower(strings.TrimSpace(email)),
@@ -286,28 +298,166 @@ func (h *StaffHandler) provisionAuthMember(ctx context.Context, tenantID uuid.UU
 	url := strings.TrimRight(authBase, "/") + "/api/v1/s2s/tenants/" + tenantID.String() + "/members"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-API-Key", h.internalKey)
 
 	resp, err := h.http.Do(req)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("auth member provision: %w", err)
+		return uuid.Nil, nil, fmt.Errorf("auth member provision: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		return uuid.Nil, fmt.Errorf("auth member provision: HTTP %d", resp.StatusCode)
+		return uuid.Nil, nil, fmt.Errorf("auth member provision: HTTP %d", resp.StatusCode)
 	}
 	var out authMemberResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return uuid.Nil, fmt.Errorf("auth member provision: decode: %w", err)
+		return uuid.Nil, nil, fmt.Errorf("auth member provision: decode: %w", err)
 	}
 	id, err := uuid.Parse(out.UserID)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("auth member provision: bad user_id %q: %w", out.UserID, err)
+		return uuid.Nil, nil, fmt.Errorf("auth member provision: bad user_id %q: %w", out.UserID, err)
 	}
-	return id, nil
+	return id, out.Roles, nil
+}
+
+// authTenantMemberRoles finds a person among the tenant's members in auth-api (S2S member list,
+// GET /api/v1/s2s/{tenant}/users) by user id or by email (either may be empty), and returns the
+// first match's membership roles. CreateStaff may fall back from a user id to the email, so both
+// are checked and the roles of every match are returned together. found is false when neither
+// names a member. Any failure is an error, so the caller fails closed.
+func (h *StaffHandler) authTenantMemberRoles(ctx context.Context, tenantID, userID uuid.UUID, email string) (roles []string, found bool, err error) {
+	authBase := h.authBaseURL()
+	if authBase == "" || h.internalKey == "" {
+		return nil, false, fmt.Errorf("auth S2S not configured (AUTH_SERVICE_URL / INTERNAL_SERVICE_KEY)")
+	}
+	url := strings.TrimRight(authBase, "/") + "/api/v1/s2s/" + tenantID.String() + "/users"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, false, err
+	}
+	req.Header.Set("X-API-Key", h.internalKey)
+	resp, err := h.http.Do(req)
+	if err != nil {
+		return nil, false, fmt.Errorf("auth member list: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, false, fmt.Errorf("auth member list: HTTP %d", resp.StatusCode)
+	}
+	var members []struct {
+		ID    string   `json:"id"`
+		Email string   `json:"email"`
+		Roles []string `json:"roles"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&members); err != nil {
+		return nil, false, fmt.Errorf("auth member list: decode: %w", err)
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+	for _, m := range members {
+		id, perr := uuid.Parse(m.ID)
+		if perr != nil {
+			continue
+		}
+		if (userID != uuid.Nil && id == userID) ||
+			(email != "" && strings.EqualFold(strings.TrimSpace(m.Email), email)) {
+			roles = append(roles, m.Roles...)
+			found = true
+		}
+	}
+	return roles, found, nil
+}
+
+// authUserIsPlatformOwner asks auth-api (S2S) whether the user is a platform owner. Unlike the
+// PIN handler's lookup it reports failures, so a guard can fail closed.
+func (h *StaffHandler) authUserIsPlatformOwner(ctx context.Context, userID uuid.UUID) (bool, error) {
+	authBase := h.authBaseURL()
+	if authBase == "" || h.internalKey == "" {
+		return false, fmt.Errorf("auth S2S not configured (AUTH_SERVICE_URL / INTERNAL_SERVICE_KEY)")
+	}
+	url := strings.TrimRight(authBase, "/") + "/api/v1/s2s/users/" + userID.String() + "/platform-owner"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("X-API-Key", h.internalKey)
+	resp, err := h.http.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("auth platform owner lookup: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("auth platform owner lookup: HTTP %d", resp.StatusCode)
+	}
+	var out struct {
+		IsPlatformOwner bool `json:"is_platform_owner"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return false, fmt.Errorf("auth platform owner lookup: decode: %w", err)
+	}
+	return out.IsPlatformOwner, nil
+}
+
+// userHasPrivilegedPOSAssignment reports whether userID holds a POS role assignment on tenant tid
+// whose role code is admin or manager tier. A staff row bound to that person inherits those
+// grants (resolveEffectivePermissions unions them in), so for binding and PIN purposes the row
+// is that tier whatever its own role says.
+//
+// Read through role_id, as resolveEffectivePermissions does: the POSRoleV2 user_assignments edge
+// maps to a different column that assignments never fill.
+func userHasPrivilegedPOSAssignment(ctx context.Context, client *ent.Client, tid, userID uuid.UUID) (bool, error) {
+	if userID == uuid.Nil {
+		return false, nil
+	}
+	assignments, err := client.POSUserRoleAssignment.Query().
+		Where(posuserroleassignment.TenantID(tid), posuserroleassignment.UserID(userID)).
+		All(ctx)
+	if err != nil {
+		return false, fmt.Errorf("read pos role assignments: %w", err)
+	}
+	if len(assignments) == 0 {
+		return false, nil
+	}
+	ids := make([]uuid.UUID, 0, len(assignments))
+	for _, a := range assignments {
+		ids = append(ids, a.RoleID)
+	}
+	codes, err := client.POSRoleV2.Query().Where(posrolev2.IDIn(ids...)).Select(posrolev2.FieldRoleCode).Strings(ctx)
+	if err != nil {
+		return false, fmt.Errorf("read assigned pos roles: %w", err)
+	}
+	return posrole.IsAdminLevelAny(codes), nil
+}
+
+// effectiveStaffPrivileged reports whether a staff row is admin or manager tier for the guards:
+// its own role, or a POS role assignment its person holds in the row's tenant.
+func effectiveStaffPrivileged(ctx context.Context, client *ent.Client, member *ent.StaffMember) (bool, error) {
+	if privilegedStaffRole(member.Role) {
+		return true, nil
+	}
+	return userHasPrivilegedPOSAssignment(ctx, client, member.TenantID, member.UserID)
+}
+
+// bindTargetPrivileged reports whether a staff row bound to userID on tenant tid would act for
+// an admin or manager tier person: a platform owner in auth, the holder of an admin or manager
+// POS role assignment here, or the person behind an existing admin or manager staff row here.
+// Membership roles in auth are checked by the caller, which already has them.
+func (h *StaffHandler) bindTargetPrivileged(ctx context.Context, tid, userID uuid.UUID) (bool, error) {
+	if priv, err := userHasPrivilegedPOSAssignment(ctx, h.client, tid, userID); err != nil || priv {
+		return priv, err
+	}
+	roles, err := h.client.StaffMember.Query().
+		Where(entstaff.TenantID(tid), entstaff.UserID(userID)).
+		Select(entstaff.FieldRole).
+		Strings(ctx)
+	if err != nil {
+		return false, fmt.Errorf("read staff rows: %w", err)
+	}
+	if posrole.IsAdminLevelAny(roles) {
+		return true, nil
+	}
+	return h.authUserIsPlatformOwner(ctx, userID)
 }
 
 // isTenantMember asks auth-api whether userID holds a membership in tenantID, through the S2S
@@ -441,14 +591,40 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 	// admin included), set its PIN and sign in as them. Otherwise we provision the user in
 	// auth-service by email (S2S) and use the id it returns. We NEVER mint our own id, which
 	// produced orphan users that SSO later duplicated (Berita Nyambura incident).
-	var userID uuid.UUID
-	useOverride := false
+	//
+	// A staff row bound to a person acts for that person: it inherits their POS role assignments,
+	// and a later auth sync raises its role to theirs. So only an admin-level caller may bind a
+	// row to someone who is admin or manager tier (in auth, in pos's role assignments, or as a
+	// platform owner); anyone below admin is refused before anything is written, and when auth
+	// cannot answer the bind is refused too.
+	callerIsAdmin := requesterIsAdminLevel(r)
+	var overrideID uuid.UUID
 	if input.UserID != "" {
-		override, perr := uuid.Parse(input.UserID)
+		parsed, perr := uuid.Parse(input.UserID)
 		if perr != nil {
 			jsonError(w, "invalid user_id", http.StatusBadRequest)
 			return
 		}
+		overrideID = parsed
+	}
+	if !callerIsAdmin {
+		roles, found, lerr := h.authTenantMemberRoles(r.Context(), tid, overrideID, input.Email)
+		if lerr != nil {
+			h.log.Error("verify staff bind target tier", zap.Error(lerr))
+			jsonError(w, "could not verify the person with auth-service", http.StatusBadGateway)
+			return
+		}
+		if found && posrole.IsAdminLevelAny(roles) {
+			jsonError(w, "only an admin can add a staff record for an admin or manager", http.StatusForbidden)
+			return
+		}
+	}
+
+	var userID uuid.UUID
+	var provisionedRoles []string
+	useOverride := false
+	if input.UserID != "" {
+		override := overrideID
 		claims, _ := authclient.ClaimsFromContext(r.Context())
 		if isSSOPlatformOwner(claims) {
 			useOverride = true
@@ -471,10 +647,30 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !useOverride {
-		userID, err = h.provisionAuthMember(r.Context(), tid, input.Email, input.Name, input.Role, input.Phone, input.OutletID)
+		userID, provisionedRoles, err = h.provisionAuthMember(r.Context(), tid, input.Email, input.Name, input.Role, input.Phone, input.OutletID)
 		if err != nil {
 			h.log.Error("provision auth member", zap.Error(err))
 			jsonError(w, "could not provision user in auth-service", http.StatusBadGateway)
+			return
+		}
+	}
+	if !callerIsAdmin {
+		if posrole.IsAdminLevelAny(provisionedRoles) {
+			h.log.Warn("staff bind refused: provisioned person is admin or manager tier",
+				zap.String("tenant_id", tid.String()), zap.String("user_id", userID.String()))
+			jsonError(w, "only an admin can add a staff record for an admin or manager", http.StatusForbidden)
+			return
+		}
+		priv, perr := h.bindTargetPrivileged(r.Context(), tid, userID)
+		if perr != nil {
+			h.log.Error("verify staff bind target tier", zap.Error(perr))
+			jsonError(w, "could not verify the person with auth-service", http.StatusBadGateway)
+			return
+		}
+		if priv {
+			h.log.Warn("staff bind refused: person is admin or manager tier",
+				zap.String("tenant_id", tid.String()), zap.String("user_id", userID.String()))
+			jsonError(w, "only an admin can add a staff record for an admin or manager", http.StatusForbidden)
 			return
 		}
 	}
@@ -598,10 +794,19 @@ func (h *StaffHandler) UpdateStaff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Only an admin-level caller may edit admin or manager-tier staff, or promote anyone into
-	// that tier (any alias, compared after canonicalising).
-	if privilegedStaffRole(member.Role) && !requesterIsAdminLevel(r) {
-		jsonError(w, "only an admin can edit admin or manager-level staff", http.StatusForbidden)
-		return
+	// that tier (any alias, compared after canonicalising). The tier counts the person's POS
+	// role assignments too, which the row inherits.
+	if !requesterIsAdminLevel(r) {
+		priv, perr := effectiveStaffPrivileged(r.Context(), h.client, member)
+		if perr != nil {
+			h.log.Error("update staff: read role assignments", zap.Error(perr))
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		if priv {
+			jsonError(w, "only an admin can edit admin or manager-level staff", http.StatusForbidden)
+			return
+		}
 	}
 	if input.Role != nil {
 		trimmed := strings.TrimSpace(*input.Role)
@@ -616,8 +821,16 @@ func (h *StaffHandler) UpdateStaff(w http.ResponseWriter, r *http.Request) {
 	if input.Name != nil {
 		upd = upd.SetName(*input.Name)
 	}
+	pinCleared := false
 	if input.Role != nil {
 		upd = upd.SetRole(*input.Role)
+		// A raise into a higher tier clears the PIN: it may have been chosen by a manager while
+		// the row was below their tier, and it would now sign in at the higher tier. The person
+		// sets a new PIN.
+		if posrole.RaisesTier(member.Role, *input.Role) && (member.PinHash != nil || member.PinFastHash != nil) {
+			upd = upd.ClearPinHash().ClearPinFastHash().SetPinFailedAttempts(0).ClearPinLockedUntil()
+			pinCleared = true
+		}
 	}
 	if input.OutletID != nil {
 		oid, oerr := uuid.Parse(*input.OutletID)
@@ -675,6 +888,10 @@ func (h *StaffHandler) UpdateStaff(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "failed to update staff member", http.StatusInternalServerError)
 		return
 	}
+	if pinCleared {
+		h.log.Info("staff PIN cleared after a role raise",
+			zap.String("tenant_id", tid.String()), zap.String("staff_id", member.ID.String()))
+	}
 
 	// Role changed → sync the new base role to auth-service so the SSO JWT `roles` claim stays
 	// current (otherwise custom/elevated roles never reach terminal_jwt.go leg-3 resolution).
@@ -715,10 +932,19 @@ func (h *StaffHandler) DeactivateStaff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Only an admin-level caller may deactivate admin or manager-tier staff.
-	if privilegedStaffRole(member.Role) && !requesterIsAdminLevel(r) {
-		jsonError(w, "only an admin can deactivate admin or manager-level staff", http.StatusForbidden)
-		return
+	// Only an admin-level caller may deactivate admin or manager-tier staff (row role or the
+	// person's POS role assignments).
+	if !requesterIsAdminLevel(r) {
+		priv, perr := effectiveStaffPrivileged(r.Context(), h.client, member)
+		if perr != nil {
+			h.log.Error("deactivate staff: read role assignments", zap.Error(perr))
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		if priv {
+			jsonError(w, "only an admin can deactivate admin or manager-level staff", http.StatusForbidden)
+			return
+		}
 	}
 
 	if err := h.client.StaffMember.UpdateOne(member).SetIsActive(false).Exec(r.Context()); err != nil {
