@@ -80,6 +80,24 @@ func TestTenderedAndChange_NoSurplusIsANoOp(t *testing.T) {
 		t.Errorf("got (%v, %v), want (500, 0)", tendered, change)
 	}
 
+	// The other manual tenders carry a reference or label but never change, so they are a no-op too.
+	for _, data := range []map[string]any{
+		{"method": "mtn_momo_manual"},
+		{"method": "airtel_money_manual"},
+		{"method": "other_manual", "payment_label": "Equity cheque"},
+	} {
+		p, perr := client.POSPayment.Create().
+			SetOrderID(order.ID).SetTenderID(uuid.New()).SetAmount(500).SetCurrency("KES").SetStatus("completed").
+			SetExternalReference("MP251111ABCD").SetPaymentData(data).
+			Save(ctx)
+		if perr != nil {
+			t.Fatalf("seed %v payment: %v", data["method"], perr)
+		}
+		if tendered, change := TenderedAndChange([]*ent.POSPayment{p}, p.Amount); tendered != 500 || change != 0 {
+			t.Errorf("%v: got (%v, %v), want (500, 0)", data["method"], tendered, change)
+		}
+	}
+
 	// nil rows (no completed payment loaded) must not panic and stays a no-op too.
 	tendered, change = TenderedAndChange(nil, 0)
 	if tendered != 0 || change != 0 {

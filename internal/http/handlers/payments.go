@@ -64,7 +64,7 @@ func NewPaymentHandler(log *zap.Logger, paymentSvc *payments.Service, treasuryCl
 
 type createIntentInput struct {
 	TenderID     uuid.UUID `json:"tenderId"`
-	TenderMethod string    `json:"tenderMethod"` // cash | card | mpesa | mpesa_manual (legacy alias "manual") | room_charge | ...
+	TenderMethod string    `json:"tenderMethod"` // cash | card | mpesa | mpesa_manual (legacy alias "manual") | mtn_momo_manual | airtel_money_manual | other_manual | room_charge | ...
 	Amount       float64   `json:"amount"`
 	// AmountTendered is the raw cash the customer physically handed over (cash tender only) —
 	// e.g. paid with a 2,000 note against a 1,820 bill. Optional: omitted/zero for every other
@@ -93,6 +93,9 @@ type createIntentInput struct {
 	// is honoured only for an offline order credited to that same person (see
 	// resolveOfflineOrigin), so the cash lands in their shift, not the syncing login's.
 	OfflineCollectedBy string `json:"offlineCollectedBy,omitempty"`
+	// PaymentLabel says how the customer paid for the "other_manual" tender. Required for that
+	// tender (2 to 40 characters), ignored for the rest.
+	PaymentLabel string `json:"paymentLabel,omitempty"`
 }
 
 // CreatePaymentIntent handles POST /{tenantID}/pos/orders/{orderID}/payments/intent
@@ -162,6 +165,7 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 		PaymentDueDate:   dueDate,
 		CreditNotes:      strings.TrimSpace(input.CreditNotes),
 		ApplyStoreCredit: input.ApplyStoreCredit,
+		PaymentLabel:     input.PaymentLabel,
 	}
 
 	// Complimentary (no-charge): mandatory reason + mandatory manager approval (live PIN/card

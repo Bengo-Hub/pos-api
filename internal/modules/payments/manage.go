@@ -53,6 +53,7 @@ type UpdatePaymentInput struct {
 var manualTenderTypes = map[string]bool{
 	"cash": true, "manual": true, "mpesa_manual": true, "card_manual": true, "pdq": true,
 	"card_terminal": true, "cheque": true, "bank_transfer": true,
+	"mtn_momo_manual": true, "airtel_money_manual": true, "other_manual": true,
 }
 
 // paymentIsManageable reports whether the payment may be edited/voided at the till.

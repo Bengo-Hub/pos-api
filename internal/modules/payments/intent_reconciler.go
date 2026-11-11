@@ -6,6 +6,8 @@ import (
 	sharedcache "github.com/Bengo-Hub/cache"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
@@ -13,7 +15,8 @@ import (
 )
 
 // TreasuryIntentReconciler periodically finds completed cash/manual POSPayment rows with no
-// treasury intent recorded yet (external_reference still NULL) and retries the create — closing
+// treasury intent recorded yet (external_reference still NULL, or a cashier-entered reference
+// still carrying the treasury_intent_pending mark) and retries the create, closing
 // the window where dispatchTreasuryIntent's background goroutine is lost to a process
 // restart/panic before it completes. A 2-minute ticker (tighter than SaleFinalizedReconciler's
 // 5-minute one, since this guards money reconciliation and each retry is cheap and idempotent —
@@ -60,7 +63,13 @@ func (r *TreasuryIntentReconciler) runOnce(ctx context.Context) error {
 	pending, err := r.svc.client.POSPayment.Query().
 		Where(
 			pospayment.Status(StatusCompleted),
-			pospayment.ExternalReferenceIsNil(),
+			// No reference yet, or a cashier-entered reference whose intent is not confirmed.
+			pospayment.Or(
+				pospayment.ExternalReferenceIsNil(),
+				func(s *sql.Selector) {
+					s.Where(sqljson.ValueEQ(pospayment.FieldPaymentData, true, sqljson.Path(intentPendingKey)))
+				},
+			),
 			pospayment.OccurredAtGTE(windowStart),
 			pospayment.OccurredAtLT(windowEnd),
 		).
@@ -104,6 +113,13 @@ func (r *TreasuryIntentReconciler) runOnce(ctx context.Context) error {
 			Description:   fmt.Sprintf("POS order %s", order.OrderNumber),
 			OutletID:      order.OutletID.String(),
 			Metadata:      map[string]any{"service": "pos", "entity_id": order.ID.String()},
+		}
+		if label, _ := payment.PaymentData["payment_label"].(string); label != "" {
+			intentReq.Metadata["payment_label"] = label
+		}
+		// Same as the first dispatch: treasury records the cashier-entered reference.
+		if payment.ExternalReference != "" {
+			intentReq.Metadata["external_ref"] = payment.ExternalReference
 		}
 		r.log.Info("retrying deferred treasury intent create",
 			zap.String("order_id", order.ID.String()), zap.String("payment_id", payment.ID.String()))

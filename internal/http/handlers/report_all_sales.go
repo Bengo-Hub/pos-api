@@ -339,6 +339,8 @@ var exportMethodLabels = map[string]string{
 	"wallet": "Wallet", "cod": "Cash on Delivery", "on_account": "On Account",
 	"room_charge": "Room Charge", "complimentary": "Complimentary", "loyalty": "Loyalty Points",
 	"multiple": "Multiple", "layaway": "Layaway",
+	"mtn_momo_manual": "MTN MoMo (Code)", "airtel_money_manual": "Airtel Money (Code)",
+	"other_manual": "Other",
 }
 
 func exportMethodLabel(code string) string {
@@ -349,6 +351,17 @@ func exportMethodLabel(code string) string {
 		return l
 	}
 	return strings.ReplaceAll(code, "_", " ")
+}
+
+// paymentMethodLabel is exportMethodLabel for one payment row: an "other_manual" payment shows
+// the label the cashier typed, as "Other (label)".
+func paymentMethodLabel(code string, paymentData map[string]any) string {
+	if strings.EqualFold(code, "other_manual") {
+		if label, _ := paymentData["payment_label"].(string); strings.TrimSpace(label) != "" {
+			return "Other (" + strings.TrimSpace(label) + ")"
+		}
+	}
+	return exportMethodLabel(code)
 }
 
 // SetRBAC wires the RBAC checker backing the per-cashier visibility scoping on the export.

@@ -54,7 +54,8 @@ func MethodGroup(method string) string {
 		return GroupCash
 	case "card", "card_manual", "pdq", "card_terminal":
 		return GroupCard
-	case "mpesa", "mpesa_manual", "payhero", "mtn_momo", "airtel_money", "mobile_money":
+	case "mpesa", "mpesa_manual", "payhero", "mtn_momo", "airtel_money", "mobile_money",
+		"mtn_momo_manual", "airtel_money_manual":
 		return GroupMobileMoney
 	default:
 		return GroupOther

@@ -73,7 +73,8 @@ func canonicalTenderMethod(method string) string {
 // there is no online gateway step).
 func isCashMethod(method string) bool {
 	switch strings.ToLower(strings.TrimSpace(method)) {
-	case "cash", "manual", "mpesa_manual", "room_charge", "card_manual", "pdq", "card_terminal":
+	case "cash", "manual", "mpesa_manual", "room_charge", "card_manual", "pdq", "card_terminal",
+		TenderMTNMoMoManual, TenderAirtelMoneyManual, TenderOtherManual:
 		return true
 	default:
 		return false
@@ -91,6 +92,9 @@ func treasuryMethodForImmediate(method string) string {
 		return "card_manual"
 	case "manual", "mpesa_manual":
 		return "mpesa_manual"
+	case TenderMTNMoMoManual, TenderAirtelMoneyManual, TenderOtherManual:
+		// Treasury knows these codes and settles them immediately as themselves.
+		return strings.ToLower(strings.TrimSpace(method))
 	default:
 		return "cash"
 	}
@@ -157,6 +161,9 @@ type RecordPaymentRequest struct {
 	// 15,000. Best-effort: a netting failure never fails the (already-recorded) sale, it just
 	// leaves the debt un-netted for a later manual reconcile.
 	ApplyStoreCredit bool
+	// PaymentLabel names how the customer paid for the "other_manual" tender (for example
+	// "Equity cheque"). Stored in payment_data and sent to treasury in the intent metadata.
+	PaymentLabel string
 }
 
 // CreateIntentResult is returned to the caller when a digital payment intent is created.
@@ -292,6 +299,9 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	// the advertised payment choices (legacy "manual" → "mpesa_manual"), for both online captures
 	// and queued offline replays from older tills.
 	req.TenderMethod = canonicalTenderMethod(req.TenderMethod)
+	if err := normalizeManualTender(&req); err != nil {
+		return nil, err
+	}
 
 	order, err := s.client.POSOrder.Query().
 		Where(posorder.ID(req.OrderID), posorder.TenantID(req.TenantID)).
@@ -393,6 +403,9 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	if cash && req.ExternalRef != "" {
 		intentReq.Metadata["external_ref"] = req.ExternalRef
 	}
+	if cash && req.PaymentLabel != "" {
+		intentReq.Metadata["payment_label"] = req.PaymentLabel
+	}
 
 	if !cash {
 		// The intent is created before the local row, so the row's id is chosen up front.
@@ -493,15 +506,16 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	// to verify it) — with no check, the SAME code could be typed against a SECOND, unrelated sale
 	// and settle it too, since nothing else ties a manual code to the one real payment it came
 	// from. Reject a code that's already settled another completed payment for this tenant.
-	if strings.EqualFold(req.TenderMethod, "mpesa_manual") && cashRef != "" {
-		reused, rerr := s.isMpesaManualCodeReused(ctx, req.TenantID, cashRef)
+	// MTN MoMo and Airtel Money codes get the same check, each scoped to its own method.
+	if isCodeCheckedManualTender(req.TenderMethod) && cashRef != "" {
+		reused, rerr := s.isManualCodeReused(ctx, req.TenantID, req.TenderMethod, cashRef)
 		if rerr != nil {
 			_ = tx.Rollback()
-			return nil, fmt.Errorf("payments: check m-pesa code reuse: %w", rerr)
+			return nil, fmt.Errorf("payments: check %s code reuse: %w", manualTenderName(req.TenderMethod), rerr)
 		}
 		if reused {
 			_ = tx.Rollback()
-			return nil, fmt.Errorf("payments: M-Pesa code %q has already been used to settle another sale", cashRef)
+			return nil, fmt.Errorf("payments: %s code %q has already been used to settle another sale", manualTenderName(req.TenderMethod), cashRef)
 		}
 	}
 
@@ -511,7 +525,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		SetAmount(req.Amount).
 		SetCurrency(currency).
 		SetStatus(StatusCompleted).
-		SetPaymentData(cashPaymentData(req.TenderMethod, req.Amount, req.AmountTendered)).
+		SetPaymentData(withIntentPendingMark(withPaymentLabel(cashPaymentData(req.TenderMethod, req.Amount, req.AmountTendered), req.PaymentLabel), cashRef)).
 		SetNillableExternalReference(nilIfEmpty(cashRef)).
 		Save(ctx)
 	if err != nil {
@@ -546,19 +560,60 @@ func cashPaymentData(method string, amount, tendered float64) map[string]any {
 	return data
 }
 
+// withPaymentLabel adds the "other_manual" label to payment data when there is one.
+// intentPendingKey marks, in payment_data, a payment that carries a cashier-entered reference
+// (an M-Pesa, MTN or Airtel transaction ID, a card approval code) and whose treasury intent has
+// not been confirmed yet. Payments without a reference are found by their empty
+// external_reference instead; these need the mark because the reference is never empty.
+const intentPendingKey = "treasury_intent_pending"
+
+// withIntentPendingMark sets the mark when the payment is saved with a reference, in the same
+// write, so a lost dispatch goroutine still leaves the row for the reconciler.
+func withIntentPendingMark(data map[string]any, ref string) map[string]any {
+	if ref != "" {
+		data[intentPendingKey] = true
+	}
+	return data
+}
+
+func withPaymentLabel(data map[string]any, label string) map[string]any {
+	if label != "" {
+		data["payment_label"] = label
+	}
+	return data
+}
+
 // isMpesaManualCodeReused reports whether an M-Pesa confirmation code has already settled a
-// completed payment for this tenant. Queries the non-transactional client rather than the
-// enclosing tx: this is a fraud-deterrence check on a code a cashier retypes from an SMS, not a
-// financial-precision invariant like the outstanding-balance row lock, so the narrow read/insert
-// race window is an acceptable trade-off for keeping the check independently testable.
+// completed M-Pesa Code payment for this tenant.
 func (s *Service) isMpesaManualCodeReused(ctx context.Context, tenantID uuid.UUID, code string) (bool, error) {
-	return s.client.POSPayment.Query().
+	return s.isManualCodeReused(ctx, tenantID, "mpesa_manual", code)
+}
+
+// isManualCodeReused reports whether a manual tender code has already settled a completed
+// payment of the same method for this tenant. Queries the non-transactional client rather than
+// the enclosing tx: this is a fraud-deterrence check on a code a cashier retypes from an SMS, not
+// a financial-precision invariant like the outstanding-balance row lock, so the narrow read/insert
+// race window is an acceptable trade-off for keeping the check independently testable. The method
+// filter runs in Go because payment_data is JSON.
+func (s *Service) isManualCodeReused(ctx context.Context, tenantID uuid.UUID, method, code string) (bool, error) {
+	rows, err := s.client.POSPayment.Query().
 		Where(
 			pospayment.ExternalReferenceEqualFold(code),
 			pospayment.Status(StatusCompleted),
 			pospayment.HasOrderWith(posorder.TenantID(tenantID)),
 		).
-		Exist(ctx)
+		Select(pospayment.FieldPaymentData).
+		All(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, p := range rows {
+		stored, _ := p.PaymentData["method"].(string)
+		if sameManualMethod(stored, method) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // recordCreditSale settles an order "on account" (credit sale). It posts the amount to the
@@ -1325,6 +1380,31 @@ func (s *Service) runTreasuryIntentCreate(ctx context.Context, paymentID uuid.UU
 	if n == 0 {
 		s.log.Debug("treasury intent backfill skipped — payment already had a reference",
 			zap.String("payment_id", paymentID.String()))
+		s.clearIntentPending(ctx, paymentID, resolved)
+	}
+}
+
+// clearIntentPending removes the pending mark from a payment that kept its cashier-entered
+// reference, and records the treasury intent id next to it, once treasury has the intent.
+func (s *Service) clearIntentPending(ctx context.Context, paymentID uuid.UUID, intentID string) {
+	p, err := s.client.POSPayment.Get(ctx, paymentID)
+	if err != nil {
+		s.log.Warn("treasury intent: could not load payment to clear the pending mark",
+			zap.String("payment_id", paymentID.String()), zap.Error(err))
+		return
+	}
+	if _, pending := p.PaymentData[intentPendingKey]; !pending {
+		return
+	}
+	data := make(map[string]any, len(p.PaymentData)+1)
+	for k, v := range p.PaymentData {
+		data[k] = v
+	}
+	delete(data, intentPendingKey)
+	data["treasury_intent_id"] = intentID
+	if err := s.client.POSPayment.UpdateOneID(paymentID).SetPaymentData(data).Exec(ctx); err != nil {
+		s.log.Warn("treasury intent: could not clear the pending mark (the reconciler will retry, treasury dedupes by reference)",
+			zap.String("payment_id", paymentID.String()), zap.Error(err))
 	}
 }
 

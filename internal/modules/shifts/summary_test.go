@@ -175,3 +175,49 @@ func TestSummarize_CountsOfflineSalesByRingUpTime(t *testing.T) {
 		t.Fatalf("got %d orders / %v revenue, want 1 / 900", sum.OrderCount, sum.Revenue)
 	}
 }
+
+func TestMethodGroup_ManualTenders(t *testing.T) {
+	cases := map[string]string{
+		"mpesa_manual":        GroupMobileMoney,
+		"manual":              GroupMobileMoney,
+		"mtn_momo_manual":     GroupMobileMoney,
+		"airtel_money_manual": GroupMobileMoney,
+		"MTN_MOMO_MANUAL":     GroupMobileMoney,
+		"other_manual":        GroupOther,
+		"cash":                GroupCash,
+	}
+	for method, want := range cases {
+		if got := MethodGroup(method); got != want {
+			t.Errorf("MethodGroup(%q) = %q, want %q", method, got, want)
+		}
+	}
+}
+
+func TestSummarize_ManualTendersAreNotDrawerCash(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:shiftstest_%s?mode=memory&cache=shared", uuid.NewString()))
+	t.Cleanup(func() { _ = client.Close() })
+	f := fixture{t: t, client: client, tid: uuid.New(), outlet: uuid.New()}
+	cashier := uuid.New()
+	now := time.Now()
+	in := now.Add(-30 * time.Minute)
+	session := &ent.POSDeviceSession{
+		ID: uuid.New(), TenantID: f.tid, DeviceID: uuid.New(), UserID: cashier,
+		SessionStatus: "open", OpenedAt: now.Add(-time.Hour), FloatAmount: 0,
+	}
+	o := f.order(cashier, 1000, in, nil)
+	f.payment(o.ID, "cash", 100, &cashier, in)
+	f.payment(o.ID, "mtn_momo_manual", 300, &cashier, in)
+	f.payment(o.ID, "airtel_money_manual", 200, &cashier, in)
+	f.payment(o.ID, "other_manual", 400, &cashier, in)
+
+	sum, err := Summarize(context.Background(), client, session)
+	if err != nil {
+		t.Fatalf("summarize: %v", err)
+	}
+	if math.Abs(sum.CashTaken-100) > 0.001 {
+		t.Errorf("cash taken = %v, want 100", sum.CashTaken)
+	}
+	if math.Abs(sum.MobileMoney-500) > 0.001 {
+		t.Errorf("mobile money = %v, want 500 (MTN + Airtel codes)", sum.MobileMoney)
+	}
+}

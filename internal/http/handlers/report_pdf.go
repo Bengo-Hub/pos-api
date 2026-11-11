@@ -288,7 +288,7 @@ func (h *ReportPDFHandler) tenderBreakdown(ctx context.Context, tid uuid.UUID, o
 		label := names[p.TenderID]
 		if label == "" {
 			method, _ := p.PaymentData["method"].(string)
-			label = exportMethodLabel(shifts.NormalizeMethod(method))
+			label = paymentMethodLabel(shifts.NormalizeMethod(method), p.PaymentData)
 		}
 		byLabel[label] += p.Amount
 		total += p.Amount

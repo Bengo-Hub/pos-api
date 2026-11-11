@@ -427,7 +427,7 @@ func (h *ReceiptHandler) buildReceiptForOrder(ctx context.Context, tid uuid.UUID
 			paymentMethod = "Credit (on account)"
 			amountPaid = 0
 		} else if method != "" {
-			paymentMethod = exportMethodLabel(method)
+			paymentMethod = paymentMethodLabel(method, p.PaymentData)
 		} else if t, terr := h.client.Tender.Get(ctx, p.TenderID); terr == nil {
 			if t.Type != "" {
 				paymentMethod = t.Type

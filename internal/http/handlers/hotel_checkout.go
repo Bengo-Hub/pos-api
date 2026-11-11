@@ -177,6 +177,16 @@ func isImmediateHotelMethod(method string) bool {
 	}
 }
 
+// isTillOnlyManualTender reports the manual tenders only the POS till validates (format, label,
+// duplicate check). Until the hotel picker offers them, hotel payments refuse them.
+func isTillOnlyManualTender(method string) bool {
+	switch strings.ToLower(strings.TrimSpace(method)) {
+	case "mtn_momo_manual", "airtel_money_manual", "other_manual":
+		return true
+	}
+	return false
+}
+
 func treasuryMethodForHotel(method string) string {
 	switch strings.ToLower(strings.TrimSpace(method)) {
 	case "card_manual", "pdq", "card_terminal":
@@ -220,6 +230,12 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 	}
 	if input.Method == "" {
 		jsonError(w, "method is required", http.StatusBadRequest)
+		return
+	}
+	if isTillOnlyManualTender(input.Method) {
+		// The hotel desk does not offer these yet, and this path has no code format or
+		// duplicate check for them, so they are refused rather than sent to a gateway.
+		jsonError(w, "MTN MoMo, Airtel Money and Other codes are taken at the POS till, not at the hotel desk", http.StatusBadRequest)
 		return
 	}
 

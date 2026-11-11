@@ -235,3 +235,119 @@ func TestTreasuryIntentReconciler_SkipsNonCashMethods(t *testing.T) {
 		t.Fatalf("expected reconciler to skip on_account payment, treasury was called %d times", calls)
 	}
 }
+
+// TestTreasuryIntentReconciler_OtherManualKeepsMethodAndLabel checks that a deferred "Other"
+// payment reaches treasury as other_manual with the cashier's label in the metadata.
+func TestTreasuryIntentReconciler_OtherManualKeepsMethodAndLabel(t *testing.T) {
+	svc, client := newTestPaymentsService(t)
+	orderID := uuid.New()
+	seedOrderWithOutletForReconciler(t, client, orderID)
+	paymentID := seedCashPayment(t, svc, orderID, TenderOtherManual)
+	if err := client.POSPayment.UpdateOneID(paymentID).
+		SetPaymentData(map[string]any{"method": TenderOtherManual, "payment_label": "Equity cheque"}).
+		SetOccurredAt(time.Now().Add(-10 * time.Minute)).
+		Exec(context.Background()); err != nil {
+		t.Fatalf("stamp label: %v", err)
+	}
+
+	var got treasury.CreateIntentRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(treasury.IntentResponse{IntentID: "intent-other", Status: "completed"})
+	}))
+	defer server.Close()
+	svc.SetTreasuryClient(treasury.NewClient(server.URL, "test-key", 5*time.Second))
+
+	reconciler := NewTreasuryIntentReconciler(svc, zap.NewNop())
+	if err := reconciler.runOnce(context.Background()); err != nil {
+		t.Fatalf("runOnce: %v", err)
+	}
+	if got.PaymentMethod != TenderOtherManual {
+		t.Errorf("payment_method = %q, want %q", got.PaymentMethod, TenderOtherManual)
+	}
+	if got.Metadata["payment_label"] != "Equity cheque" {
+		t.Errorf("metadata payment_label = %v, want Equity cheque", got.Metadata["payment_label"])
+	}
+}
+
+// TestTreasuryIntentReconciler_MobileMoneyManualPassThrough checks an MTN MoMo or Airtel Money
+// payment, which always carries its transaction ID, is retried while it is marked pending, reaches
+// treasury as its own method with the reference, and loses the mark once treasury has it.
+func TestTreasuryIntentReconciler_MobileMoneyManualPassThrough(t *testing.T) {
+	for _, method := range []string{TenderMTNMoMoManual, TenderAirtelMoneyManual} {
+		svc, client := newTestPaymentsService(t)
+		orderID := uuid.New()
+		seedOrderWithOutletForReconciler(t, client, orderID)
+		paymentID := seedCashPayment(t, svc, orderID, method)
+		if err := client.POSPayment.UpdateOneID(paymentID).
+			SetOccurredAt(time.Now().Add(-10 * time.Minute)).
+			SetExternalReference("TX12345678").
+			SetPaymentData(map[string]any{"method": method, intentPendingKey: true}).
+			Exec(context.Background()); err != nil {
+			t.Fatalf("back-date payment: %v", err)
+		}
+
+		var got treasury.CreateIntentRequest
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_ = json.NewDecoder(r.Body).Decode(&got)
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(treasury.IntentResponse{IntentID: "intent-" + method, Status: "completed"})
+		}))
+		svc.SetTreasuryClient(treasury.NewClient(server.URL, "test-key", 5*time.Second))
+
+		reconciler := NewTreasuryIntentReconciler(svc, zap.NewNop())
+		if err := reconciler.runOnce(context.Background()); err != nil {
+			server.Close()
+			t.Fatalf("%s runOnce: %v", method, err)
+		}
+		server.Close()
+		if got.PaymentMethod != method {
+			t.Errorf("payment_method = %q, want %q", got.PaymentMethod, method)
+		}
+		if ref, _ := got.Metadata["external_ref"].(string); ref != "TX12345678" {
+			t.Errorf("external_ref = %q, want the transaction ID", ref)
+		}
+		p, err := client.POSPayment.Get(context.Background(), paymentID)
+		if err != nil {
+			t.Fatalf("reload: %v", err)
+		}
+		if p.ExternalReference != "TX12345678" {
+			t.Errorf("the transaction ID must stay on the payment, got %q", p.ExternalReference)
+		}
+		if _, pending := p.PaymentData[intentPendingKey]; pending {
+			t.Errorf("%s: pending mark should be cleared after treasury confirmed", method)
+		}
+		if id, _ := p.PaymentData["treasury_intent_id"].(string); id != "intent-"+method {
+			t.Errorf("treasury_intent_id = %q", id)
+		}
+	}
+}
+
+// A payment with a reference and no pending mark (already confirmed, or older than the mark) is
+// never sent again.
+func TestTreasuryIntentReconciler_SkipsConfirmedReferencedPayment(t *testing.T) {
+	svc, client := newTestPaymentsService(t)
+	orderID := uuid.New()
+	seedOrderWithOutletForReconciler(t, client, orderID)
+	paymentID := seedCashPayment(t, svc, orderID, TenderMTNMoMoManual)
+	if err := client.POSPayment.UpdateOneID(paymentID).
+		SetOccurredAt(time.Now().Add(-10 * time.Minute)).
+		SetExternalReference("TX12345678").
+		Exec(context.Background()); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+	svc.SetTreasuryClient(treasury.NewClient(server.URL, "test-key", 5*time.Second))
+	if err := NewTreasuryIntentReconciler(svc, zap.NewNop()).runOnce(context.Background()); err != nil {
+		t.Fatalf("runOnce: %v", err)
+	}
+	if calls != 0 {
+		t.Fatalf("treasury called %d times for a confirmed payment", calls)
+	}
+}
