@@ -1416,6 +1416,8 @@ func New(
 						t.Post("/loyalty/earn", loyalty.S2SEarn)
 						t.Post("/loyalty/redeem", loyalty.S2SRedeem)
 						t.Get("/loyalty/balance", loyalty.S2SBalance)
+						// Erasure check from marketflow: does POS still link this CRM contact?
+						t.Get("/crm-links/{contactID}", loyalty.S2SCRMLinks)
 					}
 					if promotions != nil {
 						// pos-api is the DISCOUNT source of truth (Promotion+PromotionRule).
