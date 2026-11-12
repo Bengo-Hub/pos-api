@@ -30,6 +30,24 @@ func TestPlatformRolesAreAdminLevel(t *testing.T) {
 	}
 }
 
+func TestSelfServiceRoles(t *testing.T) {
+	for _, r := range []string{"Customer", " student ", "parent", "driver"} {
+		if !IsSelfServiceRole(r) {
+			t.Errorf("IsSelfServiceRole(%q) = false; auth-api lets people take it at sign-up", r)
+		}
+	}
+	// "member" is invited staff in a business tenant (invite only since 2026-11-10).
+	for _, r := range []string{"member", "cashier", "staff", "admin", "viewer"} {
+		if IsSelfServiceRole(r) {
+			t.Errorf("IsSelfServiceRole(%q) = true; it is a staff role", r)
+		}
+	}
+	if !OnlySelfService([]string{"customer", "student"}) || OnlySelfService([]string{"customer", "member"}) ||
+		OnlySelfService([]string{"customer", "cashier"}) || OnlySelfService(nil) {
+		t.Error("OnlySelfService must be true only for a non-empty list of self-service roles")
+	}
+}
+
 func TestRaisesTier(t *testing.T) {
 	if !RaisesTier("cashier", "manager") || !RaisesTier("manager", "owner") || !RaisesTier("waiter", "admin") {
 		t.Error("moving up a tier must count as a raise")

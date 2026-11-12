@@ -40,6 +40,29 @@ type AuthEventHandler struct {
 	logger *zap.Logger
 }
 
+// authMaxDeliver bounds how often JetStream offers one auth event (the consumer's MaxDeliver).
+const authMaxDeliver = 5
+
+// authRetryDelays spaces the redeliveries of a failed auth event, so a short auth-api outage
+// (the usual reason a tenant slug cannot be resolved) does not burn every attempt in seconds.
+var authRetryDelays = []time.Duration{2 * time.Second, 10 * time.Second, 30 * time.Second, 60 * time.Second}
+
+// authRedelivery returns the delay before the next delivery of an event that failed on its
+// delivered-th delivery (1-based), and whether that was the last one allowed.
+func authRedelivery(delivered uint64) (time.Duration, bool) {
+	if delivered >= authMaxDeliver {
+		return 0, true
+	}
+	i := int(delivered) - 1
+	if i < 0 {
+		i = 0
+	}
+	if i >= len(authRetryDelays) {
+		i = len(authRetryDelays) - 1
+	}
+	return authRetryDelays[i], false
+}
+
 // NewAuthEventHandler creates a new auth event handler.
 func NewAuthEventHandler(client *ent.Client, svc *Service, logger *zap.Logger) *AuthEventHandler {
 	return &AuthEventHandler{
@@ -91,16 +114,34 @@ func (h *AuthEventHandler) SubscribeToAuthEvents(nc *nats.Conn) error {
 		sharedevents.SubscribeQueueWithRebind(h.logger, js, "auth", s.subject, s.durable, func(msg *nats.Msg) {
 			evt, err := sharedevents.FromJSON(msg.Data)
 			if err != nil {
-				h.logger.Error("failed to unmarshal auth user event",
+				// A message that cannot be parsed never will be: stop it now instead of
+				// redelivering it five times with no delay.
+				h.logger.Error("auth user event dropped: cannot be parsed",
 					zap.String("subject", s.subject), zap.Error(err))
-				_ = msg.Nak()
+				_ = msg.Term()
 				return
 			}
 			ctx := context.Background()
 			if err := s.handler(ctx, evt); err != nil {
-				h.logger.Error("failed to handle auth user event",
-					zap.String("subject", s.subject), zap.Error(err))
-				_ = msg.Nak()
+				var delivered uint64 = 1
+				if meta, merr := msg.Metadata(); merr == nil {
+					delivered = meta.NumDelivered
+				}
+				delay, last := authRedelivery(delivered)
+				if last {
+					// MaxDeliver reached: JetStream will not offer this message again.
+					h.logger.Error("auth user event dropped after max deliveries",
+						zap.String("subject", s.subject), zap.String("event_id", evt.ID.String()),
+						zap.String("user_id", fmt.Sprint(evt.Payload["user_id"])),
+						zap.String("tenant_id", evt.TenantID.String()),
+						zap.Uint64("deliveries", delivered), zap.Error(err))
+					_ = msg.Term()
+					return
+				}
+				h.logger.Warn("failed to handle auth user event, will retry",
+					zap.String("subject", s.subject), zap.String("event_id", evt.ID.String()),
+					zap.Uint64("delivery", delivered), zap.Duration("retry_in", delay), zap.Error(err))
+				_ = msg.NakWithDelay(delay)
 				return
 			}
 			_ = msg.Ack()
@@ -108,7 +149,7 @@ func (h *AuthEventHandler) SubscribeToAuthEvents(nc *nats.Conn) error {
 			nats.Durable(s.durable),
 			nats.AckExplicit(),
 			nats.AckWait(30*time.Second),
-			nats.MaxDeliver(5),
+			nats.MaxDeliver(authMaxDeliver),
 			nats.DeliverAll(),
 		)
 	}
@@ -198,6 +239,13 @@ func (h *AuthEventHandler) handleUserUpdated(ctx context.Context, evt *sharedeve
 		return err
 	}
 
+	// Resolve the event's tenant before any write. A slug pos cannot resolve yet is an error, so
+	// the message is redelivered rather than half applied or lost.
+	staffTenant, terr := h.eventTenant(ctx, evt)
+	if terr != nil {
+		return terr
+	}
+
 	// Find existing user — if absent, create it so the StaffMember name patch below can run.
 	u, err := h.client.User.Query().
 		Where(user.AuthServiceUserIDEQ(authServiceUserID)).
@@ -206,8 +254,8 @@ func (h *AuthEventHandler) handleUserUpdated(ctx context.Context, evt *sharedeve
 		if !ent.IsNotFound(err) {
 			return fmt.Errorf("query user: %w", err)
 		}
-		// User row doesn't exist (e.g. after a DB reset). Resolve tenant then create it.
-		tenantID := h.eventTenant(ctx, evt)
+		// User row doesn't exist (e.g. after a DB reset). Create it in the event's tenant.
+		tenantID := staffTenant
 		if tenantID == uuid.Nil {
 			h.logger.Debug("user not found and no tenant_id in updated event, skipping",
 				zap.String("user_id", userIDStr))
@@ -246,8 +294,7 @@ func (h *AuthEventHandler) handleUserUpdated(ctx context.Context, evt *sharedeve
 	// that tenant's membership; u.TenantID is merely the tenant where pos first saw the person,
 	// so patching by it applied a second tenant's roles to the first tenant's row (a cashier in
 	// tenant A who is admin of their own tenant B became admin in A). No row there, or no
-	// resolvable tenant: change nothing.
-	staffTenant := h.eventTenant(ctx, evt)
+	// resolvable tenant: change nothing. (staffTenant is resolved above, before any write.)
 	posRole := mapSSORoleToPOS(evt.Payload)
 	outletIDs := parseOutletIDs(evt.Payload)
 	if staffTenant == uuid.Nil {
@@ -322,7 +369,10 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 	// event's tenant id, and touch only the (tenant, user) row. Looking the row up by user_id
 	// alone wrote a PIN and role the person set in their own tenant B onto their row in tenant
 	// A, where they then signed in as admin.
-	tenantID := h.eventTenant(ctx, evt)
+	tenantID, terr := h.eventTenant(ctx, evt)
+	if terr != nil {
+		return terr // slug not resolvable yet: nack so NATS redelivers
+	}
 	if tenantID == uuid.Nil {
 		h.logger.Warn("auth pin_set: event tenant not resolvable, no staff row changed",
 			zap.String("user_id", userIDStr), zap.String("event_tenant_id", evt.TenantID.String()))
@@ -471,7 +521,7 @@ var posRelevance = sharedevents.UserRelevance{Service: "pos"}
 
 // revoked removes the person's copy in the event's tenant (resolved by slug, since pos-api's
 // tenant id can differ from auth-api's) when the event's services list leaves POS out. Their
-// rows in other tenants stay; the User row goes only with the last staff row (see
+// rows in other tenants stay; the User row goes only when nothing anywhere refers to it (see
 // removeLocalUserInTenant). Reports whether the event was handled that way. Events without the
 // list are never handled here.
 func (h *AuthEventHandler) revoked(ctx context.Context, evt *sharedevents.Event, authServiceUserID uuid.UUID) (bool, error) {
@@ -481,7 +531,10 @@ func (h *AuthEventHandler) revoked(ctx context.Context, evt *sharedevents.Event,
 	// The revoke is about the event's tenant only. A person can work in several tenants; their
 	// staff rows elsewhere stay. (This used to compare against the User row's tenant: a revoke
 	// there deleted the person's rows in every tenant, and a revoke anywhere else did nothing.)
-	tenantID := h.eventTenant(ctx, evt)
+	tenantID, terr := h.eventTenant(ctx, evt)
+	if terr != nil {
+		return true, terr // slug not resolvable yet: nack so NATS redelivers
+	}
 	if tenantID == uuid.Nil {
 		h.logger.Warn("auth revoke: event tenant not resolvable, nothing removed",
 			zap.String("user_id", authServiceUserID.String()), zap.String("event_tenant_id", evt.TenantID.String()))
@@ -498,9 +551,9 @@ func (h *AuthEventHandler) revoked(ctx context.Context, evt *sharedevents.Event,
 
 // removeLocalUserInTenant removes pos-api's copy of a person in ONE tenant: their staff rows
 // there (with staff outlets), their POS role assignments there and their legacy outlet roles on
-// that tenant's outlets. The person's rows in other tenants are left as they are. The User row
-// (and anything left that references it) goes only when no tenant still has a staff row for
-// them, since users carry FKs from role tables. Reports whether the User row was removed.
+// that tenant's outlets. The person's rows in other tenants, staff rows, role assignments and
+// outlet roles alike, are left as they are. The User row goes only when no tenant still has a
+// staff row, a role assignment or an outlet role for them. Reports whether it was removed.
 func (h *AuthEventHandler) removeLocalUserInTenant(ctx context.Context, authServiceUserID, tenantID uuid.UUID) (bool, error) {
 	tx, err := h.client.Tx(ctx)
 	if err != nil {
@@ -542,18 +595,27 @@ func (h *AuthEventHandler) removeLocalUserInTenant(ctx context.Context, authServ
 		}
 	}
 
+	// The User row goes only when nothing in any tenant still refers to the person: no staff row,
+	// no POS role assignment, no outlet role. Someone who uses POS through SSO only (no staff row)
+	// keeps their other tenants' assignments and their User row.
 	remaining, err := tx.StaffMember.Query().Where(staffmember.UserID(authServiceUserID)).Count(ctx)
 	if err != nil {
 		return fail("count remaining staff rows", err)
 	}
+	if remaining == 0 {
+		remaining, err = tx.POSUserRoleAssignment.Query().Where(posuserroleassignment.UserID(authServiceUserID)).Count(ctx)
+		if err != nil {
+			return fail("count remaining role assignments", err)
+		}
+	}
+	if remaining == 0 {
+		remaining, err = tx.UserPOSRole.Query().Where(userposrole.UserID(authServiceUserID)).Count(ctx)
+		if err != nil {
+			return fail("count remaining outlet roles", err)
+		}
+	}
 	userRemoved := false
 	if remaining == 0 {
-		if _, err := tx.UserPOSRole.Delete().Where(userposrole.UserID(authServiceUserID)).Exec(ctx); err != nil {
-			return fail("delete user pos roles", err)
-		}
-		if _, err := tx.POSUserRoleAssignment.Delete().Where(posuserroleassignment.UserID(authServiceUserID)).Exec(ctx); err != nil {
-			return fail("delete pos user role assignments", err)
-		}
 		n, err := tx.User.Delete().Where(user.AuthServiceUserIDEQ(authServiceUserID)).Exec(ctx)
 		if err != nil {
 			return fail("delete user", err)
@@ -617,19 +679,41 @@ func (h *AuthEventHandler) removeLocalUser(ctx context.Context, authServiceUserI
 // tenant_slug through the tenant syncer (pos's tenant id can differ from auth-api's), falling
 // back to the event's tenant id. Returns uuid.Nil when neither names a tenant pos holds, so the
 // caller changes nothing rather than guess another tenant.
-func (h *AuthEventHandler) eventTenant(ctx context.Context, evt *sharedevents.Event) uuid.UUID {
-	if slug, _ := evt.Payload["tenant_slug"].(string); slug != "" && h.tenantSyncer != nil {
-		if tid, err := h.tenantSyncer.SyncTenant(ctx, slug); err == nil && tid != uuid.Nil {
-			return tid
+//
+// When the event names a tenant_slug that pos cannot resolve yet (the syncer failed, for example
+// auth-api was briefly unreachable) and the tenant id is not one pos holds either, it returns an
+// error: the handler returns it, the message is nacked and NATS redelivers it, up to the
+// consumer's MaxDeliver. Acking would lose a pin_set or role change for good. An event with no
+// slug and an unknown tenant id is a decided no-op (uuid.Nil, nil).
+func (h *AuthEventHandler) eventTenant(ctx context.Context, evt *sharedevents.Event) (uuid.UUID, error) {
+	var syncErr error
+	slug, _ := evt.Payload["tenant_slug"].(string)
+	if slug == "" {
+		slug = evt.TenantSlug // the envelope carries it too on newer auth-api events
+	}
+	if slug != "" && h.tenantSyncer != nil {
+		tid, err := h.tenantSyncer.SyncTenant(ctx, slug)
+		if err == nil && tid != uuid.Nil {
+			return tid, nil
+		}
+		syncErr = err
+		if syncErr == nil {
+			syncErr = fmt.Errorf("tenant slug resolved to no tenant")
 		}
 	}
-	if evt.TenantID == uuid.Nil {
-		return uuid.Nil
+	if evt.TenantID != uuid.Nil {
+		ok, err := h.client.Tenant.Query().Where(tenant.ID(evt.TenantID)).Exist(ctx)
+		if err != nil {
+			return uuid.Nil, fmt.Errorf("look up event tenant: %w", err)
+		}
+		if ok {
+			return evt.TenantID, nil
+		}
 	}
-	if ok, err := h.client.Tenant.Query().Where(tenant.ID(evt.TenantID)).Exist(ctx); err != nil || !ok {
-		return uuid.Nil
+	if syncErr != nil {
+		return uuid.Nil, fmt.Errorf("resolve event tenant from slug (will retry): %w", syncErr)
 	}
-	return evt.TenantID
+	return uuid.Nil, nil
 }
 
 // clearPINOnRaise adds a PIN reset to upd when newRole puts the row in a higher tier than it

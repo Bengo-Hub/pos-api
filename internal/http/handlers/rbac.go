@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
@@ -64,11 +65,43 @@ func (h *RBACHandler) AssignRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Guardrail: a manager may not assign a privileged (admin/manager) role — only an
-	// admin may. Resolve the target role's code so the check works for system roles too.
-	if role, gerr := h.rbacRepo.GetRole(r.Context(), tid, req.RoleID); gerr == nil {
-		if privilegedStaffRole(role.RoleCode) && !requesterIsAdminLevel(r) {
+	// The role must be a shared role or this tenant's own. Another tenant's role id (whose
+	// permissions that tenant's admin controls) is "not found" here, and the guard below used to
+	// be skipped for it, so a manager could import admin grants from a tenant they run.
+	role, gerr := h.rbacRepo.GetRole(r.Context(), tid, req.RoleID)
+	if gerr != nil {
+		jsonError(w, "role not found", http.StatusNotFound)
+		return
+	}
+	// Guardrail: a manager may not assign a privileged (admin/manager) role — only an admin may.
+	// The tier counts a custom role's permissions as well as its code, and a below-admin caller
+	// may not hand out permissions they do not hold themselves.
+	if !requesterIsAdminLevel(r) {
+		tier, terr := h.rbacRepo.RoleTier(r.Context(), tid, role.ID)
+		if terr != nil {
+			h.logger.Error("assign role: role tier", zap.Error(terr))
+			jsonError(w, "could not check the role", http.StatusInternalServerError)
+			return
+		}
+		if tier > 0 || privilegedStaffRole(role.RoleCode) {
 			jsonError(w, "managers cannot assign admin or manager roles", http.StatusForbidden)
+			return
+		}
+		perms, perr := h.rbacRepo.GetRolePermissions(r.Context(), role.ID)
+		if perr != nil {
+			h.logger.Error("assign role: role permissions", zap.Error(perr))
+			jsonError(w, "could not check the role", http.StatusInternalServerError)
+			return
+		}
+		codes := make([]string, 0, len(perms))
+		for _, p := range perms {
+			codes = append(codes, p.PermissionCode)
+		}
+		if missing := h.permissionsCallerLacks(r, tid, codes); len(missing) > 0 {
+			respondJSON(w, http.StatusForbidden, map[string]any{
+				"error":   "you cannot assign a role with permissions you do not hold",
+				"missing": missing,
+			})
 			return
 		}
 	}
@@ -86,6 +119,10 @@ func (h *RBACHandler) AssignRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.rbacService.AssignRole(r.Context(), tid, req.UserID, req.RoleID, assignedBy); err != nil {
+		if errors.Is(err, rbac.ErrRoleNotInTenant) {
+			jsonError(w, "role not found", http.StatusNotFound)
+			return
+		}
 		h.logger.Error("failed to assign role", zap.Error(err))
 		jsonError(w, "failed to assign role", http.StatusInternalServerError)
 		return
@@ -135,6 +172,22 @@ func (h *RBACHandler) RevokeRole(w http.ResponseWriter, r *http.Request) {
 	if assignment == nil {
 		jsonError(w, "assignment not found", http.StatusNotFound)
 		return
+	}
+
+	// A caller below admin may not revoke an assignment of a role above staff tier (that would
+	// demote a manager or admin). An assignment naming a role outside this tenant grants nothing
+	// and may be cleaned up by anyone who manages roles.
+	if !requesterIsAdminLevel(r) {
+		above, aerr := h.roleAboveStaff(r, tid, assignment.RoleID)
+		if aerr != nil && !errors.Is(aerr, rbac.ErrRoleNotInTenant) {
+			h.logger.Error("revoke role: role tier", zap.Error(aerr))
+			jsonError(w, "could not check the role", http.StatusInternalServerError)
+			return
+		}
+		if above {
+			jsonError(w, "only an admin can revoke a manager or admin role", http.StatusForbidden)
+			return
+		}
 	}
 
 	if err := h.rbacService.RevokeRole(r.Context(), tid, assignment.UserID, assignment.RoleID); err != nil {

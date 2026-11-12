@@ -300,3 +300,130 @@ func TestRevokeInOneTenantKeepsOtherTenants(t *testing.T) {
 		t.Fatal("the User row must stay while tenant A still has a staff row")
 	}
 }
+
+// failingSyncer is a tenant syncer that cannot resolve any slug yet (auth-api unreachable).
+type failingSyncer struct{}
+
+func (failingSyncer) SyncTenant(context.Context, string) (uuid.UUID, error) {
+	return uuid.Nil, fmt.Errorf("auth-api unreachable")
+}
+func (failingSyncer) SyncOutlets(context.Context, uuid.UUID, string) error { return nil }
+
+// TestUnresolvedTenantSlugIsRetried locks in R-1: an event whose tenant_slug pos cannot resolve
+// yet (and whose tenant id pos does not hold) returns an error, so NATS redelivers it instead of
+// acking and losing it. Nothing is written. With no slug, an unknown tenant id stays a no-op.
+// A slug that fails while the tenant id IS one pos holds still applies to that tenant.
+func TestUnresolvedTenantSlugIsRetried(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:posretry_%s?mode=memory&cache=shared", uuid.NewString()))
+	t.Cleanup(func() { _ = client.Close() })
+	ctx := context.Background()
+	h := &AuthEventHandler{client: client, logger: zap.NewNop(), tenantSyncer: failingSyncer{}}
+	now := time.Now()
+	local := uuid.New()
+	client.Tenant.Create().SetID(local).SetName("Local").SetSlug("retry-local").SetStatus("active").
+		SetSyncStatus("synced").SetTimezone("Africa/Nairobi").SetCreatedAt(now).SetUpdatedAt(now).ExecX(ctx)
+	person := uuid.New()
+	client.User.Create().SetID(person).SetAuthServiceUserID(person).SetTenantID(local).SetEmail(person.String() + "@x.test").
+		SetFullName("Person").SetStatus("active").SetSyncStatus("synced").SetCreatedAt(now).SetUpdatedAt(now).ExecX(ctx)
+	client.StaffMember.Create().SetTenantID(local).SetUserID(person).SetName("Person").SetRole("cashier").
+		SetPinHash("keep").SetIsActive(true).SetCreatedAt(now).SetUpdatedAt(now).ExecX(ctx)
+
+	event := func(kind string, tid uuid.UUID, payload map[string]any) *sharedevents.Event {
+		payload["user_id"] = person.String()
+		return sharedevents.NewEvent(kind, "auth.user", person, tid, payload)
+	}
+	unknown := uuid.New()
+	row := func() *ent.StaffMember {
+		return client.StaffMember.Query().Where(staffmember.TenantID(local), staffmember.UserID(person)).OnlyX(ctx)
+	}
+
+	if err := h.handleUserUpdated(ctx, event("updated", unknown, map[string]any{
+		"tenant_slug": "not-synced-yet", "roles": []any{"admin"},
+	})); err == nil {
+		t.Fatal("updated with an unresolvable slug must return an error so it is redelivered")
+	}
+	if err := h.handleUserPINSet(ctx, event("pin_set", unknown, map[string]any{
+		"tenant_slug": "not-synced-yet", "service": "pos", "pin_hash": "new", "roles": []any{"admin"},
+	})); err == nil {
+		t.Fatal("pin_set with an unresolvable slug must return an error so it is redelivered")
+	}
+	if err := h.handleUserUpdated(ctx, event("updated", unknown, map[string]any{
+		"tenant_slug": "not-synced-yet", "services": []any{"inventory"},
+	})); err == nil {
+		t.Fatal("a revoke with an unresolvable slug must return an error so it is redelivered")
+	}
+	if m := row(); m.Role != "cashier" || m.PinHash == nil || *m.PinHash != "keep" {
+		t.Fatalf("a retried event must write nothing, got %+v", m)
+	}
+
+	// No slug and an unknown tenant id: a decided no-op.
+	if err := h.handleUserPINSet(ctx, event("pin_set", unknown, map[string]any{
+		"service": "pos", "pin_hash": "new", "roles": []any{"admin"},
+	})); err != nil {
+		t.Fatalf("no slug and an unknown tenant id must be a no-op, got %v", err)
+	}
+
+	// The slug fails but the tenant id is one pos holds: it applies there.
+	if err := h.handleUserUpdated(ctx, event("updated", local, map[string]any{
+		"tenant_slug": "not-synced-yet", "roles": []any{"waiter"},
+	})); err != nil {
+		t.Fatal(err)
+	}
+	if m := row(); m.Role != "waiter" {
+		t.Fatalf("a held tenant id must still apply when the slug lookup fails, got role %q", m.Role)
+	}
+}
+
+// TestRevokeKeepsSSOOnlyAssignmentsElsewhere locks in R-2: a person with no staff row anywhere
+// (they use POS through SSO only) but role assignments in tenants A and B loses only B's
+// assignment when POS is revoked in B. A's assignment and the User row stay. Revoking A as well
+// leaves nothing referring to them, so the User row goes.
+func TestRevokeKeepsSSOOnlyAssignmentsElsewhere(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:posssoonly_%s?mode=memory&cache=shared", uuid.NewString()))
+	t.Cleanup(func() { _ = client.Close() })
+	ctx := context.Background()
+	h := &AuthEventHandler{client: client, logger: zap.NewNop()}
+	now := time.Now()
+	mk := func(slug string) (uuid.UUID, uuid.UUID) {
+		id := uuid.New()
+		client.Tenant.Create().SetID(id).SetName(slug).SetSlug(slug).SetStatus("active").
+			SetSyncStatus("synced").SetTimezone("Africa/Nairobi").SetCreatedAt(now).SetUpdatedAt(now).ExecX(ctx)
+		r := client.POSRoleV2.Create().SetTenantID(id).SetRoleCode("viewer").SetName("Viewer").
+			SetCreatedAt(now).SetUpdatedAt(now).SaveX(ctx)
+		return id, r.ID
+	}
+	tA, roleA := mk("sso-a")
+	tB, roleB := mk("sso-b")
+	person := uuid.New()
+	client.User.Create().SetID(person).SetAuthServiceUserID(person).SetTenantID(tA).SetEmail(person.String() + "@a.test").
+		SetFullName("SSO Only").SetStatus("active").SetSyncStatus("synced").SetCreatedAt(now).SetUpdatedAt(now).ExecX(ctx)
+	for tid, rid := range map[uuid.UUID]uuid.UUID{tA: roleA, tB: roleB} {
+		client.POSUserRoleAssignment.Create().SetTenantID(tid).SetUserID(person).SetRoleID(rid).
+			SetAssignedBy(person).SetAssignedAt(now).ExecX(ctx)
+	}
+	assignmentsIn := func(tid uuid.UUID) int {
+		return client.POSUserRoleAssignment.Query().
+			Where(posuserroleassignment.TenantID(tid), posuserroleassignment.UserID(person)).CountX(ctx)
+	}
+	userExists := func() bool { return client.User.Query().Where(user.AuthServiceUserIDEQ(person)).ExistX(ctx) }
+	revoke := func(tid uuid.UUID) {
+		t.Helper()
+		if err := h.handleUserUpdated(ctx, sharedevents.NewEvent("updated", "auth.user", person, tid, map[string]any{
+			"user_id": person.String(), "services": []any{"inventory"},
+		})); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	revoke(tB)
+	if assignmentsIn(tB) != 0 {
+		t.Fatal("revoke in B must remove B's assignment")
+	}
+	if assignmentsIn(tA) != 1 || !userExists() {
+		t.Fatal("revoke in B must keep A's assignment and the User row of an SSO-only person")
+	}
+	revoke(tA)
+	if assignmentsIn(tA) != 0 || userExists() {
+		t.Fatal("once nothing refers to the person, the User row goes")
+	}
+}

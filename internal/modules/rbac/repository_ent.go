@@ -392,6 +392,20 @@ func (r *EntRepository) AssignRoleToUser(ctx context.Context, tenantID uuid.UUID
 	if err != nil {
 		return fmt.Errorf("assign role to user: begin tx: %w", err)
 	}
+	// A tenant may only assign the shared roles and its own. Another tenant's role id (whose
+	// permissions that tenant's admin controls) is refused, whoever asks.
+	role, err := tx.POSRoleV2.Get(ctx, assignment.RoleID)
+	if err != nil {
+		_ = tx.Rollback()
+		if ent.IsNotFound(err) {
+			return fmt.Errorf("assign role to user: %w", ErrRoleNotInTenant)
+		}
+		return fmt.Errorf("assign role to user: read role: %w", err)
+	}
+	if role.TenantID != nil && *role.TenantID != tenantID {
+		_ = tx.Rollback()
+		return fmt.Errorf("assign role to user: %w", ErrRoleNotInTenant)
+	}
 	// Decide on the PIN before the new assignment exists, so "existing assignments" excludes it.
 	staffID, err := clearPINIfAssignmentRaises(ctx, tx.Client(), tenantID, assignment.UserID, assignment.RoleID)
 	if err != nil {
@@ -432,7 +446,10 @@ func clearPINIfAssignmentRaises(ctx context.Context, client *ent.Client, tenantI
 	if err != nil {
 		return nil, fmt.Errorf("read assigned role: %w", err)
 	}
-	newTier := posrole.Tier(newRole.RoleCode)
+	newTier, err := RoleTier(ctx, client, newRole)
+	if err != nil {
+		return nil, err
+	}
 	if newTier == 0 {
 		return nil, nil
 	}
@@ -449,26 +466,12 @@ func clearPINIfAssignmentRaises(ctx context.Context, client *ent.Client, tenantI
 		return nil, nil
 	}
 	current := posrole.Tier(row.Role)
-	held, err := client.POSUserRoleAssignment.Query().
-		Where(posuserroleassignment.TenantID(tenantID), posuserroleassignment.UserID(userID)).
-		All(ctx)
+	held, err := AssignedTier(ctx, client, tenantID, userID, uuid.Nil)
 	if err != nil {
-		return nil, fmt.Errorf("read existing assignments: %w", err)
+		return nil, err
 	}
-	if len(held) > 0 {
-		ids := make([]uuid.UUID, 0, len(held))
-		for _, a := range held {
-			ids = append(ids, a.RoleID)
-		}
-		codes, cerr := client.POSRoleV2.Query().Where(posrolev2.IDIn(ids...)).Select(posrolev2.FieldRoleCode).Strings(ctx)
-		if cerr != nil {
-			return nil, fmt.Errorf("read assigned role codes: %w", cerr)
-		}
-		for _, c := range codes {
-			if t := posrole.Tier(c); t > current {
-				current = t
-			}
-		}
+	if held > current {
+		current = held
 	}
 	if newTier <= current {
 		return nil, nil
@@ -500,12 +503,15 @@ func (r *EntRepository) RevokeRoleFromUser(ctx context.Context, tenantID uuid.UU
 
 // GetUserRoles retrieves all roles assigned to a user.
 func (r *EntRepository) GetUserRoles(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) ([]*POSRoleV2, error) {
+	// Only roles in the tenant's scope count: an assignment row naming another tenant's role
+	// grants nothing here.
 	entRoles, err := r.client.POSUserRoleAssignment.Query().
 		Where(
 			posuserroleassignment.TenantID(tenantID),
 			posuserroleassignment.UserID(userID),
 		).
 		QueryRole().
+		Where(RoleInTenantScope(tenantID)).
 		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get user roles: %w", err)

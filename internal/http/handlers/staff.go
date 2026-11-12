@@ -18,11 +18,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/bengobox/pos-service/internal/ent"
-	"github.com/bengobox/pos-service/internal/ent/posrolev2"
-	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	entuser "github.com/bengobox/pos-service/internal/ent/user"
+	"github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 	"github.com/bengobox/pos-service/internal/posrole"
 )
@@ -400,34 +399,16 @@ func (h *StaffHandler) authUserIsPlatformOwner(ctx context.Context, userID uuid.
 }
 
 // userHasPrivilegedPOSAssignment reports whether userID holds a POS role assignment on tenant tid
-// whose role code is admin or manager tier. A staff row bound to that person inherits those
-// grants (resolveEffectivePermissions unions them in), so for binding and PIN purposes the row
-// is that tier whatever its own role says.
-//
-// Read through role_id, as resolveEffectivePermissions does: the POSRoleV2 user_assignments edge
-// maps to a different column that assignments never fill.
+// that is admin or manager tier: by role code, or for a custom role by the permissions it
+// carries (rbac.RoleTier). Only roles in the tenant's scope count. A staff row bound to that
+// person inherits those grants (resolveEffectivePermissions unions them in), so for binding and
+// PIN purposes the row is that tier whatever its own role says.
 func userHasPrivilegedPOSAssignment(ctx context.Context, client *ent.Client, tid, userID uuid.UUID) (bool, error) {
-	if userID == uuid.Nil {
-		return false, nil
-	}
-	assignments, err := client.POSUserRoleAssignment.Query().
-		Where(posuserroleassignment.TenantID(tid), posuserroleassignment.UserID(userID)).
-		All(ctx)
+	tier, err := rbac.AssignedTier(ctx, client, tid, userID, uuid.Nil)
 	if err != nil {
-		return false, fmt.Errorf("read pos role assignments: %w", err)
+		return false, err
 	}
-	if len(assignments) == 0 {
-		return false, nil
-	}
-	ids := make([]uuid.UUID, 0, len(assignments))
-	for _, a := range assignments {
-		ids = append(ids, a.RoleID)
-	}
-	codes, err := client.POSRoleV2.Query().Where(posrolev2.IDIn(ids...)).Select(posrolev2.FieldRoleCode).Strings(ctx)
-	if err != nil {
-		return false, fmt.Errorf("read assigned pos roles: %w", err)
-	}
-	return posrole.IsAdminLevelAny(codes), nil
+	return tier >= 1, nil
 }
 
 // effectiveStaffPrivileged reports whether a staff row is admin or manager tier for the guards:

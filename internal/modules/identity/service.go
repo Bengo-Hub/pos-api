@@ -11,25 +11,35 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
+	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 	"github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/modules/rbac"
 	"github.com/bengobox/pos-service/internal/modules/tenant"
+	"github.com/bengobox/pos-service/internal/posrole"
 )
 
+
+// tenantResolver is the part of tenant.Syncer the identity code uses (an interface so tests can
+// stand in for auth-api).
+type tenantResolver interface {
+	SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
+	SyncOutlets(ctx context.Context, tenantID uuid.UUID, tenantSlug string) error
+}
 
 // Service handles identity-related operations using Ent.
 type Service struct {
 	client       *ent.Client
-	tenantSyncer *tenant.Syncer
+	tenantSyncer tenantResolver
 	rbacService  *rbac.Service
 }
 
 // NewService creates a new Identity Service.
 func NewService(client *ent.Client, tenantSyncer *tenant.Syncer) *Service {
-	return &Service{
-		client:       client,
-		tenantSyncer: tenantSyncer,
+	s := &Service{client: client}
+	if tenantSyncer != nil { // never store a typed nil in the interface
+		s.tenantSyncer = tenantSyncer
 	}
+	return s
 }
 
 // SetRBACService sets the RBAC service for JIT role assignment.
@@ -47,21 +57,32 @@ func (s *Service) EnsureUserFromToken(ctx context.Context, authServiceID uuid.UU
 		Where(user.AuthServiceUserIDEQ(authServiceID)).
 		Only(ctx)
 
-	if err == nil {
-		// User exists — ensure StaffMember record is present (idempotent)
-		s.ensureStaffMember(ctx, u.TenantID, authServiceID, claims)
-		return u, nil
-	}
-
-	if !ent.IsNotFound(err) {
+	if err != nil && !ent.IsNotFound(err) {
 		return nil, fmt.Errorf("identity.Service: query user: %w", err)
 	}
 
-	// 2. User not found, ensure tenant exists
-	tenantID, err := s.tenantSyncer.SyncTenant(ctx, tenantSlug)
-	if err != nil {
-		return nil, fmt.Errorf("identity.Service: sync tenant %q: %w", tenantSlug, err)
+	// The staff row belongs to the TOKEN's tenant: the claims (roles, outlet) are that tenant's
+	// membership. u.TenantID is only where pos first saw the person; ensuring a row there with
+	// another tenant's roles recreated rows the person was revoked from, and gave someone who
+	// self-joined tenant A as a member an admin row in A because they run tenant B.
+	tenantID, serr := s.resolveTokenTenant(ctx, tenantSlug)
+	if serr != nil || tenantID == uuid.Nil {
+		if err == nil {
+			// Existing user: carry on without a staff row this time (logged, retried next request).
+			log.Printf("  [jit-provisioning] could not resolve token tenant %q for user %s; staff row not ensured: %v",
+				tenantSlug, authServiceID, serr)
+			return u, nil
+		}
+		return nil, fmt.Errorf("identity.Service: sync tenant %q: %w", tenantSlug, serr)
 	}
+
+	if err == nil {
+		// User exists — ensure the StaffMember for the token's tenant (idempotent).
+		s.ensureStaffMember(ctx, tenantID, authServiceID, claims)
+		return u, nil
+	}
+
+	// 2. User not found: the tenant is resolved above.
 
 	// 3. Create user
 	email, _ := claims["email"].(string)
@@ -101,6 +122,24 @@ func (s *Service) EnsureUserFromToken(ctx context.Context, authServiceID uuid.UU
 	s.ensureStaffMember(ctx, tenantID, authServiceID, claims)
 
 	return newUsr, nil
+}
+
+// resolveTokenTenant maps the token's tenant slug to pos's tenant id. This runs on every
+// authenticated request, so a tenant pos already holds is read locally; only an unknown slug
+// goes to the syncer (auth-api). Drift healing stays with the syncer's own callers.
+func (s *Service) resolveTokenTenant(ctx context.Context, slug string) (uuid.UUID, error) {
+	if slug == "" {
+		return uuid.Nil, fmt.Errorf("token carries no tenant slug")
+	}
+	if t, err := s.client.Tenant.Query().Where(enttenant.SlugEQ(slug)).Only(ctx); err == nil {
+		return t.ID, nil
+	} else if !ent.IsNotFound(err) {
+		return uuid.Nil, fmt.Errorf("look up tenant %q: %w", slug, err)
+	}
+	if s.tenantSyncer == nil {
+		return uuid.Nil, fmt.Errorf("tenant %q not held and no syncer configured", slug)
+	}
+	return s.tenantSyncer.SyncTenant(ctx, slug)
 }
 
 // ensureStaffMember creates a StaffMember for the user if one does not already exist.
@@ -156,6 +195,11 @@ func (s *Service) ensureStaffMember(ctx context.Context, tenantID uuid.UUID, aut
 			}
 		}
 	}
+	// Someone who holds only self-service roles here (customer, student, parent, driver) joined
+	// without an invite: they are not staff and get no staff row. An invited "member" is staff.
+	if posrole.OnlySelfService(roles) {
+		return
+	}
 	posRole := mapGlobalRoleToPOSRole(roles)
 	if posRole == "viewer" {
 		posRole = "cashier" // default POS role for unrecognised global roles
@@ -205,6 +249,11 @@ func (s *Service) assignDefaultRoleFromJWT(ctx context.Context, tenantID uuid.UU
 		}
 	}
 
+	// Self-service roles only (customer, student, parent, driver): not staff, so no POS role. Without this
+	// they fell through to "viewer" and got its read grants.
+	if posrole.OnlySelfService(roles) {
+		return
+	}
 	roleCode := mapGlobalRoleToPOSRole(roles)
 	if roleCode == "" {
 		return

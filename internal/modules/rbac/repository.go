@@ -25,6 +25,12 @@ type Repository interface {
 	// mutating the shared role (which would leak to every other tenant). The read path already
 	// prefers the tenant override (ListRoles/GetRoleByCode/resolveRolePermissions).
 	EnsureTenantRoleOverride(ctx context.Context, tenantID uuid.UUID, roleID uuid.UUID) (uuid.UUID, error)
+	// RoleTier is the tier (0 staff, 1 manager, 2 admin) a role in the tenant's scope grants,
+	// counting a custom role's permissions as well as its code (see rbac.RoleTier). A role outside
+	// the tenant's scope answers ErrRoleNotInTenant.
+	RoleTier(ctx context.Context, tenantID uuid.UUID, roleID uuid.UUID) (int, error)
+	// PermissionsTier is the tier a role with this code and these permission codes would grant.
+	PermissionsTier(ctx context.Context, roleCode string, permissionCodes []string) (int, error)
 
 	// Permission operations
 	CreatePermission(ctx context.Context, permission *POSPermission) error

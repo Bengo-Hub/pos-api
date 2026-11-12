@@ -49,6 +49,38 @@ func RaisesTier(from, to string) bool {
 	return Tier(to) > Tier(from)
 }
 
+// selfServiceRoles are the roles anyone may take on in a business tenant without an invite: a
+// storefront customer, a learner, a learner's parent, a rider applicant. auth-api's
+// selfJoinAllowed (internal/services/auth/self_service_join.go) allows only these for public
+// self-join into a business. They are never staff roles, so pos never maps them onto a POS role,
+// a staff row or a permission set.
+//
+// "member" is NOT here: since 2026-11-10 a plain member of a business tenant is invite only, and
+// auth-api shows an invited member with no roles as "member". It is invited staff and keeps its
+// cashier mapping.
+var selfServiceRoles = map[string]bool{
+	"customer": true, "student": true, "parent": true, "driver": true,
+}
+
+// IsSelfServiceRole reports whether role is one people may give themselves in auth-api.
+func IsSelfServiceRole(role string) bool {
+	return selfServiceRoles[strings.ToLower(strings.TrimSpace(role))]
+}
+
+// OnlySelfService reports whether roles is non-empty and holds nothing but self-service roles:
+// a person who joined the tenant as a customer or member and holds no staff role there.
+func OnlySelfService(roles []string) bool {
+	if len(roles) == 0 {
+		return false
+	}
+	for _, r := range roles {
+		if !IsSelfServiceRole(r) {
+			return false
+		}
+	}
+	return true
+}
+
 // IsAdminLevelAny reports whether any role in the list is admin/manager tier.
 func IsAdminLevelAny(roles []string) bool {
 	for _, r := range roles {

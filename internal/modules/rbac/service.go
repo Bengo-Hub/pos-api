@@ -6,6 +6,8 @@ import (
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+
+	"github.com/bengobox/pos-service/internal/posrole"
 )
 
 // Service provides business logic for RBAC operations.
@@ -52,7 +54,14 @@ func MapGlobalRolesToServiceRole(roles []string) string {
 		{"pharmacist", "pharmacist"},
 		// Services trade specialists keep their own role (production board, appointments).
 		{"technician", "technician"}, {"stylist", "stylist"}, {"therapist", "therapist"},
+		// "member" is an invited member of a business tenant (invite only since 2026-11-10).
 		{"staff", "cashier"}, {"member", "cashier"}, {"viewer", "cashier"},
+	}
+	// Self-service roles (customer, student, parent, driver) are what anyone gets by joining a
+	// business without an invite. They are not staff roles: someone holding only those maps to
+	// no POS role and gets no POS permissions (they used to fall back to cashier).
+	if posrole.OnlySelfService(roles) {
+		return ""
 	}
 	for _, m := range order {
 		for _, r := range roles {
@@ -86,7 +95,9 @@ func (s *Service) HasAnyPermissionViaGlobalRoles(ctx context.Context, tenantID u
 	candidates = append(candidates, MapGlobalRolesToServiceRole(globalRoles))
 	seen := make(map[string]struct{}, len(candidates))
 	for _, code := range candidates {
-		if code == "" {
+		// A self-service role name is never resolved as a POS role code: a tenant role of that
+		// name would otherwise reach every storefront customer or self-joined learner.
+		if code == "" || posrole.IsSelfServiceRole(code) {
 			continue
 		}
 		if _, dup := seen[code]; dup {

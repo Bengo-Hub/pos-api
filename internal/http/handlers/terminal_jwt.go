@@ -15,6 +15,8 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posrolev2"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
+	"github.com/bengobox/pos-service/internal/modules/rbac"
+	"github.com/bengobox/pos-service/internal/posrole"
 )
 
 // terminalIssuer is the iss claim of every token pos-api signs itself (PIN sessions).
@@ -402,8 +404,10 @@ func resolveEffectivePermissions(ctx context.Context, client *ent.Client, tenant
 				}
 			}
 			if len(ids) > 0 {
+				// Only shared roles and this tenant's own count: an assignment naming another
+				// tenant's role (whose permissions that tenant controls) grants nothing here.
 				roles, rerr := client.POSRoleV2.Query().
-					Where(posrolev2.IDIn(ids...)).
+					Where(posrolev2.IDIn(ids...), rbac.RoleInTenantScope(tenantID)).
 					WithPermissions().
 					All(ctx)
 				if rerr != nil {
@@ -420,7 +424,9 @@ func resolveEffectivePermissions(ctx context.Context, client *ent.Client, tenant
 
 	// Raw global role names that ARE a POS role code (tenant custom or shared).
 	for _, gr := range globalRoles {
-		if gr == "" || gr == roleCode {
+		// Self-service roles (customer, student, parent, driver) are never read as POS role codes: anyone
+		// can take them at sign-up, so a tenant role of that name must not reach them.
+		if gr == "" || gr == roleCode || posrole.IsSelfServiceRole(gr) {
 			continue
 		}
 		codes, err := resolveRolePermissions(ctx, client, tenantID, gr)
@@ -463,7 +469,7 @@ func resolveAssignedRoleCodes(ctx context.Context, client *ent.Client, tenantID,
 	if len(ids) == 0 {
 		return codes
 	}
-	roles, err := client.POSRoleV2.Query().Where(posrolev2.IDIn(ids...)).All(ctx)
+	roles, err := client.POSRoleV2.Query().Where(posrolev2.IDIn(ids...), rbac.RoleInTenantScope(tenantID)).All(ctx)
 	if err != nil {
 		return codes
 	}
