@@ -1098,7 +1098,20 @@ func New(
 						pos.Post("/clients/{accountID}/payout-credit", clients.PayoutCredit)
 					}
 
-					// Loyalty programs & accounts — gated on the loyalty_program feature
+					// Customer accounts: the till's customer search, "Add customer" and the account view
+					// run on these routes. Finding and adding a customer is core selling on every plan,
+					// so only the use case gates them, never the loyalty_program plan feature
+					// (2026-11-12: PowerSuite Basic tenants could not add a customer at all).
+					if loyalty != nil {
+						pos.Group(func(ca chi.Router) {
+							ca.Use(outletmw.RequireUseCase("retail", "services"))
+							ca.Get("/loyalty/accounts", loyalty.ListAccounts)
+							ca.Post("/loyalty/accounts", loyalty.CreateAccount)
+							ca.Get("/loyalty/accounts/{accountID}", loyalty.GetAccount)
+						})
+					}
+
+					// Loyalty programs, points and referrals: gated on the loyalty_program feature
 					// (bundles include it from Starter; POS-device plans do not).
 					if loyalty != nil {
 						pos.Group(func(ly chi.Router) {
@@ -1108,9 +1121,6 @@ func New(
 							ly.Get("/loyalty/programs", loyalty.ListPrograms)
 							ly.Post("/loyalty/programs", loyalty.CreateProgram)
 							ly.Put("/loyalty/programs/{programID}", loyalty.UpdateProgram)
-							ly.Get("/loyalty/accounts", loyalty.ListAccounts)
-							ly.Post("/loyalty/accounts", loyalty.CreateAccount)
-							ly.Get("/loyalty/accounts/{accountID}", loyalty.GetAccount)
 							ly.Post("/loyalty/accounts/{accountID}/earn", loyalty.Earn)
 							ly.Post("/loyalty/accounts/{accountID}/redeem", loyalty.Redeem)
 							ly.Post("/loyalty/accounts/{accountID}/redeem-to-order", loyalty.RedeemToOrder)
