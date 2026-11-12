@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/Bengo-Hub/httpware/money"
@@ -21,6 +22,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/orderlink"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 	"github.com/bengobox/pos-service/internal/platform/logistics"
 	"github.com/bengobox/pos-service/internal/platform/ordering"
 )
@@ -186,7 +188,7 @@ func (h *OnlineOrderHandler) AssignRider(w http.ResponseWriter, r *http.Request)
 		taskID, _ = uuid.Parse(s)
 	}
 	if taskID == uuid.Nil {
-		task, cErr := h.rider.logistics.CreateDeliveryTask(r.Context(), tid, buildDeliveryTaskRequest(order, h.outletName(r.Context(), order.OutletID)))
+		task, cErr := h.rider.logistics.CreateDeliveryTask(r.Context(), tid, buildDeliveryTaskRequest(order, h.outletName(r.Context(), order.OutletID), h.deliveryCustomerAccount(r.Context(), tid, order)))
 		if logistics.IsNoActiveFleet(cErr) {
 			jsonError(w, "No riders are set up in Logistics for this business yet. Add a rider there first.", http.StatusConflict)
 			return
@@ -271,7 +273,7 @@ func (h *OnlineOrderHandler) DispatchShipment(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	task, cErr := h.rider.logistics.CreateDeliveryTask(r.Context(), tid, buildDeliveryTaskRequest(order, h.outletName(r.Context(), order.OutletID)))
+	task, cErr := h.rider.logistics.CreateDeliveryTask(r.Context(), tid, buildDeliveryTaskRequest(order, h.outletName(r.Context(), order.OutletID), h.deliveryCustomerAccount(r.Context(), tid, order)))
 	if logistics.IsNoActiveFleet(cErr) {
 		jsonError(w, "This business does not dispatch through Logistics yet (no riders, or Logistics is not in the plan). Deliver this order yourself or add riders in Logistics.", http.StatusConflict)
 		return
@@ -306,7 +308,13 @@ func (h *OnlineOrderHandler) DispatchShipment(w http.ResponseWriter, r *http.Req
 // buildDeliveryTaskRequest maps a POS delivery order onto a logistics delivery task. Customer
 // name/phone come from the order; the dropoff address + coords + notes come from order metadata
 // (delivery_address / delivery_lat / delivery_lng / delivery_notes), captured at order time.
-func buildDeliveryTaskRequest(order *ent.POSOrder, pickupName string) logistics.CreateTaskRequest {
+//
+// The customer is named for logistics-api's delivery emails following pos-api's ids-only rule:
+// a customer whose loyalty account (acc, found by the order's phone) is linked to the CRM goes
+// as crm_contact_id alone, with no email; an unlinked customer goes with an email, the one the
+// order captured (metadata customer_email, set for online orders) else the account's. The name
+// and phone are sent either way: the rider needs them at the door.
+func buildDeliveryTaskRequest(order *ent.POSOrder, pickupName string, acc *ent.LoyaltyAccount) logistics.CreateTaskRequest {
 	meta := order.Metadata
 	str := func(k string) string {
 		if meta == nil {
@@ -355,6 +363,15 @@ func buildDeliveryTaskRequest(order *ent.POSOrder, pickupName string) logistics.
 	if due := order.TotalAmount - order.PaidTotal; due > 0.005 {
 		taskMeta["cash_on_delivery"] = money.Round2(due)
 	}
+	crmContactID, customerEmail := "", ""
+	if acc != nil && acc.CrmContactID != nil && *acc.CrmContactID != uuid.Nil {
+		crmContactID = acc.CrmContactID.String()
+	} else {
+		customerEmail = strings.TrimSpace(str("customer_email"))
+		if customerEmail == "" && acc != nil {
+			customerEmail = strings.TrimSpace(acc.CustomerEmail)
+		}
+	}
 	return logistics.CreateTaskRequest{
 		ExternalReference: order.ID.String(),
 		SourceService:     "pos",
@@ -368,9 +385,27 @@ func buildDeliveryTaskRequest(order *ent.POSOrder, pickupName string) logistics.
 		DropoffContact:    contact,
 		CustomerName:      deref(order.CustomerName),
 		CustomerPhone:     deref(order.CustomerPhone),
+		CRMContactID:      crmContactID,
+		CustomerEmail:     customerEmail,
 		Instructions:      instructions,
 		Metadata:          taskMeta,
 	}
+}
+
+// deliveryCustomerAccount is the loyalty account holding the order's phone in the tenant (nil
+// when the order has no phone, no account holds it, or the lookup fails: the task then goes
+// with the order's own details). It is how buildDeliveryTaskRequest learns the customer's CRM
+// link and saved email.
+func (h *OnlineOrderHandler) deliveryCustomerAccount(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder) *ent.LoyaltyAccount {
+	if order == nil || order.CustomerPhone == nil || strings.TrimSpace(*order.CustomerPhone) == "" {
+		return nil
+	}
+	acc, err := customers.FindAccountIn(ctx, h.db, tenantID, *order.CustomerPhone)
+	if err != nil {
+		h.log.Warn("delivery task: customer account lookup failed", zap.Error(err), zap.String("order_id", order.ID.String()))
+		return nil
+	}
+	return acc
 }
 
 // outletName is the outlet's display name, used as the rider's pickup point.

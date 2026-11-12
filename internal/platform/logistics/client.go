@@ -37,22 +37,27 @@ func (c *Client) Enabled() bool { return c != nil && c.baseURL != "" && c.apiKey
 
 // CreateTaskRequest mirrors logistics-api tasks.CreateTaskRequest (the fields pos-api populates).
 type CreateTaskRequest struct {
-	ExternalReference string         `json:"external_reference"`
-	SourceService     string         `json:"source_service"`
-	TaskType          string         `json:"task_type"`
-	Priority          int            `json:"priority,omitempty"`
-	PickupAddress     string         `json:"pickup_address,omitempty"`
-	PickupLat         float64        `json:"pickup_lat,omitempty"`
-	PickupLng         float64        `json:"pickup_lng,omitempty"`
-	PickupContact     string         `json:"pickup_contact,omitempty"`
-	DropoffAddress    string         `json:"dropoff_address,omitempty"`
-	DropoffLat        float64        `json:"dropoff_lat,omitempty"`
-	DropoffLng        float64        `json:"dropoff_lng,omitempty"`
-	DropoffContact    string         `json:"dropoff_contact,omitempty"`
-	CustomerName      string         `json:"customer_name,omitempty"`
-	CustomerPhone     string         `json:"customer_phone,omitempty"`
-	Instructions      string         `json:"instructions,omitempty"`
-	Metadata          map[string]any `json:"metadata,omitempty"`
+	ExternalReference string  `json:"external_reference"`
+	SourceService     string  `json:"source_service"`
+	TaskType          string  `json:"task_type"`
+	Priority          int     `json:"priority,omitempty"`
+	PickupAddress     string  `json:"pickup_address,omitempty"`
+	PickupLat         float64 `json:"pickup_lat,omitempty"`
+	PickupLng         float64 `json:"pickup_lng,omitempty"`
+	PickupContact     string  `json:"pickup_contact,omitempty"`
+	DropoffAddress    string  `json:"dropoff_address,omitempty"`
+	DropoffLat        float64 `json:"dropoff_lat,omitempty"`
+	DropoffLng        float64 `json:"dropoff_lng,omitempty"`
+	DropoffContact    string  `json:"dropoff_contact,omitempty"`
+	CustomerName      string  `json:"customer_name,omitempty"`
+	CustomerPhone     string  `json:"customer_phone,omitempty"`
+	// CRMContactID names a CRM-linked customer (ids only: logistics and notifications-api read
+	// the contact details from the CRM); CustomerEmail is sent only for an unlinked customer.
+	// logistics-api uses them for the customer's delivery emails.
+	CRMContactID  string         `json:"crm_contact_id,omitempty"`
+	CustomerEmail string         `json:"customer_email,omitempty"`
+	Instructions  string         `json:"instructions,omitempty"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
 }
 
 // TaskResponse is the subset of the created task pos-api needs (the task id + tracking code).
