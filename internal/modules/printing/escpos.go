@@ -107,6 +107,11 @@ type ReceiptData struct {
 	// Computed once by ReceiptView.FiscalBarcodeValue so ESC/POS never diverges from the
 	// server HTML/PDF/client barcode. Empty = no barcode.
 	BarcodeValue string
+	// IsCopy prints the CopyBanner at the top and bottom of a customer receipt and switches the
+	// KRA receipt label to CS or CC (ReceiptView.IsCopy).
+	IsCopy bool
+	// IsReturn marks a refund document, whose KRA receipt label is NC (or CC for a copy).
+	IsReturn bool
 }
 
 // localTime converts a stored timestamp into the ticket's outlet timezone (default
@@ -139,6 +144,15 @@ func BuildReceipt(d ReceiptData) []byte {
 	write := func(b []byte) { buf.Write(b) }
 	writeln := func(s string) { buf.WriteString(s); buf.Write(escLF) }
 	separator := func() { writeln(strings.Repeat("-", 32)) }
+	isCopy := d.Type == "customer" && d.IsCopy
+	// copyBanner prints the KRA COPY marking in double height, centred, so a reprint can never
+	// pass for the original.
+	copyBanner := func() {
+		write(escCenter)
+		write(escDoubleH)
+		writeln(CopyBanner)
+		write(escSizeReset)
+	}
 
 	write(escInit)
 	// Whole-ticket legibility baseline: Font A (never the condensed Font B some printers
@@ -147,6 +161,9 @@ func BuildReceipt(d ReceiptData) []byte {
 	// body never drops back to unemphasised text; bigger sections stack on top of this.
 	write(escFontA)
 	write(escBold)
+	if isCopy {
+		copyBanner()
+	}
 	write(escCenter)
 	// Shop name in double-height+bold — the biggest, crispest thing on the receipt so it stays
 	// legible on low-DPI thermal heads (addresses the "blurry receipt" complaint).
@@ -389,6 +406,7 @@ func BuildReceipt(d ReceiptData) []byte {
 		write(escBold)
 		writeln("KRA TIMS Details")
 		write(escLeft)
+		writeln(formatLine("Receipt Type", KRAReceiptLabel(isCopy, d.IsReturn)))
 		if d.EtimsScuID != "" {
 			writeln("SCU ID: " + d.EtimsScuID)
 		}
@@ -440,6 +458,11 @@ func BuildReceipt(d ReceiptData) []byte {
 			writeln(pf.Contact)
 			write(escLeft)
 		}
+	}
+	if isCopy {
+		separator()
+		copyBanner()
+		write(escLeft)
 	}
 
 	buf.Write(escLF)

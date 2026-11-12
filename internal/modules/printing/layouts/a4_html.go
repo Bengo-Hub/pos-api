@@ -51,8 +51,17 @@ td.r,th.r{text-align:right}
 .barcode .num{font-size:13px;letter-spacing:2px;margin-top:1px}
 .ftr{font-size:14px;margin:12px 0 4px;white-space:pre-wrap}
 .prov{font-size:10px;text-align:center;color:#000;margin-top:10px;line-height:1.4}
+.copy{font-size:18px;font-weight:700;text-align:center;letter-spacing:3px;border:2px solid #000;padding:3px 0;margin-bottom:6px}
+.copy-wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:190px;font-weight:700;letter-spacing:16px;color:rgba(0,0,0,.13);white-space:nowrap;pointer-events:none;z-index:0}
 @media print{body{max-width:100%}}
 </style></head><body>`)
+
+	// A reprint carries a large diagonal COPY watermark (position:fixed repeats it on every
+	// printed page) plus a COPY banner above the header (KRA copy marking).
+	if rec.IsCopy {
+		buf.WriteString(fmt.Sprintf(`<div class="copy-wm">%s</div>`, escape(printing.CopyWatermark)))
+		buf.WriteString(fmt.Sprintf(`<div class="copy">%s</div>`, escape(printing.CopyBanner)))
+	}
 
 	// ── Boxed business header ──
 	buf.WriteString(`<div class="box">`)
@@ -186,6 +195,7 @@ td.r,th.r{text-align:right}
 	if rec.EtimsCuInvNo != "" || rec.EtimsInvoiceNumber != "" || rec.EtimsQRPNG != "" {
 		buf.WriteString(`<div style="text-align:center;margin-top:10px">`)
 		buf.WriteString(`<div style="font-weight:bold;font-size:14px">KRA TIMS Details</div>`)
+		buf.WriteString(fmt.Sprintf(`<div class="sub"><b>Receipt Type:</b> %s</div>`, kraReceiptLabel(rec)))
 		if rec.EtimsScuID != "" {
 			buf.WriteString(fmt.Sprintf(`<div class="sub"><b>SCU ID:</b> %s</div>`, escape(rec.EtimsScuID)))
 		}

@@ -22,6 +22,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 	entuser "github.com/bengobox/pos-service/internal/ent/user"
+	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/modules/printing/layouts"
@@ -84,6 +85,12 @@ func (h *ReceiptHandler) SetCrmContactResolver(fn func(ctx context.Context, tena
 // ReprintReceipt handles POST /{tenantID}/pos/orders/{orderID}/receipt/reprint.
 // Increments the order's reprint counter and records a receipt.reprint audit
 // entry (duplicate receipts are a cash-skimming vector). Returns the new count.
+//
+// pos-ui calls it before a "Print copy" to log the copy; the receipt endpoints mark a receipt
+// COPY only when asked with ?copy=1, never from this count.
+// A bill printed before payment is not a fiscal receipt: an order that is not settled yet is
+// neither counted nor reported as a duplicate, otherwise the sale's first real receipt would
+// already print as a COPY.
 func (h *ReceiptHandler) ReprintReceipt(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -100,6 +107,10 @@ func (h *ReceiptHandler) ReprintReceipt(w http.ResponseWriter, r *http.Request) 
 		Only(r.Context())
 	if err != nil {
 		jsonError(w, "order not found", http.StatusNotFound)
+		return
+	}
+	if !receiptIsFiscal(order) {
+		jsonOK(w, map[string]any{"reprint_count": order.ReprintCount, "is_duplicate": false})
 		return
 	}
 	updated, err := order.Update().AddReprintCount(1).Save(r.Context())
@@ -124,6 +135,23 @@ func (h *ReceiptHandler) ReprintReceipt(w http.ResponseWriter, r *http.Request) 
 		})
 	}
 	jsonOK(w, map[string]any{"reprint_count": updated.ReprintCount, "is_duplicate": updated.ReprintCount > 0})
+}
+
+// receiptIsFiscal reports whether the order's customer receipt is a settled sale document (the
+// one KRA copy marking applies to), as opposed to a bill printed while the order is still open.
+func receiptIsFiscal(order *ent.POSOrder) bool {
+	return order.Status == orders.StatusCompleted || order.Status == orders.StatusRefunded
+}
+
+// copyRequested reports whether the request asks for a COPY receipt (?copy=1 or ?copy=true), the
+// "Print copy" action and the only way to a receipt marked COPY. pos-ui sends it after
+// POST .../receipt/reprint has logged the copy.
+func copyRequested(r *http.Request) bool {
+	switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get("copy"))) {
+	case "1", "true", "yes":
+		return true
+	}
+	return false
 }
 
 // branding fetches tenant branding (logo/name/primary-color) from the shared cache, mirroring the
@@ -313,6 +341,7 @@ func newReceiptResponse(v printing.ReceiptView, layout string) receiptResponse {
 		ShowProviderFooter:          v.ShowProviderFooter,
 		IsReturn:                    v.IsReturn,
 		OriginalOrderNumber:         v.OriginalOrderNumber,
+		IsCopy:                      v.IsCopy,
 	}
 }
 
@@ -478,6 +507,9 @@ func (h *ReceiptHandler) buildReceiptForOrder(ctx context.Context, tid uuid.UUID
 		SplitLineIDs:   splitLineSet,
 		SplitLabel:     splitLabel,
 		TenantName:     brand.CompanyName,
+		// ?copy=1 ("Print copy") is the only way to the COPY marking; every other print is the
+		// original. A bill printed before payment is never a copy.
+		Copy: copyRequested(r) && receiptIsFiscal(order),
 	})
 	var settingMeta map[string]any
 	if setting != nil {
@@ -554,6 +586,7 @@ func writeReceiptResponse(w http.ResponseWriter, log *zap.Logger, receipt receip
 // GetReceipt handles GET /{tenantID}/pos/orders/{orderID}/receipt
 // Query param ?format=pdf|html renders the receipt with the outlet's resolved layout
 // (printing/layouts registry); default returns the JSON receipt data (incl. `layout`).
+// ?copy=1 marks the receipt COPY (also implied once the order has a counted reprint).
 func (h *ReceiptHandler) GetReceipt(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {

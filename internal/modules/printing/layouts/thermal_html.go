@@ -79,8 +79,15 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 .gtable td.c,.gtable th.c{text-align:center}
 .gtable td.r,.gtable th.r{text-align:right}
 .gserved{display:flex;justify-content:space-between;border-bottom:1.5px solid #000;padding:2px 1px;font-size:10px;margin-bottom:3px}
+.copy{font-size:17px;font-weight:bold;text-align:center;letter-spacing:2px;border:2px solid #000;padding:2px 0;margin:3px 0}
 @media print{body{width:100%%}}
 </style></head><body>`, pageWidth, family, weight, bodyWidth))
+	// A reprint is marked COPY at the top and the bottom (KRA copy marking).
+	copyBanner := ""
+	if rec.IsCopy {
+		copyBanner = fmt.Sprintf(`<p class="copy">%s</p>`, escape(printing.CopyBanner))
+	}
+	buf.WriteString(copyBanner)
 	// Logo prints only when the Receipt & Printing "show logo" setting allows it.
 	if logoURL != "" && rec.ShowLogo {
 		buf.WriteString(fmt.Sprintf(`<img class="logo" src="%s" alt="logo">`, escape(logoURL)))
@@ -279,6 +286,7 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 	if rec.EtimsInvoiceNumber != "" || rec.EtimsQRPNG != "" || rec.EtimsCuInvNo != "" {
 		buf.WriteString(`<div class="divider"></div>`)
 		buf.WriteString(`<p class="bold" style="font-size:10px;text-align:center">KRA TIMS Details</p>`)
+		buf.WriteString(fmt.Sprintf(`<div class="line"><span>Receipt Type:</span><span>%s</span></div>`, kraReceiptLabel(rec)))
 		if rec.EtimsScuID != "" {
 			buf.WriteString(fmt.Sprintf(`<div class="line"><span>SCU ID:</span><span>%s</span></div>`, escape(rec.EtimsScuID)))
 		}
@@ -321,6 +329,7 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 		buf.WriteString(fmt.Sprintf(`<p class="prov">%s</p>`, escape(contact)))
 		buf.WriteString(`<div class="divider"></div>`)
 	}
+	buf.WriteString(copyBanner)
 	buf.WriteString(`</body></html>`)
 	return buf.Bytes()
 }

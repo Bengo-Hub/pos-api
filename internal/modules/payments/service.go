@@ -1576,6 +1576,7 @@ func (s *Service) signEtimsSync(ctx context.Context, order *ent.POSOrder) {
 	if err != nil || len(lines) == 0 {
 		return
 	}
+	itemTypes := orders.CatalogItemTypesForLines(ctx, s.client, order.TenantID, lines)
 	items := make([]treasury.SignPOSSaleItem, 0, len(lines))
 	for _, l := range lines {
 		// Void-aware: post only the surviving (non-voided) quantity — mirrors publishSaleFinalized so
@@ -1593,6 +1594,7 @@ func (s *Service) signEtimsSync(ctx context.Context, order *ent.POSOrder) {
 		}
 		it := treasury.SignPOSSaleItem{
 			SKU:              l.Sku,
+			ItemType:         itemTypes[l.Sku],
 			Name:             l.Name,
 			Quantity:         effQty,
 			UnitPrice:        l.UnitPrice,
@@ -1751,6 +1753,9 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 	prescriptionID, _ := order.Metadata["prescription_id"].(string)
 	skipInventory := prescriptionID != ""
 
+	// The item type tells treasury what a first sale registers at KRA (goods vs service).
+	itemTypes := orders.CatalogItemTypesForLines(ctx, s.client, order.TenantID, lines)
+
 	items := make([]map[string]any, 0, len(lines))
 	costTotal := 0.0
 	for _, l := range lines {
@@ -1808,6 +1813,9 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 			// COGS support (additive): per-unit cost and line cost (cost x qty). 0 when unknown.
 			"cost_amount": costAmount,
 			"line_cost":   lineCost,
+		}
+		if itemType := itemTypes[l.Sku]; itemType != "" {
+			item["item_type"] = itemType
 		}
 		if skipInventory {
 			item["skip_inventory"] = true

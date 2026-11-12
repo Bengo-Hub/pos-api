@@ -408,6 +408,11 @@ func (h *InventoryEventHandler) syncCatalogItem(ctx context.Context, evt *shared
 	if costPrice != nil {
 		md["cost_price"] = *costPrice
 	}
+	// Cache the item type so the sale payloads can tell treasury what a first sale registers at
+	// KRA (orders.CatalogItemTypesForLines).
+	if itemType != "" {
+		md["item_type"] = itemType
+	}
 	if unitName != "" {
 		md["uom"] = unitName
 	}

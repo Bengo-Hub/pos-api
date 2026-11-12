@@ -23,7 +23,17 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 	pdf.SetCompression(true)
 	pdf.SetMargins(margin, margin, margin)
 	pdf.SetAutoPageBreak(true, 12)
+	// A reprint carries a large diagonal COPY watermark on every page (the header func runs on
+	// each AddPage, so a receipt that breaks onto a second sheet is marked too).
+	if rec.IsCopy {
+		pdf.SetHeaderFuncMode(func() { drawCopyWatermark(pdf) }, true)
+	}
 	pdf.AddPage()
+	if rec.IsCopy {
+		pdf.SetFont("Helvetica", "B", 14)
+		pdf.CellFormat(contentW, 8, printing.CopyBanner, "1", 1, "C", false, 0, "")
+		pdf.Ln(2)
+	}
 
 	// ── Boxed business header ──
 	headTop := pdf.GetY()
@@ -194,6 +204,7 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 		pdf.SetFont("Helvetica", "B", 12)
 		pdf.CellFormat(contentW, 6, "KRA TIMS Details", "", 1, "C", false, 0, "")
 		pdf.SetFont("Helvetica", "", 10)
+		pdf.CellFormat(contentW, 5, "Receipt Type: "+kraReceiptLabel(rec), "", 1, "C", false, 0, "")
 		if rec.EtimsScuID != "" {
 			pdf.CellFormat(contentW, 5, "SCU ID: "+rec.EtimsScuID, "", 1, "C", false, 0, "")
 		}
@@ -266,4 +277,20 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 		return nil, fmt.Errorf("render a4 receipt pdf: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+// drawCopyWatermark draws the large light-grey diagonal COPY mark across the middle of the
+// current page. It runs as the page header, before any content, so the receipt prints over it.
+func drawCopyWatermark(pdf *fpdf.Fpdf) {
+	pageW, pageH := pdf.GetPageSize()
+	cx, cy := pageW/2, pageH/2
+	pdf.SetFont("Helvetica", "B", 120)
+	pdf.SetTextColor(215, 215, 215)
+	w := pdf.GetStringWidth(printing.CopyWatermark)
+	pdf.TransformBegin()
+	pdf.TransformRotate(40, cx, cy)
+	// Baseline sits about a third of the glyph height below the centre so the word is centred.
+	pdf.Text(cx-w/2, cy+14, printing.CopyWatermark)
+	pdf.TransformEnd()
+	pdf.SetTextColor(0, 0, 0)
 }

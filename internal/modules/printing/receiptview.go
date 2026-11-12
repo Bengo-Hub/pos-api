@@ -238,6 +238,31 @@ type ReceiptView struct {
 	IsReturn bool
 	// OriginalOrderNumber is the sale this return reverses (only meaningful when IsReturn).
 	OriginalOrderNumber string
+	// IsCopy marks a copy printed with the "Print copy" action. KRA requires a copy given to a
+	// customer to be marked COPY: every renderer prints the CopyBanner (A4 adds a watermark) and the
+	// KRA receipt label becomes CS or CC. The fiscal data (SCU number, signature, QR) stays the
+	// original's. Ordinary prints and reprints are always the original (owner decision 2026-11-12).
+	IsCopy bool
+}
+
+// CopyBanner is the line every thermal renderer prints at the top and bottom of a COPY receipt.
+const CopyBanner = "*** COPY ***"
+
+// CopyWatermark is the large diagonal mark the A4 renderers draw on a COPY receipt.
+const CopyWatermark = "COPY"
+
+// KRAReceiptLabel is the KRA receipt label printed in the fiscal block (OSCU spec 4.3): the
+// receipt type, N for a normal print or C for a copy, then the transaction type, S for a sale or
+// C for a credit note (a refund). So NS, NC, CS or CC.
+func KRAReceiptLabel(isCopy, isReturn bool) string {
+	receiptType, txType := "N", "S"
+	if isCopy {
+		receiptType = "C"
+	}
+	if isReturn {
+		txType = "C"
+	}
+	return receiptType + txType
 }
 
 // ReceiptViewOpts carries the bits BuildReceiptView cannot derive from the order/outlet/setting
@@ -282,6 +307,9 @@ type ReceiptViewOpts struct {
 	// ReceiptNumber, when set, overrides the default. Empty falls back to order.OrderNumber —
 	// the receipt and the order it's printed from always carry the same number.
 	ReceiptNumber string
+	// Copy prints a COPY customer receipt: the "Print copy" action (?copy=1) is the only way to get
+	// one. The reprint endpoint still counts and audits reprints, but no longer decides the marking.
+	Copy bool
 }
 
 // formatContactPhones renders the outlet's labeled phone list ([{label,value}, …] after a JSON
@@ -554,6 +582,9 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 		VoidReason:         opts.VoidReason,
 		ShowLogo:           true,
 		ShowProviderFooter: true,
+		// Only the customer receipt is a fiscal document; kitchen, waiter and void slips are
+		// never marked COPY.
+		IsCopy: typ == "customer" && opts.Copy,
 	}
 	if opts.ShowProviderFooter != nil {
 		v.ShowProviderFooter = *opts.ShowProviderFooter

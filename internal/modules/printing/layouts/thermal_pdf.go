@@ -66,6 +66,17 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 		pdf.Line(margin, y, pageW-margin, y)
 		pdf.SetY(y + 1.2)
 	}
+	// A reprint is marked COPY at the top and the bottom (KRA copy marking), boxed so it reads
+	// as a stamp rather than another receipt line.
+	copyBanner := func() {
+		if !rec.IsCopy {
+			return
+		}
+		pdf.SetFont(font, "B", 13)
+		pdf.CellFormat(contentW, 7, printing.CopyBanner, "1", 1, "C", false, 0, "")
+		pdf.Ln(1)
+	}
+	copyBanner()
 
 	// Header — tenant logo (centered, honours the "show logo" receipt setting) + company name
 	if logo, lt := FetchLogo(brand.LogoURL); logo != nil && rec.ShowLogo {
@@ -322,6 +333,7 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 	if rec.EtimsInvoiceNumber != "" || rec.EtimsCuInvNo != "" {
 		hr()
 		center("KRA TIMS Details", "B", 9)
+		line("Receipt Type", kraReceiptLabel(rec), "", 8)
 		if rec.EtimsScuID != "" {
 			line("SCU ID", rec.EtimsScuID, "", 8)
 		}
@@ -385,6 +397,10 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 		center(lead, "B", 8.2)
 		center(contact, "", 7.6)
 	}
+	if rec.IsCopy {
+		pdf.Ln(2)
+	}
+	copyBanner()
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {

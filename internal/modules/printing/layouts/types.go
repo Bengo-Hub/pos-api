@@ -12,6 +12,7 @@ import (
 	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/google/uuid"
 
+	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/modules/saletax"
 )
 
@@ -156,6 +157,16 @@ type Receipt struct {
 	IsReturn bool `json:"is_return,omitempty"`
 	// OriginalOrderNumber is the order number this return/refund is against (only set when IsReturn).
 	OriginalOrderNumber string `json:"original_order_number,omitempty"`
+	// IsCopy marks a reprint (printing.ReceiptView.IsCopy). Thermal layouts print the COPY banner
+	// at the top and bottom, A4 layouts draw a diagonal COPY watermark, and the KRA receipt label
+	// reads CS or CC. The fiscal fields above stay the original's.
+	IsCopy bool `json:"is_copy,omitempty"`
+}
+
+// kraReceiptLabel is the KRA receipt label (NS, NC, CS or CC) every layout prints in its
+// "KRA TIMS Details" block.
+func kraReceiptLabel(rec Receipt) string {
+	return printing.KRAReceiptLabel(rec.IsCopy, rec.IsReturn)
 }
 
 // totalLabel is the grand-total row label every layout prints: "TOTAL" on a sale,

@@ -23,6 +23,10 @@ type CatalogCacheEntry struct {
 	// payments.resolveLineCosts reads for the pos.sale.finalized event payload's uom_code, so an
 	// Edit-Sale increase's inventory-consumption call can carry it too instead of leaving it blank.
 	UOM string
+	// ItemType is the inventory catalog type (metadata["item_type"], GOODS, SERVICE, RECIPE,
+	// VOUCHER) cached by the catalog sync. The sale payloads send it to treasury so a first sale
+	// registers the item at KRA with the right item type.
+	ItemType string
 }
 
 // CatalogCacheBySKU resolves the inventory-synced POSCatalogOverride cache — cost_price,
@@ -77,10 +81,35 @@ func CatalogCacheBySKU(ctx context.Context, client *ent.Client, tenantID uuid.UU
 			if v, ok := ov.Metadata["uom"].(string); ok {
 				e.UOM = v
 			}
+			if v, ok := ov.Metadata["item_type"].(string); ok {
+				e.ItemType = v
+			}
 		}
 		out[ov.InventorySku] = e
 	}
 	return out
+}
+
+// CatalogItemTypesForLines resolves the cached inventory item type of each distinct SKU on a
+// sale's lines in one query (CatalogCacheBySKU), keyed by SKU. SKUs with no cached type are
+// absent, so callers send a blank type and treasury keeps its service fallback.
+func CatalogItemTypesForLines(ctx context.Context, client *ent.Client, tenantID uuid.UUID, lines []*ent.POSOrderLine) map[string]string {
+	skus := make([]string, 0, len(lines))
+	seen := make(map[string]bool, len(lines))
+	for _, l := range lines {
+		if l == nil || l.Sku == "" || seen[l.Sku] {
+			continue
+		}
+		seen[l.Sku] = true
+		skus = append(skus, l.Sku)
+	}
+	types := make(map[string]string, len(skus))
+	for sku, e := range CatalogCacheBySKU(ctx, client, tenantID, skus) {
+		if e.ItemType != "" {
+			types[sku] = e.ItemType
+		}
+	}
+	return types
 }
 
 // CatalogCostBySKU is the cost-only projection of CatalogCacheBySKU — kept as its own function

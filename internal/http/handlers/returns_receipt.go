@@ -29,6 +29,7 @@ import (
 // GetReturnReceipt handles GET /{tenantID}/pos/returns/{returnID}/receipt
 // Query param ?format=pdf|html renders the refund receipt with the outlet's resolved layout;
 // default returns the JSON receipt payload (identical shape to the sale receipt endpoint).
+// ?copy=1 marks the refund receipt COPY.
 func (h *ReturnHandler) GetReturnReceipt(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -91,6 +92,8 @@ func (h *ReturnHandler) GetReturnReceipt(w http.ResponseWriter, r *http.Request)
 		BillTo:              billTo,
 		ServedBy:            r.URL.Query().Get("served_by"),
 		ShowProviderFooter:  &show,
+		// ?copy=1 is the "Customer copy" of a refund receipt: COPY banner and KRA label CC.
+		Copy: copyRequested(r),
 	})
 	// Contact-line fallbacks + the opt-in email gate — identical to buildReceiptForOrder.
 	if view.OutletPhones == "" {

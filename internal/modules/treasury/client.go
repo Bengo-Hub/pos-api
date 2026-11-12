@@ -82,7 +82,12 @@ func (c *Client) GetEtimsFiscal(ctx context.Context, tenantSlug, orderID string)
 
 // SignPOSSaleItem mirrors one line of the pos.sale.finalized payload for synchronous signing.
 type SignPOSSaleItem struct {
-	SKU              string  `json:"sku"`
+	SKU string `json:"sku"`
+	// ItemType is the inventory catalog type (GOODS, SERVICE, RECIPE, VOUCHER, INGREDIENT,
+	// EQUIPMENT). Treasury uses it when a first sale registers the item at KRA, so a GOODS item
+	// registers as a stock item (itemTyCd 2) rather than a service. Blank when the POS catalog
+	// projection has not cached the type yet; treasury then falls back to a service.
+	ItemType         string  `json:"item_type,omitempty"`
 	Name             string  `json:"name"`
 	Quantity         float64 `json:"quantity"`
 	UnitPrice        float64 `json:"unit_price"`

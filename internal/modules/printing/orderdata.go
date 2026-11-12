@@ -267,5 +267,7 @@ func receiptDataFromView(v ReceiptView, loc *time.Location) ReceiptData {
 		ShowProviderFooter:          v.ShowProviderFooter,
 		UseCase:                     v.UseCase,
 		BarcodeValue:                v.FiscalBarcodeValue(),
+		IsCopy:                      v.IsCopy,
+		IsReturn:                    v.IsReturn,
 	}
 }

@@ -23,6 +23,9 @@ type ReturnReceiptOpts struct {
 	ServedBy string
 	// ShowProviderFooter overrides the platform-owner advertisement default (nil = show).
 	ShowProviderFooter *bool
+	// Copy marks a copy of the refund receipt (the "Print copy" action, ?copy=1): the layouts
+	// print the COPY banner and the KRA label CC instead of NC.
+	Copy bool
 }
 
 // BuildReturnReceiptView assembles the canonical receipt snapshot for a REFUND/return document —
@@ -85,6 +88,7 @@ func BuildReturnReceiptView(ret *ent.POSReturn, lines []*ent.POSReturnLine, opts
 		ShowProviderFooter:  true,
 		IsReturn:            true,
 		OriginalOrderNumber: opts.OriginalOrderNumber,
+		IsCopy:              opts.Copy,
 	}
 	if v.BillTo == "" {
 		v.BillTo = "Walk-in customer"
