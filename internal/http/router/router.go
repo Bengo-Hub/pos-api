@@ -1099,12 +1099,12 @@ func New(
 					}
 
 					// Customer accounts: the till's customer search, "Add customer" and the account view
-					// run on these routes. Finding and adding a customer is core selling on every plan,
-					// so only the use case gates them, never the loyalty_program plan feature
-					// (2026-11-12: PowerSuite Basic tenants could not add a customer at all).
+					// run on these routes. Finding and adding a customer is core selling on every plan
+					// and every outlet type (restaurants and hotels attach customers to sales and credit
+					// sales too), so neither the loyalty_program plan feature nor the use case gates them
+					// (2026-11-12: PowerSuite Basic tenants, then hospitality outlets, could not add one).
 					if loyalty != nil {
 						pos.Group(func(ca chi.Router) {
-							ca.Use(outletmw.RequireUseCase("retail", "services"))
 							ca.Get("/loyalty/accounts", loyalty.ListAccounts)
 							ca.Post("/loyalty/accounts", loyalty.CreateAccount)
 							ca.Get("/loyalty/accounts/{accountID}", loyalty.GetAccount)

@@ -516,6 +516,34 @@ func (h *StaffHandler) syncAuthMemberRoles(ctx context.Context, tenantID, userID
 	return nil
 }
 
+// staffSeatsFree checks the plan's staff head-count (max_staff) and, for a cashier, the cashier
+// seat cap (max_cashiers) before one more ACTIVE staff member is added. Deactivated staff free
+// their seat: removing a cashier is a deactivation, so counting them refused a tenant replacing
+// one of its cashiers (2026-11-12). It writes the refusal and returns false when a cap is reached.
+func (h *StaffHandler) staffSeatsFree(w http.ResponseWriter, r *http.Request, tid uuid.UUID, role string) bool {
+	if count, cerr := h.client.StaffMember.Query().
+		Where(entstaff.TenantID(tid), entstaff.IsActive(true)).
+		Count(r.Context()); cerr == nil {
+		if !subscriptions.CheckStructuralLimit(w, r, "staff", subscriptions.LimitStaff, count) {
+			return false
+		}
+	}
+	if role == "cashier" {
+		return h.cashierSeatFree(w, r, tid)
+	}
+	return true
+}
+
+// cashierSeatFree checks max_cashiers against the active cashiers.
+func (h *StaffHandler) cashierSeatFree(w http.ResponseWriter, r *http.Request, tid uuid.UUID) bool {
+	if count, cerr := h.client.StaffMember.Query().
+		Where(entstaff.TenantID(tid), entstaff.Role("cashier"), entstaff.IsActive(true)).
+		Count(r.Context()); cerr == nil {
+		return subscriptions.CheckStructuralLimit(w, r, "cashiers", subscriptions.LimitCashiers, count)
+	}
+	return true
+}
+
 func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -545,19 +573,8 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 
 	// Enforce the plan's structural staff caps (hard-block, no overage): total head-count
 	// (max_staff) and, for cashier accounts, the cashier seat cap (max_cashiers).
-	if count, cerr := h.client.StaffMember.Query().Where(entstaff.TenantID(tid)).Count(r.Context()); cerr == nil {
-		if !subscriptions.CheckStructuralLimit(w, r, "staff", subscriptions.LimitStaff, count) {
-			return
-		}
-	}
-	if input.Role == "cashier" {
-		if count, cerr := h.client.StaffMember.Query().
-			Where(entstaff.TenantID(tid), entstaff.Role("cashier")).
-			Count(r.Context()); cerr == nil {
-			if !subscriptions.CheckStructuralLimit(w, r, "cashiers", subscriptions.LimitCashiers, count) {
-				return
-			}
-		}
+	if !h.staffSeatsFree(w, r, tid, input.Role) {
+		return
 	}
 
 	outletID, err := uuid.Parse(input.OutletID)
@@ -796,6 +813,21 @@ func (h *StaffHandler) UpdateStaff(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "only an admin can assign an admin or manager role", http.StatusForbidden)
 			return
 		}
+	}
+
+	// Seats count active staff only, so bringing someone back (reactivating, or making an active
+	// member a cashier) takes a seat and is checked against the plan the same way as a new hire.
+	newRole := member.Role
+	if input.Role != nil {
+		newRole = *input.Role
+	}
+	reactivating := input.IsActive != nil && *input.IsActive && !member.IsActive
+	becomingCashier := member.IsActive && newRole == "cashier" && member.Role != "cashier"
+	if reactivating && !h.staffSeatsFree(w, r, tid, newRole) {
+		return
+	}
+	if becomingCashier && !(input.IsActive != nil && !*input.IsActive) && !h.cashierSeatFree(w, r, tid) {
+		return
 	}
 
 	upd := h.client.StaffMember.UpdateOne(member)

@@ -1315,9 +1315,10 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		input.Metadata = meta
 	}
 
-	// Metered order limit (max_orders_per_month): a new sale is refused once the tenant is at
-	// its limit. Nothing is counted here; subscriptions-api counts the order when the sale
-	// completes (pos.sale.finalized), so drafts and open orders never use up the allowance.
+	// Metered sales limit (max_transactions_per_month): a new sale is refused once the tenant is
+	// at its limit. Nothing is counted here; subscriptions-api counts the sale when it completes
+	// (pos.sale.finalized), so drafts and open orders never use up the allowance. The orders
+	// limit (max_orders_per_month) meters online ordering only, never till sales (2026-11-12).
 	if h.orderLimitReached(w, r, tid, input) {
 		return
 	}
@@ -1400,7 +1401,7 @@ func (h *POSOrderHandler) orderLimitReached(w http.ResponseWriter, r *http.Reque
 			return false // replayed sync: CreateOrder returns the existing order
 		}
 	}
-	dec := h.subsClient.CheckUsage(r.Context(), tid.String(), subscriptions.MetricOrders, 1)
+	dec := h.subsClient.CheckUsage(r.Context(), tid.String(), subscriptions.MetricTransactions, 1)
 	if dec.Allowed {
 		return false
 	}
