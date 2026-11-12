@@ -13,6 +13,35 @@ import (
 // (shifts.Summarize) subtracts it from the completing user's expected cash.
 const MetaCashPaidOut = "cash_paid_out"
 
+// Room-charged returns (payments.RefundChannelRoomFolio): MetaFolioCredit is what was credited
+// to the open stay's folio; MetaFolioRestAmount and MetaFolioRestChannel are the part beyond
+// what the folio still owed and the channel it was refunded through.
+// MetaFolioRestPending marks a rest not yet sent to treasury (the main refund failed, or the
+// rest call did); MetaFolioRestTax and MetaFolioRestCost keep its share for the retry.
+const (
+	MetaFolioCredit      = "folio_credit"
+	MetaFolioRestAmount  = "folio_rest_amount"
+	MetaFolioRestChannel = "folio_rest_channel"
+	MetaFolioRestTax     = "folio_rest_tax"
+	MetaFolioRestCost    = "folio_rest_cost"
+	MetaFolioRestPending = "folio_rest_pending"
+	// MetaFolioRestAttempts counts failed retries; after maxFolioRestAttempts the rest is marked
+	// MetaFolioRestFailed and left for staff to settle by hand.
+	MetaFolioRestAttempts = "folio_rest_attempts"
+	MetaFolioRestFailed   = "folio_rest_failed"
+)
+
+// RestRefundReferenceType is the treasury reference type of the rest refund. Treasury raises a
+// credit-note document only for "pos_return" refunds, and the main refund's credit note already
+// carries every returned line, so the rest must not raise a second one.
+const RestRefundReferenceType = "pos_return_rest"
+
+// restRefundID is the rest refund's deterministic treasury reference id, so a retry is
+// idempotent in treasury.
+func restRefundID(returnID uuid.UUID) uuid.UUID {
+	return uuid.NewSHA1(returnID, []byte("folio-rest"))
+}
+
 // LineInput is one line of a return/exchange request.
 type LineInput struct {
 	OrderLineID uuid.UUID `json:"order_line_id"`
@@ -34,12 +63,15 @@ type LineInput struct {
 
 // CreateReturnRequest describes a new return/exchange to initiate against an order.
 type CreateReturnRequest struct {
-	OrderID       uuid.UUID
-	OutletID      uuid.UUID
-	ReturnType    string // refund | exchange | store_credit
-	Reason        string
-	ReasonCode    string // changed_mind | defective | damaged | wrong_item | expired | other
-	RefundChannel string // cash | mpesa | bank | cheque | store_credit | offset_invoice
+	OrderID    uuid.UUID
+	OutletID   uuid.UUID
+	ReturnType string // refund | exchange | store_credit
+	Reason     string
+	ReasonCode string // changed_mind | defective | damaged | wrong_item | expired | other
+	// RefundChannel: cash | mpesa | mtn_momo_manual | airtel_money_manual | other_manual |
+	// card_manual | bank | cheque | store_credit | offset_invoice. Empty refunds a refund return
+	// to the sale's original payment method.
+	RefundChannel string
 	Lines         []LineInput
 	RequestedBy   uuid.UUID
 	// ReturnDate optionally backdates the return's recorded date (e.g. paperwork processed a
@@ -105,7 +137,10 @@ func refundChannelPtr(s string) *posreturn.RefundChannel {
 	switch posreturn.RefundChannel(s) {
 	case posreturn.RefundChannelCash, posreturn.RefundChannelMpesa,
 		posreturn.RefundChannelBank, posreturn.RefundChannelCheque,
-		posreturn.RefundChannelStoreCredit, posreturn.RefundChannelOffsetInvoice:
+		posreturn.RefundChannelStoreCredit, posreturn.RefundChannelOffsetInvoice,
+		posreturn.RefundChannelMtnMomoManual, posreturn.RefundChannelAirtelMoneyManual,
+		posreturn.RefundChannelOtherManual, posreturn.RefundChannelCardManual,
+		posreturn.RefundChannelMpesaManual, posreturn.RefundChannelRoomFolio:
 		rc := posreturn.RefundChannel(s)
 		return &rc
 	}

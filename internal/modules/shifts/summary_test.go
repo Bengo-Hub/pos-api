@@ -221,3 +221,38 @@ func TestSummarize_ManualTendersAreNotDrawerCash(t *testing.T) {
 		t.Errorf("mobile money = %v, want 500 (MTN + Airtel codes)", sum.MobileMoney)
 	}
 }
+
+// A room-folio return is cash out of the drawer only for the cash it paid beyond the folio
+// credit; a return fully credited to the folio moves no drawer cash.
+func TestCashReturnsRoomFolioCountsOnlyTheCashRest(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:shiftstest_%s?mode=memory&cache=shared", uuid.NewString()))
+	t.Cleanup(func() { _ = client.Close() })
+	f := fixture{t: t, client: client, tid: uuid.New(), outlet: uuid.New()}
+	cashier := uuid.New()
+	now := time.Now()
+	in := now.Add(-30 * time.Minute)
+	o := f.order(cashier, 500, in, nil)
+
+	seed := func(meta map[string]any) {
+		md := map[string]any{"completed_by": cashier.String(), "completed_at": in.UTC().Format(time.RFC3339)}
+		for k, v := range meta {
+			md[k] = v
+		}
+		f.client.POSReturn.Create().
+			SetTenantID(f.tid).SetOutletID(f.outlet).SetOrderID(o.ID).
+			SetReturnNumber("RET-" + uuid.NewString()[:8]).SetReturnType(posreturn.ReturnTypeRefund).
+			SetStatus(posreturn.StatusCompleted).SetRefundAmount(250).SetRequestedBy(cashier).
+			SetRefundChannel(posreturn.RefundChannelRoomFolio).SetMetadata(md).SetUpdatedAt(in).
+			SaveX(context.Background())
+	}
+	seed(map[string]any{returns.MetaFolioCredit: 250.0})                                 // fully credited
+	seed(map[string]any{returns.MetaFolioCredit: 100.0, returns.MetaCashPaidOut: 150.0}) // 150 in cash
+
+	got, err := cashReturnsCompletedInShift(context.Background(), client, f.tid, cashier, now.Add(-time.Hour), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if math.Abs(got-150) > 0.001 {
+		t.Errorf("cash refunds = %v, want 150", got)
+	}
+}

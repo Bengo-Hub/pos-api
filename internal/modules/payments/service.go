@@ -590,30 +590,13 @@ func (s *Service) isMpesaManualCodeReused(ctx context.Context, tenantID uuid.UUI
 }
 
 // isManualCodeReused reports whether a manual tender code has already settled a completed
-// payment of the same method for this tenant. Queries the non-transactional client rather than
-// the enclosing tx: this is a fraud-deterrence check on a code a cashier retypes from an SMS, not
-// a financial-precision invariant like the outstanding-balance row lock, so the narrow read/insert
-// race window is an acceptable trade-off for keeping the check independently testable. The method
-// filter runs in Go because payment_data is JSON.
+// payment of the same network for this tenant, at the till or at the hotel desk: the till and the
+// desk share ManualCodeUsed, so one code cannot settle a sale and a room folio both. Queries the
+// non-transactional client rather than the enclosing tx: this is a fraud-deterrence check on a
+// code a cashier retypes from an SMS, not a financial-precision invariant like the
+// outstanding-balance row lock, so the narrow read/insert race window is an acceptable trade-off.
 func (s *Service) isManualCodeReused(ctx context.Context, tenantID uuid.UUID, method, code string) (bool, error) {
-	rows, err := s.client.POSPayment.Query().
-		Where(
-			pospayment.ExternalReferenceEqualFold(code),
-			pospayment.Status(StatusCompleted),
-			pospayment.HasOrderWith(posorder.TenantID(tenantID)),
-		).
-		Select(pospayment.FieldPaymentData).
-		All(ctx)
-	if err != nil {
-		return false, err
-	}
-	for _, p := range rows {
-		stored, _ := p.PaymentData["method"].(string)
-		if sameManualMethod(stored, method) {
-			return true, nil
-		}
-	}
-	return false, nil
+	return ManualCodeUsed(ctx, s.client, tenantID, method, code)
 }
 
 // recordCreditSale settles an order "on account" (credit sale). It posts the amount to the

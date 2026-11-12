@@ -14,6 +14,26 @@ import (
 type Service struct {
 	repo   Repository
 	logger *zap.Logger
+	// platformTenantID is the platform tenant (config PLATFORM_TENANT_ID). uuid.Nil: no tenant
+	// is treated as the platform tenant.
+	platformTenantID uuid.UUID
+}
+
+// SetPlatformTenantID wires the platform tenant UUID (config PLATFORM_TENANT_ID). On that tenant
+// a global role resolves to a POS role only when it names one explicitly; see
+// MapGlobalRolesToServiceRoleIn. An empty or invalid value treats every tenant as a business
+// tenant.
+func (s *Service) SetPlatformTenantID(id string) {
+	parsed, err := uuid.Parse(id)
+	if err != nil {
+		parsed = uuid.Nil
+	}
+	s.platformTenantID = parsed
+}
+
+// onPlatformTenant reports whether tenantID is the configured platform tenant.
+func (s *Service) onPlatformTenant(tenantID uuid.UUID) bool {
+	return s.platformTenantID != uuid.Nil && tenantID == s.platformTenantID
 }
 
 // NewService creates a new RBAC service.
@@ -45,25 +65,13 @@ func (s *Service) HasPermission(ctx context.Context, tenantID uuid.UUID, userID 
 // permission middleware resolves identically (an SSO admin whose JWT carries no pos.*
 // codes and who has no per-user assignment rows still lands on the POS "admin" role).
 func MapGlobalRolesToServiceRole(roles []string) string {
-	order := []struct{ from, to string }{
-		{"superuser", "admin"}, {"super_admin", "admin"}, {"pos_admin", "admin"},
-		{"admin", "admin"},
-		{"manager", "manager"}, {"store_manager", "manager"}, {"outlet_manager", "manager"},
-		{"cashier", "cashier"}, {"waiter", "waiter"}, {"kitchen", "kitchen"},
-		{"bar", "bar"}, {"receptionist", "receptionist"}, {"barista", "barista"},
-		{"pharmacist", "pharmacist"},
-		// Services trade specialists keep their own role (production board, appointments).
-		{"technician", "technician"}, {"stylist", "stylist"}, {"therapist", "therapist"},
-		// "member" is an invited member of a business tenant (invite only since 2026-11-10).
-		{"staff", "cashier"}, {"member", "cashier"}, {"viewer", "cashier"},
-	}
 	// Self-service roles (customer, student, parent, driver) are what anyone gets by joining a
 	// business without an invite. They are not staff roles: someone holding only those maps to
 	// no POS role and gets no POS permissions (they used to fall back to cashier).
 	if posrole.OnlySelfService(roles) {
 		return ""
 	}
-	for _, m := range order {
+	for _, m := range serviceRoleOrder {
 		for _, r := range roles {
 			if r == m.from {
 				return m.to
@@ -71,6 +79,74 @@ func MapGlobalRolesToServiceRole(roles []string) string {
 		}
 	}
 	return "cashier"
+}
+
+// serviceRoleOrder maps global roles onto POS roles, first match wins.
+var serviceRoleOrder = []struct{ from, to string }{
+	{"superuser", "admin"}, {"super_admin", "admin"}, {"pos_admin", "admin"},
+	{"admin", "admin"},
+	{"manager", "manager"}, {"store_manager", "manager"}, {"outlet_manager", "manager"},
+	{"cashier", "cashier"}, {"waiter", "waiter"}, {"kitchen", "kitchen"},
+	{"bar", "bar"}, {"receptionist", "receptionist"}, {"barista", "barista"},
+	{"pharmacist", "pharmacist"},
+	// Services trade specialists keep their own role (production board, appointments).
+	{"technician", "technician"}, {"stylist", "stylist"}, {"therapist", "therapist"},
+	// "member" is an invited member of a business tenant (invite only since 2026-11-10).
+	// These generic staff roles (posrole.IsGenericStaffRole) give no POS role on the platform
+	// tenant; see MapGlobalRolesToServiceRoleIn.
+	{"staff", "cashier"}, {"member", "cashier"}, {"viewer", "cashier"},
+}
+
+// MapGlobalRolesToServiceRoleIn is MapGlobalRolesToServiceRole for a tenant. Outside the
+// platform tenant it is exactly MapGlobalRolesToServiceRole, so an invited member is a cashier.
+// On the platform tenant (onPlatformTenant) a plain member, generic staff or viewer role, or a
+// role POS does not know gives no POS role (""): platform staff get POS only through an
+// explicit POS role such as cashier, manager or admin.
+func MapGlobalRolesToServiceRoleIn(roles []string, onPlatformTenant bool) string {
+	if !onPlatformTenant {
+		return MapGlobalRolesToServiceRole(roles)
+	}
+	for _, m := range serviceRoleOrder {
+		if posrole.IsGenericStaffRole(m.from) {
+			continue
+		}
+		for _, r := range roles {
+			if r == m.from {
+				return m.to
+			}
+		}
+	}
+	return ""
+}
+
+// globalRoleCandidates are the POS role codes HasAnyPermissionViaGlobalRoles tries for a caller
+// in tenantID, in order: each raw global role, then the mapped POS role. Self-service roles and
+// blanks are never candidates; on the platform tenant neither are the generic staff roles, and
+// the mapping has no cashier default.
+func (s *Service) globalRoleCandidates(tenantID uuid.UUID, globalRoles []string) []string {
+	onPlatform := s.onPlatformTenant(tenantID)
+	raw := globalRoles
+	if onPlatform {
+		raw = posrole.WithoutGenericStaffRoles(globalRoles)
+	}
+	all := make([]string, 0, len(raw)+1)
+	all = append(all, raw...)
+	all = append(all, MapGlobalRolesToServiceRoleIn(globalRoles, onPlatform))
+	out := make([]string, 0, len(all))
+	seen := make(map[string]struct{}, len(all))
+	for _, code := range all {
+		// A self-service role name is never resolved as a POS role code: a tenant role of that
+		// name would otherwise reach every storefront customer or self-joined learner.
+		if code == "" || posrole.IsSelfServiceRole(code) {
+			continue
+		}
+		if _, dup := seen[code]; dup {
+			continue
+		}
+		seen[code] = struct{}{}
+		out = append(out, code)
+	}
+	return out
 }
 
 // HasAnyPermissionViaGlobalRoles resolves permissions the way /auth/me does — from the
@@ -90,20 +166,7 @@ func (s *Service) HasAnyPermissionViaGlobalRoles(ctx context.Context, tenantID u
 	for _, code := range permissionCodes {
 		want[code] = struct{}{}
 	}
-	candidates := make([]string, 0, len(globalRoles)+1)
-	candidates = append(candidates, globalRoles...)
-	candidates = append(candidates, MapGlobalRolesToServiceRole(globalRoles))
-	seen := make(map[string]struct{}, len(candidates))
-	for _, code := range candidates {
-		// A self-service role name is never resolved as a POS role code: a tenant role of that
-		// name would otherwise reach every storefront customer or self-joined learner.
-		if code == "" || posrole.IsSelfServiceRole(code) {
-			continue
-		}
-		if _, dup := seen[code]; dup {
-			continue
-		}
-		seen[code] = struct{}{}
+	for _, code := range s.globalRoleCandidates(tenantID, globalRoles) {
 		role, err := s.repo.GetRoleByCode(ctx, tenantID, code)
 		if err != nil || role == nil {
 			continue // not a POS role code — try the next candidate, never error the request

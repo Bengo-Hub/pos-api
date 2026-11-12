@@ -31,6 +31,33 @@ type Service struct {
 	client       *ent.Client
 	tenantSyncer tenantResolver
 	rbacService  *rbac.Service
+	// platformTenantID is the platform tenant (config PLATFORM_TENANT_ID); uuid.Nil when unset.
+	platformTenantID uuid.UUID
+}
+
+// SetPlatformTenantID wires the platform tenant UUID (config PLATFORM_TENANT_ID). On that tenant
+// sign-in provisioning gives a POS staff row and role only for an explicit POS role
+// (explicitPOSRole); a plain member gets none. An empty or invalid value treats every tenant as
+// a business tenant.
+func (s *Service) SetPlatformTenantID(id string) {
+	parsed, err := uuid.Parse(id)
+	if err != nil {
+		parsed = uuid.Nil
+	}
+	s.platformTenantID = parsed
+}
+
+func (s *Service) onPlatformTenant(tenantID uuid.UUID) bool {
+	return s.platformTenantID != uuid.Nil && tenantID == s.platformTenantID
+}
+
+// explicitPOSRole is the POS role that roles name explicitly: the generic staff roles (staff,
+// member, viewer) and roles POS does not know name none, so it returns "".
+func explicitPOSRole(roles []string) string {
+	if role := mapGlobalRoleToPOSRole(posrole.WithoutGenericStaffRoles(roles)); role != "viewer" {
+		return role
+	}
+	return ""
 }
 
 // NewService creates a new Identity Service.
@@ -204,6 +231,13 @@ func (s *Service) ensureStaffMember(ctx context.Context, tenantID uuid.UUID, aut
 	if posRole == "viewer" {
 		posRole = "cashier" // default POS role for unrecognised global roles
 	}
+	// Platform staff get POS only through an explicit POS role: a plain member of the platform
+	// tenant gets no staff row.
+	if s.onPlatformTenant(tenantID) {
+		if posRole = explicitPOSRole(roles); posRole == "" {
+			return
+		}
+	}
 
 	email, _ := claims["email"].(string)
 	name, _ := claims["full_name"].(string)
@@ -255,6 +289,10 @@ func (s *Service) assignDefaultRoleFromJWT(ctx context.Context, tenantID uuid.UU
 		return
 	}
 	roleCode := mapGlobalRoleToPOSRole(roles)
+	if s.onPlatformTenant(tenantID) {
+		// A plain member of the platform tenant gets no POS role (not even viewer).
+		roleCode = explicitPOSRole(roles)
+	}
 	if roleCode == "" {
 		return
 	}

@@ -91,7 +91,7 @@ type App struct {
 	roomNightlyBillingScheduler    *scheduler.RoomNightlyBillingScheduler
 	damageReportReminderScheduler  *scheduler.DamageReportReminderScheduler
 	// customerReconciler links loyalty accounts and client records saved while the CRM was down.
-	customerReconciler             *customers.Reconciler
+	customerReconciler *customers.Reconciler
 }
 
 // newReadOnlyEntClient opens a separate Ent client against cfg.ReadOnlyURL (a read replica, via
@@ -249,6 +249,8 @@ func New(ctx context.Context) (*App, error) {
 	tenantCache := sharedcache.New(redisClient, log)
 	tenantSyncer := tenant.NewSyncer(entClient, cfg.Auth.ServiceURL, tenantCache).WithDB(sqlDB)
 	identitySvc := identity.NewService(entClient, tenantSyncer)
+	// A plain member of the platform tenant gets no POS role at sign-in (explicit POS roles only).
+	identitySvc.SetPlatformTenantID(cfg.Auth.PlatformTenantID)
 
 	// Initialize business services
 	orderSvc := ordermodule.NewService(entClient, ordermodule.Config{
@@ -602,6 +604,7 @@ func New(ctx context.Context) (*App, error) {
 	// Initialize RBAC
 	rbacRepo := rbacmodule.NewEntRepository(entClient)
 	rbacSvc := rbacmodule.NewService(rbacRepo, log)
+	rbacSvc.SetPlatformTenantID(cfg.Auth.PlatformTenantID)
 	rbacHandler := handlers.NewRBACHandler(log, rbacSvc, rbacRepo, cfg.Auth.ServiceURL, cfg.Auth.APIKey)
 	// Credit sale (sell on account) is gated in-handler on pos.orders.manage (same as approving sale
 	// returns) because the tender is in the request body, not the route.
@@ -631,6 +634,14 @@ func New(ctx context.Context) (*App, error) {
 	if natsConn != nil {
 		if err := authOutletHandler.SubscribeToOutletEvents(natsConn); err != nil {
 			log.Warn("app: failed to subscribe to auth outlet events", zap.Error(err))
+		}
+	}
+
+	// Subscribe to auth.tenant.updated: an auth slug rename moves the tenant row and its outlets.
+	authTenantHandler := identity.NewAuthTenantEventHandler(tenantSyncer, log)
+	if natsConn != nil {
+		if err := authTenantHandler.SubscribeToTenantEvents(natsConn); err != nil {
+			log.Warn("app: failed to subscribe to auth tenant events", zap.Error(err))
 		}
 	}
 

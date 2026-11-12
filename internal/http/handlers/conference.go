@@ -129,7 +129,8 @@ func (h *HotelHandler) CreateEventBooking(w http.ResponseWriter, r *http.Request
 	outletID, _ := uuid.Parse(httpware.GetOutletID(r.Context()))
 	createdBy, _ := uuid.Parse(in.CreatedBy)
 	// The event client is linked to the CRM; a refusal or outage saves the booking unlinked.
-	crmContactID := h.linkGuest(r.Context(), tid, in.CRMContactID, in.ContactPhone, in.ContactEmail, in.ClientName, "event_booking")
+	link := h.linkGuest(r.Context(), tid, in.CRMContactID, in.ContactPhone, in.ContactEmail, in.ClientName, "event_booking")
+	crmContactID := link.ID
 
 	// Derive the authoritative total from the linked inventory bundle when present
 	// (capacity-aware: flat hall-hire stays fixed; per-delegate packages scale with
@@ -193,7 +194,10 @@ func (h *HotelHandler) CreateEventBooking(w http.ResponseWriter, r *http.Request
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	jsonOK(w, event)
+	jsonOK(w, struct {
+		*ent.EventBooking
+		CRMLink crmLinkNotice `json:"crm_link"`
+	}{event, link.Notice})
 }
 
 type updateEventBookingInput struct {

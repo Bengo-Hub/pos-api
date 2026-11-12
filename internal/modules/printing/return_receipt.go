@@ -28,6 +28,18 @@ type ReturnReceiptOpts struct {
 	Copy bool
 }
 
+// refundChannelLabels names the refund channels added for refunds to the original method
+// (2026-11-12), whose stored codes would read badly on paper. The older channels ("cash",
+// "mpesa", "store_credit", ...) print as stored, the same way sale receipts print the method.
+var refundChannelLabels = map[string]string{
+	"mpesa_manual":        "M-Pesa",
+	"mtn_momo_manual":     "MTN MoMo",
+	"airtel_money_manual": "Airtel Money",
+	"other_manual":        "Other",
+	"card_manual":         "Card",
+	"room_folio":          "Room folio",
+}
+
 // BuildReturnReceiptView assembles the canonical receipt snapshot for a REFUND/return document —
 // the customer's proof that goods went back and money (or store credit) came out. It is the same
 // Receipt struct rendered by the same four layouts as a sale; IsReturn is what makes those
@@ -63,6 +75,9 @@ func BuildReturnReceiptView(ret *ent.POSReturn, lines []*ent.POSReturnLine, opts
 	method := "Refund"
 	if ret.RefundChannel != nil && strings.TrimSpace(string(*ret.RefundChannel)) != "" {
 		method = string(*ret.RefundChannel)
+		if label, ok := refundChannelLabels[method]; ok {
+			method = label
+		}
 	}
 
 	issued := ret.CreatedAt

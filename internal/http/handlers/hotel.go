@@ -50,35 +50,124 @@ func (h *HotelHandler) SetMediaStore(m *objectstore.Store) { h.media = m }
 // SetCustomerResolver wires the resolver that links guests and bookings to the CRM.
 func (h *HotelHandler) SetCustomerResolver(res *customers.Resolver) { h.customers = res }
 
-// linkGuest returns the CRM contact id for a guest. A valid id sent by the client is used as is.
-// Otherwise the guest's phone, email and name go to the CRM within Link's 2s budget. Only those
-// three fields are sent; ID numbers, nationality and party size stay local.
+// crmLinkNotice tells the front desk how a guest, booking or event client ended up linked to
+// the CRM. Status is "linked", "unlinked" (no contact id: the CRM could not be reached or refused
+// the details, or a picked contact could not be used; the desk may retry with Add to CRM, which
+// is an empty guest edit) or "mismatch" (the contact the desk picked is not this person in the
+// CRM, so it was not used, and the guest was linked to their own contact instead).
+type crmLinkNotice struct {
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
+}
+
+const (
+	crmLinkLinked   = "linked"
+	crmLinkUnlinked = "unlinked"
+	crmLinkMismatch = "mismatch"
+)
+
+// guestLink is the CRM contact id for a hotel record (nil when unlinked) and the notice for the desk.
+type guestLink struct {
+	ID     *uuid.UUID
+	Notice crmLinkNotice
+}
+
+// trustedGuestLink is a link the server made itself earlier (a booking's stored contact).
+func trustedGuestLink(id uuid.UUID) guestLink {
+	return guestLink{ID: &id, Notice: crmLinkNotice{Status: crmLinkLinked}}
+}
+
+// linkGuest returns the CRM contact id for a guest, booking or event client.
 //
-// A guest is never turned away because of the CRM: a refusal or an outage gives nil and the
-// record is saved unlinked. The reconciler does not cover guests or bookings, so such a record
-// stays unlinked; it is linked at the next staff edit of that guest or booking (UpdateGuest,
-// UpdateRoomBooking), or at the guest's next check-in or booking. Logs carry ids only.
-func (h *HotelHandler) linkGuest(ctx context.Context, tid uuid.UUID, given, phone, email, name, what string) *uuid.UUID {
+// Hotel notices go to the contact stored here, so only a contact the server linked itself is
+// trusted (owner decision 2026-11-12). A crm_contact_id sent by the desk is used only when the
+// CRM holds this person's phone or email on that contact. Otherwise it is dropped, the desk is
+// told (status "mismatch"), and the person is linked by their own phone, email and name, as
+// when no id is sent. An id that cannot be checked because the CRM is unreachable is not
+// trusted either. Only those three fields go to the CRM, within Link's 2s budget; ID numbers,
+// nationality and party size stay local.
+//
+// A guest is never turned away because of the CRM: a refusal or an outage gives a nil id and
+// the record is saved unlinked. The reconciler does not cover guests or bookings, so such a
+// record stays unlinked; it is linked at the next staff edit of that guest or booking
+// (UpdateGuest, UpdateRoomBooking), or at the guest's next check-in or booking. Logs carry ids only.
+func (h *HotelHandler) linkGuest(ctx context.Context, tid uuid.UUID, given, phone, email, name, what string) guestLink {
+	hasDetails := strings.TrimSpace(phone) != "" || strings.TrimSpace(email) != ""
+	state := givenNone
 	if id, err := uuid.Parse(strings.TrimSpace(given)); err == nil && id != uuid.Nil {
-		return &id
-	}
-	if strings.TrimSpace(phone) == "" && strings.TrimSpace(email) == "" {
-		return nil
-	}
-	ident, err := h.customers.Link(ctx, tid, phone, email, name)
-	if err != nil {
-		var ce *crm.Error
-		status := 0
-		if errors.As(err, &ce) {
-			status = ce.Status
+		if !hasDetails {
+			// Nothing to compare the contact with, so it cannot be trusted; nothing to link by either.
+			return guestLinkOutcome(nil, givenNoDetails)
 		}
-		_, rejected := customers.RejectionMessage(err)
-		h.log.Warn("crm did not link the guest, saving unlinked",
-			zap.String("tenant_id", tid.String()), zap.String("record", what),
-			zap.Bool("rejected", rejected), zap.Int("status", status))
-		return nil
+		ok, merr := h.customers.ContactMatches(ctx, tid, id, phone, email)
+		switch {
+		case merr == nil && ok:
+			return trustedGuestLink(id)
+		case merr == nil:
+			state = givenMismatch
+			h.log.Warn("desk-sent crm contact is not this guest in the CRM, linking by the guest's own details",
+				zap.String("tenant_id", tid.String()), zap.String("record", what), zap.String("given_contact_id", id.String()))
+		default:
+			state = givenUnchecked
+			h.log.Warn("could not check the desk-sent crm contact, not trusting it",
+				zap.String("tenant_id", tid.String()), zap.String("record", what), zap.String("given_contact_id", id.String()))
+		}
 	}
-	return ident.CrmContactID
+	var linked *uuid.UUID
+	if hasDetails {
+		ident, err := h.customers.Link(ctx, tid, phone, email, name)
+		if err != nil {
+			var ce *crm.Error
+			status := 0
+			if errors.As(err, &ce) {
+				status = ce.Status
+			}
+			_, rejected := customers.RejectionMessage(err)
+			h.log.Warn("crm did not link the guest, saving unlinked",
+				zap.String("tenant_id", tid.String()), zap.String("record", what),
+				zap.Bool("rejected", rejected), zap.Int("status", status))
+		} else {
+			linked = ident.CrmContactID
+		}
+	}
+	return guestLinkOutcome(linked, state)
+}
+
+// givenContactState is what happened to a crm_contact_id the desk sent.
+type givenContactState int
+
+const (
+	givenNone      givenContactState = iota // the desk sent no contact
+	givenMismatch                           // the CRM does not hold this guest's phone or email on it
+	givenUnchecked                          // the CRM could not be asked
+	givenNoDetails                          // the guest has no phone or email to compare with
+)
+
+// guestLinkOutcome builds the desk notice for a link made by the server. "mismatch" is used only
+// when the guest ended up on their own contact, so nothing more is needed but a check of the
+// register. Every outcome without a contact id is "unlinked" (pos-ui offers Add to CRM), and its
+// message says why a picked contact was not used.
+func guestLinkOutcome(linked *uuid.UUID, given givenContactState) guestLink {
+	const retry = " Use Add to CRM to try again."
+	switch {
+	case linked != nil && given == givenMismatch:
+		return guestLink{ID: linked, Notice: crmLinkNotice{Status: crmLinkMismatch,
+			Message: "The CRM contact picked at the desk does not match this guest's phone or email, so it was not used. The guest was linked to the CRM contact for their own phone and email instead. Check the details in the guest register."}}
+	case linked != nil:
+		return guestLink{ID: linked, Notice: crmLinkNotice{Status: crmLinkLinked}}
+	case given == givenMismatch:
+		return guestLink{Notice: crmLinkNotice{Status: crmLinkUnlinked,
+			Message: "The CRM contact picked at the desk does not match this guest's phone or email, so it was not used, and the guest could not be added to the CRM just now." + retry}}
+	case given == givenUnchecked:
+		return guestLink{Notice: crmLinkNotice{Status: crmLinkUnlinked,
+			Message: "The CRM could not be reached, so the contact picked at the desk could not be checked and was not used, and the guest is not linked yet." + retry}}
+	case given == givenNoDetails:
+		return guestLink{Notice: crmLinkNotice{Status: crmLinkUnlinked,
+			Message: "The guest has no phone or email, so the CRM contact picked at the desk could not be checked and was not used. Add a phone or email to the guest, then use Add to CRM."}}
+	default:
+		return guestLink{Notice: crmLinkNotice{Status: crmLinkUnlinked,
+			Message: "The guest is not linked to the CRM yet, so hotel notices use the details typed here." + retry}}
+	}
 }
 
 func NewHotelHandler(log *zap.Logger, client *ent.Client, publisher *events.Publisher) *HotelHandler {
@@ -329,10 +418,12 @@ type checkInInput struct {
 	CheckedBy           string     `json:"checked_in_by"`
 	// PaymentMethod/PaymentReference/PaymentAmount collect the room charge at check-in when the
 	// outlet's booking policy requires it (payment_timing=pay_upfront — see resolveBookingPolicy
-	// in roombooking.go). Only immediate desk tenders (cash/card_manual/mpesa manual code) are
-	// accepted here; an online gateway push belongs at checkout, not check-in.
+	// in roombooking.go). Only immediate desk tenders (cash, card_manual, an M-Pesa, MTN MoMo or
+	// Airtel Money code, or Other with PaymentLabel) are accepted here, checked like the till;
+	// an online gateway push belongs at checkout, not check-in.
 	PaymentMethod    string  `json:"payment_method"`
 	PaymentReference string  `json:"payment_reference"`
+	PaymentLabel     string  `json:"payment_label"` // how the guest paid, required for other_manual
 	PaymentAmount    float64 `json:"payment_amount"`
 }
 
@@ -393,6 +484,7 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 	// roombooking.go). pay_upfront requires an immediate desk tender to be supplied now;
 	// settle_at_checkout (default) and per_day_split collect nothing at this step.
 	policy := h.resolveBookingPolicy(r, tid, room.OutletID)
+	var upfront deskTender
 	if policy.PaymentTiming == "pay_upfront" {
 		method := strings.ToLower(strings.TrimSpace(input.PaymentMethod))
 		if method == "" {
@@ -400,9 +492,17 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !isImmediateHotelMethod(method) {
-			jsonError(w, "only cash, card, or M-Pesa payments are accepted at check-in", http.StatusBadRequest)
+			jsonError(w, "only cash, card, M-Pesa, MTN MoMo, Airtel Money or Other payments are accepted at check-in", http.StatusBadRequest)
 			return
 		}
+		// The code is checked before the guest is checked in, so a bad or reused code never
+		// leaves a checked-in guest with an unrecorded payment.
+		t, status, terr := h.checkDeskTender(r.Context(), tid, method, input.PaymentReference, input.PaymentLabel)
+		if terr != nil {
+			jsonError(w, terr.Error(), status)
+			return
+		}
+		upfront = t
 	}
 
 	now := time.Now()
@@ -429,20 +529,25 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 	checkedInBy, _ := uuid.Parse(input.CheckedBy)
 
 	// A check-in from a booking inherits the booking's contact when the body has none, which
-	// keeps the same contact and skips the CRM call.
-	givenContact := input.CRMContactID
-	if strings.TrimSpace(givenContact) == "" {
+	// keeps the same contact and skips the CRM call: the server linked that contact itself.
+	// A contact sent in the body is checked against the CRM first (see linkGuest).
+	var link guestLink
+	inherited := false
+	if strings.TrimSpace(input.CRMContactID) == "" {
 		if bookingID, perr := uuid.Parse(input.BookingID); perr == nil {
 			bk, berr := h.client.RoomBooking.Query().
 				Where(entroombooking.ID(bookingID), entroombooking.TenantID(tid)).
 				Only(r.Context())
-			if berr == nil && bk.CrmContactID != nil {
-				givenContact = bk.CrmContactID.String()
+			if berr == nil && bk.CrmContactID != nil && *bk.CrmContactID != uuid.Nil {
+				link, inherited = trustedGuestLink(*bk.CrmContactID), true
 			}
 		}
 	}
-	// Link the guest to the CRM before the transaction opens, so a slow CRM never holds it.
-	crmContactID := h.linkGuest(r.Context(), tid, givenContact, input.Phone, input.Email, input.GuestName, "room_guest")
+	if !inherited {
+		// Link the guest to the CRM before the transaction opens, so a slow CRM never holds it.
+		link = h.linkGuest(r.Context(), tid, input.CRMContactID, input.Phone, input.Email, input.GuestName, "room_guest")
+	}
+	crmContactID := link.ID
 
 	tx, err := h.client.Tx(r.Context())
 	if err != nil {
@@ -583,30 +688,31 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 	// in the room); it's surfaced via payment_recorded so the desk can collect it via the normal
 	// Settle flow instead, which still gates checkout on the balance regardless of this policy.
 	paymentRecorded := true
+	paymentMessage := ""
 	if policy.PaymentTiming == "pay_upfront" {
 		amount := input.PaymentAmount
 		if amount <= 0 {
 			amount = totalCharge
 		}
 		tenantSlug := chi.URLParam(r, "tenantID")
-		if _, _, _, perr := h.recordFolioPayment(r, tid, tenantSlug, room, guest.ID, guest.GuestName, amount, input.PaymentMethod, input.PaymentReference, amount, checkedInBy); perr != nil {
+		// recordFolioPayment checks the code again before it writes anything; a code taken in the
+		// meantime records nothing for the payment, and the desk is told to take payment again.
+		if _, _, _, perr := h.recordFolioPayment(r, tid, tenantSlug, room, guest.ID, guest.GuestName, amount, upfront, amount, checkedInBy); perr != nil {
 			paymentRecorded = false
+			paymentMessage = upfrontPaymentFailureMessage(perr)
 			h.log.Error("check-in: pay_upfront payment recording failed", zap.Error(perr))
 		}
 	}
 
 	if h.publisher != nil {
-		_ = h.publisher.PublishHotelCheckIn(r.Context(), tid, map[string]any{
+		_ = h.publisher.PublishHotelCheckIn(r.Context(), tid, withGuestRecipient(map[string]any{
 			"room_id":       roomID,
 			"room_number":   room.RoomNumber,
 			"guest_id":      guest.ID,
-			"guest_name":    input.GuestName,
-			"guest_email":   guest.Email,
-			"guest_phone":   guest.Phone,
 			"nights":        input.Nights,
 			"total_charge":  totalCharge,
 			"check_in_date": now,
-		})
+		}, guest, input.GuestName))
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -614,6 +720,31 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		"guest":            guest,
 		"payment_timing":   policy.PaymentTiming,
 		"payment_recorded": paymentRecorded,
+		"payment_message":  paymentMessage,
+		"crm_link":         link.Notice,
+	})
+}
+
+// upfrontPaymentFailureMessage is what the desk sees when a pay upfront payment could not be
+// recorded after the guest was checked in.
+func upfrontPaymentFailureMessage(err error) string {
+	if errors.Is(err, errDeskCodeUsed) {
+		return "Checked in, but the code was already used; take payment again."
+	}
+	return "Checked in, but the payment could not be recorded; collect it with Checkout & Settle Bill."
+}
+
+// withGuestRecipient adds who a hotel.check_in or hotel.check_out notice goes to. A guest linked
+// to the CRM is named by crm_contact_id only, and notifications-api takes the name, email and
+// phone from the CRM for the notice. An unlinked guest (the CRM was down or refused the contact)
+// keeps guest_name, guest_email and guest_phone. Only the event changes: the guest register
+// keeps exactly what the guest gave at the desk.
+func withGuestRecipient(payload map[string]any, guest *ent.RoomGuest, name string) map[string]any {
+	return events.WithRecipient(payload, "guest", events.Recipient{
+		CrmContactID: guest.CrmContactID,
+		Name:         name,
+		Email:        guest.Email,
+		Phone:        guest.Phone,
 	})
 }
 
@@ -735,15 +866,12 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if h.publisher != nil {
-		_ = h.publisher.PublishHotelCheckOut(r.Context(), tid, map[string]any{
+		_ = h.publisher.PublishHotelCheckOut(r.Context(), tid, withGuestRecipient(map[string]any{
 			"room_id":        roomID,
 			"guest_id":       guest.ID,
-			"guest_name":     guest.GuestName,
-			"guest_email":    guest.Email,
-			"guest_phone":    guest.Phone,
 			"total_folio":    totalFolio,
 			"checked_out_at": now,
-		})
+		}, guest, guest.GuestName))
 	}
 
 	// Balance is already cleared (gated above), so no payment intent is created here — settlement

@@ -37,6 +37,9 @@ func (s *Service) StartCreditNoteRetry(ctx context.Context) {
 			if n := s.RetryPendingCreditNotes(ctx); n > 0 {
 				s.log.Info("return credit notes raised on retry", zap.Int("count", n))
 			}
+			if n := s.RetryPendingFolioRests(ctx); n > 0 {
+				s.log.Info("room folio rest refunds sent on retry", zap.Int("count", n))
+			}
 		}
 	}
 }

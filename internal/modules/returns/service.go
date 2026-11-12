@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Bengo-Hub/httpware/money"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
@@ -23,8 +24,10 @@ import (
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
 	"github.com/bengobox/pos-service/internal/ent/posreturnline"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 	"github.com/bengobox/pos-service/internal/modules/documents"
 	"github.com/bengobox/pos-service/internal/modules/orders"
+	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/salecorrection"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -165,6 +168,12 @@ func (s *Service) CreateReturn(ctx context.Context, tenantID uuid.UUID, req Crea
 	restrictOnAccount := s.creditSaleRefundRestricted(ctx, tenantID, req.OrderID)
 	if perr := validateRefundChannel(reasonCodePtr(req.ReasonCode), posreturn.ReturnType(returnType), req.RefundChannel, onAccount, restrictOnAccount); perr != nil {
 		return nil, perr
+	}
+	// A refund with no channel chosen goes back the way the sale was paid (owner decision
+	// 2026-11-12), so treasury books it against the account the money went to. Store credit,
+	// exchanges and on-account sales keep their own defaults.
+	if req.RefundChannel == "" && returnType == string(posreturn.ReturnTypeRefund) && !onAccount {
+		req.RefundChannel = payments.OriginalRefundChannel(ctx, s.client, tenantID, req.OrderID)
 	}
 
 	// Fallback when the document sequence is missing or errors. The random suffix keeps two
@@ -388,11 +397,42 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 		refundChannel = string(*rc)
 		update = update.SetNillableRefundChannel(rc)
 	}
+	if refundChannel == "" && ret.ReturnType != posreturn.ReturnTypeStoreCredit && !onAccount {
+		// A return created before the original-method default (or an exchange leftover) still
+		// goes back the way the sale was paid.
+		refundChannel = payments.OriginalRefundChannel(ctx, s.client, tenantID, ret.OrderID)
+		if rc := refundChannelPtr(refundChannel); rc != nil {
+			update = update.SetNillableRefundChannel(rc)
+		}
+	}
 	if refundChannel == "" {
 		refundChannel = defaultRefundChannel(ret.ReturnType, onAccount)
 		if rc := refundChannelPtr(refundChannel); rc != nil {
 			update = update.SetNillableRefundChannel(rc)
 		}
+	}
+	// A room-charged sale is credited back to the stay's folio while the stay is open (owner
+	// decision 2026-11-12), whatever money channel was picked. Once the stay is checked out the
+	// refund goes through the chosen channel, and a stored room_folio falls back to cash.
+	// restChannel is that chosen channel: it also carries any part of the refund the folio no
+	// longer owes (see the folio credit below).
+	restChannel := refundChannel
+	if restChannel == "" || restChannel == payments.RefundChannelRoomFolio {
+		restChannel = string(posreturn.RefundChannelCash)
+	}
+	var folioStay *ent.RoomGuest
+	if !onAccount && ret.ReturnType != posreturn.ReturnTypeStoreCredit &&
+		refundChannel != "store_credit" && refundChannel != "offset_invoice" &&
+		payments.OriginalRefundChannel(ctx, s.client, tenantID, ret.OrderID) == payments.RefundChannelRoomFolio {
+		folioStay = payments.OpenRoomStayForOrder(ctx, s.client, tenantID, ret.OrderID)
+	}
+	switch {
+	case folioStay != nil && refundChannel != payments.RefundChannelRoomFolio:
+		refundChannel = payments.RefundChannelRoomFolio
+		update = update.SetNillableRefundChannel(refundChannelPtr(refundChannel))
+	case folioStay == nil && refundChannel == payments.RefundChannelRoomFolio:
+		refundChannel = string(posreturn.RefundChannelCash)
+		update = update.SetNillableRefundChannel(refundChannelPtr(refundChannel))
 	}
 	restrictOnAccount := s.creditSaleRefundRestricted(ctx, tenantID, ret.OrderID)
 	if perr := validateRefundChannel(ret.ReasonCode, ret.ReturnType, refundChannel, onAccount, restrictOnAccount); perr != nil {
@@ -424,6 +464,27 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 		exchangeCredit = exchange.ExchangeCredit
 	}
 	paidOut := settleAmount - exchangeCredit
+	// The folio is credited at most what it still owes, so a folio the guest already settled is
+	// never driven negative; the rest (restAmount) is refunded through restChannel as a second
+	// treasury portion. The credit is written in the same transaction as the completion, so a
+	// failed credit leaves the return approved; CreditRoomFolio is idempotent on the return number.
+	folioCredit, restAmount := 0.0, 0.0
+	if folioStay != nil && paidOut > 0.009 {
+		folioCredit, restAmount = payments.SplitFolioCredit(paidOut, payments.FolioOutstanding(ctx, tx.Client(), folioStay))
+		if folioCredit == 0 {
+			// Nothing left to credit: the whole refund goes through the chosen channel.
+			folioStay, restAmount = nil, 0
+			refundChannel = restChannel
+			update = update.SetNillableRefundChannel(refundChannelPtr(refundChannel))
+		} else if _, ferr := payments.CreditRoomFolio(ctx, tx.Client(), folioStay, folioCredit, ret.ReturnNumber, ret.ID, req.CompletedBy); ferr != nil {
+			return nil, nil, fmt.Errorf("complete return: credit the room folio: %w", ferr)
+		}
+		if restAmount <= 0.009 {
+			restAmount = 0
+		}
+	}
+	rest := folioRest{Amount: restAmount, Channel: restChannel}
+	restPending := false
 	// A return of a fiscalised sale must reach KRA as a refund of the returned lines. The lines go
 	// with the refund below when money is settled; otherwise the credit note is raised on its own.
 	fiscal := s.fiscalRefundFor(ctx, tenantSlug, ret, lines)
@@ -451,17 +512,26 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 			currency = origOrder.Currency
 		}
 
+		// A folio credit capped by what the folio owed leaves restAmount for the chosen channel:
+		// it goes to treasury as a second portion under its own deterministic reference id, with
+		// its share of tax and cost; the first portion keeps the lines and the exchange credit.
+		firstAmount, firstTax, firstCost := settleAmount, taxAmount, costAmount
+		if restAmount > 0 {
+			ratio := restAmount / settleAmount
+			rest.Tax, rest.Cost = money.Round2(taxAmount*ratio), money.Round2(costAmount*ratio)
+			firstAmount, firstTax, firstCost = settleAmount-restAmount, taxAmount-rest.Tax, costAmount-rest.Cost
+		}
 		refundResp, refundErr := s.treasuryClient.CreateRefund(ctx, tenantSlug, returnID.String(), treasury.RefundRequest{
 			SourceService:      "pos",
 			ReferenceID:        returnID.String(),
 			ReferenceType:      "pos_return",
 			Reference:          ret.ReturnNumber,
-			Amount:             settleAmount,
-			TaxAmount:          taxAmount,
-			Cost:               costAmount,
+			Amount:             firstAmount,
+			TaxAmount:          firstTax,
+			Cost:               firstCost,
 			Currency:           currency,
 			Reason:             ret.Reason,
-			RefundChannel:      refundChannel,
+			RefundChannel:      payments.TreasuryRefundChannel(refundChannel),
 			CrmContactID:       crmContactID,
 			CustomerIdentifier: customerIdentifier,
 			CustomerName:       customerName,
@@ -479,6 +549,22 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 			treasuryRefundRef = refundResp.ID
 			update = update.SetTreasuryRefundRef(treasuryRefundRef)
 			refundSent = true
+		}
+		// The rest goes only after the main refund went through, under its own reference type
+		// (no second credit note). Otherwise it waits as pending for RetryPendingFolioRests; the
+		// return.completed backstop books only the main part (ledger_refund_amount), so the rest
+		// is never reversed twice.
+		if restAmount > 0 {
+			restPending = true
+			if refundSent {
+				if rerr := s.postFolioRest(ctx, tenantSlug, ret, rest); rerr != nil {
+					s.log.Error("treasury refund of the part beyond the folio credit failed (non-fatal; retried later)",
+						zap.Error(rerr), zap.String("return_id", returnID.String()),
+						zap.String("refund_channel", rest.Channel), zap.Float64("amount", restAmount))
+				} else {
+					restPending = false
+				}
+			}
 		}
 	}
 
@@ -505,6 +591,23 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 	// above succeeded (that only books the ledger side).
 	if refundChannel == string(posreturn.RefundChannelCash) && paidOut > 0.009 {
 		md[MetaCashPaidOut] = paidOut
+	}
+	// A folio credit moves no cash; only the part beyond what the folio owed, when it goes back
+	// in cash, leaves the drawer.
+	if folioCredit > 0 {
+		md[MetaFolioCredit] = folioCredit
+		if restAmount > 0 {
+			md[MetaFolioRestAmount] = restAmount
+			md[MetaFolioRestChannel] = restChannel
+			md[MetaFolioRestTax] = rest.Tax
+			md[MetaFolioRestCost] = rest.Cost
+			if restPending {
+				md[MetaFolioRestPending] = true
+			}
+			if restChannel == string(posreturn.RefundChannelCash) {
+				md[MetaCashPaidOut] = restAmount
+			}
+		}
 	}
 	// Inventory confirms the restock (and where the goods went) via inventory.return.restocked;
 	// until then the return reads "restock pending". A write-off is final here: nothing goes
@@ -594,6 +697,7 @@ func (s *Service) completedPayload(ctx context.Context, ret *ent.POSReturn, line
 		})
 	}
 	orderNumber, customerName, customerPhone := "", "", ""
+	var crmContactID *uuid.UUID
 	if o, err := s.client.POSOrder.Query().
 		Where(entposorder.ID(ret.OrderID), entposorder.TenantID(ret.TenantID)).
 		Select(entposorder.FieldOrderNumber, entposorder.FieldCustomerName, entposorder.FieldCustomerPhone).
@@ -605,15 +709,23 @@ func (s *Service) completedPayload(ctx context.Context, ret *ent.POSReturn, line
 		if o.CustomerPhone != nil {
 			customerPhone = *o.CustomerPhone
 		}
+		// The CRM link is the one the server made for the buyer's loyalty account; a phone
+		// with no linked account stays unlinked.
+		if customerPhone != "" {
+			if acc, aerr := customers.FindAccountIn(ctx, s.client, ret.TenantID, customerPhone); aerr == nil && acc != nil {
+				crmContactID = acc.CrmContactID
+			}
+		}
 	}
-	return map[string]any{
+	// Ids only for a CRM-linked customer (notifications-api looks the person up in the CRM);
+	// an unlinked one keeps customer_name and customer_phone so the refund notice still reaches
+	// them. See events.WithRecipient.
+	payload := map[string]any{
 		"tenant_id":           ret.TenantID.String(),
 		"return_id":           ret.ID,
 		"return_number":       ret.ReturnNumber,
 		"order_id":            ret.OrderID,
 		"order_number":        orderNumber,
-		"customer_name":       customerName,
-		"customer_phone":      customerPhone,
 		"outlet_id":           ret.OutletID,
 		"return_type":         string(ret.ReturnType),
 		"refund_amount":       ret.RefundAmount,
@@ -623,6 +735,13 @@ func (s *Service) completedPayload(ctx context.Context, ret *ent.POSReturn, line
 		// before the restock policy carry no decision and restock as before.
 		"restock": ret.Metadata[mdRestockDecision] != decisionWriteOff,
 	}
+	// A room-charged return refunds the part beyond the folio credit as its own treasury refund
+	// (RestRefundReferenceType). ledger_refund_amount is what is booked under the return id, so
+	// treasury's GL backstop reverses only that; refund_amount stays the customer's whole refund.
+	if rest, ok := ret.Metadata[MetaFolioRestAmount].(float64); ok && rest > 0.009 {
+		payload["ledger_refund_amount"] = ret.RefundAmount - rest
+	}
+	return events.WithRecipient(payload, "customer", events.Recipient{CrmContactID: crmContactID, Name: customerName, Phone: customerPhone})
 }
 
 // CreateAndAutoComplete runs create → approve → complete back-to-back in one call, for an

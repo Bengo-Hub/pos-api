@@ -52,7 +52,12 @@ func (POSReturn) Fields() []ent.Field {
 			Nillable().
 			Comment("Manager who approved/rejected"),
 		field.Enum("refund_channel").
-			Values("cash", "mpesa", "bank", "cheque", "store_credit", "offset_invoice").
+			// mtn_momo_manual, airtel_money_manual, other_manual, card_manual and mpesa_manual
+			// refund a sale the way it was paid; room_folio credits a room-charged sale back to
+			// the open stay's folio (2026-11-12). The column is a plain varchar with no CHECK
+			// constraint, so the new values need no DDL.
+			Values("cash", "mpesa", "bank", "cheque", "store_credit", "offset_invoice",
+				"mtn_momo_manual", "airtel_money_manual", "other_manual", "card_manual", "mpesa_manual", "room_folio").
 			Optional().
 			Nillable().
 			Comment("How the refund is settled to the customer; passed to treasury as refund_channel and surfaced as the returns-list refund_method column"),

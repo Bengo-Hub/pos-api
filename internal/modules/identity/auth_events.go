@@ -38,6 +38,9 @@ type AuthEventHandler struct {
 		SyncOutlets(ctx context.Context, tenantID uuid.UUID, tenantSlug string) error
 	}
 	logger *zap.Logger
+	// platformTenantID is the platform tenant (config PLATFORM_TENANT_ID); uuid.Nil when unset.
+	// There auth events give a POS role only for an explicit POS role (mapSSORoleToPOSIn).
+	platformTenantID uuid.UUID
 }
 
 // authMaxDeliver bounds how often JetStream offers one auth event (the consumer's MaxDeliver).
@@ -69,7 +72,19 @@ func NewAuthEventHandler(client *ent.Client, svc *Service, logger *zap.Logger) *
 		client:       client,
 		tenantSyncer: svc.tenantSyncer,
 		logger:       logger.Named("identity.auth_events"),
+		// Copied here, so svc.SetPlatformTenantID must run before this (it does in app.go).
+		platformTenantID: svc.platformTenantID,
 	}
+}
+
+// onPlatformTenant reports whether tenantID is the configured platform tenant.
+func (h *AuthEventHandler) onPlatformTenant(tenantID uuid.UUID) bool {
+	return h.platformTenantID != uuid.Nil && tenantID == h.platformTenantID
+}
+
+// posRoleFor is the POS role an auth event gives in tenantID (mapSSORoleToPOSIn).
+func (h *AuthEventHandler) posRoleFor(tenantID uuid.UUID, payload map[string]interface{}) string {
+	return mapSSORoleToPOSIn(payload, h.onPlatformTenant(tenantID))
 }
 
 // SubscribeToAuthEvents subscribes to auth-service user events via JetStream with durable consumers.
@@ -295,7 +310,7 @@ func (h *AuthEventHandler) handleUserUpdated(ctx context.Context, evt *sharedeve
 	// so patching by it applied a second tenant's roles to the first tenant's row (a cashier in
 	// tenant A who is admin of their own tenant B became admin in A). No row there, or no
 	// resolvable tenant: change nothing. (staffTenant is resolved above, before any write.)
-	posRole := mapSSORoleToPOS(evt.Payload)
+	posRole := h.posRoleFor(staffTenant, evt.Payload)
 	outletIDs := parseOutletIDs(evt.Payload)
 	if staffTenant == uuid.Nil {
 		if fullName != "" || posRole != "" || len(outletIDs) > 0 {
@@ -394,8 +409,14 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 		if fn, _ := evt.Payload["full_name"].(string); fn != "" {
 			name = fn
 		}
-		if r := mapSSORoleToPOS(evt.Payload); r != "" {
+		if r := h.posRoleFor(tenantID, evt.Payload); r != "" {
 			role = r
+		} else if h.onPlatformTenant(tenantID) {
+			// Platform staff get POS only through an explicit POS role: no cashier fallback, and
+			// no row, so this PIN is not kept.
+			h.logger.Info("auth pin_set: no explicit POS role on the platform tenant, no staff row created",
+				zap.String("user_id", userIDStr), zap.String("tenant_id", tenantID.String()))
+			return nil
 		}
 
 		// The local User row supplies a name only; its tenant is wherever pos first saw the
@@ -477,7 +498,7 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 	// Always update role from the event payload. This corrects stale role assignments
 	// (e.g. "cashier" set by old events that lacked a roles field) every time the PIN
 	// is re-set, so admins and managers are never stuck with a demoted role.
-	if posRole := mapSSORoleToPOS(evt.Payload); posRole != "" {
+	if posRole := h.posRoleFor(tenantID, evt.Payload); posRole != "" {
 		upd = upd.SetRole(posRole)
 	}
 	// Update name if provided (event now includes full_name from auth-api).
@@ -733,7 +754,7 @@ func (h *AuthEventHandler) clearPINOnRaise(upd *ent.StaffMemberUpdateOne, sm *en
 // upsertStaffMember creates a StaffMember for the given user if one does not exist,
 // or updates name/role if they changed, then upserts StaffOutlet rows. This is idempotent.
 func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenantID uuid.UUID, name string, evt *sharedevents.Event) {
-	posRole := mapSSORoleToPOS(evt.Payload)
+	posRole := h.posRoleFor(tenantID, evt.Payload)
 	if posRole == "" {
 		h.logger.Debug("skipping StaffMember upsert for non-POS role",
 			zap.String("user_id", userID.String()),
@@ -885,4 +906,22 @@ func mapSSORoleToPOS(payload map[string]interface{}) string {
 		}
 	}
 	return ""
+}
+
+// mapSSORoleToPOSIn is mapSSORoleToPOS for a tenant. Outside the platform tenant it is exactly
+// mapSSORoleToPOS. On the platform tenant (onPlatformTenant) the generic roles member, staff and
+// viewer are ignored, so staff no longer means cashier there and only an explicit POS role
+// (cashier, manager, admin and the other job roles) gives one; unknown roles already give none.
+func mapSSORoleToPOSIn(payload map[string]interface{}, onPlatformTenant bool) string {
+	if !onPlatformTenant {
+		return mapSSORoleToPOS(payload)
+	}
+	roles, _ := payload["roles"].([]interface{})
+	named := make([]interface{}, 0, len(roles))
+	for _, r := range roles {
+		if s, _ := r.(string); !posrole.IsGenericStaffRole(s) {
+			named = append(named, r)
+		}
+	}
+	return mapSSORoleToPOS(map[string]interface{}{"roles": named})
 }

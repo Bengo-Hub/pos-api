@@ -10,6 +10,8 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/layawayplan"
+	"github.com/bengobox/pos-service/internal/ent/loyaltyaccount"
+	"github.com/bengobox/pos-service/internal/modules/customers"
 	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
@@ -62,18 +64,7 @@ func (s *LayawayReminderScheduler) run(ctx context.Context) {
 	}
 
 	for _, plan := range plans {
-		dueDate := ""
-		if plan.DueDate != nil {
-			dueDate = plan.DueDate.Format("2006-01-02")
-		}
-		payload := map[string]any{
-			"layaway_plan_id": plan.ID,
-			"customer_name":   plan.CustomerName,
-			"customer_phone":  plan.CustomerPhone,
-			"customer_email":  plan.CustomerEmail,
-			"balance_due":     plan.RemainingAmount,
-			"due_date":        dueDate,
-		}
+		payload := layawayPaymentDuePayload(plan, layawayCustomerContactID(ctx, s.db, plan))
 		if err := s.publisher.PublishLayawayPaymentDue(ctx, uuid.UUID(plan.TenantID), payload); err != nil {
 			s.log.Warn("failed to publish layaway.payment_due",
 				zap.Stringer("plan_id", plan.ID),
@@ -84,4 +75,57 @@ func (s *LayawayReminderScheduler) run(ctx context.Context) {
 	if len(plans) > 0 {
 		s.log.Info("layaway payment_due reminders published", zap.Int("count", len(plans)))
 	}
+}
+
+// layawayPaymentDuePayload is the pos.layaway.payment_due payload for plan. A customer linked to
+// the CRM (crmContactID set) is named by crm_contact_id alone and notifications-api reads the
+// name, phone and email from the CRM; an unlinked customer, or a staff layaway, keeps
+// customer_name, customer_phone and customer_email.
+func layawayPaymentDuePayload(plan *ent.LayawayPlan, crmContactID *uuid.UUID) map[string]any {
+	dueDate := ""
+	if plan.DueDate != nil {
+		dueDate = plan.DueDate.Format("2006-01-02")
+	}
+	return events.WithRecipient(map[string]any{
+		"layaway_plan_id": plan.ID.String(),
+		"balance_due":     plan.RemainingAmount,
+		"due_date":        dueDate,
+	}, "customer", events.Recipient{
+		CrmContactID: crmContactID,
+		Name:         plan.CustomerName,
+		Email:        plan.CustomerEmail,
+		Phone:        plan.CustomerPhone,
+	})
+}
+
+// layawayCustomerContactID is the CRM contact of a customer layaway: the one on the loyalty
+// account the plan was opened on, else the one on the account holding the plan's phone, both in
+// the plan's own tenant. nil for a staff layaway, an unlinked customer or a failed read, so the
+// reminder then carries the customer's details and still reaches them.
+func layawayCustomerContactID(ctx context.Context, db *ent.Client, plan *ent.LayawayPlan) *uuid.UUID {
+	if plan.PartyType == layawayplan.PartyTypeStaff {
+		return nil
+	}
+	linked := func(acc *ent.LoyaltyAccount) *uuid.UUID {
+		if acc == nil || acc.CrmContactID == nil || *acc.CrmContactID == uuid.Nil {
+			return nil
+		}
+		id := *acc.CrmContactID
+		return &id
+	}
+	if plan.LoyaltyAccountID != nil {
+		acc, err := db.LoyaltyAccount.Query().
+			Where(loyaltyaccount.ID(*plan.LoyaltyAccountID), loyaltyaccount.TenantID(plan.TenantID)).
+			Only(ctx)
+		if err == nil {
+			if id := linked(acc); id != nil {
+				return id
+			}
+		}
+	}
+	acc, err := customers.FindAccountIn(ctx, db, plan.TenantID, plan.CustomerPhone)
+	if err != nil {
+		return nil
+	}
+	return linked(acc)
 }

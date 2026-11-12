@@ -635,6 +635,15 @@ func (h *PINAuthHandler) AuthMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// On the platform tenant a plain member (or a generic staff or viewer role) gets no POS role,
+	// and those generic role names are not read as POS role codes either: platform staff get POS
+	// only through an explicit POS role.
+	onPlatform := h.platformTenantID != uuid.Nil && tid == h.platformTenantID
+	globalRoles := claims.Roles
+	if onPlatform {
+		globalRoles = posrole.WithoutGenericStaffRoles(claims.Roles)
+	}
+
 	// Resolve POS role: prefer local StaffMember record, fall back to JWT role mapping
 	var posRole, displayName string
 	member, memberErr := h.client.StaffMember.Query().
@@ -644,7 +653,7 @@ func (h *PINAuthHandler) AuthMe(w http.ResponseWriter, r *http.Request) {
 		posRole = member.Role
 		displayName = member.Name
 	} else {
-		posRole = rbac.MapGlobalRolesToServiceRole(claims.Roles)
+		posRole = rbac.MapGlobalRolesToServiceRoleIn(claims.Roles, onPlatform)
 		displayName = claims.Email
 	}
 
@@ -657,7 +666,7 @@ func (h *PINAuthHandler) AuthMe(w http.ResponseWriter, r *http.Request) {
 	// set — pos-ui's refreshServicePermissions polls this endpoint every 60s and trusts a
 	// successful response's permissions as authoritative; a masked failure here was the root
 	// cause of a 2026-07-19 fleet-wide waiter lockout.
-	perms, permErr := resolveEffectivePermissions(r.Context(), h.client, tid, uid, posRole, claims.Roles)
+	perms, permErr := resolveEffectivePermissions(r.Context(), h.client, tid, uid, posRole, globalRoles)
 	if permErr != nil {
 		h.log.Error("auth/me: permission resolution failed", zap.Error(permErr), zap.String("tenant_id", tid.String()), zap.String("user_id", uid.String()))
 		jsonError(w, "permission resolution temporarily unavailable", http.StatusServiceUnavailable)

@@ -552,14 +552,8 @@ func (h *LoyaltyHandler) applyEarn(ctx context.Context, tid, accountID uuid.UUID
 	// Publish event for notifications-service (WhatsApp/SMS "You earned X pts" message).
 	// Best-effort, after commit so a publish failure never rolls back a real balance change.
 	if h.publisher != nil {
-		payload := map[string]any{
-			"account_id":     acc.ID.String(),
-			"customer_phone": acc.CustomerPhone,
-			"customer_name":  acc.CustomerName,
-			"customer_email": acc.CustomerEmail,
-			"points_earned":  points,
-			"balance_after":  newBalance,
-		}
+		// Ids only for a CRM-linked account; the customer fields only when unlinked.
+		payload := events.LoyaltyPointsEarnedPayload(acc, points, newBalance)
 		if orderID != nil {
 			payload["order_id"] = *orderID
 		}

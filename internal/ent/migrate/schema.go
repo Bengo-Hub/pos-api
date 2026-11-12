@@ -1981,7 +1981,7 @@ var (
 		{Name: "exchange_order_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "requested_by", Type: field.TypeUUID},
 		{Name: "approved_by", Type: field.TypeUUID, Nullable: true},
-		{Name: "refund_channel", Type: field.TypeEnum, Nullable: true, Enums: []string{"cash", "mpesa", "bank", "cheque", "store_credit", "offset_invoice"}},
+		{Name: "refund_channel", Type: field.TypeEnum, Nullable: true, Enums: []string{"cash", "mpesa", "bank", "cheque", "store_credit", "offset_invoice", "mtn_momo_manual", "airtel_money_manual", "other_manual", "card_manual", "mpesa_manual", "room_folio"}},
 		{Name: "treasury_refund_ref", Type: field.TypeString, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON},
 		{Name: "created_at", Type: field.TypeTime},
@@ -3070,6 +3070,14 @@ var (
 				Name:    "roomfoliopayment_tenant_id_room_id",
 				Unique:  false,
 				Columns: []*schema.Column{RoomFolioPaymentsColumns[1], RoomFolioPaymentsColumns[2]},
+			},
+			{
+				Name:    "roomfoliopayment_return_credit_ref",
+				Unique:  true,
+				Columns: []*schema.Column{RoomFolioPaymentsColumns[1], RoomFolioPaymentsColumns[3], RoomFolioPaymentsColumns[7]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "method = 'return_credit'",
+				},
 			},
 		},
 	}

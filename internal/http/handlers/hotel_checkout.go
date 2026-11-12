@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	entroomfolioitem "github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	entroomfoliopayment "github.com/bengobox/pos-service/internal/ent/roomfoliopayment"
 	entroomguest "github.com/bengobox/pos-service/internal/ent/roomguest"
+	"github.com/bengobox/pos-service/internal/modules/payments"
 	treasury "github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/payref"
 )
@@ -28,6 +30,7 @@ type folioPaymentDTO struct {
 	Currency  string    `json:"currency"`
 	Method    string    `json:"method"`
 	Reference string    `json:"reference,omitempty"`
+	Label     string    `json:"label,omitempty"` // how the guest paid, for other_manual
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -78,7 +81,7 @@ func (h *HotelHandler) loadFolioSummary(r *http.Request, tid, roomID uuid.UUID) 
 	if err != nil {
 		return nil, err
 	}
-	payments, err := h.client.RoomFolioPayment.Query().
+	folioPays, err := h.client.RoomFolioPayment.Query().
 		Where(entroomfoliopayment.TenantID(tid), entroomfoliopayment.RoomGuestID(guest.ID)).
 		Order(ent.Desc(entroomfoliopayment.FieldCreatedAt)).
 		All(r.Context())
@@ -99,14 +102,15 @@ func (h *HotelHandler) loadFolioSummary(r *http.Request, tid, roomID uuid.UUID) 
 		})
 	}
 	var paidTotal float64
-	payDTOs := make([]folioPaymentDTO, 0, len(payments))
-	for _, p := range payments {
+	payDTOs := make([]folioPaymentDTO, 0, len(folioPays))
+	for _, p := range folioPays {
 		if p.Status == "completed" {
 			paidTotal += p.Amount
 		}
+		label, _ := p.Metadata["payment_label"].(string)
 		payDTOs = append(payDTOs, folioPaymentDTO{
 			ID: p.ID.String(), Amount: p.Amount, Currency: p.Currency, Method: p.Method,
-			Reference: p.Reference, Status: p.Status, CreatedAt: p.CreatedAt,
+			Reference: p.Reference, Label: label, Status: p.Status, CreatedAt: p.CreatedAt,
 		})
 	}
 
@@ -160,31 +164,107 @@ func (h *HotelHandler) GetFolioSummary(w http.ResponseWriter, r *http.Request) {
 }
 
 type settleFolioInput struct {
-	Amount    float64 `json:"amount"`
-	Method    string  `json:"method"`    // cash | card_manual | pdq | mpesa | mpesa_stk | card | wallet
-	Reference string  `json:"reference"` // M-Pesa code / card approval ref (optional)
-	Checkout  bool    `json:"checkout"`  // when true, check the guest out if the balance clears
+	Amount float64 `json:"amount"`
+	// Method: cash | card_manual | pdq | mpesa | mtn_momo_manual | airtel_money_manual |
+	// other_manual | mpesa_stk | card | wallet
+	Method string `json:"method"`
+	// Reference is the transaction code (required for M-Pesa, MTN MoMo and Airtel Money, checked
+	// like the till), a card approval ref, or an optional reference for Other.
+	Reference string `json:"reference"`
+	// Label says how the guest paid; required for other_manual (2 to 40 characters).
+	Label    string `json:"label"`
+	Checkout bool   `json:"checkout"` // when true, check the guest out if the balance clears
 }
 
 // immediate-settle hotel tenders: cashier collects at the desk (cash / external card terminal / a
-// confirmed M-Pesa code), so the payment is recorded completed with no online gateway round-trip.
+// confirmed M-Pesa, MTN MoMo or Airtel Money code / Other), so the payment is recorded completed
+// with no online gateway round-trip.
 func isImmediateHotelMethod(method string) bool {
 	switch strings.ToLower(strings.TrimSpace(method)) {
-	case "cash", "card_manual", "pdq", "card_terminal", "mpesa", "manual", "mpesa_manual":
+	case "cash", "card_manual", "pdq", "card_terminal", "mpesa", "manual", "mpesa_manual",
+		payments.TenderMTNMoMoManual, payments.TenderAirtelMoneyManual, payments.TenderOtherManual:
 		return true
 	default:
 		return false
 	}
 }
 
-// isTillOnlyManualTender reports the manual tenders only the POS till validates (format, label,
-// duplicate check). Until the hotel picker offers them, hotel payments refuse them.
-func isTillOnlyManualTender(method string) bool {
-	switch strings.ToLower(strings.TrimSpace(method)) {
-	case "mtn_momo_manual", "airtel_money_manual", "other_manual":
-		return true
+// deskTender is a hotel desk payment after the till's code checks.
+type deskTender struct {
+	Method    string // as the desk sent it, lowercased (stored on the folio payment)
+	Reference string
+	Label     string // only for other_manual
+}
+
+// deskCodeMethod maps a desk method onto the till tender whose code rules apply, or "" when the
+// method carries no checked code. The desk has long sent a sighted M-Pesa code as "mpesa".
+func deskCodeMethod(method string) string {
+	switch method {
+	case "mpesa", "manual", "mpesa_manual":
+		return "mpesa_manual"
+	case payments.TenderMTNMoMoManual, payments.TenderAirtelMoneyManual, payments.TenderOtherManual:
+		return method
 	}
-	return false
+	return ""
+}
+
+// checkDeskTender applies the till's rules to a hotel desk payment (owner decision 2026-11-12):
+// an M-Pesa code must be present, MTN MoMo and Airtel Money IDs must have the transaction ID
+// shape, Other needs a 2 to 40 character label, and an M-Pesa, MTN or Airtel code that already
+// settled a till sale or a hotel folio in this tenant is refused. Codes are uppercased. Other
+// methods pass through with the reference as sent. On refusal it returns the HTTP status to
+// answer with (400 for the format, 409 for a reused code, 500 when the check could not run).
+func (h *HotelHandler) checkDeskTender(ctx context.Context, tid uuid.UUID, method, reference, label string) (deskTender, int, error) {
+	method = strings.ToLower(strings.TrimSpace(method))
+	codeMethod := deskCodeMethod(method)
+	if codeMethod == "" {
+		return deskTender{Method: method, Reference: reference}, 0, nil
+	}
+	_, ref, lbl, err := payments.NormalizeManualCode(codeMethod, reference, label)
+	if err != nil {
+		return deskTender{}, http.StatusBadRequest, err
+	}
+	used, err := payments.ManualCodeUsed(ctx, h.client, tid, codeMethod, ref)
+	if err != nil {
+		h.log.Error("hotel folio: code reuse check failed", zap.String("tenant_id", tid.String()), zap.Error(err))
+		return deskTender{}, http.StatusInternalServerError, errors.New("could not check the payment code, try again")
+	}
+	if used {
+		return deskTender{}, http.StatusConflict, deskCodeUsedError(codeMethod, ref)
+	}
+	return deskTender{Method: method, Reference: ref, Label: lbl}, 0, nil
+}
+
+// errDeskCodeUsed marks a desk payment refused because its code already settled another sale
+// or bill; callers answer 409 with the error's own message.
+var errDeskCodeUsed = errors.New("payment code already used")
+
+type deskCodeUsed struct{ msg string }
+
+func (e deskCodeUsed) Error() string        { return e.msg }
+func (e deskCodeUsed) Is(target error) bool { return target == errDeskCodeUsed }
+
+func deskCodeUsedError(codeMethod, ref string) error {
+	return deskCodeUsed{msg: fmt.Sprintf("%s code %s has already been used to settle another sale or bill",
+		payments.ManualTenderName(codeMethod), ref)}
+}
+
+// recheckDeskCode runs the duplicate check again right before a desk payment is written, which
+// closes most of the window between checkDeskTender and the write (the pay upfront check-in runs
+// the CRM link and the check-in transaction in between). Like the till's check it is not a lock.
+func (h *HotelHandler) recheckDeskCode(ctx context.Context, tid uuid.UUID, tender deskTender) error {
+	codeMethod := deskCodeMethod(tender.Method)
+	if codeMethod == "" || tender.Reference == "" {
+		return nil
+	}
+	used, err := payments.ManualCodeUsed(ctx, h.client, tid, codeMethod, tender.Reference)
+	if err != nil {
+		return fmt.Errorf("check the payment code: %w", err)
+	}
+	if used {
+		return deskCodeUsedError(codeMethod, tender.Reference)
+	}
+	return nil
 }
 
 func treasuryMethodForHotel(method string) string {
@@ -201,6 +281,8 @@ func treasuryMethodForHotel(method string) string {
 	case "mpesa_stk":
 		return "mpesa" // online STK push
 	default:
+		// mtn_momo_manual, airtel_money_manual and other_manual: treasury settles these codes
+		// immediately as themselves, as at the till.
 		return strings.ToLower(strings.TrimSpace(method))
 	}
 }
@@ -232,10 +314,9 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "method is required", http.StatusBadRequest)
 		return
 	}
-	if isTillOnlyManualTender(input.Method) {
-		// The hotel desk does not offer these yet, and this path has no code format or
-		// duplicate check for them, so they are refused rather than sent to a gateway.
-		jsonError(w, "MTN MoMo, Airtel Money and Other codes are taken at the POS till, not at the hotel desk", http.StatusBadRequest)
+	tender, httpCode, terr := h.checkDeskTender(r.Context(), tid, input.Method, input.Reference, input.Label)
+	if terr != nil {
+		jsonError(w, terr.Error(), httpCode)
 		return
 	}
 
@@ -289,8 +370,12 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 	// Capture in treasury (immediate-settle for cash/card; pending intent for online gateways)
 	// and in the local payment ledger — shared with CheckIn's pay_upfront path.
 	recordedBy, _ := uuid.Parse(r.Header.Get("X-User-ID"))
-	intentID, initiateURL, _, perr := h.recordFolioPayment(r, tid, tenantSlug, room, guest.ID, guest.GuestName, input.Amount, input.Method, input.Reference, roomRevenueAmount, recordedBy)
+	intentID, initiateURL, _, perr := h.recordFolioPayment(r, tid, tenantSlug, room, guest.ID, guest.GuestName, input.Amount, tender, roomRevenueAmount, recordedBy)
 	if perr != nil {
+		if errors.Is(perr, errDeskCodeUsed) {
+			jsonError(w, perr.Error(), http.StatusConflict)
+			return
+		}
 		if !immediate {
 			h.log.Warn("hotel folio: treasury intent failed", zap.Error(perr))
 			jsonError(w, "could not start payment", http.StatusBadGateway)
@@ -320,11 +405,10 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 			_, _ = h.client.Room.UpdateOneID(roomID).SetStatus(entroom.StatusCleaning).Save(r.Context())
 			checkedOut = true
 			if h.publisher != nil {
-				_ = h.publisher.PublishHotelCheckOut(r.Context(), tid, map[string]any{
-					"room_id": roomID, "guest_id": guest.ID, "guest_name": guest.GuestName,
-					"guest_email": guest.Email, "guest_phone": guest.Phone,
+				_ = h.publisher.PublishHotelCheckOut(r.Context(), tid, withGuestRecipient(map[string]any{
+					"room_id": roomID, "guest_id": guest.ID,
 					"total_folio": summary.ChargesTotal, "checked_out_at": now,
-				})
+				}, guest, guest.GuestName))
 			}
 			// context.WithoutCancel: see CheckOut's identical detached task-creation comment in
 			// hotel.go — r.Context() would otherwise race the server's post-handler cancellation.
@@ -361,8 +445,12 @@ func immediateOrPending(immediate bool, method string) string {
 // behaviour instead of two copies drifting apart.
 func (h *HotelHandler) recordFolioPayment(
 	r *http.Request, tid uuid.UUID, tenantSlug string, room *ent.Room, guestID uuid.UUID, guestName string,
-	amount float64, method, reference string, roomRevenueAmount float64, recordedBy uuid.UUID,
+	amount float64, tender deskTender, roomRevenueAmount float64, recordedBy uuid.UUID,
 ) (intentID, initiateURL, status string, err error) {
+	method, reference := tender.Method, tender.Reference
+	if err := h.recheckDeskCode(r.Context(), tid, tender); err != nil {
+		return "", "", "", err
+	}
 	immediate := isImmediateHotelMethod(method)
 	status = "pending"
 	if immediate {
@@ -387,6 +475,9 @@ func (h *HotelHandler) recordFolioPayment(
 		if reference != "" {
 			intentReq.Metadata["external_ref"] = reference
 		}
+		if tender.Label != "" {
+			intentReq.Metadata["payment_label"] = tender.Label
+		}
 		intent, ierr := h.treasuryClient.CreateIntent(r.Context(), tenantSlug, intentReq.ReferenceID, intentReq)
 		if ierr != nil {
 			h.log.Warn("hotel folio: treasury intent failed", zap.Error(ierr))
@@ -408,6 +499,9 @@ func (h *HotelHandler) recordFolioPayment(
 		SetStatus(status)
 	if reference != "" {
 		create = create.SetReference(reference)
+	}
+	if tender.Label != "" {
+		create = create.SetMetadata(map[string]any{"payment_label": tender.Label})
 	}
 	if intentID != "" {
 		create = create.SetTreasuryIntentID(intentID)

@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	enttenant "github.com/bengobox/pos-service/internal/ent/tenant"
 )
 
@@ -201,11 +202,22 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 
 	now := time.Now()
 
+	// Same UUID already here under another slug: auth renamed the tenant. Move the row and its
+	// outlets' tenant_slug together (receipts resolve treasury and eTIMS by outlet.TenantSlug).
+	// When the new slug is held by another local row, keep the old one so the upsert still lands.
+	slugToWrite := remote.Slug
+	if prev, pErr := s.client.Tenant.Get(ctx, realID); pErr == nil && remote.Slug != "" && prev.Slug != remote.Slug {
+		if _, rErr := s.RenameTenantSlug(ctx, realID, remote.Slug); rErr != nil {
+			log.Printf("  [tenant-sync] slug for %s left as %s: %v", realID, prev.Slug, rErr)
+			slugToWrite = prev.Slug
+		}
+	}
+
 	// Use Ent Upsert
 	create := s.client.Tenant.Create().
 		SetID(realID).
 		SetName(remote.Name).
-		SetSlug(remote.Slug).
+		SetSlug(slugToWrite).
 		SetStatus(remote.Status).
 		SetNillableUseCase(nillableStr(remote.UseCase)).
 		SetSyncStatus("synced").
@@ -224,6 +236,59 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 
 	log.Printf("  [tenant-sync] synced %s (UUID %s) into pos-api DB via shared cache", slug, realID)
 	return realID, nil
+}
+
+// RenameTenantSlug moves the local tenant row onto newSlug, together with every outlet of that
+// tenant still carrying the old slug, in one transaction, then drops the cached tenant under both
+// slugs. It returns the old slug ("" when the row is missing or already on newSlug). Auth owns the
+// slug; this is the projection of an auth rename (same UUID, new slug) and is meant for the
+// SyncTenant update path and an auth.tenant.updated handler alike.
+func (s *Syncer) RenameTenantSlug(ctx context.Context, tenantID uuid.UUID, newSlug string) (string, error) {
+	newSlug = strings.TrimSpace(newSlug)
+	if newSlug == "" {
+		return "", nil
+	}
+	row, err := s.client.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("tenant.RenameTenantSlug: load: %w", err)
+	}
+	if row.Slug == newSlug {
+		return "", nil
+	}
+	clash, err := s.client.Tenant.Query().Where(enttenant.SlugEQ(newSlug), enttenant.IDNEQ(tenantID)).Exist(ctx)
+	if err != nil {
+		return "", fmt.Errorf("tenant.RenameTenantSlug: clash check: %w", err)
+	}
+	if clash {
+		return "", fmt.Errorf("tenant.RenameTenantSlug: slug %q is held by another local tenant", newSlug)
+	}
+
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return "", fmt.Errorf("tenant.RenameTenantSlug: begin: %w", err)
+	}
+	if err := tx.Tenant.UpdateOneID(tenantID).SetSlug(newSlug).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return "", fmt.Errorf("tenant.RenameTenantSlug: tenant: %w", err)
+	}
+	moved, err := tx.Outlet.Update().
+		Where(entoutlet.TenantID(tenantID), entoutlet.TenantSlug(row.Slug)).
+		SetTenantSlug(newSlug).
+		Save(ctx)
+	if err != nil {
+		_ = tx.Rollback()
+		return "", fmt.Errorf("tenant.RenameTenantSlug: outlets: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("tenant.RenameTenantSlug: commit: %w", err)
+	}
+
+	s.cache.Invalidate(ctx, sharedcache.TenantCacheKey(row.Slug), sharedcache.TenantCacheKey(newSlug))
+	log.Printf("  [tenant-sync] slug for %s renamed %s -> %s (%d outlets moved)", tenantID, row.Slug, newSlug, moved)
+	return row.Slug, nil
 }
 
 // authOutletItem is the shape of one entry from GET /api/v1/tenants/{slug}/outlets.

@@ -1318,21 +1318,20 @@ func (s *Service) RequestSaleNotification(ctx context.Context, tenantID, orderID
 	}
 
 	if s.publisher != nil {
-		_ = s.publisher.PublishSaleNotificationRequested(ctx, tenantID, map[string]any{
+		// A CRM-linked customer travels as crm_contact_id (plus anything the cashier typed for
+		// this send); an unlinked one keeps name, phone and email. See addSaleNoticeRecipient.
+		_ = s.publisher.PublishSaleNotificationRequested(ctx, tenantID, addSaleNoticeRecipient(map[string]any{
 			"order_id":             orderID.String(),
 			"order_number":         order.OrderNumber,
 			"tenant_id":            tenantID.String(),
 			"outlet_id":            order.OutletID.String(),
-			"customer_name":        name,
-			"customer_phone":       phone,
-			"customer_email":       email,
 			"total_amount":         order.TotalAmount,
 			"currency":             order.Currency,
 			"items":                items,
 			"etims_invoice_number": derefStr(order.EtimsInvoiceNumber),
 			"download_link":        downloadLink,
 			"channel":              channel,
-		})
+		}, s.saleCustomerContactID(ctx, tenantID, order), name, phone, email, overridePhone, overrideEmail))
 	}
 	return order, nil
 }

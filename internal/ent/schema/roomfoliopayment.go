@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
@@ -56,5 +57,12 @@ func (RoomFolioPayment) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id", "room_guest_id"),
 		index.Fields("tenant_id", "room_id"),
+		// A POS return or reversal credits a stay's folio once (payments.CreditRoomFolio): the
+		// reference is the return or reversal number. Partial, so ordinary payments that happen
+		// to share a reference are not affected.
+		index.Fields("tenant_id", "room_guest_id", "reference").
+			Unique().
+			StorageKey("roomfoliopayment_return_credit_ref").
+			Annotations(entsql.IndexWhere("method = 'return_credit'")),
 	}
 }

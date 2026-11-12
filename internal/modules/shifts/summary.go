@@ -263,7 +263,8 @@ func cashReturnsCompletedInShift(ctx context.Context, client *ent.Client, tid, u
 		Where(
 			posreturn.TenantID(tid),
 			posreturn.StatusEQ(posreturn.StatusCompleted),
-			posreturn.RefundChannelEQ(posreturn.RefundChannelCash),
+			// room_folio counts only for the cash it paid beyond the folio credit (below).
+			posreturn.RefundChannelIn(posreturn.RefundChannelCash, posreturn.RefundChannelRoomFolio),
 			posreturn.UpdatedAtGTE(from),
 		).
 		All(ctx)
@@ -295,6 +296,9 @@ func cashReturnsCompletedInShift(ctx context.Context, client *ent.Client, tid, u
 		if paid, ok := r.Metadata[returns.MetaCashPaidOut].(float64); ok {
 			total += paid
 			continue
+		}
+		if r.RefundChannel != nil && *r.RefundChannel == posreturn.RefundChannelRoomFolio {
+			continue // credited to the room folio; no cash left the drawer
 		}
 		if r.ReturnType != posreturn.ReturnTypeExchange {
 			total += r.RefundAmount

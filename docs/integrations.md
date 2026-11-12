@@ -51,9 +51,57 @@ The POS service is the **source of truth for sales catalogs (menus)**. While `in
   `POST /api/v1/s2s/{tenant}/pos/returns/credit-note` (`treasury.Client.RaiseReturnCreditNote`). Lines are
   built by `orders.BuildRefundLines`, priced the way the sale was sent. A pos "Save as Quotation" calls a
   treasury quotation S2S create.
-  The refund method (cash, M-Pesa, bank, cheque, store credit, reduce customer credit) only changes the
-  books, never what KRA receives. "Reduce customer credit" (`offset_invoice`) is allowed only on a sale
-  settled on account; a sale paid in full has no balance to reduce (`returns/policy.go`).
+  The refund method (cash, M-Pesa, MTN MoMo, Airtel Money, Other, card, bank, cheque, store credit,
+  reduce customer credit) only changes the books, never what KRA receives. "Reduce customer credit"
+  (`offset_invoice`) is allowed only on a sale settled on account; a sale paid in full has no balance
+  to reduce (`returns/policy.go`).
+  Refunds go back the way the sale was paid (2026-11-12). A refund return with no method chosen, a sale
+  void or edit with no method chosen, and a voided payment all use the sale's original method
+  (`payments.OriginalRefundChannel`: the money tender that carried the most; credit, store credit,
+  exchange credit, loyalty and complimentary tenders are skipped; cash when nothing else applies).
+  The channel sent to treasury is `mpesa_manual` (an M-Pesa code payment), `mpesa` (STK or C2B),
+  `mtn_momo_manual`, `airtel_money_manual`, `other_manual`, `card_manual` (PDQ or card), `bank`,
+  `cheque` or `cash`. Treasury first books the refund to the tenant's account that defaults to that
+  method (so a code sale paid into the Till account is refunded from it), else `refundChannelToCode`
+  books M-Pesa, MTN and Airtel refunds against the mobile money float (1100), bank and cheque against
+  the bank (1300), and cash, Other and card against cash (1000).
+  The cashier can still pick another method, also for an exchange's leftover (a cashier who hands
+  the leftover back in notes picks cash), and store credit and on-account offsets keep their own
+  defaults. pos-ui sends a method only when the cashier picked one or the sale's original method is
+  known, so the server default applies otherwise. Only a cash refund counts as cash out of the drawer.
+  A split sale refunds every return through its largest money tender, whatever earlier returns
+  already took from it, so one tender can be refunded more than it received (a sale paid 600 by
+  M-Pesa and 400 cash refunds a 700 return entirely by M-Pesa); the cashier picks another method
+  when that is wrong.
+  A sale charged to a room (`room_charge`) is credited back to the guest's room folio while the stay
+  is open (owner decision 2026-11-12), whatever method was picked: the return or reversal stores the
+  `room_folio` channel and writes a completed folio payment of method `return_credit`, referenced by
+  the return or reversal number (idempotent, tenant scoped, backed by the partial unique index
+  `roomfoliopayment_return_credit_ref`), which lowers what the guest pays at checkout. The credit is
+  capped at what the folio still owes (its charges less its completed payments), so a bill the guest
+  already settled is never driven below zero. Whatever the folio no longer owes is refunded through
+  the method the cashier picked (cash by default) as a second treasury refund. That rest refund uses
+  reference type `pos_return_rest` (treasury raises a credit-note document only for `pos_return`,
+  and the main refund's credit note already carries every returned line), the deterministic id
+  `uuid.NewSHA1(return_id, "folio-rest")` and the return's outlet. It is sent only after the main
+  refund went through; otherwise the return keeps it as `folio_rest_pending` and the credit-note
+  retry job (`RetryPendingFolioRests`, every 5 minutes, oldest first) sends it once. After 12 failed
+  attempts (`folio_rest_attempts`) it stops, marks `folio_rest_failed` and logs the return id so staff
+  can settle the rest by hand. `pos.return.completed` then
+  carries `ledger_refund_amount` (the refund less the rest), the part booked under the return id,
+  so treasury's GL backstop must book that rather than `refund_amount` (treasury change pending).
+  Only the rest counts as cash out of the drawer, and the return records `folio_credit`,
+  `folio_rest_amount`, `folio_rest_channel`, `folio_rest_tax` and `folio_rest_cost` in its metadata. A folio that owes nothing gets no credit
+  and the whole refund goes through the picked method. Treasury reverses the credited part as cash,
+  the way it booked the room charge. The stay is found through the folio item carrying the sale's
+  order id. Once the stay is checked out the refund goes through the chosen method, cash by default;
+  a reversal whose stay closed before its treasury step records the cash it actually paid instead of
+  `room_folio`, while a retried step that finds the credit its first attempt made keeps `room_folio`
+  even if the stay has closed since. The return detail carries `room_stay_open` so pos-ui can say the refund goes to the
+  room bill.
+  At a pay upfront check-in, a code another payment took between the first check and the write
+  records nothing for the payment; the response carries `payment_recorded: false` and
+  `payment_message` "Checked in, but the code was already used; take payment again."
   An exchange is a refund plus a new sale, as KRA treats it (2026-11-01): the return settles its full
   value with `exchange_credit` (the returned value, capped at the replacement total) so treasury keeps
   that part in exchange clearing (2310) and pays out only the leftover; the replacement order is sold at
@@ -129,7 +177,13 @@ integrated service, each step tracked on the `pos_reversals` row (steps JSON) an
    lines/dailies, idempotent on `pos-reversal-{id}`.
 3. `treasury_gl` — reuses the returns settlement `POST /api/v1/s2s/{tenant}/refunds`
    (revenue+VAT reversal, catalog-source COGS reversal, AR netting, auto credit-note doc);
-   idempotent on the reversal id.
+   idempotent on the reversal id. When a reversal is larger than the cash it netted back, it splits
+   into a cash portion (`pos_return`, id `uuid.NewSHA1(reversal_id, "cash")`) and an AR write-off
+   (`pos_reversal_rest`, id `uuid.NewSHA1(reversal_id, "ar")`). Treasury raises a credit-note
+   document only for `pos_return` refunds, so the split raises one document, not two; the write-off
+   books the same refund GL. The write-off is sent only after the cash portion went through; a
+   failure fails the step, and the retry books each portion once under its deterministic id.
+   Reversals publish no GL backstop event, so nothing else books them.
 4. `etims_credit_note` — when the sale was transmitted to KRA (`orders.IsFiscalized`), calls
    `RaiseReturnCreditNote` with the reversed lines, the sale's outlet and the order id; treasury keys the
    credit note on the reversal id, so a retry returns the same document. SKIPPED when the sale was never
@@ -264,6 +318,18 @@ receipts when `show_payment_info_on_receipt` is on) are separate from the treasu
 credentials above — one is "what number to show the customer," the other is "how to actually
 collect/confirm the payment."
 
+**Codes at the hotel desk (2026-11-12).** The hotel desk (folio settlement and pay upfront check-in)
+takes M-Pesa, MTN MoMo and Airtel Money codes and Other with the till's rules
+(`payments.NormalizeManualCode`): an M-Pesa code must be present, MTN and Airtel IDs must be 6 to 30
+letters or digits (dots and dashes allowed), and Other needs a 2 to 40 character `label` saying how the
+guest paid, kept in the folio payment's metadata as `payment_label` and sent to treasury in the intent
+metadata. Codes are uppercased. A code that already settled a completed till sale or a completed folio
+payment of the same network in the tenant is refused with 409 (`payments.ManualCodeUsed`); a bad format
+is 400. At pay upfront check-in the code is checked before the guest is checked in. These tenders
+settle immediately and treasury records each as itself, as at the till. pos-ui shows MTN and Airtel
+at the desk only where the outlet has that number set. The till's own duplicate check still looks at
+till payments only, so a code used first at the desk is not yet refused at the till.
+
 ### 2.1b Multi-Currency & Forex (2026-08-07)
 
 Treasury is the single source of truth for currency conversion — pos-api never computes an
@@ -387,8 +453,14 @@ marketflow-api owns customer identity. pos-api keeps `crm_contact_id` on loyalty
 - **Snapshots.** `crm.contact.updated` refreshes the snapshot from the CRM. `crm.contact.deleted` clears the link and sets `metadata.crm_unlinked_at` on the loyalty account or client record, and the reconciler skips marked rows. A staff create or edit clears the mark and links again.
 - **Loyalty is never destroyed by a customer delete.** When treasury deletes a customer, POS deletes its rows except a loyalty account that still holds points. That one is unlinked and marked instead.
 - **Hotel guests.** The guest register keeps the details typed at check-in and never takes data from the CRM. Check-in and staff booking creation link the guest by sending only the phone, email and name, never the ID number, nationality or party size. When staff edit a guest or a booking that has no CRM link yet, I link it the same way, with the phone, email and name as they stand after the edit and within the same 2 second budget. A cancelled booking is not a customer relationship, so cancelling a booking, or editing one already cancelled, never links it. Only the contact id is stored, so the register keeps what the front desk typed. A CRM refusal or outage never blocks a check-in, booking or edit: the record is saved unlinked. The reconciler does not cover guests or bookings, so an unlinked record stays unlinked until its next edit, check-in or booking. The public booking widget never links, because an unauthenticated visitor must not be able to create CRM contacts; the first staff edit of such a booking links it.
+- **Contacts picked at the desk are checked.** Hotel notices go to the stored contact, so only a contact the server linked itself is trusted (2026-11-12). A `crm_contact_id` sent with a check-in, room booking or event booking is kept only when the CRM holds that person's phone or email on the contact (`customers.Resolver.ContactMatches`, one batch lookup within the 2 second budget). Otherwise it is dropped and the person is linked by their own phone, email and name as usual. An id the CRM cannot be asked about (outage) is not trusted either. A check-in from a booking keeps the booking's stored contact without a lookup, since the server linked it. The check-in, room booking and event booking responses carry `crm_link: {status, message}`: `linked`, `mismatch` (the picked contact is not this person, and the guest was linked to their own contact instead) or `unlinked` (no contact id; the message says why, including when the picked contact could not be checked because the CRM was down or the guest has no phone or email, so it was not used). pos-ui shows the message; for `unlinked` it offers Add to CRM, which is an empty guest edit (`PATCH .../guest` with `{}`) and links an unlinked guest. The desk's code duplicate check runs again right before the folio payment is written. The booking responses keep every booking field at the top level.
 
 - **Erasure link check.** When a person is erased in the identity service, marketflow asks every service whether it still links the CRM contact before it deletes it. POS answers `GET /api/v1/s2s/{tenant}/crm-links/{contactID}` with `{"referenced": true|false}`, using the shared `X-API-Key`. `{tenant}` is the tenant UUID or slug. The answer is true when any row still carries the contact id, in any tenant (CRM contact ids are random UUIDs minted by marketflow, so a match anywhere is the same person, and a tenant mismatch can only answer "referenced", which keeps the contact), in loyalty accounts (merged shells included, to stay on the safe side), client records, customer balances, appointments, room bookings, room guests or event bookings. Only the flag is returned, and logs carry ids only. A bad contact id answers 400, a tenant POS does not hold (unknown slug, or a UUID with no local tenant row, as after a tenant id drift) 404, and a missing or wrong key 401. marketflow treats a 404 as "cannot answer" and keeps the contact.
+- **Notification events carry ids, not personal data.** For a person linked to the CRM, `pos.loyalty.points.earned`, `pos.loyalty.tier_upgraded`, `pos.loyalty.referral_earned`, `pos.hotel.check_in` and `pos.hotel.check_out` carry `crm_contact_id` plus the record ids, and no name, email or phone. notifications-api looks the details up in the CRM when it sends. `crm_contact_id` is always the person the notice goes to: for `loyalty.referral_earned` that is the referrer, and the referred friend appears only as `referred_crm_contact_id` (or `referred_phone` when the friend has no linked account). marketflow's tier update uses the same id. A person with no CRM link (the CRM was down or refused the contact, or the record predates linking) still gets `customer_*`, `referrer_*` or `guest_*` name, email and phone as before, so their notices keep arriving; this fallback stays until every record is linked. For hotel guests only the event changes: the guest register keeps what the guest gave at the desk.
+- **Layaway reminders and receipt requests.** `pos.layaway.payment_due` follows the same rule: for a customer linked to the CRM it carries `layaway_plan_id`, `balance_due`, `due_date` and `crm_contact_id`, with no name, phone or email. The contact is the one on the loyalty account the plan was opened on, else the account holding the plan's phone, in the plan's own tenant; a staff layaway is never linked. `pos.sale.notification_requested` (the "send receipt" action) carries `crm_contact_id` and no name for a linked customer, found through the loyalty account on the sale's phone in the sale's tenant. A phone or email the cashier typed for that one send still travels as `customer_phone` or `customer_email`, because that is where the receipt must go, and notifications-api prefers it over the CRM's. An unlinked customer keeps `customer_name`, `customer_phone` and `customer_email` on both events.
+- **Refunds.** `pos.return.completed` (and `pos.exchange.completed`, which shares the payload) carries `crm_contact_id` and no name or phone when the buyer's phone belongs to a CRM-linked loyalty account in the sale's tenant; otherwise it keeps `customer_name` and `customer_phone` (plus an empty `customer_email`). inventory-api and treasury's GL backstop read only ids and amounts from it.
+- **Payment confirmations.** `pos.payment.received_notification` (the View Payments "notify" action) follows the same rule: `crm_contact_id` and no name or phone when the sale's phone belongs to a CRM-linked loyalty account in the sale's tenant, else `customer_name` and `customer_phone` (plus an empty `customer_email`).
+- **Not covered yet.** The automatic receipt on `pos.sale.finalized` still carries the customer's name and phone. `sale.finalized` also feeds treasury's customer ledger, which reads them.
 
 ### Merging duplicate loyalty accounts
 
@@ -455,6 +527,10 @@ All pos-api protected routes under `/{tenant}/pos/` validate Bearer tokens issue
 
 **Token type:** `pos_terminal` HMAC-SHA256 JWT, 4-hour expiry, stored in `sessionStorage`  
 **Status:** ✅ Complete — see [pos-ui Sprint 10](../../pos-ui/docs/sprints/sprint-10-pos-auth.md)
+
+### 4.3 Tenant renames (`auth.tenant.updated`, 2026-11-12)
+
+Auth owns the tenant slug. When auth renames a tenant (same UUID, new slug), I move the local tenant row and every outlet of that tenant still carrying the old slug onto the new one in one transaction, then drop the cached tenant under both slugs. The outlets must move with the tenant because receipts pass the outlet slug to treasury for eTIMS and account balances. The tenant syncer does the same when it meets the new slug on its update path. A slug already held by another local tenant is refused and logged once, not retried. Terminals paired before a rename carry the old slug in their token and need to pair again.
 
 ---
 

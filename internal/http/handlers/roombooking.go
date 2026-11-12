@@ -179,7 +179,8 @@ func (h *HotelHandler) CreateRoomBooking(w http.ResponseWriter, r *http.Request)
 	outletID, _ := uuid.Parse(httpware.GetOutletID(r.Context()))
 	createdBy, _ := uuid.Parse(input.CreatedBy)
 	// The lead guest is linked to the CRM; a refusal or outage saves the booking unlinked.
-	crmContactID := h.linkGuest(r.Context(), tid, input.CRMContactID, input.Phone, input.Email, input.LeadGuestName, "room_booking")
+	link := h.linkGuest(r.Context(), tid, input.CRMContactID, input.Phone, input.Email, input.LeadGuestName, "room_booking")
+	crmContactID := link.ID
 
 	b := h.client.RoomBooking.Create().
 		SetTenantID(tid).
@@ -222,7 +223,12 @@ func (h *HotelHandler) CreateRoomBooking(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	jsonOK(w, booking)
+	// The booking fields stay at the top level; crm_link tells the desk how the lead guest was
+	// linked (see linkGuest).
+	jsonOK(w, struct {
+		*ent.RoomBooking
+		CRMLink crmLinkNotice `json:"crm_link"`
+	}{booking, link.Notice})
 }
 
 type updateRoomBookingInput struct {
@@ -337,7 +343,7 @@ func (h *HotelHandler) UpdateRoomBooking(w http.ResponseWriter, r *http.Request)
 		if in.LeadGuestName != nil {
 			name = *in.LeadGuestName
 		}
-		if cid := h.linkGuest(r.Context(), tid, "", phone, email, name, "room_booking"); cid != nil {
+		if cid := h.linkGuest(r.Context(), tid, "", phone, email, name, "room_booking").ID; cid != nil {
 			upd = upd.SetCrmContactID(*cid)
 		}
 	}

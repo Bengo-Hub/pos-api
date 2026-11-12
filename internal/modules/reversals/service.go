@@ -32,6 +32,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/documents"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
+	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
 
@@ -43,6 +44,11 @@ const (
 	StepEtimsCreditNote   = "etims_credit_note"
 	StepLoyaltyCommission = "loyalty_commission"
 )
+
+// ReversalRestReferenceType is the treasury reference type of the second portion of a split
+// reversal (the AR write-off). Treasury raises a credit-note document only for "pos_return"
+// refunds, so the split raises one document instead of two; the GL booking is the same.
+const ReversalRestReferenceType = "pos_reversal_rest"
 
 // Step statuses.
 const (
@@ -387,8 +393,9 @@ func (s *Service) audit(ctx context.Context, rev *ent.POSReversal) {
 }
 
 // resolveRefundChannel picks the treasury refund channel: whatever the caller explicitly
-// requested, or — when unset — "offset_invoice" for a sale that was settled on account (an
-// unpaid credit sale), otherwise "cash". Mirrors handlers/returns_policy.go's proven
+// requested, or, when unset, "offset_invoice" for a sale that was settled on account (an
+// unpaid credit sale), otherwise the sale's original payment method (cash when it has none).
+// Mirrors handlers/returns_policy.go's proven
 // defaultRefundChannel used by the customer-return flow; without this, reversing/editing a
 // credit sale posted a CASH refund in treasury's GL for money the business never received,
 // instead of reducing the customer's AR balance.
@@ -398,6 +405,16 @@ func (s *Service) resolveRefundChannel(ctx context.Context, tenantID, orderID uu
 	}
 	if orders.SettledOnAccount(ctx, s.client, tenantID, orderID) {
 		return "offset_invoice"
+	}
+	// Otherwise back the way the sale was paid (owner decision 2026-11-12): an MTN, Airtel,
+	// Other, M-Pesa code or card sale is reversed against that account, not cash.
+	ch := payments.OriginalRefundChannel(ctx, s.client, tenantID, orderID)
+	if ch == payments.RefundChannelRoomFolio && payments.OpenRoomStayForOrder(ctx, s.client, tenantID, orderID) == nil {
+		// A room-charged sale is credited to the folio only while the stay is open.
+		ch = "cash"
+	}
+	if ch != "" {
+		return ch
 	}
 	return "cash"
 }

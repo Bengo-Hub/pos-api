@@ -165,7 +165,7 @@ func (h *HotelHandler) UpdateGuest(w http.ResponseWriter, r *http.Request) {
 		if input.GuestName != nil {
 			name = *input.GuestName
 		}
-		if id := h.linkGuest(r.Context(), tid, "", phone, email, name, "room_guest"); id != nil {
+		if id := h.linkGuest(r.Context(), tid, "", phone, email, name, "room_guest").ID; id != nil {
 			update = update.SetCrmContactID(*id)
 		}
 	}

@@ -56,3 +56,21 @@ func TestRaisesTier(t *testing.T) {
 		t.Error("a move within a tier or down a tier is not a raise")
 	}
 }
+
+// Generic staff roles say only that someone belongs to the tenant; they never name a POS job.
+func TestIsGenericStaffRole(t *testing.T) {
+	for _, r := range []string{"staff", "member", "viewer", " Member "} {
+		if !IsGenericStaffRole(r) {
+			t.Errorf("%q is a generic staff role", r)
+		}
+	}
+	for _, r := range []string{"cashier", "admin", "manager", "customer", ""} {
+		if IsGenericStaffRole(r) {
+			t.Errorf("%q is not a generic staff role", r)
+		}
+	}
+	got := WithoutGenericStaffRoles([]string{"member", "cashier", "viewer", "staff", "manager"})
+	if len(got) != 2 || got[0] != "cashier" || got[1] != "manager" {
+		t.Fatalf("WithoutGenericStaffRoles = %v, want [cashier manager]", got)
+	}
+}

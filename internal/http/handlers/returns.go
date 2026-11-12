@@ -17,6 +17,7 @@ import (
 	entoutlet "github.com/bengobox/pos-service/internal/ent/outlet"
 	entposorder "github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posreturn"
+	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/returns"
 )
 
@@ -120,6 +121,9 @@ type returnResponse struct {
 	// OutletName is the branch the return belongs to (location means outlet). Falls back to the
 	// original sale's outlet for older returns stored without one.
 	OutletName string `json:"outlet_name,omitempty"`
+	// RoomStayOpen is set on the return detail when the sale was charged to a room stay that is
+	// still open: the refund is then credited to the guest's room bill (payments.RefundChannelRoomFolio).
+	RoomStayOpen bool `json:"room_stay_open,omitempty"`
 }
 
 // returnOutletNames resolves each return's branch name in one batched query. A return saved with
@@ -197,6 +201,9 @@ func (h *ReturnHandler) withOrderNumber(ctx context.Context, tid uuid.UUID, ret 
 	}
 	if o.CustomerPhone != nil {
 		resp.CustomerPhone = *o.CustomerPhone
+	}
+	if ret.Status != posreturn.StatusCompleted && ret.Status != posreturn.StatusRejected {
+		resp.RoomStayOpen = payments.OpenRoomStayForOrder(ctx, h.client, tid, ret.OrderID) != nil
 	}
 	return resp
 }

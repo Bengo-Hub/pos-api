@@ -18,6 +18,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
+	"github.com/bengobox/pos-service/internal/platform/events"
 )
 
 // StatusVoided marks a payment administratively voided — excluded from paid_total (which
@@ -256,7 +257,9 @@ func (s *Service) VoidPayment(ctx context.Context, tenantID uuid.UUID, tenantSlu
 			Amount:           p.Amount,
 			Currency:         p.Currency,
 			Reason:           "POS payment voided: " + reason,
-			RefundChannel:    "cash",
+			// Back the way it came in, so treasury reverses the account the payment hit
+			// (an MTN, Airtel or M-Pesa code payment comes off the mobile money float, not cash).
+			RefundChannel: RefundChannelForMethod(tenderType),
 		}); rerr != nil {
 			s.log.Warn("void payment: treasury reversal failed — books may need reconciliation",
 				zap.String("payment_id", paymentID.String()), zap.Error(rerr))
@@ -281,6 +284,14 @@ func (s *Service) NotifyPaymentReceived(ctx context.Context, tenantID, orderID, 
 	if s.publisher == nil {
 		return fmt.Errorf("payments: event publisher not configured")
 	}
+	return s.publisher.PublishPaymentReceivedNotification(ctx, tenantID, s.paymentReceivedPayload(ctx, tenantID, order, p, tenderType))
+}
+
+// paymentReceivedPayload is the pos.payment.received_notification payload. A customer whose
+// phone belongs to a CRM-linked loyalty account in this tenant is named by crm_contact_id only
+// (notifications-api looks the details up in the CRM); an unlinked customer keeps
+// customer_name and customer_phone (see events.WithRecipient).
+func (s *Service) paymentReceivedPayload(ctx context.Context, tenantID uuid.UUID, order *ent.POSOrder, p *ent.POSPayment, tenderType string) map[string]any {
 	name, phone := "", ""
 	if order.CustomerName != nil {
 		name = *order.CustomerName
@@ -288,22 +299,24 @@ func (s *Service) NotifyPaymentReceived(ctx context.Context, tenantID, orderID, 
 	if order.CustomerPhone != nil {
 		phone = *order.CustomerPhone
 	}
-	return s.publisher.PublishPaymentReceivedNotification(ctx, tenantID, map[string]any{
-		"order_id":       orderID.String(),
-		"order_number":   order.OrderNumber,
-		"tenant_id":      tenantID.String(),
-		"outlet_id":      order.OutletID.String(),
-		"payment_id":     paymentID.String(),
-		"amount":         p.Amount,
-		"currency":       p.Currency,
-		"method":         tenderType,
-		"reference":      p.ExternalReference,
-		"paid_at":        p.OccurredAt,
-		"total_amount":   order.TotalAmount,
-		"paid_total":     order.PaidTotal,
-		"customer_name":  name,
-		"customer_phone": phone,
-	})
+	var crmContactID *uuid.UUID
+	if id, err := uuid.Parse(s.ResolveCrmContactID(ctx, tenantID, phone)); err == nil && id != uuid.Nil {
+		crmContactID = &id
+	}
+	return events.WithRecipient(map[string]any{
+		"order_id":     order.ID.String(),
+		"order_number": order.OrderNumber,
+		"tenant_id":    tenantID.String(),
+		"outlet_id":    order.OutletID.String(),
+		"payment_id":   p.ID.String(),
+		"amount":       p.Amount,
+		"currency":     p.Currency,
+		"method":       tenderType,
+		"reference":    p.ExternalReference,
+		"paid_at":      p.OccurredAt,
+		"total_amount": order.TotalAmount,
+		"paid_total":   order.PaidTotal,
+	}, "customer", events.Recipient{CrmContactID: crmContactID, Name: name, Phone: phone})
 }
 
 // loadManagedPayment loads a payment scoped to (tenant, order) and resolves its tender type.

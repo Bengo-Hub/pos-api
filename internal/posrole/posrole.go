@@ -67,6 +67,30 @@ func IsSelfServiceRole(role string) bool {
 	return selfServiceRoles[strings.ToLower(strings.TrimSpace(role))]
 }
 
+// genericStaffRoles say only that someone belongs to the tenant (an invited member, generic
+// staff, a read-only viewer); they never name a POS job. In a business tenant they map to
+// cashier. On the platform tenant they give no POS role at all: platform staff get POS only
+// through an explicit POS role such as cashier or manager.
+var genericStaffRoles = map[string]bool{
+	"staff": true, "member": true, "viewer": true,
+}
+
+// IsGenericStaffRole reports whether role is one of the generic staff roles.
+func IsGenericStaffRole(role string) bool {
+	return genericStaffRoles[strings.ToLower(strings.TrimSpace(role))]
+}
+
+// WithoutGenericStaffRoles returns roles minus the generic staff roles, in order.
+func WithoutGenericStaffRoles(roles []string) []string {
+	out := make([]string, 0, len(roles))
+	for _, r := range roles {
+		if !IsGenericStaffRole(r) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 // OnlySelfService reports whether roles is non-empty and holds nothing but self-service roles:
 // a person who joined the tenant as a customer or member and holds no staff role there.
 func OnlySelfService(roles []string) bool {

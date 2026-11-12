@@ -199,12 +199,18 @@ type RefundChannel string
 
 // RefundChannel values.
 const (
-	RefundChannelCash          RefundChannel = "cash"
-	RefundChannelMpesa         RefundChannel = "mpesa"
-	RefundChannelBank          RefundChannel = "bank"
-	RefundChannelCheque        RefundChannel = "cheque"
-	RefundChannelStoreCredit   RefundChannel = "store_credit"
-	RefundChannelOffsetInvoice RefundChannel = "offset_invoice"
+	RefundChannelCash              RefundChannel = "cash"
+	RefundChannelMpesa             RefundChannel = "mpesa"
+	RefundChannelBank              RefundChannel = "bank"
+	RefundChannelCheque            RefundChannel = "cheque"
+	RefundChannelStoreCredit       RefundChannel = "store_credit"
+	RefundChannelOffsetInvoice     RefundChannel = "offset_invoice"
+	RefundChannelMtnMomoManual     RefundChannel = "mtn_momo_manual"
+	RefundChannelAirtelMoneyManual RefundChannel = "airtel_money_manual"
+	RefundChannelOtherManual       RefundChannel = "other_manual"
+	RefundChannelCardManual        RefundChannel = "card_manual"
+	RefundChannelMpesaManual       RefundChannel = "mpesa_manual"
+	RefundChannelRoomFolio         RefundChannel = "room_folio"
 )
 
 func (rc RefundChannel) String() string {
@@ -214,7 +220,7 @@ func (rc RefundChannel) String() string {
 // RefundChannelValidator is a validator for the "refund_channel" field enum values. It is called by the builders before save.
 func RefundChannelValidator(rc RefundChannel) error {
 	switch rc {
-	case RefundChannelCash, RefundChannelMpesa, RefundChannelBank, RefundChannelCheque, RefundChannelStoreCredit, RefundChannelOffsetInvoice:
+	case RefundChannelCash, RefundChannelMpesa, RefundChannelBank, RefundChannelCheque, RefundChannelStoreCredit, RefundChannelOffsetInvoice, RefundChannelMtnMomoManual, RefundChannelAirtelMoneyManual, RefundChannelOtherManual, RefundChannelCardManual, RefundChannelMpesaManual, RefundChannelRoomFolio:
 		return nil
 	default:
 		return fmt.Errorf("posreturn: invalid enum value for refund_channel field: %q", rc)

@@ -23,20 +23,20 @@ func TestPaymentMethodLabel_ManualTenders(t *testing.T) {
 	}
 }
 
-// The hotel desk has no format or duplicate check for these codes yet, so it refuses them: they
-// are never immediate hotel tenders, which also makes check-in refuse them.
-func TestHotelRefusesTillOnlyManualTenders(t *testing.T) {
+// The hotel desk now takes MTN MoMo, Airtel Money and Other codes like the till: they settle
+// immediately and treasury records each as itself.
+func TestHotelTakesManualCodeTenders(t *testing.T) {
 	for _, m := range []string{"mtn_momo_manual", "airtel_money_manual", "other_manual", " MTN_MOMO_MANUAL "} {
-		if isImmediateHotelMethod(m) {
-			t.Errorf("isImmediateHotelMethod(%q) = true, want false", m)
-		}
-		if !isTillOnlyManualTender(m) {
-			t.Errorf("isTillOnlyManualTender(%q) = false, want true", m)
+		if !isImmediateHotelMethod(m) {
+			t.Errorf("isImmediateHotelMethod(%q) = false, want true", m)
 		}
 	}
-	for _, m := range []string{"cash", "mpesa", "mpesa_manual", "card_manual"} {
-		if isTillOnlyManualTender(m) {
-			t.Errorf("isTillOnlyManualTender(%q) = true, want false", m)
+	for in, want := range map[string]string{
+		"mtn_momo_manual": "mtn_momo_manual", "airtel_money_manual": "airtel_money_manual",
+		"other_manual": "other_manual", "mpesa": "mpesa_manual",
+	} {
+		if got := treasuryMethodForHotel(in); got != want {
+			t.Errorf("treasuryMethodForHotel(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

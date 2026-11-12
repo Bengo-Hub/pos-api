@@ -17,6 +17,7 @@ import (
 	entposorderline "github.com/bengobox/pos-service/internal/ent/posorderline"
 	entpospayment "github.com/bengobox/pos-service/internal/ent/pospayment"
 	entposreversal "github.com/bengobox/pos-service/internal/ent/posreversal"
+	"github.com/bengobox/pos-service/internal/ent/roomguest"
 	entschema "github.com/bengobox/pos-service/internal/ent/schema"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
@@ -411,6 +412,13 @@ func (s *Service) stepInventory(ctx context.Context, rev *ent.POSReversal) (stri
 // for money the business never actually received. Fix: split the GL reversal between however
 // much was actually cash-netted (derived from stepPOSTotals' own PaymentData stamps — no new
 // field) and whatever remains, which write off against AR via offset_invoice instead.
+//
+// Treasury raises a credit-note document for every "pos_return" refund, keyed on its reference
+// id, so a split used to raise two documents for one reversal. The AR write-off portion now goes
+// as ReversalRestReferenceType, which books the same refund GL but raises no document. It is
+// posted only after the cash portion went through (a failure returns the error and the step
+// ledger retries the step; both portions keep their deterministic ids, so treasury books each
+// once). Reversals publish no GL backstop event, so nothing else books them.
 func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tenantSlug string) (string, string, bool, error) {
 	if s.treasuryClient == nil {
 		return "", "treasury client not configured", true, nil
@@ -443,6 +451,52 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 	if cashChannel == "" || cashChannel == "offset_invoice" {
 		cashChannel = "cash"
 	}
+	// A room-charged sale is credited back to the open stay's folio (owner decision
+	// 2026-11-12). The credit is idempotent on the reversal number, so a retried step never
+	// credits twice. Treasury reverses the sale as cash, the way it booked the room charge.
+	// When the stay closed after the reversal was created, the refund goes out as cash.
+	// The credit is capped at what the folio still owes, so a settled folio is never driven
+	// negative; the rest is paid out in cash. Treasury gets "cash" for both parts either way,
+	// so only the stored channel and the step detail change.
+	folioNote := ""
+	if cashChannel == payments.RefundChannelRoomFolio {
+		credit := cashNetted
+		if arPortion <= 0.009 {
+			credit = rev.Amount
+		}
+		// A retried step finds the credit its first attempt made, whether or not the stay is still
+		// open, and keeps room_folio; only a stay that is open now takes a new credit.
+		folio, prior := 0.0, 0.0
+		stay := payments.RoomStayForOrder(ctx, s.client, rev.TenantID, rev.OrderID)
+		if stay != nil {
+			prior = payments.ExistingFolioCredit(ctx, s.client, stay, rev.ReversalNumber)
+		}
+		switch {
+		case prior > 0:
+			folio = prior
+		case stay != nil && stay.Status == roomguest.StatusActive && credit > 0.009:
+			folio, _ = payments.SplitFolioCredit(credit, payments.FolioOutstanding(ctx, s.client, stay))
+		}
+		if folio > 0 {
+			if prior == 0 {
+				if _, err := payments.CreditRoomFolio(ctx, s.client, stay, folio, rev.ReversalNumber, rev.ID, rev.RequestedBy); err != nil {
+					return "", "", false, fmt.Errorf("credit the room folio: %w", err)
+				}
+			}
+			folioNote = fmt.Sprintf("; %.2f credited to the room folio", folio)
+			if rest := money.Round2(credit - folio); rest > 0.009 {
+				folioNote += fmt.Sprintf(", %.2f paid out in cash", rest)
+			}
+		} else {
+			// The stay closed (or the folio owes nothing) after the reversal was created: the
+			// refund went out in cash, so record that instead of room_folio.
+			cashChannel = "cash"
+			if err := s.client.POSReversal.UpdateOneID(rev.ID).SetRefundChannel(cashChannel).Exec(ctx); err != nil {
+				s.log.Warn("reversal: could not record the cash refund channel", zap.String("reversal_id", rev.ID.String()), zap.Error(err))
+			}
+		}
+	}
+	cashChannel = payments.TreasuryRefundChannel(cashChannel)
 
 	base := treasury.RefundRequest{
 		SourceService: "pos", ReferenceType: "pos_return",
@@ -460,13 +514,13 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 	// portion cases keep posting under rev.ID itself (suffix ""), byte-identical to the
 	// reference id this call used before this fix existed.
 	var ids, details []string
-	post := func(suffix, channel string, amount, tax, cost float64) error {
+	post := func(suffix, refType, channel string, amount, tax, cost float64) error {
 		id := rev.ID
 		if suffix != "" {
 			id = uuid.NewSHA1(rev.ID, []byte(suffix))
 		}
 		req := base
-		req.ReferenceID = id.String()
+		req.ReferenceID, req.ReferenceType = id.String(), refType
 		req.Amount, req.TaxAmount, req.Cost, req.RefundChannel = amount, tax, cost, channel
 		// Dedicated 10s bound — same reasoning as stepInventory above: this step is independently
 		// retryable via the reversal's step ledger, so failing a hung call fast beats hanging the
@@ -484,25 +538,25 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 
 	if arPortion <= 0.009 {
 		// Fully cash-backed — the common case, identical to pre-fix behavior (single call).
-		if err := post("", cashChannel, rev.Amount, rev.TaxAmount, rev.CostAmount); err != nil {
+		if err := post("", "pos_return", cashChannel, rev.Amount, rev.TaxAmount, rev.CostAmount); err != nil {
 			return "", "", false, err
 		}
 	} else if cashNetted <= 0.009 {
 		// Fully AR-backed (e.g. an on-account sale, or an edit-added line removed before any
 		// cash ever moved) — single call, same reference id as before, explicit channel only.
-		if err := post("", "offset_invoice", rev.Amount, rev.TaxAmount, rev.CostAmount); err != nil {
+		if err := post("", "pos_return", "offset_invoice", rev.Amount, rev.TaxAmount, rev.CostAmount); err != nil {
 			return "", "", false, err
 		}
 	} else {
-		if err := post("cash", cashChannel, cashNetted, money.Round2(rev.TaxAmount*ratio), money.Round2(rev.CostAmount*ratio)); err != nil {
+		if err := post("cash", "pos_return", cashChannel, cashNetted, money.Round2(rev.TaxAmount*ratio), money.Round2(rev.CostAmount*ratio)); err != nil {
 			return "", "", false, fmt.Errorf("cash portion: %w", err)
 		}
-		if err := post("ar", "offset_invoice", arPortion, money.Round2(rev.TaxAmount*(1-ratio)), money.Round2(rev.CostAmount*(1-ratio))); err != nil {
+		if err := post("ar", ReversalRestReferenceType, "offset_invoice", arPortion, money.Round2(rev.TaxAmount*(1-ratio)), money.Round2(rev.CostAmount*(1-ratio))); err != nil {
 			return "", "", false, fmt.Errorf("AR write-off portion: %w", err)
 		}
 	}
 
-	detail := fmt.Sprintf("GL reversed %.2f (tax %.2f, cost %.2f): %s", rev.Amount, rev.TaxAmount, rev.CostAmount, strings.Join(details, " + "))
+	detail := fmt.Sprintf("GL reversed %.2f (tax %.2f, cost %.2f): %s%s", rev.Amount, rev.TaxAmount, rev.CostAmount, strings.Join(details, " + "), folioNote)
 	return strings.Join(ids, ","), detail, false, nil
 }
 

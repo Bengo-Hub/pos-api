@@ -193,8 +193,8 @@ func (s *SaleFinalizedSubscriber) autoEarnLoyalty(ctx context.Context, tenantID,
 	// unrecognised phone simply earns nothing.
 	account := s.resolveLoyaltyAccount(ctx, tenantID, p.CustomerPhone)
 	if account == nil {
-		s.logger.Debug("sale.finalized: no loyalty account for phone, skipping earn",
-			zap.String("phone", p.CustomerPhone))
+		s.logger.Debug("sale.finalized: no loyalty account for the buyer's phone, skipping earn",
+			zap.String("tenant_id", tenantID.String()), zap.String("order_id", orderID.String()))
 		return
 	}
 
@@ -214,38 +214,19 @@ func (s *SaleFinalizedSubscriber) autoEarnLoyalty(ctx context.Context, tenantID,
 
 	// Notify the customer they earned points (notifications-service → WhatsApp/SMS "You earned X pts").
 	if s.publisher != nil {
-		_ = s.publisher.PublishLoyaltyPointsEarned(ctx, tenantID, map[string]any{
-			"account_id":     account.ID.String(),
-			"customer_phone": account.CustomerPhone,
-			"customer_name":  account.CustomerName,
-			"customer_email": account.CustomerEmail,
-			"points_earned":  pointsEarned,
-			"balance_after":  newBalance,
-			"order_id":       orderID.String(),
-		})
+		payload := events.LoyaltyPointsEarnedPayload(account, pointsEarned, newBalance)
+		payload["order_id"] = orderID.String()
+		_ = s.publisher.PublishLoyaltyPointsEarned(ctx, tenantID, payload)
 	}
 
 	// Publish tier upgrade event if the customer crossed a tier threshold.
 	oldTier := evaluateTier(prog.TierThresholds, previousLifetime)
 	newTier := evaluateTier(prog.TierThresholds, newLifetime)
 	if oldTier != newTier && s.publisher != nil {
-		crmContactID := ""
-		if account.CrmContactID != nil {
-			crmContactID = account.CrmContactID.String()
-		}
-		_ = s.publisher.PublishLoyaltyTierUpgraded(ctx, tenantID, map[string]any{
-			"account_id":      account.ID.String(),
-			"customer_phone":  account.CustomerPhone,
-			"customer_name":   account.CustomerName,
-			"customer_email":  account.CustomerEmail,
-			"crm_contact_id":  crmContactID,
-			"old_tier":        oldTier,
-			"new_tier":        newTier,
-			"lifetime_points": newLifetime,
-			"program_id":      prog.ID.String(),
-		})
+		_ = s.publisher.PublishLoyaltyTierUpgraded(ctx, tenantID, tierUpgradedPayload(account, prog.ID, oldTier, newTier, newLifetime))
 		s.logger.Info("loyalty tier upgraded",
-			zap.String("phone", account.CustomerPhone),
+			zap.String("tenant_id", tenantID.String()),
+			zap.String("account_id", account.ID.String()),
 			zap.String("old_tier", oldTier),
 			zap.String("new_tier", newTier),
 		)
@@ -305,7 +286,8 @@ func (s *SaleFinalizedSubscriber) autoClaimReferral(ctx context.Context, tenantI
 	if txnID != nil {
 		upd = upd.SetEarnTransactionID(*txnID)
 	}
-	if referred := s.resolveLoyaltyAccount(ctx, tenantID, p.CustomerPhone); referred != nil {
+	referred := s.resolveLoyaltyAccount(ctx, tenantID, p.CustomerPhone)
+	if referred != nil {
 		upd = upd.SetReferredAccountID(referred.ID)
 	}
 	if _, err := upd.Save(ctx); err != nil {
@@ -314,27 +296,46 @@ func (s *SaleFinalizedSubscriber) autoClaimReferral(ctx context.Context, tenantI
 	}
 
 	if s.publisher != nil {
-		crmContactID := ""
-		if referrer.CrmContactID != nil {
-			crmContactID = referrer.CrmContactID.String()
-		}
-		_ = s.publisher.PublishLoyaltyReferralEarned(ctx, tenantID, map[string]any{
-			"referral_id":      ref.ID.String(),
-			"referrer_account": referrer.ID.String(),
-			"referrer_phone":   referrer.CustomerPhone,
-			"referrer_name":    referrer.CustomerName,
-			"referrer_email":   referrer.CustomerEmail,
-			"crm_contact_id":   crmContactID,
-			"referred_phone":   p.CustomerPhone,
-			"bonus_points":     ref.BonusPoints,
-			"balance_after":    newBalance,
-		})
+		_ = s.publisher.PublishLoyaltyReferralEarned(ctx, tenantID, referralEarnedPayload(ref, referrer, referred, p.CustomerPhone, newBalance))
 	}
 	s.logger.Info("referral earned",
-		zap.String("referrer", referrer.CustomerPhone),
-		zap.String("referred", p.CustomerPhone),
+		zap.String("tenant_id", tenantID.String()),
+		zap.String("referral_id", ref.ID.String()),
+		zap.String("referrer_account", referrer.ID.String()),
 		zap.Int("bonus", ref.BonusPoints),
 	)
+}
+
+// tierUpgradedPayload is the pos.loyalty.tier_upgraded payload. A linked account is named by
+// crm_contact_id only (marketflow updates that contact, notifications-api looks it up); an
+// unlinked one keeps customer_name, customer_email and customer_phone (see events.WithRecipient).
+func tierUpgradedPayload(acc *ent.LoyaltyAccount, programID uuid.UUID, oldTier, newTier string, lifetime int) map[string]any {
+	return events.WithRecipient(map[string]any{
+		"account_id":      acc.ID.String(),
+		"old_tier":        oldTier,
+		"new_tier":        newTier,
+		"lifetime_points": lifetime,
+		"program_id":      programID.String(),
+	}, "customer", events.LoyaltyAccountRecipient(acc))
+}
+
+// referralEarnedPayload is the pos.loyalty.referral_earned payload. The notice thanks the
+// REFERRER, so crm_contact_id is always the referrer's contact, never the referred friend's.
+// The friend is named by referred_crm_contact_id when their account is linked, else by
+// referred_phone as before. referred may be nil (the friend has no loyalty account).
+func referralEarnedPayload(ref *ent.Referral, referrer, referred *ent.LoyaltyAccount, referredPhone string, balanceAfter int) map[string]any {
+	p := events.WithRecipient(map[string]any{
+		"referral_id":      ref.ID.String(),
+		"referrer_account": referrer.ID.String(),
+		"bonus_points":     ref.BonusPoints,
+		"balance_after":    balanceAfter,
+	}, "referrer", events.LoyaltyAccountRecipient(referrer))
+	if referred != nil && referred.CrmContactID != nil && *referred.CrmContactID != uuid.Nil {
+		p["referred_crm_contact_id"] = referred.CrmContactID.String()
+	} else {
+		p["referred_phone"] = referredPhone
+	}
+	return p
 }
 
 // evaluateTier returns the highest tier name the customer qualifies for based on lifetime points.
