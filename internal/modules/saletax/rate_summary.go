@@ -23,8 +23,9 @@ func SummaryAddsDetail(rows []RateRow, vatTotal float64) bool {
 	return len(rows) > 1 || money.Round2(rows[0].Tax) != money.Round2(vatTotal)
 }
 
-// RateSummary groups a sale's VAT by rate, on what was actually paid: the order discount is shared
-// across the lines before VAT (OrderDiscountVAT), the same figures the sale event, treasury and KRA
+// RateSummary groups a sale's VAT by rate, on what was actually paid: a line's own discount stays on
+// that line and the order discount is shared across the lines before VAT (OrderDiscountVAT), the
+// same figures the sale event, treasury and KRA
 // eTIMS carry. VAT inside VAT-inclusive prices is included. Lines with no VAT are left out. Rows are
 // ordered by rate, highest first.
 func RateSummary(lines []SaleLineVATInput, discount float64) []RateRow {

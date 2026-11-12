@@ -31,6 +31,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/notifications"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/printing"
+	"github.com/bengobox/pos-service/internal/modules/saletax"
 	"github.com/bengobox/pos-service/internal/modules/staffcredit"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/payref"
@@ -1561,6 +1562,7 @@ func (s *Service) signEtimsSync(ctx context.Context, order *ent.POSOrder) {
 	}
 	itemTypes := orders.CatalogItemTypesForLines(ctx, s.client, order.TenantID, lines)
 	items := make([]treasury.SignPOSSaleItem, 0, len(lines))
+	lineDiscounts := make([]float64, 0, len(lines))
 	for _, l := range lines {
 		// Void-aware: post only the surviving (non-voided) quantity — mirrors publishSaleFinalized so
 		// the sync and async eTIMS payloads match.
@@ -1597,11 +1599,12 @@ func (s *Service) signEtimsSync(ctx context.Context, order *ent.POSOrder) {
 			it.TaxAmount = ta
 		}
 		items = append(items, it)
+		lineDiscounts = append(lineDiscounts, saletax.LineDiscount(l))
 	}
 	if len(items) == 0 {
 		return
 	}
-	shareSignItemsDiscountVAT(items, order.DiscountTotal)
+	shareSignItemsDiscountVAT(items, lineDiscounts, order.DiscountTotal)
 
 	tenantSlug := ""
 	if outlet, oErr := s.client.Outlet.Get(ctx, order.OutletID); oErr == nil {
@@ -1740,6 +1743,7 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 	itemTypes := orders.CatalogItemTypesForLines(ctx, s.client, order.TenantID, lines)
 
 	items := make([]map[string]any, 0, len(lines))
+	lineDiscounts := make([]float64, 0, len(lines)) // each item's own deal discount, same order
 	costTotal := 0.0
 	for _, l := range lines {
 		// Void-aware: a line partially or fully voided after the order was sent (e.g. an item went
@@ -1847,8 +1851,9 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 			item["modifiers"] = mods
 		}
 		items = append(items, item)
+		lineDiscounts = append(lineDiscounts, saletax.LineDiscount(l))
 	}
-	shareOrderDiscountVAT(items, order.DiscountTotal)
+	shareOrderDiscountVAT(items, lineDiscounts, order.DiscountTotal)
 
 	// Determine the SELLING SCHEME from the order's tenders so treasury routes the ledger correctly.
 	// A credit ("on account") sale has ALREADY posted the amount to the customer's AR balance in

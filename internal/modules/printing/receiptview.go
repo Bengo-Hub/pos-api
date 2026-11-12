@@ -619,8 +619,8 @@ func BuildReceiptView(order *ent.POSOrder, lines []*ent.POSOrderLine, outlet *en
 }
 
 // saleVATSummary is the receipt's VAT by rate, from the lines exactly as the sale event sends them
-// (payments.Service): each line at its active quantity, its VAT scaled to that quantity, and the
-// order discount shared before VAT. A receipt therefore never declares a different VAT from the
+// (payments.Service): each line at its active quantity, its VAT scaled to that quantity, a deal on
+// one item kept on that line, and only the order discount shared before VAT. A receipt therefore never declares a different VAT from the
 // one treasury books and KRA receives.
 func saleVATSummary(lines []*ent.POSOrderLine, discount float64) []saletax.RateRow {
 	in := make([]saletax.SaleLineVATInput, 0, len(lines))
@@ -633,7 +633,7 @@ func saleVATSummary(lines []*ent.POSOrderLine, discount float64) []saletax.RateR
 			continue
 		}
 		share := qty / l.Quantity
-		row := saletax.SaleLineVATInput{TotalPrice: l.TotalPrice * share, Inclusive: l.PriceIncludesTax}
+		row := saletax.SaleLineVATInput{TotalPrice: l.TotalPrice * share, Inclusive: l.PriceIncludesTax, Discount: saletax.LineDiscount(l)}
 		if l.TaxAmount != nil {
 			row.TaxAmount = *l.TaxAmount * share
 		}

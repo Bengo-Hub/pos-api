@@ -39,6 +39,16 @@ The POS service is the **source of truth for sales catalogs (menus)**. While `in
 6. pos-ui receipt renders eTIMS QR code from the pos_order response (not directly from treasury-api)
 ```
 
+**VAT on a discounted sale (2026-11-13).** Each line of `pos.sale.finalized` and of the sync sign
+request carries `paid_gross` and the VAT in it (`saletax.OrderDiscountVAT`, through the shared
+`httpware/tax` calculator). A deal stamped on one line (happy hour or buy one get one,
+`metadata.discount_amount`) comes off that line only, at its own rate. Only the rest of
+`discount_total`, a discount on the whole bill, is shared across all lines by gross. The receipt's
+VAT by rate and the line-level reports use the same split. Before this, a one-item deal was spread
+over every line, so per-line VAT and the eTIMS band totals were wrong on mixed-band sales although
+the total VAT was right. A manual line discount from the till lowers the line price itself, so it
+was never part of `discount_total`.
+
 **What pos-api does NOT do:**
 - pos-api does NOT call the KRA eTIMS API directly.
 - pos-api does NOT store the raw KRA API credentials (ETIMS_URL, ETIMS_CU_SERIAL, ETIMS_API_KEY).

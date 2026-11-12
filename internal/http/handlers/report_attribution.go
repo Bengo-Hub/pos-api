@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"math"
+
 	"github.com/google/uuid"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/modules/saletax"
 )
 
 // AttributedLine is one order line's prorated share of its order's actual net total_amount —
@@ -84,7 +87,8 @@ func AttributeOrderLines(o *ent.POSOrder) []AttributedLine {
 	lines := o.Edges.Lines
 	activeQty := make([]float64, len(lines))
 	activeGross := make([]float64, len(lines))
-	var orderActiveGross float64
+	plainGross := make([]float64, len(lines))
+	var orderActiveGross, orderPlainGross float64
 	for i, l := range lines {
 		fraction := 1.0
 		if l.VoidedQty != nil && l.Quantity > 0 {
@@ -94,8 +98,16 @@ func AttributeOrderLines(o *ent.POSOrder) []AttributedLine {
 			}
 		}
 		activeQty[i] = l.Quantity * fraction
-		activeGross[i] = l.TotalPrice * fraction
+		plainGross[i] = l.TotalPrice * fraction
+		orderPlainGross += plainGross[i]
+		// A deal on this item (happy hour, buy one get one) is this line's alone, so it lowers
+		// this line's weight only; the rest of the discount still spreads with the weights.
+		activeGross[i] = math.Max(0, plainGross[i]-saletax.LineDiscount(l))
 		orderActiveGross += activeGross[i]
+	}
+	if orderActiveGross <= 0 {
+		// Every line given away by its deal: fall back to the plain weights so charges still land.
+		activeGross, orderActiveGross = plainGross, orderPlainGross
 	}
 	out := make([]AttributedLine, len(lines))
 	for i, l := range lines {
