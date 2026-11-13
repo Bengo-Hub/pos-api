@@ -17,13 +17,15 @@ const nakDelay = 30 * time.Second
 // ContactSnapshots is what the subscriber needs from customers.Resolver.
 type ContactSnapshots interface {
 	RefreshSnapshots(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID) error
+	ForgetSales(ctx context.Context, tenantID, contactID uuid.UUID) error
 	Unlink(ctx context.Context, tenantID, contactID uuid.UUID) error
 }
 
 // CRMContactUpdatedSubscriber keeps pos-api's customer snapshots in step with the CRM.
 // crm.contact.updated reloads the contact and rewrites the name, phone and email kept on
-// loyalty accounts, client records and room guests. crm.contact.deleted only clears the
-// crm_contact_id; loyalty points and every other local record are kept.
+// loyalty accounts and client records; for an erased contact it first blanks the person's name
+// and phone on past sales and layaway plans. crm.contact.deleted blanks those the same way and
+// clears the crm_contact_id; loyalty points, sale totals and every other local record are kept.
 type CRMContactUpdatedSubscriber struct {
 	snaps ContactSnapshots
 	log   *zap.Logger
@@ -90,7 +92,8 @@ func (s *CRMContactUpdatedSubscriber) wrap(h func(context.Context, *sharedevents
 	}
 }
 
-// handleUpdated refreshes the snapshot of the changed contact.
+// handleUpdated refreshes the snapshot of the changed contact. RefreshSnapshots also forgets an
+// erased contact on past sales before it rewrites the phones those sales are found by.
 func (s *CRMContactUpdatedSubscriber) handleUpdated(ctx context.Context, evt *sharedevents.Event) error {
 	contactID, ok := s.contactID(evt)
 	if !ok {
@@ -99,11 +102,16 @@ func (s *CRMContactUpdatedSubscriber) handleUpdated(ctx context.Context, evt *sh
 	return s.snaps.RefreshSnapshots(ctx, evt.TenantID, []uuid.UUID{contactID})
 }
 
-// handleDeleted clears the deleted contact's id from local records. Points are never deleted.
+// handleDeleted blanks the deleted contact's name and phone on past sales, then clears the
+// contact's id from local records. ForgetSales runs first because it finds the person through
+// the links Unlink clears. Points are never deleted.
 func (s *CRMContactUpdatedSubscriber) handleDeleted(ctx context.Context, evt *sharedevents.Event) error {
 	contactID, ok := s.contactID(evt)
 	if !ok {
 		return nil
+	}
+	if err := s.snaps.ForgetSales(ctx, evt.TenantID, contactID); err != nil {
+		return err
 	}
 	return s.snaps.Unlink(ctx, evt.TenantID, contactID)
 }

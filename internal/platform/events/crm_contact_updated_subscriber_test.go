@@ -14,6 +14,7 @@ import (
 	sharedevents "github.com/Bengo-Hub/shared-events"
 	"github.com/Bengo-Hub/shared-service-client/crm"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	"modernc.org/sqlite"
 
@@ -230,5 +231,216 @@ func TestContactDeletedKeepsPoints(t *testing.T) {
 	}
 	if !customers.IsUnlinked(gotRec.Metadata) {
 		t.Errorf("client record metadata %v lacks the %s marker", gotRec.Metadata, customers.UnlinkedAtKey)
+	}
+}
+
+// seedSale creates a completed sale of 500 with the given customer phone and name.
+func seedSale(t *testing.T, db *ent.Client, tid uuid.UUID, phone, name string) *ent.POSOrder {
+	t.Helper()
+	return db.POSOrder.Create().
+		SetTenantID(tid).SetOutletID(uuid.New()).SetDeviceID(uuid.New()).SetUserID(uuid.New()).
+		SetOrderNumber("ORD-" + uuid.NewString()[:8]).SetStatus("completed").
+		SetSubtotal(500).SetTaxTotal(0).SetTotalAmount(500).
+		SetCustomerPhone(phone).SetCustomerName(name).
+		SaveX(context.Background())
+}
+
+// seedLayaway creates a layaway plan; account may be nil.
+func seedLayaway(t *testing.T, db *ent.Client, tid uuid.UUID, account *uuid.UUID, name, phone, email string) *ent.LayawayPlan {
+	t.Helper()
+	return db.LayawayPlan.Create().
+		SetTenantID(tid).SetOutletID(uuid.New()).SetNillableLoyaltyAccountID(account).
+		SetCustomerName(name).SetCustomerPhone(phone).SetCustomerEmail(email).
+		SetTotalAmount(decimal.NewFromInt(1000)).SetDepositAmount(decimal.NewFromInt(100)).
+		SetPaidAmount(decimal.NewFromInt(100)).SetRemainingAmount(decimal.NewFromInt(900)).
+		SaveX(context.Background())
+}
+
+func assertSaleForgotten(t *testing.T, db *ent.Client, o *ent.POSOrder) {
+	t.Helper()
+	got := db.POSOrder.GetX(context.Background(), o.ID)
+	if got.CustomerName != nil || got.CustomerPhone != nil {
+		t.Errorf("order %s customer = %v %v, want both cleared", o.OrderNumber, got.CustomerName, got.CustomerPhone)
+	}
+	if got.TotalAmount != 500 || got.Subtotal != 500 || got.Status != "completed" {
+		t.Errorf("order %s totals or status changed: %v %v %q", o.OrderNumber, got.TotalAmount, got.Subtotal, got.Status)
+	}
+}
+
+func assertSaleKept(t *testing.T, db *ent.Client, o *ent.POSOrder) {
+	t.Helper()
+	got := db.POSOrder.GetX(context.Background(), o.ID)
+	if got.CustomerName == nil || got.CustomerPhone == nil ||
+		*got.CustomerName != *o.CustomerName || *got.CustomerPhone != *o.CustomerPhone {
+		t.Errorf("order %s customer = %v %v, want %q %q kept", o.OrderNumber,
+			got.CustomerName, got.CustomerPhone, *o.CustomerName, *o.CustomerPhone)
+	}
+}
+
+func assertLayawayForgotten(t *testing.T, db *ent.Client, p *ent.LayawayPlan) {
+	t.Helper()
+	got := db.LayawayPlan.GetX(context.Background(), p.ID)
+	if got.CustomerName != customers.ErasedName || got.CustomerPhone != "" || got.CustomerEmail != "" {
+		t.Errorf("layaway = %q %q %q, want %q and empty phone and email",
+			got.CustomerName, got.CustomerPhone, got.CustomerEmail, customers.ErasedName)
+	}
+	if !got.PaidAmount.Equal(p.PaidAmount) || !got.RemainingAmount.Equal(p.RemainingAmount) {
+		t.Errorf("layaway amounts changed: paid %s remaining %s", got.PaidAmount, got.RemainingAmount)
+	}
+	if (got.LoyaltyAccountID == nil) != (p.LoyaltyAccountID == nil) {
+		t.Errorf("layaway account link changed: %v", got.LoyaltyAccountID)
+	}
+}
+
+func assertLayawayKept(t *testing.T, db *ent.Client, p *ent.LayawayPlan) {
+	t.Helper()
+	got := db.LayawayPlan.GetX(context.Background(), p.ID)
+	if got.CustomerName != p.CustomerName || got.CustomerPhone != p.CustomerPhone || got.CustomerEmail != p.CustomerEmail {
+		t.Errorf("layaway = %q %q %q, want %q %q %q kept", got.CustomerName, got.CustomerPhone, got.CustomerEmail,
+			p.CustomerName, p.CustomerPhone, p.CustomerEmail)
+	}
+}
+
+// A deleted contact's name and phone leave the tenant's sales stored under any spelling of the
+// person's phones, including a merged shell's spelling, and their layaway plans get the
+// placeholder name. Other tenants, other customers and a foreign number with the same digits
+// keep theirs, and the amounts stay.
+func TestContactDeletedForgetsSales(t *testing.T) {
+	ctx := context.Background()
+	tid, otherTenant := uuid.New(), uuid.New()
+	contactID := uuid.New()
+	db, sub := newSnapshotTest(t, nil)
+
+	acc := db.LoyaltyAccount.Create().
+		SetTenantID(tid).SetCustomerPhone("+254712345678").SetCustomerName("Jane Doe").
+		SetCrmContactID(contactID).
+		SaveX(ctx)
+	db.LoyaltyAccount.Create().
+		SetTenantID(tid).SetCustomerPhone("+254 712 345 678").SetCustomerName("Jane Doe").
+		SetMetadata(map[string]any{customers.MergedIntoKey: acc.ID.String()}).
+		SaveX(ctx)
+	db.ClientRecord.Create().
+		SetTenantID(tid).SetPhone("0733000222").SetCrmContactID(contactID).
+		SaveX(ctx)
+
+	forgotten := []*ent.POSOrder{
+		seedSale(t, db, tid, "0712345678", "Jane Doe"),
+		seedSale(t, db, tid, "254712345678", "Jane"),
+		seedSale(t, db, tid, "+254712345678", "Jane D"),
+		seedSale(t, db, tid, "+254 712 345 678", "Jane Doe"), // the shell's spelling
+		seedSale(t, db, tid, "254 712345678", "Jane Doe"),    // found by the suffix scan
+		seedSale(t, db, tid, "0733000222", "Jane Doe"),       // the client record's phone
+	}
+	kept := []*ent.POSOrder{
+		seedSale(t, db, otherTenant, "0712345678", "Jane Doe"),
+		seedSale(t, db, tid, "0799000111", "Sam Other"),
+		seedSale(t, db, tid, "+256712345678", "Foreign Same Digits"),
+	}
+	byAccount := seedLayaway(t, db, tid, &acc.ID, "Jane Doe", "0700000001", "jane@example.com")
+	byPhone := seedLayaway(t, db, tid, nil, "Jane Doe", "254712345678", "")
+	otherPlan := seedLayaway(t, db, tid, nil, "Sam Other", "0799000111", "sam@example.com")
+	foreignPlan := seedLayaway(t, db, otherTenant, nil, "Jane Doe", "0712345678", "")
+
+	if err := sub.handleDeleted(ctx, contactEvent("crm.contact.deleted", tid, contactID)); err != nil {
+		t.Fatalf("handleDeleted: %v", err)
+	}
+
+	for _, o := range forgotten {
+		assertSaleForgotten(t, db, o)
+	}
+	for _, o := range kept {
+		assertSaleKept(t, db, o)
+	}
+	assertLayawayForgotten(t, db, byAccount)
+	assertLayawayForgotten(t, db, byPhone)
+	assertLayawayKept(t, db, otherPlan)
+	assertLayawayKept(t, db, foreignPlan)
+	if got := db.LoyaltyAccount.GetX(ctx, acc.ID); got.CrmContactID != nil {
+		t.Error("the account is still linked: Unlink did not run after ForgetSales")
+	}
+}
+
+// An erasure arrives as crm.contact.updated with the contact stripped. Sales and layaways are
+// forgotten before the snapshot is rewritten, and a second delivery changes nothing.
+func TestContactErasedForgetsSalesOnce(t *testing.T) {
+	ctx := context.Background()
+	tid := uuid.New()
+	contactID := uuid.New()
+	db, sub := newSnapshotTest(t, map[uuid.UUID]crm.Contact{
+		contactID: {ID: contactID, FirstName: customers.ErasedName},
+	})
+
+	acc := db.LoyaltyAccount.Create().
+		SetTenantID(tid).SetCustomerPhone("0712345678").SetCustomerName("Jane Doe").
+		SetCrmContactID(contactID).
+		SaveX(ctx)
+	sale := seedSale(t, db, tid, "+254712345678", "Jane Doe")
+	other := seedSale(t, db, tid, "0799000111", "Sam Other")
+	plan := seedLayaway(t, db, tid, &acc.ID, "Jane Doe", "0712345678", "jane@example.com")
+
+	if err := sub.handleUpdated(ctx, contactEvent("crm.contact.updated", tid, contactID)); err != nil {
+		t.Fatalf("handleUpdated: %v", err)
+	}
+	assertSaleForgotten(t, db, sale)
+	assertSaleKept(t, db, other)
+	assertLayawayForgotten(t, db, plan)
+	if got := db.LoyaltyAccount.GetX(ctx, acc.ID); got.CrmContactID == nil || *got.CrmContactID != contactID {
+		t.Error("an erasure keeps the CRM link")
+	}
+
+	before := db.LayawayPlan.GetX(ctx, plan.ID).UpdatedAt
+	if err := sub.handleUpdated(ctx, contactEvent("crm.contact.updated", tid, contactID)); err != nil {
+		t.Fatalf("second handleUpdated: %v", err)
+	}
+	assertSaleForgotten(t, db, sale)
+	assertSaleKept(t, db, other)
+	assertLayawayForgotten(t, db, plan)
+	if after := db.LayawayPlan.GetX(ctx, plan.ID).UpdatedAt; !after.Equal(before) {
+		t.Errorf("layaway rewritten on the second run: updated_at %v then %v", before, after)
+	}
+}
+
+// An ordinary rename or new phone rewrites the snapshot only; past receipts keep what was
+// recorded at the sale.
+func TestContactUpdatedKeepsPastSales(t *testing.T) {
+	ctx := context.Background()
+	tid := uuid.New()
+	contactID := uuid.New()
+	db, sub := newSnapshotTest(t, map[uuid.UUID]crm.Contact{
+		contactID: {ID: contactID, FirstName: "Jane", LastName: "Renamed", Phone: "+254711000999"},
+	})
+
+	acc := db.LoyaltyAccount.Create().
+		SetTenantID(tid).SetCustomerPhone("0712345678").SetCustomerName("Jane Doe").
+		SetCrmContactID(contactID).
+		SaveX(ctx)
+	sale := seedSale(t, db, tid, "0712345678", "Jane Doe")
+	plan := seedLayaway(t, db, tid, &acc.ID, "Jane Doe", "0712345678", "jane@example.com")
+
+	if err := sub.handleUpdated(ctx, contactEvent("crm.contact.updated", tid, contactID)); err != nil {
+		t.Fatalf("handleUpdated: %v", err)
+	}
+	assertSaleKept(t, db, sale)
+	assertLayawayKept(t, db, plan)
+	if got := db.LoyaltyAccount.GetX(ctx, acc.ID); got.CustomerName != "Jane Renamed" {
+		t.Errorf("account name = %q, want the snapshot refreshed", got.CustomerName)
+	}
+}
+
+// IsErasedContact matches only the stripped shape marketflow leaves after an erasure.
+func TestIsErasedContact(t *testing.T) {
+	id := uuid.New()
+	if !customers.IsErasedContact(crm.Contact{ID: id, FirstName: "Erased"}) {
+		t.Error("a stripped contact is erased")
+	}
+	for _, c := range []crm.Contact{
+		{ID: id, FirstName: "Erased", Phone: "+254712345678"},
+		{ID: id, FirstName: "Erased", LastName: "Smith"},
+		{ID: id, FirstName: "Erased", Email: "e@example.com"},
+		{ID: id, FirstName: "Jane"},
+	} {
+		if customers.IsErasedContact(c) {
+			t.Errorf("%+v is not an erased contact", c)
+		}
 	}
 }

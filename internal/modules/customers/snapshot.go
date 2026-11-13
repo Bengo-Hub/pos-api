@@ -22,7 +22,9 @@ import (
 )
 
 // RefreshSnapshots loads the given contacts from the CRM and rewrites the snapshot fields of
-// every local record linked to them. Ids the CRM no longer knows are skipped.
+// every local record linked to them. Ids the CRM no longer knows are skipped. For a contact the
+// CRM has erased (see IsErasedContact), ForgetSales first blanks the person on past sales, while
+// the local records still hold the old phones; an ordinary edit never touches past sales.
 func (r *Resolver) RefreshSnapshots(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID) error {
 	if r == nil || r.crm == nil || len(ids) == 0 {
 		return nil
@@ -35,6 +37,11 @@ func (r *Resolver) RefreshSnapshots(ctx context.Context, tenantID uuid.UUID, ids
 		return fmt.Errorf("load contacts: %w", err)
 	}
 	for _, c := range contacts {
+		if IsErasedContact(c) {
+			if err := r.ForgetSales(ctx, tenantID, c.ID); err != nil {
+				return err
+			}
+		}
 		if err := r.ApplySnapshot(ctx, tenantID, c); err != nil {
 			return err
 		}
