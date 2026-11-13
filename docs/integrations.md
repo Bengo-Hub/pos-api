@@ -106,7 +106,7 @@ was never part of `discount_total`.
   and the whole refund goes through the picked method. Treasury gets the credited part as `room_folio`,
   which reduces the guest receivable the room charge was booked to (S2-20); a reversal sends any rest
   as its own cash refund under `pos_return_rest`, and `pos.return.completed` carries `refund_channel`
-  `room_folio` and the lines' `tax_amount` so the GL backstop books the same. The stay is found through the folio item carrying the sale's
+  `room_folio` and the lines' `tax_amount` so the GL backstop books the same. Since 2026-11-13 every `pos.return.completed` carries the `refund_channel` the return settled through (cash, mpesa_manual and the other manual tenders, store_credit, offset_invoice, room_folio), and a main refund that fails at completion is kept on the return (`treasury_refund_pending` with its amount, tax, cost, channel and currency) and resent by `RetryPendingRefunds` on the same 5 minute tick, oldest first, 12 attempts, then `treasury_refund_failed`; a folio rest waits for it, and a folio lookup error now fails the completion instead of refunding as cash. Every treasury refund (returns, reversals, layaway cancels, payment voids) now carries the sale's `outlet_id`, so treasury credits that outlet's own account for the channel. The stay is found through the folio item carrying the sale's
   order id. Once the stay is checked out the refund goes through the chosen method, cash by default;
   a reversal whose stay closed before its treasury step records the cash it actually paid instead of
   `room_folio`, while a retried step that finds the credit its first attempt made keeps `room_folio`

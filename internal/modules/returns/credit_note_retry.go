@@ -34,6 +34,10 @@ func (s *Service) StartCreditNoteRetry(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
+			// The main refund first: a folio rest waits for it (RetryPendingFolioRests).
+			if n := s.RetryPendingRefunds(ctx); n > 0 {
+				s.log.Info("return refunds sent on retry", zap.Int("count", n))
+			}
 			if n := s.RetryPendingCreditNotes(ctx); n > 0 {
 				s.log.Info("return credit notes raised on retry", zap.Int("count", n))
 			}

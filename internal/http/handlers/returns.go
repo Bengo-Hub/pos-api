@@ -203,7 +203,13 @@ func (h *ReturnHandler) withOrderNumber(ctx context.Context, tid uuid.UUID, ret 
 		resp.CustomerPhone = *o.CustomerPhone
 	}
 	if ret.Status != posreturn.StatusCompleted && ret.Status != posreturn.StatusRejected {
-		resp.RoomStayOpen = payments.OpenRoomStayForOrder(ctx, h.client, tid, ret.OrderID) != nil
+		// Display hint only (the screen notes the folio credit); completion itself fails on a
+		// failed lookup, so here the error is logged and the hint left off.
+		stay, serr := payments.OpenRoomStayForOrder(ctx, h.client, tid, ret.OrderID)
+		if serr != nil {
+			h.log.Warn("return: room stay lookup failed", zap.String("return_id", ret.ID.String()), zap.Error(serr))
+		}
+		resp.RoomStayOpen = stay != nil
 	}
 	return resp
 }

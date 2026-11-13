@@ -393,8 +393,9 @@ func TestCompleteReturnRoomChargePartSettledFolioSplits(t *testing.T) {
 	}
 }
 
-// When the main refund fails, the rest is not sent: it is marked pending, and the retry job
-// sends it once (idempotent on its deterministic id). return.completed tells treasury's GL
+// When the main refund fails, the rest is not sent: it is marked pending, and once the main refund
+// goes through on retry the rest retry sends it once (idempotent on its deterministic id).
+// return.completed tells treasury's GL
 // backstop to book only the part under the return id, so the rest is never reversed twice.
 func TestCompleteReturnFolioRestWaitsForTheMainRefund(t *testing.T) {
 	svc, client, rec := newRefundTestService(t)
@@ -416,16 +417,27 @@ func TestCompleteReturnFolioRestWaitsForTheMainRefund(t *testing.T) {
 		t.Errorf("payload refund_amount %v ledger_refund_amount %v, want 250 and 100", p["refund_amount"], p["ledger_refund_amount"])
 	}
 
+	// While the main refund is still pending (treasury still refusing it) the rest keeps waiting.
+	if n := svc.RetryPendingFolioRests(context.Background()); n != 0 {
+		t.Fatalf("rest sent %d times while the main refund is pending, want 0", n)
+	}
+	rec.mu.Lock()
+	rec.failRefType = ""
+	rec.mu.Unlock()
+	if n := svc.RetryPendingRefunds(context.Background()); n != 1 {
+		t.Fatalf("main refund retry sent %d, want 1", n)
+	}
 	for i := 0; i < 2; i++ {
 		if n := svc.RetryPendingFolioRests(context.Background()); n != map[int]int{0: 1, 1: 0}[i] {
 			t.Errorf("retry %d settled %d rests, want %d", i, n, map[int]int{0: 1, 1: 0}[i])
 		}
 	}
 	calls := rec.sent()
-	if len(calls) != 1 || calls[0].ReferenceType != RestRefundReferenceType || calls[0].Amount != 150 || calls[0].RefundChannel != "cash" {
-		t.Fatalf("treasury refunds after retry = %+v, want one rest of 150 cash", calls)
+	if len(calls) != 2 || calls[0].ReferenceType != "pos_return" || calls[0].Amount != 100 || calls[0].RefundChannel != "room_folio" ||
+		calls[1].ReferenceType != RestRefundReferenceType || calls[1].Amount != 150 || calls[1].RefundChannel != "cash" {
+		t.Fatalf("treasury refunds after retry = %+v, want the main 100 room_folio then one rest of 150 cash", calls)
 	}
-	if calls[0].ReferenceID != restRefundID(done.ID).String() {
+	if calls[1].ReferenceID != restRefundID(done.ID).String() {
 		t.Errorf("rest reference id = %s, want the deterministic one", calls[0].ReferenceID)
 	}
 	if md := client.POSReturn.GetX(context.Background(), done.ID).Metadata; md[MetaFolioRestPending] != nil {

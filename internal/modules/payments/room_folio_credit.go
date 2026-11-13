@@ -3,6 +3,7 @@ package payments
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -34,31 +35,40 @@ func TreasuryRefundChannel(channel string) string {
 
 // OpenRoomStayForOrder returns the open room stay a till sale was charged to (the folio item
 // carrying the order id), or nil when the sale was not charged to a room or the stay is over.
-func OpenRoomStayForOrder(ctx context.Context, client *ent.Client, tenantID, orderID uuid.UUID) *ent.RoomGuest {
-	guest := RoomStayForOrder(ctx, client, tenantID, orderID)
-	if guest == nil || guest.Status != roomguest.StatusActive {
-		return nil
+// A lookup failure is returned as an error, never as "no stay": that would refund a room-charged
+// sale as money while the folio still bills the guest. The caller fails and is retried.
+func OpenRoomStayForOrder(ctx context.Context, client *ent.Client, tenantID, orderID uuid.UUID) (*ent.RoomGuest, error) {
+	guest, err := RoomStayForOrder(ctx, client, tenantID, orderID)
+	if err != nil || guest == nil || guest.Status != roomguest.StatusActive {
+		return nil, err
 	}
-	return guest
+	return guest, nil
 }
 
-// RoomStayForOrder returns the room stay a till sale was charged to, open or closed, or nil. A
-// retried reversal uses it to find a credit it already made after the stay closed.
-func RoomStayForOrder(ctx context.Context, client *ent.Client, tenantID, orderID uuid.UUID) *ent.RoomGuest {
+// RoomStayForOrder returns the room stay a till sale was charged to, open or closed, or nil when
+// the sale has no folio line (or its stay is gone). A retried reversal uses it to find a credit it
+// already made after the stay closed. Any other lookup failure is returned as an error.
+func RoomStayForOrder(ctx context.Context, client *ent.Client, tenantID, orderID uuid.UUID) (*ent.RoomGuest, error) {
 	item, err := client.RoomFolioItem.Query().
 		Where(roomfolioitem.TenantID(tenantID), roomfolioitem.PosOrderID(orderID)).
 		Order(ent.Desc(roomfolioitem.FieldCreatedAt)).
 		First(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("room stay for order: folio line: %w", err)
 	}
 	guest, err := client.RoomGuest.Query().
 		Where(roomguest.ID(item.RoomGuestID), roomguest.TenantID(tenantID)).
 		Only(ctx)
-	if err != nil {
-		return nil
+	if ent.IsNotFound(err) {
+		return nil, nil
 	}
-	return guest
+	if err != nil {
+		return nil, fmt.Errorf("room stay for order: stay: %w", err)
+	}
+	return guest, nil
 }
 
 // CreditRoomFolio records a return credit of amount on the guest's folio. It is idempotent on
@@ -108,7 +118,9 @@ func CreditRoomFolio(ctx context.Context, client *ent.Client, guest *ent.RoomGue
 
 // ExistingFolioCredit is the return credit already recorded on the stay under reference, or 0.
 // A retried reversal step uses it so its own notes report the credit that was actually made.
-func ExistingFolioCredit(ctx context.Context, client *ent.Client, guest *ent.RoomGuest, reference string) float64 {
+// No credit under reference is 0; a lookup failure is an error (a 0 would let the retry pay the
+// credit out as cash again).
+func ExistingFolioCredit(ctx context.Context, client *ent.Client, guest *ent.RoomGuest, reference string) (float64, error) {
 	p, err := client.RoomFolioPayment.Query().
 		Where(
 			roomfoliopayment.TenantID(guest.TenantID),
@@ -117,21 +129,26 @@ func ExistingFolioCredit(ctx context.Context, client *ent.Client, guest *ent.Roo
 			roomfoliopayment.Reference(reference),
 		).
 		First(ctx)
-	if err != nil {
-		return 0
+	if ent.IsNotFound(err) {
+		return 0, nil
 	}
-	return p.Amount
+	if err != nil {
+		return 0, fmt.Errorf("existing folio credit: %w", err)
+	}
+	return p.Amount, nil
 }
 
 // FolioOutstanding is what the stay's folio still owes: its charges less its completed
 // payments, never below zero. A return credit is capped at this, so a folio the guest already
 // settled is never driven negative (the rest is refunded through the cashier's channel).
-func FolioOutstanding(ctx context.Context, client *ent.Client, guest *ent.RoomGuest) float64 {
+// A lookup error is returned, never read as "owes nothing": that would send the whole refund out
+// as money while the folio still bills the guest (S2-8 review). The caller fails and retries.
+func FolioOutstanding(ctx context.Context, client *ent.Client, guest *ent.RoomGuest) (float64, error) {
 	items, err := client.RoomFolioItem.Query().
 		Where(roomfolioitem.TenantID(guest.TenantID), roomfolioitem.RoomGuestID(guest.ID)).
 		All(ctx)
 	if err != nil {
-		return 0
+		return 0, fmt.Errorf("folio outstanding: items: %w", err)
 	}
 	pays, err := client.RoomFolioPayment.Query().
 		Where(
@@ -141,7 +158,7 @@ func FolioOutstanding(ctx context.Context, client *ent.Client, guest *ent.RoomGu
 		).
 		All(ctx)
 	if err != nil {
-		return 0
+		return 0, fmt.Errorf("folio outstanding: payments: %w", err)
 	}
 	owed := 0.0
 	for _, it := range items {
@@ -151,9 +168,9 @@ func FolioOutstanding(ctx context.Context, client *ent.Client, guest *ent.RoomGu
 		owed -= p.Amount
 	}
 	if owed < 0.005 {
-		return 0
+		return 0, nil
 	}
-	return owed
+	return owed, nil
 }
 
 // FolioCreditLimit is the most a refund of orderID may credit to the stay's folio (S2-20 review
@@ -169,8 +186,14 @@ func FolioOutstanding(ctx context.Context, client *ent.Client, guest *ent.RoomGu
 // stepPOSTotals nets those rows down before stepTreasuryGL asks for this limit (re-review R-1),
 // while the folio lines keep what the guest was charged. Earlier credits for the order's other
 // returns and reversals are what lowers the limit.
-func FolioCreditLimit(ctx context.Context, client *ent.Client, guest *ent.RoomGuest, orderID uuid.UUID, reference string) float64 {
-	limit := FolioOutstanding(ctx, client, guest)
+//
+// Any lookup error is returned (a zero limit would refund the whole amount as money while the
+// folio still bills the guest); the return or reversal step fails and is retried.
+func FolioCreditLimit(ctx context.Context, client *ent.Client, guest *ent.RoomGuest, orderID uuid.UUID, reference string) (float64, error) {
+	limit, err := FolioOutstanding(ctx, client, guest)
+	if err != nil {
+		return 0, err
+	}
 	charged := 0.0
 	lines, err := client.RoomFolioItem.Query().
 		Where(
@@ -180,7 +203,7 @@ func FolioCreditLimit(ctx context.Context, client *ent.Client, guest *ent.RoomGu
 		).
 		All(ctx)
 	if err != nil {
-		return 0
+		return 0, fmt.Errorf("folio credit limit: order lines: %w", err)
 	}
 	for _, it := range lines {
 		if IsRoomChargeFolioLine(it) {
@@ -188,15 +211,19 @@ func FolioCreditLimit(ctx context.Context, client *ent.Client, guest *ent.RoomGu
 		}
 	}
 	sources := map[string]bool{}
-	if ids, err := client.POSReturn.Query().Where(posreturn.OrderID(orderID)).IDs(ctx); err == nil {
-		for _, id := range ids {
-			sources[id.String()] = true
-		}
+	retIDs, err := client.POSReturn.Query().Where(posreturn.OrderID(orderID)).IDs(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("folio credit limit: returns: %w", err)
 	}
-	if ids, err := client.POSReversal.Query().Where(posreversal.OrderID(orderID)).IDs(ctx); err == nil {
-		for _, id := range ids {
-			sources[id.String()] = true
-		}
+	for _, id := range retIDs {
+		sources[id.String()] = true
+	}
+	revIDs, err := client.POSReversal.Query().Where(posreversal.OrderID(orderID)).IDs(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("folio credit limit: reversals: %w", err)
+	}
+	for _, id := range revIDs {
+		sources[id.String()] = true
 	}
 	credits, err := client.RoomFolioPayment.Query().
 		Where(
@@ -207,7 +234,7 @@ func FolioCreditLimit(ctx context.Context, client *ent.Client, guest *ent.RoomGu
 		).
 		All(ctx)
 	if err != nil {
-		return 0
+		return 0, fmt.Errorf("folio credit limit: earlier credits: %w", err)
 	}
 	for _, c := range credits {
 		if c.Reference == reference {
@@ -221,9 +248,9 @@ func FolioCreditLimit(ctx context.Context, client *ent.Client, guest *ent.RoomGu
 		limit = charged
 	}
 	if limit < 0.005 {
-		return 0
+		return 0, nil
 	}
-	return limit
+	return limit, nil
 }
 
 // SplitFolioCredit splits a refund of amount for a room-charged sale: the part the open stay's

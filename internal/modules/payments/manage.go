@@ -167,6 +167,15 @@ func (s *Service) UpdatePayment(ctx context.Context, tenantID, orderID, paymentI
 	return saved, nil
 }
 
+// voidRefundOutlet is the order's outlet for a payment void's refund, or "" when the order did
+// not load (treasury then falls back to the tenant's account for the channel).
+func voidRefundOutlet(order *ent.POSOrder, err error) string {
+	if err != nil || order == nil || order.OutletID == uuid.Nil {
+		return ""
+	}
+	return order.OutletID.String()
+}
+
 // VoidPayment soft-voids a completed manual payment: local row → voided, paid_total
 // recomputed (a completed order that is no longer covered reopens to pending_payment), an
 // order audit event is written, and treasury receives a best-effort refund reversal keyed
@@ -260,6 +269,8 @@ func (s *Service) VoidPayment(ctx context.Context, tenantID uuid.UUID, tenantSlu
 			// Back the way it came in, so treasury reverses the account the payment hit
 			// (an MTN, Airtel or M-Pesa code payment comes off the mobile money float, not cash).
 			RefundChannel: RefundChannelForMethod(tenderType),
+			// The sale's outlet, so treasury picks that outlet's own account for the channel.
+			OutletID: voidRefundOutlet(order, oerr),
 		}); rerr != nil {
 			s.log.Warn("void payment: treasury reversal failed — books may need reconciliation",
 				zap.String("payment_id", paymentID.String()), zap.Error(rerr))

@@ -424,7 +424,12 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 	if !onAccount && ret.ReturnType != posreturn.ReturnTypeStoreCredit &&
 		refundChannel != "store_credit" && refundChannel != "offset_invoice" &&
 		payments.OriginalRefundChannel(ctx, s.client, tenantID, ret.OrderID) == payments.RefundChannelRoomFolio {
-		folioStay = payments.OpenRoomStayForOrder(ctx, s.client, tenantID, ret.OrderID)
+		stay, serr := payments.OpenRoomStayForOrder(ctx, s.client, tenantID, ret.OrderID)
+		if serr != nil {
+			// Never "no stay" on a failed lookup: that would refund the room charge as money.
+			return nil, nil, fmt.Errorf("complete return: room stay: %w", serr)
+		}
+		folioStay = stay
 	}
 	switch {
 	case folioStay != nil && refundChannel != payments.RefundChannelRoomFolio:
@@ -472,7 +477,13 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 	if folioStay != nil && paidOut > 0.009 {
 		// Capped at what the folio owes and at the sale's room-charged part (S2-20 review I-1):
 		// a mixed cash and room sale credits the folio only for its room part.
-		folioCredit, restAmount = payments.SplitFolioCredit(paidOut, payments.FolioCreditLimit(ctx, tx.Client(), folioStay, ret.OrderID, ret.ReturnNumber))
+		// A failed lookup fails the completion (the return stays approved and can be completed
+		// again), never reads as "owes nothing", which would refund money the folio still bills.
+		limit, lerr := payments.FolioCreditLimit(ctx, tx.Client(), folioStay, ret.OrderID, ret.ReturnNumber)
+		if lerr != nil {
+			return nil, nil, fmt.Errorf("complete return: room folio credit limit: %w", lerr)
+		}
+		folioCredit, restAmount = payments.SplitFolioCredit(paidOut, limit)
 		if folioCredit == 0 {
 			// Nothing left to credit: the whole refund goes through the chosen channel.
 			folioStay, restAmount = nil, 0
@@ -492,9 +503,12 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 	fiscal := s.fiscalRefundFor(ctx, tenantSlug, ret, lines)
 	refundSent := false
 	var treasuryRefundRef string
+	var pendingRefund *mainRefund
 	if settleAmount > 0.009 && s.treasuryClient != nil {
 		if ret.ReturnType == posreturn.ReturnTypeStoreCredit && !onAccount {
 			refundChannel = "store_credit"
+			// Stored, so pos.return.completed tells treasury's GL backstop the same channel.
+			update = update.SetNillableRefundChannel(refundChannelPtr(refundChannel))
 		}
 
 		// Sum the returned lines' VAT and COGS so treasury can reverse the exact tax + cost-of-goods.
@@ -537,16 +551,22 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 			CrmContactID:       crmContactID,
 			CustomerIdentifier: customerIdentifier,
 			CustomerName:       customerName,
-			OutletID:           fiscal.outletID,
+			OutletID:           returnOutlet(ret),
 			OriginalOrderID:    fiscal.orderID,
 			Lines:              fiscal.lines,
 			ExchangeCredit:     exchangeCredit,
 		})
 		if refundErr != nil {
-			s.log.Error("treasury refund call failed (non-fatal; refund can be retried)",
+			s.log.Error("treasury refund call failed (non-fatal; RetryPendingRefunds sends it again)",
 				zap.Error(refundErr), zap.String("return_id", returnID.String()),
 				zap.String("refund_channel", refundChannel), zap.Float64("amount", settleAmount),
 				zap.Float64("tax_amount", taxAmount), zap.Float64("cost", costAmount))
+			// Kept on the return so the retry sends the same refund (S2-8 review I-1); treasury
+			// books it once under the return id even when the GL backstop got there first.
+			pendingRefund = &mainRefund{
+				Amount: firstAmount, Tax: firstTax, Cost: firstCost, ExchangeCredit: exchangeCredit,
+				Channel: payments.TreasuryRefundChannel(refundChannel), Currency: currency,
+			}
 		} else {
 			treasuryRefundRef = refundResp.ID
 			update = update.SetTreasuryRefundRef(treasuryRefundRef)
@@ -581,6 +601,9 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 	md := cloneReturnMetadata(ret.Metadata)
 	if creditNoteState != "" {
 		md[mdFiscalCreditNote] = creditNoteState
+	}
+	if pendingRefund != nil {
+		pendingRefund.toMetadata(md)
 	}
 	md["completed_at"] = time.Now().UTC().Format(time.RFC3339)
 	if req.CompletedBy != uuid.Nil {
@@ -755,10 +778,12 @@ func (s *Service) completedPayload(ctx context.Context, ret *ent.POSReturn, line
 			payload["tax_amount"] = money.Round2(tax)
 		}
 	}
-	// A refund credited to the open room folio reduces the guest receivable the till booked the
-	// room charge to (S2-20); the backstop needs the channel to credit that account, not cash.
-	if ret.RefundChannel != nil && *ret.RefundChannel == posreturn.RefundChannelRoomFolio {
-		payload["refund_channel"] = string(posreturn.RefundChannelRoomFolio)
+	// The channel CompleteReturn settled through, on every return (S2-8 review I-1). When the S2S
+	// refund failed, treasury's GL backstop books the return first and credits the account this
+	// channel names, the same one the refund would: M-Pesa and the other mobile money tenders
+	// their float, on account AR, store credit 2300, a folio credit the guest receivable (S2-20).
+	if ret.RefundChannel != nil && *ret.RefundChannel != "" {
+		payload["refund_channel"] = payments.TreasuryRefundChannel(string(*ret.RefundChannel))
 	}
 	return events.WithRecipient(payload, "customer", events.Recipient{CrmContactID: crmContactID, Name: customerName, Phone: customerPhone})
 }

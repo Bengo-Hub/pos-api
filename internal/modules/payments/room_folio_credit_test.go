@@ -2,6 +2,7 @@ package payments
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -54,20 +55,57 @@ func TestOpenRoomStayForOrder(t *testing.T) {
 	ctx := context.Background()
 	tid := uuid.New()
 
+	stayFor := func(tenant, order uuid.UUID) *ent.RoomGuest {
+		t.Helper()
+		g, err := OpenRoomStayForOrder(ctx, client, tenant, order)
+		if err != nil {
+			t.Fatalf("not found must not be an error: %v", err)
+		}
+		return g
+	}
 	open, guest := seedRoomChargedSale(t, client, tid, true)
-	if got := OpenRoomStayForOrder(ctx, client, tid, open.ID); got == nil || got.ID != guest.ID {
+	if got := stayFor(tid, open.ID); got == nil || got.ID != guest.ID {
 		t.Errorf("open stay = %v, want %s", got, guest.ID)
 	}
-	if got := OpenRoomStayForOrder(ctx, client, uuid.New(), open.ID); got != nil {
+	if got := stayFor(uuid.New(), open.ID); got != nil {
 		t.Error("another tenant must not find the stay")
 	}
 	closed, _ := seedRoomChargedSale(t, client, tid, false)
-	if got := OpenRoomStayForOrder(ctx, client, tid, closed.ID); got != nil {
+	if got := stayFor(tid, closed.ID); got != nil {
 		t.Error("a checked-out stay is not open")
 	}
 	plain := seedPaidOrder(t, client, tid, paid{"cash", 100, StatusCompleted})
-	if got := OpenRoomStayForOrder(ctx, client, tid, plain.ID); got != nil {
+	if got := stayFor(tid, plain.ID); got != nil {
 		t.Error("a sale never charged to a room has no stay")
+	}
+}
+
+// A failed lookup is an error, never "no stay" (a refund would then go out as money while the
+// folio still bills the guest); a missing credit is 0 with no error.
+func TestRoomStayLookupsReturnErrors(t *testing.T) {
+	_, client := newTestPaymentsService(t)
+	ctx := context.Background()
+	tid := uuid.New()
+	order, guest := seedRoomChargedSale(t, client, tid, true)
+	if amt, err := ExistingFolioCredit(ctx, client, guest, "RET-NONE"); err != nil || amt != 0 {
+		t.Fatalf("no credit = %v, %v; want 0 and no error", amt, err)
+	}
+
+	fail := ent.InterceptFunc(func(ent.Querier) ent.Querier {
+		return ent.QuerierFunc(func(context.Context, ent.Query) (ent.Value, error) {
+			return nil, errors.New("database unavailable")
+		})
+	})
+	client.RoomFolioPayment.Intercept(fail)
+	if _, err := ExistingFolioCredit(ctx, client, guest, "RET-1"); err == nil {
+		t.Error("ExistingFolioCredit: want an error on a failed lookup")
+	}
+	client.RoomGuest.Intercept(fail)
+	if g, err := OpenRoomStayForOrder(ctx, client, tid, order.ID); err == nil || g != nil {
+		t.Errorf("OpenRoomStayForOrder = %v, %v; want an error", g, err)
+	}
+	if g, err := RoomStayForOrder(ctx, client, tid, order.ID); err == nil || g != nil {
+		t.Errorf("RoomStayForOrder = %v, %v; want an error", g, err)
 	}
 }
 
@@ -109,8 +147,16 @@ func TestFolioOutstanding(t *testing.T) {
 	ctx := context.Background()
 	tid := uuid.New()
 	_, guest := seedRoomChargedSale(t, client, tid, true) // one charge of 100
+	owes := func() float64 {
+		t.Helper()
+		v, err := FolioOutstanding(ctx, client, guest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
 
-	if got := FolioOutstanding(ctx, client, guest); got != 100 {
+	if got := owes(); got != 100 {
 		t.Errorf("unpaid folio owes %v, want 100", got)
 	}
 	pay := func(amount float64, status string) {
@@ -121,11 +167,11 @@ func TestFolioOutstanding(t *testing.T) {
 	}
 	pay(30, "completed")
 	pay(50, "pending")
-	if got := FolioOutstanding(ctx, client, guest); got != 70 {
+	if got := owes(); got != 70 {
 		t.Errorf("part-paid folio owes %v, want 70", got)
 	}
 	pay(90, "completed")
-	if got := FolioOutstanding(ctx, client, guest); got != 0 {
+	if got := owes(); got != 0 {
 		t.Errorf("overpaid folio owes %v, want 0", got)
 	}
 }

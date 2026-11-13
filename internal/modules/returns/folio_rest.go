@@ -90,6 +90,10 @@ func (s *Service) RetryPendingFolioRests(ctx context.Context) int {
 	}
 	sent := 0
 	for _, ret := range rets {
+		// The rest goes only after the main refund went through (RetryPendingRefunds).
+		if refundPending(ret.Metadata) {
+			continue
+		}
 		rest, ok := folioRestFromMetadata(ret.Metadata)
 		if ok {
 			// Treasury resolves a tenant id in place of the slug on its S2S routes.

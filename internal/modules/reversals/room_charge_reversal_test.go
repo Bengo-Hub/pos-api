@@ -137,7 +137,7 @@ func TestRoomChargedReversalAfterPOSTotals(t *testing.T) {
 			order, line := seedSaleWithLine(t, client, tid, tc.qty, tc.unit, tc.pays...)
 			seedRoomPart(t, client, order, tc.roomPart, 2000)
 
-			channel := svc.resolveRefundChannel(ctx, tid, order.ID, "")
+			channel := channelFor(t, svc, tid, order.ID, "")
 			if channel != payments.RefundChannelRoomFolio {
 				t.Fatalf("channel = %q, want room_folio", channel)
 			}

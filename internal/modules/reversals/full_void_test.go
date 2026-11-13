@@ -35,7 +35,7 @@ func seedTenderReversal(t *testing.T, svc *Service, client *ent.Client, scope st
 	return client.POSReversal.Create().
 		SetTenantID(tid).SetOrderID(order.ID).SetOrderNumber(order.OrderNumber).
 		SetReversalNumber("REV-" + uuid.NewString()[:6]).SetScope(entposreversal.Scope(scope)).SetStatus("pending").SetReason("voided").
-		SetRefundChannel(svc.resolveRefundChannel(ctx, tid, order.ID, "")).
+		SetRefundChannel(channelFor(t, svc, tid, order.ID, "")).
 		SetLines([]entschema.ReversalLineJSON{{LineID: line.ID, SKU: line.Sku, Name: line.Name, Quantity: qty, OfQuantity: 3, Amount: amount}}).
 		SetAmount(amount).SetTaxAmount(amount / 5).SetCostAmount(0).
 		SetSteps([]entschema.ReversalStepJSON{}).SetRequestedBy(uuid.New()).

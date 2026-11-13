@@ -431,8 +431,16 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 
 	// The reversal must settle in the ORIGINAL sale's currency, not a hardcoded assumption.
 	currency := "KES"
-	if origOrder, oerr := s.client.POSOrder.Get(ctx, rev.OrderID); oerr == nil && origOrder.Currency != "" {
-		currency = origOrder.Currency
+	// The sale's outlet goes on every refund portion, so treasury picks that outlet's own
+	// account for the channel (an outlet M-Pesa till), as the GL backstop does (S2-8 N-3).
+	outlet := ""
+	if origOrder, oerr := s.client.POSOrder.Get(ctx, rev.OrderID); oerr == nil {
+		if origOrder.Currency != "" {
+			currency = origOrder.Currency
+		}
+		if origOrder.OutletID != uuid.Nil {
+			outlet = origOrder.OutletID.String()
+		}
 	}
 
 	// The reversal splits by what the reversed part of the sale was paid with (see
@@ -490,16 +498,30 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 		// A retried step finds the credit its first attempt made, whether or not the stay is still
 		// open, and keeps room_folio; only a stay that is open now takes a new credit.
 		folio, prior := 0.0, 0.0
-		stay := payments.RoomStayForOrder(ctx, s.client, rev.TenantID, rev.OrderID)
+		// A failed lookup fails the step (it is retried), never reads as "no stay" or "no credit
+		// yet", which would pay the credit out as cash.
+		stay, serr := payments.RoomStayForOrder(ctx, s.client, rev.TenantID, rev.OrderID)
+		if serr != nil {
+			return "", "", false, fmt.Errorf("room stay: %w", serr)
+		}
 		if stay != nil {
-			prior = payments.ExistingFolioCredit(ctx, s.client, stay, rev.ReversalNumber)
+			var perr error
+			if prior, perr = payments.ExistingFolioCredit(ctx, s.client, stay, rev.ReversalNumber); perr != nil {
+				return "", "", false, fmt.Errorf("room folio credit: %w", perr)
+			}
 		}
 		switch {
 		case prior > 0:
 			folio = prior
 		case stay != nil && stay.Status == roomguest.StatusActive && credit > 0.009:
 			// Capped at what the folio owes and at the sale's room-charged part (review I-1).
-			folio, _ = payments.SplitFolioCredit(credit, payments.FolioCreditLimit(ctx, s.client, stay, rev.OrderID, rev.ReversalNumber))
+			// A failed lookup fails the step (it is retried), never reads as "owes nothing",
+			// which would pay the whole credit out in cash while the folio still bills it.
+			limit, lerr := payments.FolioCreditLimit(ctx, s.client, stay, rev.OrderID, rev.ReversalNumber)
+			if lerr != nil {
+				return "", "", false, fmt.Errorf("room folio credit limit: %w", lerr)
+			}
+			folio, _ = payments.SplitFolioCredit(credit, limit)
 		}
 		if folio > 0 {
 			if prior == 0 {
@@ -528,6 +550,7 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 		SourceService: "pos", ReferenceType: "pos_return",
 		Reference: rev.ReversalNumber, Currency: currency, Reason: rev.Reason,
 		CrmContactID: crmContactID, CustomerIdentifier: customerPhone, CustomerName: customerName,
+		OutletID: outlet,
 	}
 
 	// treasury's ProcessRefund requires ReferenceID to parse as a real uuid.UUID (it rejects

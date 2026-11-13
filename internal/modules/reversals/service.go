@@ -215,6 +215,10 @@ func (s *Service) Execute(ctx context.Context, tenantID uuid.UUID, req CreateReq
 		}
 	}
 
+	refundChannel, err := s.resolveRefundChannel(ctx, tenantID, order.ID, req.RefundChannel)
+	if err != nil {
+		return nil, err
+	}
 	create := s.client.POSReversal.Create().
 		SetTenantID(tenantID).
 		SetOrderID(order.ID).
@@ -223,7 +227,7 @@ func (s *Service) Execute(ctx context.Context, tenantID uuid.UUID, req CreateReq
 		SetScope(entposreversal.Scope(req.Scope)).
 		SetStatus(entposreversal.StatusPending).
 		SetReason(req.Reason).
-		SetRefundChannel(s.resolveRefundChannel(ctx, tenantID, order.ID, req.RefundChannel)).
+		SetRefundChannel(refundChannel).
 		SetLines(revLines).
 		SetAmount(money.Round2(amount)).
 		SetTaxAmount(money.Round2(tax)).
@@ -405,22 +409,31 @@ func (s *Service) audit(ctx context.Context, rev *ent.POSReversal) {
 // defaultRefundChannel used by the customer-return flow; without this, reversing/editing a
 // credit sale posted a CASH refund in treasury's GL for money the business never received,
 // instead of reducing the customer's AR balance.
-func (s *Service) resolveRefundChannel(ctx context.Context, tenantID, orderID uuid.UUID, requested string) string {
+//
+// A failed stay lookup is returned as an error, never read as "stay closed" (which would pick
+// cash for a room-charged sale), so the reversal is not created and can be tried again.
+func (s *Service) resolveRefundChannel(ctx context.Context, tenantID, orderID uuid.UUID, requested string) (string, error) {
 	if requested != "" {
-		return requested
+		return requested, nil
 	}
 	if orders.SettledOnAccount(ctx, s.client, tenantID, orderID) {
-		return "offset_invoice"
+		return "offset_invoice", nil
 	}
 	// Otherwise back the way the sale was paid (owner decision 2026-11-12): an MTN, Airtel,
 	// Other, M-Pesa code or card sale is reversed against that account, not cash.
 	ch := payments.OriginalRefundChannel(ctx, s.client, tenantID, orderID)
-	if ch == payments.RefundChannelRoomFolio && payments.OpenRoomStayForOrder(ctx, s.client, tenantID, orderID) == nil {
-		// A room-charged sale is credited to the folio only while the stay is open.
-		ch = "cash"
+	if ch == payments.RefundChannelRoomFolio {
+		stay, err := payments.OpenRoomStayForOrder(ctx, s.client, tenantID, orderID)
+		if err != nil {
+			return "", fmt.Errorf("resolve refund channel: %w", err)
+		}
+		if stay == nil {
+			// A room-charged sale is credited to the folio only while the stay is open.
+			ch = "cash"
+		}
 	}
 	if ch != "" {
-		return ch
+		return ch, nil
 	}
-	return "cash"
+	return "cash", nil
 }

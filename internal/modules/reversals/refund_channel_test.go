@@ -2,6 +2,7 @@ package reversals
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,35 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/payments"
 )
 
+// channelFor is resolveRefundChannel for a test that expects the lookups to work.
+func channelFor(t *testing.T, svc *Service, tid, orderID uuid.UUID, requested string) string {
+	t.Helper()
+	ch, err := svc.resolveRefundChannel(context.Background(), tid, orderID, requested)
+	if err != nil {
+		t.Fatalf("resolveRefundChannel: %v", err)
+	}
+	return ch
+}
+
+// A failed stay lookup must not read as "stay closed": the channel would fall to cash for a
+// room-charged sale. The reversal is refused instead, so it can be tried again.
+func TestResolveRefundChannelFailsOnAStayLookupError(t *testing.T) {
+	svc, client := newTestReversalsService(t, nil)
+	ctx := context.Background()
+	tid := uuid.New()
+	order, _ := seedSaleWithLine(t, client, tid, 3, 100, pay{"room_charge", 300, 0})
+	seedRoomStayFor(t, client, order, true)
+
+	client.RoomGuest.Intercept(ent.InterceptFunc(func(ent.Querier) ent.Querier {
+		return ent.QuerierFunc(func(context.Context, ent.Query) (ent.Value, error) {
+			return nil, errors.New("room stays unavailable")
+		})
+	}))
+	if ch, err := svc.resolveRefundChannel(ctx, tid, order.ID, ""); err == nil {
+		t.Fatalf("channel = %q with no error, want an error (never cash on a failed lookup)", ch)
+	}
+}
+
 // A sale void or edit with no channel chosen refunds the way the sale was paid; an explicit
 // choice and the on-account offset keep working as before.
 func TestResolveRefundChannelUsesTheOriginalMethod(t *testing.T) {
@@ -27,15 +57,15 @@ func TestResolveRefundChannelUsesTheOriginalMethod(t *testing.T) {
 	p := client.POSPayment.Query().OnlyX(ctx)
 	client.POSPayment.UpdateOne(p).SetPaymentData(map[string]any{"method": "mtn_momo_manual"}).ExecX(ctx)
 
-	if got := svc.resolveRefundChannel(ctx, tid, order.ID, ""); got != "mtn_momo_manual" {
+	if got := channelFor(t, svc, tid, order.ID, ""); got != "mtn_momo_manual" {
 		t.Errorf("MTN sale reverses via %q, want mtn_momo_manual", got)
 	}
-	if got := svc.resolveRefundChannel(ctx, tid, order.ID, "cash"); got != "cash" {
+	if got := channelFor(t, svc, tid, order.ID, "cash"); got != "cash" {
 		t.Errorf("explicit cash became %q", got)
 	}
 
 	cash := setupOrderWithPayment(t, client, tid, 50)
-	if got := svc.resolveRefundChannel(ctx, tid, cash.ID, ""); got != "cash" {
+	if got := channelFor(t, svc, tid, cash.ID, ""); got != "cash" {
 		t.Errorf("cash sale reverses via %q, want cash", got)
 	}
 }
@@ -79,7 +109,7 @@ func TestRoomChargedSaleReversalCreditsTheOpenStay(t *testing.T) {
 	order, line := seedSaleWithLine(t, client, tid, 3, 100, pay{"room_charge", 300, 0})
 	guest := seedRoomStayFor(t, client, order, true)
 
-	if got := svc.resolveRefundChannel(ctx, tid, order.ID, ""); got != payments.RefundChannelRoomFolio {
+	if got := channelFor(t, svc, tid, order.ID, ""); got != payments.RefundChannelRoomFolio {
 		t.Fatalf("open stay: channel = %q, want room_folio", got)
 	}
 	rev := client.POSReversal.Create().
@@ -119,7 +149,7 @@ func TestRoomChargedSaleReversalCreditsTheOpenStay(t *testing.T) {
 	cp := client.POSPayment.Query().Where(entpospayment.OrderID(closed.ID)).OnlyX(ctx)
 	client.POSPayment.UpdateOne(cp).SetPaymentData(map[string]any{"method": "room_charge"}).ExecX(ctx)
 	seedRoomStayFor(t, client, closed, false)
-	if got := svc.resolveRefundChannel(ctx, tid, closed.ID, ""); got != "cash" {
+	if got := channelFor(t, svc, tid, closed.ID, ""); got != "cash" {
 		t.Errorf("closed stay: channel = %q, want cash", got)
 	}
 }

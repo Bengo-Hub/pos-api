@@ -1822,14 +1822,6 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 	// Resolved here as a SKU->cost map in one query. Missing cost => 0 (never blocks the sale).
 	costBySKU, uomBySKU := s.resolveLineCosts(ctx, order.TenantID, lines)
 
-	// A pharmacy-checkout order (see pharmacy_checkout.go's CheckoutPrescription) carries a
-	// prescription_id — its stock was already committed at Dispense time via ConsumeReservation,
-	// converting the FEFO-selected lot's hold into a real depletion. Tagging every line
-	// skip_inventory here tells inventory-api's pos.sale.finalized consumer NOT to deduct stock
-	// again for this sale, so payment collection never double-decrements a prescription's stock.
-	prescriptionID, _ := order.Metadata["prescription_id"].(string)
-	skipInventory := prescriptionID != ""
-
 	// The item type tells treasury what a first sale registers at KRA (goods vs service).
 	itemTypes := orders.CatalogItemTypesForLines(ctx, s.client, order.TenantID, lines)
 
@@ -1894,9 +1886,6 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		}
 		if itemType := itemTypes[l.Sku]; itemType != "" {
 			item["item_type"] = itemType
-		}
-		if skipInventory {
-			item["skip_inventory"] = true
 		}
 		// Include pre-computed tax breakdown if available — treasury uses this verbatim for eTIMS.
 		if l.TaxCodeID != "" {

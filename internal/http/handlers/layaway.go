@@ -559,6 +559,7 @@ func (h *LayawayHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 			CustomerIdentifier: plan.CustomerPhone,
 			CustomerName:       plan.CustomerName,
 			CustomerEmail:      plan.CustomerEmail,
+			OutletID:           plan.OutletID.String(), // the outlet's own account for the channel
 		})
 		if refundErr != nil {
 			h.log.Error("layaway cancel: treasury refund call failed (non-fatal; can be retried)",

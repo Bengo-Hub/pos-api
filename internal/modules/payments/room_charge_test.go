@@ -384,7 +384,15 @@ func TestFolioCreditLimitCapsAtTheRoomCharge(t *testing.T) {
 		c.SaveX(ctx)
 	}
 
-	if got := FolioCreditLimit(ctx, client, g, order.ID, "RET-1"); got != 660 {
+	limitFor := func(ref string) float64 {
+		t.Helper()
+		v, err := FolioCreditLimit(ctx, client, g, order.ID, ref)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+	if got := limitFor("RET-1"); got != 660 {
 		t.Errorf("limit for a full return = %v, want 660 (the room part, not the 1,160 sale)", got)
 	}
 	ret := client.POSReturn.Create().
@@ -395,10 +403,10 @@ func TestFolioCreditLimitCapsAtTheRoomCharge(t *testing.T) {
 	if _, err := CreditRoomFolio(ctx, client, g, 400, "RET-1", ret.ID, uuid.Nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := FolioCreditLimit(ctx, client, g, order.ID, "RET-2"); got != 260 {
+	if got := limitFor("RET-2"); got != 260 {
 		t.Errorf("limit after a 400 credit = %v, want 260", got)
 	}
-	if got := FolioCreditLimit(ctx, client, g, order.ID, "RET-1"); got != 660 {
+	if got := limitFor("RET-1"); got != 660 {
 		t.Errorf("limit for RET-1's own retry = %v, want 660", got)
 	}
 }
