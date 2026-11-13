@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -523,9 +524,10 @@ func (h *PromotionHandler) ApplyPromoCode(w http.ResponseWriter, r *http.Request
 
 // UpdatePromotion handles PATCH /{tenantID}/pos/promotions/{promoID} — edits an existing
 // promotion (happy hour or otherwise) and upserts its discount rule. Reuses createPromoInput
-// so the create and edit forms on the frontend can share one payload shape; every field is
-// applied unconditionally (the edit form always submits the full, current state — there is
-// no partial-patch semantics here, matching how the create endpoint already works).
+// so the create and edit forms on the frontend can share one payload shape. Only the fields the
+// body names are changed (the edit form sends them all), and "status" (active or inactive)
+// switches a promotion off or back on without touching its schedule or rule (2026-11-13: a
+// status-only call used to blank the name, outlet, end date and rule).
 func (h *PromotionHandler) UpdatePromotion(w http.ResponseWriter, r *http.Request) {
 	tid, err := parseTenantUUID(r)
 	if err != nil {
@@ -543,57 +545,112 @@ func (h *PromotionHandler) UpdatePromotion(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// A true PATCH: only the fields the body names change. The edit form sends the full state,
+	// so it behaves as before; a partial body (for example {"status":"inactive"}) no longer
+	// blanks the name, outlet, end date or discount rule of a live promotion.
+	raw, rerr := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	var input createPromoInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+	var sent map[string]json.RawMessage
+	if rerr != nil || json.Unmarshal(raw, &input) != nil || json.Unmarshal(raw, &sent) != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 	input.normalize()
+	has := func(keys ...string) bool {
+		for _, k := range keys {
+			if _, ok := sent[k]; ok {
+				return true
+			}
+		}
+		return false
+	}
 
 	if h.bannerFeatureLocked(r.Context(), tid, input) {
 		authclient.WriteFeatureLocked(w, subscriptions.FeatureStorefrontBanner, "")
 		return
 	}
 
-	upd := existing.Update().
-		SetName(input.Name).
-		SetAutoApply(input.AutoApply).
-		SetDaysOfWeek(input.DaysOfWeek).
-		SetWindowStart(input.WindowStart).
-		SetWindowEnd(input.WindowEnd)
+	upd := existing.Update()
+	if has("name") {
+		if strings.TrimSpace(input.Name) == "" {
+			jsonError(w, "name cannot be empty", http.StatusBadRequest)
+			return
+		}
+		upd = upd.SetName(input.Name)
+	}
+	if has("status") {
+		var status string
+		_ = json.Unmarshal(sent["status"], &status)
+		switch status {
+		case "active", "inactive":
+			upd = upd.SetStatus(status)
+		default:
+			jsonError(w, "status must be active or inactive", http.StatusBadRequest)
+			return
+		}
+	}
+	if has("auto_apply") {
+		upd = upd.SetAutoApply(input.AutoApply)
+	}
+	if has("days_of_week") {
+		upd = upd.SetDaysOfWeek(input.DaysOfWeek)
+	}
+	if has("window_start") {
+		upd = upd.SetWindowStart(input.WindowStart)
+	}
+	if has("window_end") {
+		upd = upd.SetWindowEnd(input.WindowEnd)
+	}
 	if input.PromoKind != "" {
 		upd = upd.SetPromoKind(promotion.PromoKind(input.PromoKind))
 	}
 	if input.StartAt != nil {
 		upd = upd.SetStartAt(*input.StartAt)
 	}
-	if input.EndAt != nil {
-		upd = upd.SetEndAt(*input.EndAt)
-	} else {
-		upd = upd.ClearEndAt()
+	if has("endAt", "end_at") {
+		if input.EndAt != nil {
+			upd = upd.SetEndAt(*input.EndAt)
+		} else {
+			upd = upd.ClearEndAt()
+		}
 	}
-	if oid, perr := uuid.Parse(input.OutletID); perr == nil {
-		upd = upd.SetOutletID(oid)
-	} else {
-		upd = upd.ClearOutletID()
+	if has("outlet_id") {
+		if oid, perr := uuid.Parse(input.OutletID); perr == nil {
+			upd = upd.SetOutletID(oid)
+		} else {
+			upd = upd.ClearOutletID()
+		}
 	}
 	if input.Banner != nil {
 		upd = upd.SetMetadata(promotions.MergeBannerMetadata(existing.Metadata, *input.Banner))
 	}
-	if input.UsageLimit != nil {
-		upd = upd.SetUsageLimit(*input.UsageLimit)
-	} else {
-		upd = upd.ClearUsageLimit()
+	if has("usage_limit") {
+		if input.UsageLimit != nil {
+			upd = upd.SetUsageLimit(*input.UsageLimit)
+		} else {
+			upd = upd.ClearUsageLimit()
+		}
 	}
-	if input.MaxUnitsPerCustomer != nil {
-		upd = upd.SetMaxUnitsPerCustomer(*input.MaxUnitsPerCustomer)
-	} else {
-		upd = upd.ClearMaxUnitsPerCustomer()
+	if has("max_units_per_customer") {
+		if input.MaxUnitsPerCustomer != nil {
+			upd = upd.SetMaxUnitsPerCustomer(*input.MaxUnitsPerCustomer)
+		} else {
+			upd = upd.ClearMaxUnitsPerCustomer()
+		}
 	}
 	promo, err := upd.Save(r.Context())
 	if err != nil {
 		h.log.Error("update promotion failed", zap.Error(err))
 		jsonError(w, "failed to update promotion: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// The discount rule changes only when the body carries rule fields (the edit form always
+	// does); a status-only or schedule-only PATCH leaves the deal itself untouched.
+	if !has("scope_type", "scope_ids", "discount_type", "discount_value", "max_discount", "meal_period",
+		"buy_quantity", "get_quantity", "get_discount_percent", "get_scope_ids", "get_pair_map") {
+		rule, _ := h.client.PromotionRule.Query().Where(promotionrule.PromotionID(promoID)).First(r.Context())
+		jsonOK(w, promotionWithRule{Promotion: promo, Rule: rule})
 		return
 	}
 
