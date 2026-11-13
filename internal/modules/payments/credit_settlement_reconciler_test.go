@@ -36,15 +36,16 @@ func arPaymentStub(t *testing.T, failFirstN int32) (*treasury.Client, *int32) {
 	return treasury.NewClient(srv.URL, "test-key", 2*time.Second), &calls
 }
 
-// arPaymentRejectStub always returns a 400 (a business-state rejection under treasury's own
-// validation, e.g. "exceeds outstanding debit" — never resolves no matter how many times retried).
-func arPaymentRejectStub(t *testing.T) (*treasury.Client, *int32) {
+// arPaymentRejectStub always returns a 400 with the given body (a business-state rejection under
+// treasury's own validation, e.g. "exceeds outstanding debit" or "no accounts-receivable balance
+// found").
+func arPaymentRejectStub(t *testing.T, body string) (*treasury.Client, *int32) {
 	t.Helper()
 	var calls int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&calls, 1)
 		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(`{"error":"payment exceeds outstanding debit 0"}`))
+		_, _ = w.Write([]byte(body))
 	}))
 	t.Cleanup(srv.Close)
 	return treasury.NewClient(srv.URL, "test-key", 2*time.Second), &calls
@@ -293,6 +294,10 @@ func TestCreditSettlementReconciler_SkipsRecentlyWrittenBackdatedPayment(t *test
 // payment under a different, pre-automation reference string) and healed zero — every one of those
 // 81 was destined to be retried again on the very next 2-minute tick, forever, across every pos-api
 // replica independently. A second pass immediately after a 4xx must NOT call treasury again.
+//
+// Since 2026-11-13 "exceeds outstanding debit" itself is terminal (see
+// TestCreditSettlementReconciler_BlocksExceedsOutstandingDebitRefusal), so this test drives the
+// backoff with another 4xx that is still only backed off.
 func TestCreditSettlementReconciler_BacksOffAfter4xxRejection(t *testing.T) {
 	svc, client := newTestPaymentsService(t)
 	order := seedReconcilerOrder(t, client, "+254700000603", "Permanently Rejected Settle")
@@ -307,7 +312,7 @@ func TestCreditSettlementReconciler_BacksOffAfter4xxRejection(t *testing.T) {
 		t.Fatalf("seed permanently-rejected settlement payment: %v", err)
 	}
 
-	tc, calls := arPaymentRejectStub(t)
+	tc, calls := arPaymentRejectStub(t, `{"error":"no accounts-receivable balance found for customer"}`)
 	svc.SetTreasuryClient(tc)
 
 	rec := NewCreditSettlementSyncReconciler(svc, zap.NewNop())
@@ -323,6 +328,198 @@ func TestCreditSettlementReconciler_BacksOffAfter4xxRejection(t *testing.T) {
 	}
 	if reloaded.PaymentData["last_sync_attempt_at"] == nil {
 		t.Error("expected last_sync_attempt_at to be stashed after the 4xx rejection")
+	}
+	if reloaded.PaymentData[treasurySyncBlockedKey] != nil {
+		t.Errorf("a non-terminal 4xx must only back off, not block: %v", reloaded.PaymentData)
+	}
+}
+
+// TestCreditSettlementReconciler_BlocksExceedsOutstandingDebitRefusal is the regression for
+// boi-enterprises on 2026-11-13: eight credit settlements (orders 000278, 000304, 000187, 001252,
+// 000228, 001976) were refused with 400 "payment N exceeds outstanding debit 0" every 15 minutes
+// since August, although treasury already held a matching receipt for every one. That refusal is
+// terminal: the row is stamped treasury_sync_blocked {reason, at, http_status} and never posted
+// again, even once the old backoff window would have elapsed.
+func TestCreditSettlementReconciler_BlocksExceedsOutstandingDebitRefusal(t *testing.T) {
+	svc, client := newTestPaymentsService(t)
+	order := seedReconcilerOrder(t, client, "+254700000605", "Already Settled In Treasury")
+
+	payment, err := client.POSPayment.Create().
+		SetOrderID(order.ID).SetTenderID(uuid.Nil).SetAmount(26310).SetCurrency("KES").
+		SetStatus(StatusCompleted).
+		SetOccurredAt(time.Now().Add(-10 * time.Minute)).
+		SetPaymentData(map[string]any{
+			"method": "bank", "credit_settlement": true,
+			// An earlier non-terminal 4xx left a backoff marker that has since elapsed.
+			"last_sync_attempt_at": time.Now().Add(-creditSettlementRetryBackoff - time.Minute).Format(time.RFC3339),
+		}).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed settlement payment: %v", err)
+	}
+
+	tc, calls := arPaymentRejectStub(t, `{"error":"payment 26310 exceeds outstanding debit 0"}`+"\n")
+	svc.SetTreasuryClient(tc)
+	rec := NewCreditSettlementSyncReconciler(svc, zap.NewNop())
+	rec.runOnce(context.Background())
+
+	if got := atomic.LoadInt32(calls); got != 1 {
+		t.Fatalf("expected exactly 1 treasury call, got %d", got)
+	}
+	reloaded, err := client.POSPayment.Get(context.Background(), payment.ID)
+	if err != nil {
+		t.Fatalf("reload payment: %v", err)
+	}
+	blocked, ok := reloaded.PaymentData[treasurySyncBlockedKey].(map[string]any)
+	if !ok {
+		t.Fatalf("expected %s to be stamped as an object, got %v", treasurySyncBlockedKey, reloaded.PaymentData)
+	}
+	if blocked["reason"] != syncBlockedExceedsOutstanding {
+		t.Errorf("reason = %v, want %q", blocked["reason"], syncBlockedExceedsOutstanding)
+	}
+	if status, _ := blocked["http_status"].(float64); int(status) != http.StatusBadRequest {
+		t.Errorf("http_status = %v, want 400", blocked["http_status"])
+	}
+	if at, _ := blocked["at"].(string); at == "" {
+		t.Errorf("expected a blocked-at timestamp, got %v", blocked["at"])
+	} else if _, perr := time.Parse(time.RFC3339, at); perr != nil {
+		t.Errorf("blocked-at %q is not RFC3339: %v", at, perr)
+	}
+	if blocked["detail"] != "payment 26310 exceeds outstanding debit 0" {
+		t.Errorf("detail = %v, want treasury's own message", blocked["detail"])
+	}
+	if reloaded.PaymentData["last_sync_attempt_at"] != nil {
+		t.Errorf("the backoff marker should be cleared once the row is blocked: %v", reloaded.PaymentData)
+	}
+	if reloaded.PaymentData[treasurySyncedAtKey] != nil {
+		t.Errorf("a blocked row must not be marked synced: %v", reloaded.PaymentData)
+	}
+
+	// Further passes must leave treasury alone.
+	rec.runOnce(context.Background())
+	rec.runOnce(context.Background())
+	if got := atomic.LoadInt32(calls); got != 1 {
+		t.Errorf("expected no further treasury calls once blocked, got %d total", got)
+	}
+}
+
+// TestCreditSettlementReconciler_ExcludesBlockedRows confirms the candidate query itself skips a
+// row that already carries treasury_sync_blocked, with no backoff marker involved, even when
+// treasury would now accept the post. Only a person removing the key brings it back.
+func TestCreditSettlementReconciler_ExcludesBlockedRows(t *testing.T) {
+	svc, client := newTestPaymentsService(t)
+	order := seedReconcilerOrder(t, client, "+254700000606", "Blocked By Hand")
+
+	if _, err := client.POSPayment.Create().
+		SetOrderID(order.ID).SetTenderID(uuid.Nil).SetAmount(17310).SetCurrency("KES").
+		SetStatus(StatusCompleted).
+		SetOccurredAt(time.Now().Add(-10 * time.Minute)).
+		SetPaymentData(map[string]any{
+			"method": "bank", "credit_settlement": true,
+			treasurySyncBlockedKey: map[string]any{
+				"reason":      syncBlockedExceedsOutstanding,
+				"at":          time.Now().Add(-time.Hour).UTC().Format(time.RFC3339),
+				"http_status": http.StatusBadRequest,
+			},
+		}).
+		Save(context.Background()); err != nil {
+		t.Fatalf("seed blocked settlement payment: %v", err)
+	}
+
+	tc, calls := arPaymentStub(t, 0)
+	svc.SetTreasuryClient(tc)
+	rec := NewCreditSettlementSyncReconciler(svc, zap.NewNop())
+	rec.runOnce(context.Background())
+
+	if got := atomic.LoadInt32(calls); got != 0 {
+		t.Errorf("expected the blocked row to be excluded from the retry query, got %d treasury calls", got)
+	}
+}
+
+// TestCreditSettlementReconciler_BlocksOrderWithNoCustomerKey is the regression for the
+// boi-enterprises orders 000147, 000516, 003903, 002131, 002234, 002255 and 002358, which logged
+// "no customer key on order" every 2 minutes with no backoff. With no customer phone and no staff
+// party there is nothing to post against, so the row is blocked on the first pass, treasury is
+// never called, and later passes skip it.
+func TestCreditSettlementReconciler_BlocksOrderWithNoCustomerKey(t *testing.T) {
+	svc, client := newTestPaymentsService(t)
+	order := seedReconcilerOrder(t, client, "", "")
+
+	payment, err := client.POSPayment.Create().
+		SetOrderID(order.ID).SetTenderID(uuid.Nil).SetAmount(4000).SetCurrency("KES").
+		SetStatus(StatusCompleted).
+		SetOccurredAt(time.Now().Add(-10 * time.Minute)).
+		SetPaymentData(map[string]any{"method": "cash", "credit_settlement": true}).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed settlement payment: %v", err)
+	}
+
+	tc, calls := arPaymentStub(t, 0)
+	svc.SetTreasuryClient(tc)
+	rec := NewCreditSettlementSyncReconciler(svc, zap.NewNop())
+	rec.runOnce(context.Background())
+	rec.runOnce(context.Background())
+
+	if got := atomic.LoadInt32(calls); got != 0 {
+		t.Fatalf("expected no treasury call for an order with no customer key, got %d", got)
+	}
+	reloaded, err := client.POSPayment.Get(context.Background(), payment.ID)
+	if err != nil {
+		t.Fatalf("reload payment: %v", err)
+	}
+	blocked, ok := reloaded.PaymentData[treasurySyncBlockedKey].(map[string]any)
+	if !ok {
+		t.Fatalf("expected %s to be stamped, got %v", treasurySyncBlockedKey, reloaded.PaymentData)
+	}
+	if blocked["reason"] != syncBlockedNoCustomerKey {
+		t.Errorf("reason = %v, want %q", blocked["reason"], syncBlockedNoCustomerKey)
+	}
+	if _, has := blocked["http_status"]; has {
+		t.Errorf("no HTTP call was made, http_status should be absent: %v", blocked)
+	}
+}
+
+func TestHasCreditSettlementCustomer(t *testing.T) {
+	phone, blank := "+254700000607", "   "
+	cases := []struct {
+		name  string
+		order *ent.POSOrder
+		want  bool
+	}{
+		{"phone", &ent.POSOrder{CustomerPhone: &phone}, true},
+		{"blank phone", &ent.POSOrder{CustomerPhone: &blank}, false},
+		{"no phone, no party", &ent.POSOrder{}, false},
+		{"staff party", &ent.POSOrder{Metadata: map[string]any{"staff_member_id": uuid.NewString()}}, true},
+		{"bad staff id", &ent.POSOrder{Metadata: map[string]any{"staff_member_id": "not-a-uuid"}}, false},
+	}
+	for _, tc := range cases {
+		if got := hasCreditSettlementCustomer(tc.order); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestExceedsOutstandingDebitRefusal(t *testing.T) {
+	cases := []struct {
+		name       string
+		err        error
+		wantOK     bool
+		wantDetail string
+	}{
+		{"400 exceeds", &treasury.HTTPError{StatusCode: 400, Body: `{"error":"payment 20300 exceeds outstanding debit 0"}` + "\n"}, true, "payment 20300 exceeds outstanding debit 0"},
+		{"400 plain text", &treasury.HTTPError{StatusCode: 400, Body: "payment 5 Exceeds Outstanding Debit 0"}, true, "payment 5 Exceeds Outstanding Debit 0"},
+		{"400 other", &treasury.HTTPError{StatusCode: 400, Body: `{"error":"no accounts-receivable balance found"}`}, false, ""},
+		{"409 exceeds", &treasury.HTTPError{StatusCode: 409, Body: `{"error":"payment 5 exceeds outstanding debit 0"}`}, false, ""},
+		{"500 exceeds", &treasury.HTTPError{StatusCode: 500, Body: `{"error":"payment 5 exceeds outstanding debit 0"}`}, false, ""},
+		{"transport", context.DeadlineExceeded, false, ""},
+		{"nil", nil, false, ""},
+	}
+	for _, tc := range cases {
+		detail, ok := exceedsOutstandingDebitRefusal(tc.err)
+		if ok != tc.wantOK || detail != tc.wantDetail {
+			t.Errorf("%s: got (%q, %v), want (%q, %v)", tc.name, detail, ok, tc.wantDetail, tc.wantOK)
+		}
 	}
 }
 

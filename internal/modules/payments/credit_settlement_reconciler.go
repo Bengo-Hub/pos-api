@@ -2,8 +2,11 @@ package payments
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	sharedcache "github.com/Bengo-Hub/cache"
+	"net/http"
+	"strings"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -25,7 +28,9 @@ import (
 // Without this, such a candidate gets retried on EVERY 2-minute tick, on EVERY pos-api replica
 // independently (no cross-replica coordination), forever — growing as more history accumulates.
 // Confirmed live 2026-09-14: a single tick retried 81 already-doomed boi-enterprises candidates
-// fleet-wide and healed zero. Deliberately NOT applied to non-4xx failures (network error, treasury
+// fleet-wide and healed zero. The "exceeds outstanding debit" refusal no longer lands here at all:
+// it is terminal and blocks the row instead (see treasurySyncBlockedKey); this backoff now covers
+// the remaining 4xx refusals. Deliberately NOT applied to non-4xx failures (network error, treasury
 // down, timeout) — those retry on the very next tick as before, since that's the actual transient
 // case this reconciler exists for (see its own doc comment, MRS MERCY BUSIA incident).
 const creditSettlementRetryBackoff = 15 * time.Minute
@@ -33,6 +38,27 @@ const creditSettlementRetryBackoff = 15 * time.Minute
 // treasurySyncedAtKey marks a credit-settlement payment as synced to treasury, set on every
 // successful sync whether or not treasury returned a receipt id (its idempotent replay does not).
 const treasurySyncedAtKey = "treasury_synced_at"
+
+// treasurySyncBlockedKey marks a credit-settlement payment the reconciler has stopped retrying
+// because the refusal can never succeed by resending: {reason, at, http_status} in payment_data
+// (POSPayment's only metadata field). Blocked rows drop out of the candidate query for good, so
+// the AR drift audit or a person decides what happens next. Deleting the key re-enables retries.
+//
+// Two reasons today:
+//   - "exceeds_outstanding_debit": treasury answered 400 "payment N exceeds outstanding debit X".
+//     Treasury already holds the money for that customer (in every boi-enterprises case verified
+//     on 2026-11-13 the matching ar_receipt existed under a different reference, often a manual
+//     backfill), so the customer owes nothing and the same POST will be refused forever. Before
+//     this, those rows were retried every 15 minutes indefinitely.
+//   - "no_customer_key": the order carries neither a customer phone nor a staff party, so there is
+//     no treasury AR customer to post against; syncCreditSettlementReceipt logged a warning for
+//     it on every 2-minute tick with no backoff at all.
+const treasurySyncBlockedKey = "treasury_sync_blocked"
+
+const (
+	syncBlockedExceedsOutstanding = "exceeds_outstanding_debit"
+	syncBlockedNoCustomerKey      = "no_customer_key"
+)
 
 // CreditSettlementSyncReconciler periodically retries a credit-settlement's treasury AR receipt
 // when the original attempt (SettleCreditPayment, credit_settlement.go) failed — the PRIMARY
@@ -118,6 +144,7 @@ func (r *CreditSettlementSyncReconciler) runOnce(ctx context.Context) {
 				sel.Where(sql.And(
 					sql.Not(sqljson.HasKey(pospayment.FieldPaymentData, sqljson.Path("treasury_receipt_id"))),
 					sql.Not(sqljson.HasKey(pospayment.FieldPaymentData, sqljson.Path(treasurySyncedAtKey))),
+					sql.Not(sqljson.HasKey(pospayment.FieldPaymentData, sqljson.Path(treasurySyncBlockedKey))),
 				))
 			}),
 		).
@@ -148,6 +175,13 @@ func (r *CreditSettlementSyncReconciler) runOnce(ctx context.Context) {
 				zap.String("payment_id", payment.ID.String()), zap.Error(oerr))
 			continue
 		}
+		// Checked here rather than left to syncCreditSettlementReceipt, which would log the same
+		// warning on every tick: an order with no customer phone and no staff party has no treasury
+		// AR customer to post against, and resending cannot change that.
+		if !hasCreditSettlementCustomer(order) {
+			r.blockSync(ctx, order, payment, syncBlockedNoCustomerKey, "", 0, now)
+			continue
+		}
 		outlet, outErr := r.svc.client.Outlet.Get(ctx, order.OutletID)
 		if outErr != nil || outlet.TenantSlug == "" {
 			r.log.Warn("credit settlement reconciler: outlet/tenant slug not resolved",
@@ -165,6 +199,11 @@ func (r *CreditSettlementSyncReconciler) runOnce(ctx context.Context) {
 			continue
 		}
 		var httpErr *treasury.HTTPError
+		if detail, ok := exceedsOutstandingDebitRefusal(syncErr); ok {
+			// Terminal: the customer owes treasury nothing, so this exact POST is refused forever.
+			r.blockSync(ctx, order, payment, syncBlockedExceedsOutstanding, detail, http.StatusBadRequest, now)
+			continue
+		}
 		if errors.As(syncErr, &httpErr) && httpErr.StatusCode >= 400 && httpErr.StatusCode < 500 {
 			// A business-state rejection, not a delivery failure — back off instead of re-hammering
 			// treasury on the very next tick for something that can't succeed right now anyway.
@@ -210,4 +249,67 @@ func lastSyncAttemptAt(p *ent.POSPayment) (time.Time, bool) {
 		}
 	}
 	return time.Time{}, false
+}
+
+// blockSync stamps payment_data[treasurySyncBlockedKey] so the candidate query never selects the
+// row again, and logs the decision once at warn. The log carries the order number and payment id
+// only (no customer data). A failed stamp is logged too; the row then stays a candidate and is
+// simply evaluated again on the next pass.
+func (r *CreditSettlementSyncReconciler) blockSync(ctx context.Context, order *ent.POSOrder, payment *ent.POSPayment, reason, detail string, httpStatus int, now time.Time) {
+	pd := payment.PaymentData
+	if pd == nil {
+		pd = map[string]any{}
+	}
+	blocked := map[string]any{
+		"reason": reason,
+		"at":     now.UTC().Format(time.RFC3339),
+	}
+	if httpStatus > 0 {
+		blocked["http_status"] = httpStatus
+	}
+	if detail != "" {
+		blocked["detail"] = detail
+	}
+	pd[treasurySyncBlockedKey] = blocked
+	delete(pd, "last_sync_attempt_at")
+	if _, err := r.svc.client.POSPayment.UpdateOneID(payment.ID).SetPaymentData(pd).Save(ctx); err != nil {
+		r.log.Warn("credit settlement reconciler: failed to mark treasury sync blocked",
+			zap.String("order", order.OrderNumber), zap.String("payment_id", payment.ID.String()), zap.Error(err))
+		return
+	}
+	r.log.Warn("credit settlement reconciler: treasury sync blocked, no further retries",
+		zap.String("order", order.OrderNumber), zap.String("payment_id", payment.ID.String()),
+		zap.String("reason", reason))
+}
+
+// hasCreditSettlementCustomer reports whether creditSettlementKey can resolve any treasury AR
+// customer for the order, using only the cheap, local part of that resolution (a customer phone
+// or a staff party). It never calls the CRM, so the reconciler can test it on every candidate.
+func hasCreditSettlementCustomer(order *ent.POSOrder) bool {
+	if order.CustomerPhone != nil && strings.TrimSpace(*order.CustomerPhone) != "" {
+		return true
+	}
+	_, _, isStaff := staffCreditFromOrderParty(order)
+	return isStaff
+}
+
+// exceedsOutstandingDebitRefusal reports whether err is treasury's 400 "payment N exceeds
+// outstanding debit X" from RecordARPayment (treasury-api arpa/balances.go), returning treasury's
+// own message for the blocked stamp. Any other 4xx keeps the ordinary 15-minute backoff, and any
+// 5xx or transport error keeps retrying on the next tick.
+func exceedsOutstandingDebitRefusal(err error) (string, bool) {
+	var httpErr *treasury.HTTPError
+	if !errors.As(err, &httpErr) || httpErr.StatusCode != http.StatusBadRequest {
+		return "", false
+	}
+	if !strings.Contains(strings.ToLower(httpErr.Body), "exceeds outstanding debit") {
+		return "", false
+	}
+	var body struct {
+		Error string `json:"error"`
+	}
+	if jerr := json.Unmarshal([]byte(httpErr.Body), &body); jerr == nil && body.Error != "" {
+		return body.Error, true
+	}
+	return strings.TrimSpace(httpErr.Body), true
 }
