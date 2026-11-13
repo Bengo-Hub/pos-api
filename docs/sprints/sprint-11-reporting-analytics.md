@@ -106,10 +106,10 @@ Report endpoints: `sales-summary`, `refund-summary`, `daily-breakdown`, `top-ite
 | Report | Business Types |
 |--------|---------------|
 | End-of-day reconciliation | All business types |
-| Shift cash reconciliation | Retail, restaurant, hotel, pharmacy |
-| Top-selling items | Supermarket, restaurant, pharmacy |
+| Shift cash reconciliation | Retail, restaurant, hotel |
+| Top-selling items | Supermarket, restaurant |
 | Staff commission report | Salon, barbershop, spa, service |
 | Hourly sales heatmap | Restaurant, bar, retail |
 | Tax collection report | All businesses (VAT/KRA compliance) |
-| Stock consumption report | Restaurant, pharmacy, retail |
+| Stock consumption report | Restaurant, retail |
 | CSV/PDF export | All businesses (accounting, audits) |

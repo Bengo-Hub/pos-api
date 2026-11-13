@@ -100,9 +100,9 @@ Core loyalty engine shipped: programs (list/create/update), accounts (list/creat
 |----------|---------------|
 | Earn points on every purchase | All retail, hospitality, service |
 | Redeem points as payment tender | All business types |
-| Tiered membership (Bronze/Silver/Gold) | Supermarket, pharmacy, hotel |
+| Tiered membership (Bronze/Silver/Gold) | Supermarket, hotel |
 | Buy-2-get-1-free promotions | Supermarket, retail, restaurant |
 | Combo/bundle pricing | Restaurant, fast food, retail |
 | Happy hour / time-window discounts | Restaurant, bar, hotel |
-| Referral rewards | Salon, pharmacy, retail |
+| Referral rewards | Salon, retail |
 | Tier-based pricing | Hotel, supermarket loyalty clubs |

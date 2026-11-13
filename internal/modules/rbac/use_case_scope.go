@@ -1,13 +1,13 @@
 package rbac
 
-// UseCase-scoping keeps the Roles & Permissions UI from showing pharmacy/services/retail-only
+// UseCase-scoping keeps the Roles & Permissions UI from showing services/retail-only
 // modules and roles on a hospitality outlet (and vice versa). There is deliberately NO new DB
 // column/migration here: the module set is a small, static, compile-time-known enumeration
 // (mirrors pos-ui's lib/rbac/permissions.ts MODULES), so a static Go map is self-consistent and
 // can never drift from seeded data the way a migrated + backfilled column could. "Common"
 // modules (an empty/absent entry) are visible under every use case.
 
-// moduleUseCases maps a permission MODULE (e.g. "hotel", "pharmacy") to the outlet use cases it
+// moduleUseCases maps a permission MODULE (e.g. "hotel", "layaway") to the outlet use cases it
 // applies to. A module absent from this map — or mapped to an empty slice — is COMMON and
 // matches every use case. Only modules with strong, direct evidence in pos-ui's nav-config
 // (buildNavGroups / USE_CASE_MODULES) are restricted here; everything else fails open so a

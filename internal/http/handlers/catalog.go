@@ -94,10 +94,7 @@ type inventoryProxyItem struct {
 	BrandCode    string `json:"brand_code"`
 	Manufacturer string `json:"manufacturer"`
 	Model        string `json:"model"`
-	// Drug-master fields (pharmacy) — let the POS prescription drug picker auto-fill
-	// dosage/form from the catalog item instead of requiring manual re-entry.
-	DosageForm  string                  `json:"dosage_form,omitempty"`
-	Strength    string                  `json:"strength,omitempty"`
+	// Variant parent fields: whether the item has variants, and the children themselves.
 	HasVariants bool                    `json:"has_variants"`
 	Variants    []inventoryProxyVariant `json:"variants,omitempty"`
 	// Set when this row is itself a variant child (reached by id, SKU or barcode search).
@@ -259,7 +256,7 @@ func categoryAllowedForUseCase(categoryName, useCase string) bool {
 	// General non-food retail MERCHANDISE (detergents, cleaning, household, electronics, apparel,
 	// cosmetics, stationery, etc.) — sold by retail outlets but NEVER on a restaurant/bar/services
 	// terminal. This is why supermarket items like "Detergents & Cleaning" were leaking onto the
-	// hospitality menu: they aren't food/pharmacy/services/component, so the old blocklist let them
+	// hospitality menu: they aren't food/services/component, so the old blocklist let them
 	// through. They belong to retail only.
 	isRetailMerchandiseCat := strings.Contains(cat, "detergent") || strings.Contains(cat, "cleaning") ||
 		strings.Contains(cat, "cleaner") || strings.Contains(cat, "household") || strings.Contains(cat, "home care") ||
@@ -294,7 +291,7 @@ func categoryAllowedForUseCase(categoryName, useCase string) bool {
 }
 
 // useCaseItemTypes returns the comma-separated inventory item types valid for a given outlet use case.
-// This prevents cross-contamination (e.g. pharmacy GOODS appearing in retail) AND keeps non-sellable
+// This prevents cross-contamination (e.g. retail GOODS appearing on a restaurant terminal) AND keeps non-sellable
 // component types off the POS terminal: restaurants/bars sell FINISHED items only — RECIPE (menu
 // dishes), GOODS (drinks/packaged) and VOUCHER — never raw INGREDIENT stock or SERVICE items (rooms/
 // conference/salon are handled by their own modules, not the food terminal).
@@ -484,12 +481,12 @@ const inventoryPageSize = 100
 // inventoryProxyFields lists exactly the top-level JSON keys inventoryProxyItem decodes (kept in
 // sync with that struct's tags) — passed as inventory-api's own opt-in `?fields=` response
 // projection (see inventory-api's field_projection.go) so a catalog sweep transmits only what any
-// pos-api caller of fetchInventoryItems (catalog sync, clinical_records, pharmacy_checkout,
+// pos-api caller of fetchInventoryItems (catalog sync,
 // reports_profitability) actually decodes, instead of inventory-api's full ~97-field ItemDTO
 // (tags/metadata, e-commerce/SEO fields, eTIMS fields, event fields, images, etc.). Pure wire-size
 // reduction: inventory-api still computes/enriches the full row server-side either way.
 const inventoryProxyFields = "id,sku,name,description,type,is_active,image_url,category_name," +
-	"brand_id,brand_name,brand_code,manufacturer,model,dosage_form,strength,has_variants,variants," +
+	"brand_id,brand_name,brand_code,manufacturer,model,has_variants,variants," +
 	"variant_of,variant_attributes,barcode,requires_age_verification,is_controlled_substance,track_serial_numbers,non_billable," +
 	"not_for_sale,duration_minutes,use_case,total_capacity,booked_capacity,cost_price," +
 	"suggested_price,min_selling_price,max_selling_price,on_hand,selling_price,food_cost_pct," +
@@ -618,7 +615,7 @@ func fetchInventoryItems(ctx context.Context, tenantSlug, outletID string, useCa
 // ListItems to a single row while reusing its full enrichment — the same response shape as
 // fetchAllInventoryItemPages). Use this instead of fetchInventoryItems whenever a caller already
 // knows the specific item id(s) it needs (a handful of catalog_item_id references, e.g. a
-// registration-fee item or a prescription line's linked drug) — a full paginated catalog walk to
+// registration-fee item) — a full paginated catalog walk to
 // find one or a few known-id rows is the exact "resolveUnitCostsBySKU" mistake this fix removes
 // elsewhere, just for a single-item lookup instead of a cost map. Returns nil, nil (not an error)
 // when the item isn't found, so callers can treat a missing/deleted item as absent.
@@ -949,9 +946,7 @@ type catalogItemDTO struct {
 	BrandCode    string
 	Manufacturer string
 	Model        string
-	// Drug-master fields (pharmacy) — surfaced for the POS prescription drug picker.
-	DosageForm  string
-	Strength    string
+	// Variant parent fields.
 	HasVariants bool
 	Variants    []inventoryProxyVariant
 	ItemType    string
@@ -1084,7 +1079,7 @@ func toCatalogModifierGroups(groups []inventoryProxyModifierGroup) []catalogModi
 // menuAssemblyFilters carries the optional list-time filters applied by ListCatalogItems.
 // The menu document renderer leaves these empty (it wants the full active menu).
 type menuAssemblyFilters struct {
-	Category string // case-insensitive exact match on category name, EXCEPT pharmacy aliases (see pharmacyCategoryAliases), which match via isPharmacyCategory substring
+	Category string // case-insensitive exact match on category name
 	Search   string // case-insensitive substring match on item name (already lower-cased)
 	ItemType string // comma-separated, case-insensitive match on item type (already upper-cased)
 }
@@ -1571,8 +1566,6 @@ func (h *CatalogHandler) assembleMenuItems(
 			BrandCode:               item.BrandCode,
 			Manufacturer:            item.Manufacturer,
 			Model:                   item.Model,
-			DosageForm:              item.DosageForm,
-			Strength:                item.Strength,
 			HasVariants:             item.HasVariants,
 			Variants:                variants,
 			ItemType:                item.Type,
@@ -1724,8 +1717,6 @@ func catalogItemToMapBase(item catalogItemDTO, outletID *uuid.UUID) map[string]a
 		"brand_code":                item.BrandCode,
 		"manufacturer":              item.Manufacturer,
 		"model":                     item.Model,
-		"dosage_form":               item.DosageForm,
-		"strength":                  item.Strength,
 		"has_variants":              item.HasVariants,
 		"variants":                  item.Variants,
 		"item_type":                 item.ItemType,
@@ -2527,7 +2518,7 @@ func (h *CatalogHandler) fetchInventoryCategories(ctx context.Context, tenantSlu
 // GetCatalogCategories handles GET /{tenantID}/pos/catalog/categories — returns a clean typed list
 // {"data":[{name, icon, image_url?}]} of categories that actually have ≥1 sellable item for THIS
 // outlet's use case. Previously it proxied every active inventory category unfiltered, so categories
-// with zero items for the outlet (e.g. pharmacy categories on a retail outlet, or empty bulk-import
+// with zero items for the outlet (e.g. food categories on a retail outlet, or empty bulk-import
 // categories) showed up and returned no items when tapped. We now intersect inventory categories
 // with the use-case-filtered item set so categories are always tied to items. Degrades to {"data":[]}
 // on proxy failure so the UI stays graceful.

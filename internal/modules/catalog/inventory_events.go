@@ -70,7 +70,7 @@ func floatPtrFromPayload(v any) *float64 {
 
 // InventoryEventHandler syncs POS-specific compliance flags from inventory events.
 // Item data (name, description, image) is always fetched fresh from inventory-api at request time.
-// Only flags that POS needs to enforce locally (pharmacy, age-gate, etc.) are stored.
+// Only flags that POS needs to enforce locally (age-gate, controlled substance, etc.) are stored.
 type InventoryEventHandler struct {
 	client   *ent.Client
 	db       *sql.DB

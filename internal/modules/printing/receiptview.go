@@ -129,7 +129,7 @@ type ReceiptView struct {
 	// default, or this outlet's own name when the tenant has turned off "show tenant name" for a
 	// non-HQ outlet (see ReceiptHandler.buildReceiptForOrder, the only place this is set; empty
 	// here until that handler populates it). Deliberately separate from OutletName, which stays
-	// the TRUE outlet name for KDS tickets/dispensing labels (orderdata.go) regardless of this
+	// the TRUE outlet name for KDS tickets (orderdata.go) regardless of this
 	// toggle — those must never show the tenant name.
 	DisplayName   string
 	OutletAddress string

@@ -188,6 +188,11 @@ type settingsResponse struct {
 	// print_agent_online: a paired Local Print Agent polled recently — the till should rely on
 	// server-side background print jobs instead of its client-side transports.
 	PrintAgentOnline bool `json:"print_agent_online"`
+	// round_off and round_off_step: how the till rounds the amount payable, read-only here and set
+	// once for the tenant in treasury's central tax settings (none, nearest or up, to 1, 5 or 10).
+	// The till applies them exactly as orders.finalizeTotals does, so both totals agree.
+	RoundOff     string  `json:"round_off"`
+	RoundOffStep float64 `json:"round_off_step"`
 	// cashier / terminal policy — RESOLVED values (outlet override → per-use-case default).
 	// CashierPolicyOverrides flags which of the three are explicitly overridden at this outlet
 	// (column non-nil) vs inheriting the default, so the settings UI can show an "Overridden" badge.
@@ -521,6 +526,8 @@ func (h *ServiceSettingsHandler) GetSettings(w http.ResponseWriter, r *http.Requ
 	}
 	resp := toSettingsResponse(outlet, setting)
 	resp.PrintAgentOnline = h.printAgentOnline(r.Context(), tid, outlet.ID)
+	ro := orders.RoundOffFor(r.Context(), tid)
+	resp.RoundOff, resp.RoundOffStep = ro.Mode, ro.Step
 	jsonOK(w, resp)
 }
 

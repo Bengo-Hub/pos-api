@@ -83,7 +83,7 @@ Core retail schemas and endpoints are shipped: `WeighingScaleReading`, `LayawayP
 
 | Use Case | Business Types |
 |----------|---------------|
-| Barcode scan → instant item lookup | Supermarket, hardware, pharmacy, general retail |
+| Barcode scan → instant item lookup | Supermarket, hardware, general retail |
 | Weight-based pricing (produce, bulk) | Supermarket, deli, butchery, bulk goods |
 | Serial number capture at sale | Electronics, appliances, tools, phones |
 | Layaway / instalment plan | Furniture, hardware, electronics |

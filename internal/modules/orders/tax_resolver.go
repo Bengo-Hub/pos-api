@@ -156,15 +156,46 @@ func (r *TaxResolver) FiscalPin(ctx context.Context, tenantSlug string) string {
 	return pin
 }
 
+// RoundOff returns the tenant's till round-off from the central tax settings (treasury
+// tax_settings.round_off and round_off_step), cached like the VAT switch and dropped on
+// treasury.tax.settings_changed. On any failure it returns the platform default (up to 1),
+// which is what every till did before the setting existed.
+func (r *TaxResolver) RoundOff(ctx context.Context, tenantSlug string) RoundOffPolicy {
+	if r == nil || r.treasury == nil || tenantSlug == "" {
+		return DefaultRoundOff
+	}
+	cacheKey := fmt.Sprintf("pos:roundoff:%s", tenantSlug)
+	if r.redis != nil {
+		if b, err := r.redis.Get(ctx, cacheKey).Bytes(); err == nil {
+			var p RoundOffPolicy
+			if json.Unmarshal(b, &p) == nil {
+				return p.normalized()
+			}
+		}
+	}
+	profile, err := r.treasury.GetTaxProfile(ctx, tenantSlug)
+	if err != nil || profile == nil {
+		return DefaultRoundOff
+	}
+	p := RoundOffPolicy{Mode: profile.TaxSettings.RoundOff, Step: profile.TaxSettings.RoundOffStep}.normalized()
+	if r.redis != nil {
+		if b, merr := json.Marshal(p); merr == nil {
+			_ = r.redis.Set(ctx, cacheKey, b, taxCodeCacheTTL).Err()
+		}
+	}
+	return p
+}
+
 // InvalidateTenant deletes all cached tax data for a single tenant slug: every
-// per-code rate (pos:tax:{slug}:*) plus the VAT-active switch (pos:vatactive:{slug}).
-// Safe to call when Redis is not configured (no-op).
+// per-code rate (pos:tax:{slug}:*) plus the VAT-active switch (pos:vatactive:{slug}) and the
+// till round-off (pos:roundoff:{slug}). Safe to call when Redis is not configured (no-op).
 func (r *TaxResolver) InvalidateTenant(ctx context.Context, tenantSlug string) {
 	if r.redis == nil || tenantSlug == "" {
 		return
 	}
 	r.deleteByPattern(ctx, fmt.Sprintf("pos:tax:%s:*", tenantSlug))
 	_ = r.redis.Del(ctx, fmt.Sprintf("pos:fiscalpin:%s", tenantSlug)).Err()
+	_ = r.redis.Del(ctx, fmt.Sprintf("pos:roundoff:%s", tenantSlug)).Err()
 	if err := r.redis.Del(ctx, fmt.Sprintf("pos:vatactive:%s", tenantSlug)).Err(); err != nil {
 		r.log.Debug("tax resolver: failed to delete vatactive key", zap.String("tenant", tenantSlug), zap.Error(err))
 	}
@@ -202,6 +233,7 @@ func (r *TaxResolver) InvalidateCodeAllTenants(ctx context.Context, code string)
 	r.deleteByPattern(ctx, fmt.Sprintf("pos:tax:*:%s", code))
 	r.deleteByPattern(ctx, "pos:vatactive:*")
 	r.deleteByPattern(ctx, "pos:fiscalpin:*")
+	r.deleteByPattern(ctx, "pos:roundoff:*")
 	r.log.Info("tax resolver: invalidated cached tax code across all tenants (no slug resolved)",
 		zap.String("code", code))
 }

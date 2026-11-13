@@ -95,7 +95,7 @@
 - Expo-driven notifications back to wait staff/riders via notifications service and delivery integrations.
 - Print/fiscal integration hooks for kitchen, bar, and service printers.
 
-### Ecommerce / Retail (Supermarket, Convenience, Pharmacy)
+### Ecommerce / Retail (Supermarket, Convenience)
 - Barcode scanning, weigh-scale integration, rainchecks, layaways, and bulk discount rules.
 - Cash tray management with forced drawer counts, deposit tracking, and configurable receipt templates.
 - Customer loyalty enrolment at POS, click-and-collect staging (zone & bin management), parcel scanning for delivery & courier handoff.

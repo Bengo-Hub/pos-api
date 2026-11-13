@@ -223,17 +223,17 @@ func (h *RBACHandler) ListAssignments(w http.ResponseWriter, r *http.Request) {
 }
 
 // roleWithScope wraps a role with its resolved use_cases so the frontend can label/badge it
-// (e.g. "pharmacy only") even when the caller didn't filter by use_case.
+// (e.g. "retail only") even when the caller didn't filter by use_case.
 type roleWithScope struct {
 	*rbac.POSRoleV2
 	UseCases []string `json:"use_cases,omitempty"`
 }
 
 // ListRoles lists roles visible to the tenant, optionally filtered to a single outlet use case
-// (?use_case=hospitality|retail|services|quick_service|pharmacy). System roles are scoped via
+// (?use_case=hospitality|retail|services|quick_service). System roles are scoped via
 // a static map (rbac.systemRoleUseCases); custom roles are scoped dynamically from the modules
 // of their currently granted permissions — so a hospitality outlet's Team/Roles UI doesn't show
-// pharmacy/services/retail-exclusive roles, and vice versa. A role with only common-module
+// services/retail-exclusive roles, and vice versa. A role with only common-module
 // grants (or none yet) always matches every use case.
 func (h *RBACHandler) ListRoles(w http.ResponseWriter, r *http.Request) {
 	tenantID := httpware.GetTenantID(r.Context())
@@ -281,7 +281,7 @@ func (h *RBACHandler) ListRoles(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListPermissions lists permissions, optionally filtered to a single outlet use case
-// (?use_case=hospitality|retail|services|quick_service|pharmacy). A module with no use-case
+// (?use_case=hospitality|retail|services|quick_service). A module with no use-case
 // restriction (see rbac.moduleUseCases) is common and always included.
 func (h *RBACHandler) ListPermissions(w http.ResponseWriter, r *http.Request) {
 	module := r.URL.Query().Get("module")

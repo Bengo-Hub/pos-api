@@ -1043,7 +1043,7 @@ func New(
 					}
 
 					// Commissions (records + rules & payout). Commissions are a retail/services
-					// concept (salespeople, therapists) — NOT hospitality/QSR/pharmacy. Gate the
+					// concept (salespeople, therapists) — NOT hospitality/QSR. Gate the
 					// whole surface by use case so cross-use-case data never mixes (matches the
 					// pos-ui module map which only lists commissions for retail/services).
 					if commissions != nil || commissionRules != nil {
@@ -1166,7 +1166,7 @@ func New(
 							rp.Get("/reports/most-profitable", reports.MostProfitableItems)
 							// KDS Station is a kitchen concept — hospitality/quick_service only (mirrors
 							// pos-ui's isKitchen gate in the analytics/EOD pages). Without this the JSON
-							// route had no use-case check at all — any retail/services/pharmacy outlet
+							// route had no use-case check at all — any retail/services outlet
 							// with reports.view could call it directly and get real-but-meaningless
 							// station data back, unlike every other use-case-scoped route group (see the
 							// loyalty routes above) which already enforces RequireUseCase.
@@ -1194,7 +1194,7 @@ func New(
 						pos.With(reportsView, reportsNoProfit).Group(func(rp chi.Router) {
 							rp.Get("/reports/reset-summary", reportPDF.ResetSummary)
 							rp.Get("/reports/sales-by-item-type", reportPDF.SalesByItemType)
-							// Same use-case gate as the JSON route above — a retail/pharmacy outlet
+							// Same use-case gate as the JSON route above — a retail outlet
 							// should never be able to export a "Sales by KDS Station" PDF/CSV either.
 							rp.With(outletmw.RequireUseCase("hospitality", "quick_service", "services")).
 								Get("/reports/sales-by-kds-station-document", reportPDF.SalesByKDSStationDoc)

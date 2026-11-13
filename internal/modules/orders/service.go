@@ -194,7 +194,8 @@ type LineModifierInput struct {
 
 // OrderTotals holds calculated totals for an order. The identity
 // TotalAmount = Subtotal + TaxTotal - DiscountTotal + ChargesTotal + RoundOff always holds,
-// with TotalAmount a whole number (ceiling round-off, QA: "no decimal points on totals").
+// with TotalAmount rounded per the tenant's round-off policy (RoundOffPolicy; the default rounds
+// up to a whole shilling, QA: "no decimal points on totals").
 type OrderTotals struct {
 	Subtotal      decimal.Decimal
 	TaxTotal      decimal.Decimal
@@ -204,11 +205,70 @@ type OrderTotals struct {
 	TotalAmount   decimal.Decimal
 }
 
+// RoundOffPolicy is how the amount payable is rounded, from the tenant's central tax settings
+// (treasury tax_settings): Mode "none" (exact to the cent), "nearest" or "up", to Step shillings
+// (1, 5 or 10). The till (pos-ui applyRoundOff) applies the same policy, so both totals agree.
+type RoundOffPolicy struct {
+	Mode string  `json:"mode"`
+	Step float64 `json:"step"`
+}
+
+// DefaultRoundOff is the platform default and what every till did before the setting existed:
+// round the payable up to the next whole shilling.
+var DefaultRoundOff = RoundOffPolicy{Mode: "up", Step: 1}
+
+func (p RoundOffPolicy) normalized() RoundOffPolicy {
+	switch p.Mode {
+	case "none", "nearest", "up":
+	default:
+		p.Mode = DefaultRoundOff.Mode
+	}
+	if p.Step <= 0 {
+		p.Step = 1
+	}
+	return p
+}
+
+// apply rounds raw (already to the cent) per the policy.
+func (p RoundOffPolicy) apply(raw decimal.Decimal) decimal.Decimal {
+	p = p.normalized()
+	if p.Mode == "none" {
+		return raw.Round(2)
+	}
+	step := decimal.NewFromFloat(p.Step)
+	units := raw.Div(step)
+	if p.Mode == "nearest" {
+		units = units.Round(0)
+	} else {
+		units = units.Ceil()
+	}
+	return units.Mul(step).Round(2)
+}
+
+// roundOffLookup resolves a tenant's round-off for code paths that have only a tenant id
+// (RecomputeTotalsWithClient). Set by Service.SetTaxResolver; nil means the default.
+var roundOffLookup func(ctx context.Context, tenantID uuid.UUID) RoundOffPolicy
+
+// RoundOffFor is the tenant's till round-off policy for other handlers (the settings response the
+// till reads, so pos-ui rounds exactly as the server does).
+func RoundOffFor(ctx context.Context, tenantID uuid.UUID) RoundOffPolicy {
+	return roundOffFor(ctx, tenantID)
+}
+
+// roundOffFor is the tenant's round-off policy, or the default when no resolver is wired.
+func roundOffFor(ctx context.Context, tenantID uuid.UUID) RoundOffPolicy {
+	if roundOffLookup == nil {
+		return DefaultRoundOff
+	}
+	return roundOffLookup(ctx, tenantID)
+}
+
 // finalizeTotals is the single choke point that turns raw components into the stored totals:
-// it clamps the discount, adds order-level tax + charges, and rounds the payable UP to the
-// next whole number with the difference recorded as RoundOff — mirroring the till's
-// applyRoundOff (pos-ui src/lib/pos/cart-tax.ts) so server total == till total.
-func finalizeTotals(subtotal, taxTotal, discount, chargesTotal, orderTax decimal.Decimal) OrderTotals {
+// it clamps the discount, adds order-level tax + charges, and rounds the payable per the
+// tenant's round-off policy (default: up to the next whole shilling) with the difference
+// recorded as RoundOff, mirroring the till's applyRoundOff (pos-ui src/lib/pos/cart-tax.ts) so
+// server total == till total. RoundOff is negative when "nearest" rounds down.
+func finalizeTotals(policy RoundOffPolicy, subtotal, taxTotal, discount, chargesTotal, orderTax decimal.Decimal) OrderTotals {
 	if discount.IsNegative() {
 		discount = decimal.Zero
 	}
@@ -227,7 +287,7 @@ func finalizeTotals(subtotal, taxTotal, discount, chargesTotal, orderTax decimal
 	if raw.IsNegative() {
 		raw = decimal.Zero
 	}
-	total := raw.Ceil()
+	total := policy.apply(raw)
 	return OrderTotals{
 		Subtotal:      subtotal,
 		TaxTotal:      taxTotal,
@@ -434,6 +494,25 @@ func (s *Service) recordPromoApplications(ctx context.Context, orderID, primaryP
 // SetTaxResolver attaches the treasury tax resolver for per-line tax computation.
 func (s *Service) SetTaxResolver(tr *TaxResolver) {
 	s.taxResolver = tr
+	if tr != nil && s.client != nil {
+		client := s.client
+		roundOffLookup = func(ctx context.Context, tenantID uuid.UUID) RoundOffPolicy {
+			t, err := client.Tenant.Get(ctx, tenantID)
+			if err != nil || t == nil {
+				return DefaultRoundOff
+			}
+			return tr.RoundOff(ctx, t.Slug)
+		}
+	}
+}
+
+// roundOff is the tenant's till round-off policy (central tax settings), by slug when the caller
+// has it, else by tenant id.
+func (s *Service) roundOff(ctx context.Context, tenantID uuid.UUID, tenantSlug string) RoundOffPolicy {
+	if s.taxResolver != nil && tenantSlug != "" {
+		return s.taxResolver.RoundOff(ctx, tenantSlug)
+	}
+	return roundOffFor(ctx, tenantID)
 }
 
 // SetKDSHub wires the KDS WebSocket hub so new tickets broadcast immediately.
@@ -699,7 +778,7 @@ func (s *Service) routeNewOrder(ctx context.Context, tenantID uuid.UUID, order *
 // applies the outlet fallback itself (it used to, independently of ResolveLineTaxes, which is
 // exactly how a fallback-taxed line's tax could end up in the order total but never on the line
 // row — see ResolveLineTaxes's own doc comment for the live bug this fixed).
-func (s *Service) calculateTotalsWithTaxes(lines []OrderLineInput, taxes []resolvedLineTax, discountAmount, chargesTotal, orderTax decimal.Decimal) OrderTotals {
+func (s *Service) calculateTotalsWithTaxes(policy RoundOffPolicy, lines []OrderLineInput, taxes []resolvedLineTax, discountAmount, chargesTotal, orderTax decimal.Decimal) OrderTotals {
 	subtotal := decimal.Zero
 	addedTax := decimal.Zero
 
@@ -716,7 +795,7 @@ func (s *Service) calculateTotalsWithTaxes(lines []OrderLineInput, taxes []resol
 		}
 	}
 
-	return finalizeTotals(subtotal, addedTax, discountAmount, chargesTotal, orderTax)
+	return finalizeTotals(policy, subtotal, addedTax, discountAmount, chargesTotal, orderTax)
 }
 
 // GenerateOrderNumber creates a unique order number using the legacy time-based format. It is
@@ -849,7 +928,7 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	// tax-inclusive tenant "partially paid" by exactly the phantom tax.
 	lineTaxes := s.ResolveLineTaxes(ctx, req.TenantID, req.TenantSlug, req.Lines, s.OutletFallbackTax(ctx, req.OutletID))
 	orderTax := decimal.NewFromFloat(req.OrderTaxAmount)
-	totals := s.calculateTotalsWithTaxes(req.Lines, lineTaxes, discount, sumCharges(req.Charges), orderTax)
+	totals := s.calculateTotalsWithTaxes(s.roundOff(ctx, req.TenantID, req.TenantSlug), req.Lines, lineTaxes, discount, sumCharges(req.Charges), orderTax)
 
 	// Resolve order subtype, defaulting to dine_in. "draft" is a status, not a subtype —
 	// the Save-as-Draft flows send it here, so normalize it to retail (retail orders start
@@ -1758,7 +1837,7 @@ func RecomputeTotalsWithClient(ctx context.Context, client *ent.Client, tenantID
 			orderTax = decimal.NewFromFloat(amt)
 		}
 	}
-	totals := finalizeTotals(subtotal, taxTotal, decimal.NewFromFloat(order.DiscountTotal), decimal.NewFromFloat(order.ChargesTotal), orderTax)
+	totals := finalizeTotals(roundOffFor(ctx, order.TenantID), subtotal, taxTotal, decimal.NewFromFloat(order.DiscountTotal), decimal.NewFromFloat(order.ChargesTotal), orderTax)
 	updated, err := client.POSOrder.UpdateOneID(order.ID).
 		SetSubtotal(totals.Subtotal.InexactFloat64()).
 		SetTaxTotal(totals.TaxTotal.InexactFloat64()).
@@ -2080,7 +2159,7 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 	}
 	newDiscount := explicit.Add(newHH)
 
-	totals := finalizeTotals(newSubtotal, newTaxTotal, newDiscount, decimal.NewFromFloat(order.ChargesTotal), orderTax)
+	totals := finalizeTotals(roundOffFor(ctx, order.TenantID), newSubtotal, newTaxTotal, newDiscount, decimal.NewFromFloat(order.ChargesTotal), orderTax)
 
 	upd := tx.POSOrder.UpdateOneID(order.ID).
 		SetSubtotal(totals.Subtotal.InexactFloat64()).
@@ -2263,7 +2342,7 @@ func (s *Service) EditOrderLine(ctx context.Context, tenantID, orderID, lineID u
 			orderTax = decimal.NewFromFloat(amt)
 		}
 	}
-	totals := finalizeTotals(newSubtotal, newTaxTotal, decimal.NewFromFloat(order.DiscountTotal), decimal.NewFromFloat(order.ChargesTotal), orderTax)
+	totals := finalizeTotals(roundOffFor(ctx, order.TenantID), newSubtotal, newTaxTotal, decimal.NewFromFloat(order.DiscountTotal), decimal.NewFromFloat(order.ChargesTotal), orderTax)
 
 	updatedOrder, saveErr := tx.POSOrder.UpdateOneID(order.ID).
 		SetSubtotal(totals.Subtotal.InexactFloat64()).
@@ -2341,7 +2420,7 @@ func (s *Service) SetOrderDiscount(ctx context.Context, tenantID, orderID uuid.U
 	if decimal.NewFromFloat(discount).GreaterThan(newSubtotal.Add(newTaxTotal).Add(orderTax).Add(decimal.NewFromFloat(order.ChargesTotal))) {
 		return nil, fmt.Errorf("orders: discount exceeds the order amount")
 	}
-	totals := finalizeTotals(newSubtotal, newTaxTotal, decimal.NewFromFloat(discount), decimal.NewFromFloat(order.ChargesTotal), orderTax)
+	totals := finalizeTotals(roundOffFor(ctx, order.TenantID), newSubtotal, newTaxTotal, decimal.NewFromFloat(discount), decimal.NewFromFloat(order.ChargesTotal), orderTax)
 
 	updated, err := s.client.POSOrder.UpdateOneID(order.ID).
 		SetDiscountTotal(discount).

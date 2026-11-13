@@ -868,6 +868,12 @@ type TaxProfileResponse struct {
 	VATRegistered  bool   `json:"vat_registered"`
 	EtimsActivated bool   `json:"etims_activated"`
 	KraPin         string `json:"kra_pin"`
+	// TaxSettings is the tenant's central tax setup (treasury tax settings): how a till rounds the
+	// amount payable (round_off none, nearest or up, to round_off_step shillings).
+	TaxSettings struct {
+		RoundOff     string  `json:"round_off"`
+		RoundOffStep float64 `json:"round_off_step"`
+	} `json:"tax_settings"`
 }
 
 // GetTaxProfile fetches the tenant's VAT-active switch from treasury-api S2S.
