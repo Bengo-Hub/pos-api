@@ -69,5 +69,7 @@ func (RoomFolioItem) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id", "room_id"),
 		index.Fields("tenant_id", "room_guest_id"),
+		// RoomStayForOrder runs on every return of a room-charged sale (S2-8 review M-7).
+		index.Fields("tenant_id", "pos_order_id"),
 	}
 }

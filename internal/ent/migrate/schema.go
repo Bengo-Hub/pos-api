@@ -1126,6 +1126,11 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{LoyaltyAccountsColumns[1], LoyaltyAccountsColumns[2]},
 			},
+			{
+				Name:    "loyaltyaccount_crm_contact_id",
+				Unique:  false,
+				Columns: []*schema.Column{LoyaltyAccountsColumns[9]},
+			},
 		},
 	}
 	// LoyaltyProgramsColumns holds the columns for the "loyalty_programs" table.
@@ -3036,6 +3041,11 @@ var (
 				Name:    "roomfolioitem_tenant_id_room_guest_id",
 				Unique:  false,
 				Columns: []*schema.Column{RoomFolioItemsColumns[1], RoomFolioItemsColumns[13]},
+			},
+			{
+				Name:    "roomfolioitem_tenant_id_pos_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{RoomFolioItemsColumns[1], RoomFolioItemsColumns[8]},
 			},
 		},
 	}

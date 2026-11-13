@@ -2019,21 +2019,18 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		"complimentary_amount": complimentaryAmount,
 		"complimentary_reason": complimentaryReason,
 		"tenders":              tenderBreakdown,
-		"customer_phone":       customerPhone,
-		// customer_name is a display-only snapshot — treasury uses it (alongside customer_phone)
-		// to log the sale on the customer's AR ledger for statement/purchase-history visibility
-		// (arpa.RecordSettledSale), so a registered customer's cash/mpesa/card sales show up
-		// alongside their credit activity instead of only debt.
-		"customer_name": customerName,
-		// crm_contact_id lets treasury's RecordSettledSale match an existing CRM-linked
-		// CustomerBalance row directly, instead of only by raw phone string (see this func's
-		// resolution above). Empty when unresolved/anonymous — treasury falls back to phone-only.
-		"crm_contact_id": crmContactID,
 		// served_by_user_id/served_by_name — the attributed cashier, consumed by
 		// inventory-api's stock-history ledger (User column on sale/sell-return rows).
 		"served_by_user_id": servedByUserID.String(),
 		"served_by_name":    servedByName,
 	}
+
+	// The buyer (S2-8 I-4, events carry ids): a CRM-linked customer goes out as crm_contact_id
+	// alone; treasury's RecordSettledSale and notifications' automatic receipt read the name and
+	// phone from the CRM. An unlinked buyer (CRM down, or no contact) keeps customer_name and
+	// customer_phone so treasury can still key the AR ledger by phone. Anonymous sales send empty
+	// fields, as before.
+	events.WithRecipient(data, "customer", saleBuyer(crmContactID, customerName, customerPhone))
 
 	if err := s.publisher.PublishSaleFinalized(ctx, order.TenantID, data); err != nil {
 		s.log.Warn("failed to publish pos.sale.finalized", zap.String("order_id", order.ID.String()), zap.Error(err))

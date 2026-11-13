@@ -98,6 +98,16 @@ func (h *ClientHandler) CreateOrUpsert(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "phone is required", http.StatusBadRequest)
 		return
 	}
+	// A picked CRM contact is kept only when it is this tenant's contact for this phone (M-8);
+	// otherwise the client is linked by its own phone, as when none is picked.
+	if id, parseErr := uuid.Parse(input.CRMContactID); parseErr == nil && id != uuid.Nil {
+		trusted, _ := h.customers.TrustedContacts(r.Context(), tid, []customers.GivenContact{{ID: id, Phone: input.Phone}})
+		if !trusted[id] {
+			h.log.Warn("client: picked crm contact not trusted, linking by phone",
+				zap.String("tenant_id", tid.String()), zap.String("given_contact_id", id.String()))
+			input.CRMContactID = ""
+		}
+	}
 
 	// When staff picked a CRM contact, prefer the record already linked to it.
 	var preferID *uuid.UUID

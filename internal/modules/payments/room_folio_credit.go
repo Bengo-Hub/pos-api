@@ -211,14 +211,14 @@ func FolioCreditLimit(ctx context.Context, client *ent.Client, guest *ent.RoomGu
 		}
 	}
 	sources := map[string]bool{}
-	retIDs, err := client.POSReturn.Query().Where(posreturn.OrderID(orderID)).IDs(ctx)
+	retIDs, err := client.POSReturn.Query().Where(posreturn.TenantID(guest.TenantID), posreturn.OrderID(orderID)).IDs(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("folio credit limit: returns: %w", err)
 	}
 	for _, id := range retIDs {
 		sources[id.String()] = true
 	}
-	revIDs, err := client.POSReversal.Query().Where(posreversal.OrderID(orderID)).IDs(ctx)
+	revIDs, err := client.POSReversal.Query().Where(posreversal.TenantID(guest.TenantID), posreversal.OrderID(orderID)).IDs(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("folio credit limit: reversals: %w", err)
 	}

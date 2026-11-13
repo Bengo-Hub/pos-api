@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	entcommrule "github.com/bengobox/pos-service/internal/ent/commissionrule"
 	entprogram "github.com/bengobox/pos-service/internal/ent/loyaltyprogram"
+	"github.com/bengobox/pos-service/internal/ent/posorder"
 	entreferral "github.com/bengobox/pos-service/internal/ent/referral"
 	"github.com/bengobox/pos-service/internal/modules/customers"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -107,6 +108,7 @@ func (s *SaleFinalizedSubscriber) handle(msg *nats.Msg) {
 		return
 	}
 
+	s.fillBuyerPhone(ctx, tenantID, orderID, &p)
 	s.autoEarnLoyalty(ctx, tenantID, orderID, p)
 	s.autoClaimReferral(ctx, tenantID, orderID, p)
 	s.autoCreateCommissions(ctx, tenantID, orderID, p)
@@ -452,4 +454,27 @@ func specificity(rule *ent.CommissionRule, staffID, catalogItemID uuid.UUID) int
 		score += 1
 	}
 	return score
+}
+
+// fillBuyerPhone reads the buyer's phone from the order when the event carries none. A
+// CRM-linked buyer travels as crm_contact_id alone (S2-8 I-4), but loyalty earn and referral
+// claims key on the phone, and pos-api owns the order, so it reads its own row instead of the
+// CRM. Best effort: a failed read leaves the phone empty, as an anonymous sale.
+func (s *SaleFinalizedSubscriber) fillBuyerPhone(ctx context.Context, tenantID, orderID uuid.UUID, p *saleFinalizedPayload) {
+	if p.CustomerPhone != "" || orderID == uuid.Nil || s.db == nil {
+		return
+	}
+	order, err := s.db.POSOrder.Query().
+		Where(posorder.ID(orderID), posorder.TenantID(tenantID)).
+		Select(posorder.FieldCustomerPhone).
+		Only(ctx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			s.logger.Warn("sale.finalized: buyer phone lookup failed", zap.String("order_id", orderID.String()), zap.Error(err))
+		}
+		return
+	}
+	if order.CustomerPhone != nil {
+		p.CustomerPhone = *order.CustomerPhone
+	}
 }

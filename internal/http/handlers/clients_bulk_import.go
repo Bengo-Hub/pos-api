@@ -69,6 +69,8 @@ func (h *ClientHandler) BulkImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.dropUntrustedContactIDs(r.Context(), tid, req.Clients)
+
 	result := bulkClientImportResult{Results: make([]bulkClientRowResult, 0, len(req.Clients))}
 	for _, row := range req.Clients {
 		id, status, err := h.upsertClientRow(r.Context(), tid, row)
@@ -177,4 +179,32 @@ func (h *ClientHandler) upsertClientRow(ctx context.Context, tid uuid.UUID, row 
 		return uuid.Nil, "failed", fmt.Errorf("create: %w", err)
 	}
 	return created.ID, "created", nil
+}
+
+// dropUntrustedContactIDs clears every row's crm_contact_id that is not this tenant's contact for
+// the row's phone (S2-8 review M-8), checking the CRM in batches. Such a row is saved unlinked and
+// the reconciler links it by phone. An unparsable id is left as is so the row still fails with
+// "invalid crm_contact_id". Logs carry counts and ids only.
+func (h *ClientHandler) dropUntrustedContactIDs(ctx context.Context, tid uuid.UUID, rows []bulkClientRow) {
+	given := make([]customers.GivenContact, 0)
+	for _, row := range rows {
+		if id, err := uuid.Parse(row.CRMContactID); err == nil && id != uuid.Nil {
+			given = append(given, customers.GivenContact{ID: id, Phone: row.Phone})
+		}
+	}
+	if len(given) == 0 {
+		return
+	}
+	trusted, err := h.customers.TrustedContacts(ctx, tid, given)
+	dropped := 0
+	for i := range rows {
+		if id, perr := uuid.Parse(rows[i].CRMContactID); perr == nil && id != uuid.Nil && !trusted[id] {
+			rows[i].CRMContactID = ""
+			dropped++
+		}
+	}
+	if dropped > 0 {
+		h.log.Warn("bulk client import: crm contact ids not trusted, rows linked by phone",
+			zap.String("tenant_id", tid.String()), zap.Int("dropped", dropped), zap.Bool("crm_unreachable", err != nil))
+	}
 }

@@ -34,5 +34,8 @@ func (LoyaltyAccount) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id", "customer_phone").Unique(),
 		index.Fields("tenant_id", "customer_id"),
+		// By CRM contact: marketflow's erasure check (crm-links, across tenants) and the treasury
+		// balance subscriber (within a tenant).
+		index.Fields("crm_contact_id"),
 	}
 }

@@ -191,3 +191,50 @@ func TestStaffCreateRelinksUnlinked(t *testing.T) {
 		t.Errorf("made %d CRM upserts, want 2", upserts.Load())
 	}
 }
+
+// TestBulkClientImportDropsUntrustedContactIDs: a row's crm_contact_id is stored only when the
+// CRM returns it for this tenant with the row's phone; a foreign id is dropped and the row is
+// saved unlinked for the reconciler (S2-8 review M-8). The CRM is asked once for the whole file.
+func TestBulkClientImportDropsUntrustedContactIDs(t *testing.T) {
+	mine, foreign := uuid.New(), uuid.New()
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/internal/contacts/batch" {
+			t.Errorf("unexpected CRM call %s %s", r.Method, r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{
+			{"id": mine.String(), "phone": "+254712345678"},
+		}})
+	}))
+	t.Cleanup(srv.Close)
+
+	db := openSQLiteTestClient(t, "client_bulk_trust")
+	ctx := context.Background()
+	tid := uuid.New()
+	ch := NewClientHandler(zap.NewNop(), db)
+	ch.SetCustomerResolver(customers.NewResolver(db, crm.New(srv.URL, "test-key", zap.NewNop()), zap.NewNop()))
+	w := httptest.NewRecorder()
+	ch.BulkImport(w, tenantPost(t, tid, map[string]any{"clients": []map[string]any{
+		{"external_ref": "a", "phone": "0712345678", "crm_contact_id": mine.String()},
+		{"external_ref": "b", "phone": "0722000111", "crm_contact_id": foreign.String()},
+	}}))
+	if w.Code != http.StatusOK {
+		t.Fatalf("BulkImport status = %d, body %s", w.Code, w.Body.String())
+	}
+	if calls.Load() != 1 {
+		t.Errorf("%d CRM calls, want 1", calls.Load())
+	}
+	for _, rec := range db.ClientRecord.Query().AllX(ctx) {
+		switch rec.Phone {
+		case "+254712345678":
+			if rec.CrmContactID == nil || *rec.CrmContactID != mine {
+				t.Errorf("trusted row link = %v, want %s", rec.CrmContactID, mine)
+			}
+		case "+254722000111":
+			if rec.CrmContactID != nil {
+				t.Errorf("foreign id was stored: %v", rec.CrmContactID)
+			}
+		}
+	}
+}
