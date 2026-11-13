@@ -69,12 +69,13 @@ func canonicalTenderMethod(method string) string {
 }
 
 // isCashMethod returns true for tender types that settle immediately without a treasury gateway
-// round-trip: cash, manual M-Pesa code entry (mpesa_manual, legacy "manual"), room charge, and
-// external card-terminal/PDQ swipes (the standalone machine has already approved the card, so
-// there is no online gateway step).
+// round-trip: cash, manual M-Pesa code entry (mpesa_manual, legacy "manual"), and external
+// card-terminal/PDQ swipes (the standalone machine has already approved the card, so there is no
+// online gateway step). A room charge is not one of them: it takes no money at the till (see
+// recordRoomCharge), so it never gets a cash intent.
 func isCashMethod(method string) bool {
 	switch strings.ToLower(strings.TrimSpace(method)) {
-	case "cash", "manual", "mpesa_manual", "room_charge", "card_manual", "pdq", "card_terminal",
+	case "cash", "manual", "mpesa_manual", "card_manual", "pdq", "card_terminal",
 		TenderMTNMoMoManual, TenderAirtelMoneyManual, TenderOtherManual:
 		return true
 	default:
@@ -83,7 +84,7 @@ func isCashMethod(method string) bool {
 }
 
 // treasuryMethodForImmediate maps an immediate-settle POS tender onto the payment_method treasury
-// records. Cash/room charge are recorded as "cash"; external card-terminal swipes as "card_manual";
+// records. Cash is recorded as "cash"; external card-terminal swipes as "card_manual";
 // a sighted M-Pesa Paybill/Till code as "mpesa_manual" (treasury settles it immediately but keeps
 // it distinct from both "cash" and gateway "mpesa" so money-by-method reconciliation works —
 // before 2026-07-13 these were lumped into "cash").
@@ -125,6 +126,13 @@ const TenderExchangeCredit = "exchange_credit"
 // Complimentary & Goodwill Expense account instead of Cash, so the cost stays visible on the P&L.
 const TenderComplimentary = "complimentary"
 
+// TenderRoomCharge charges the sale to a guest's room (S2-20, owner decision 2026-11-12). Like
+// TenderOnAccount it takes no money at the till: the server posts the folio line and the
+// completed payment in one transaction (recordRoomCharge), pos.sale.finalized carries
+// selling_scheme room_charge, and treasury books Dr guest receivable / Cr revenue. The folio
+// payment at checkout clears the receivable.
+const TenderRoomCharge = "room_charge"
+
 // RecordPaymentRequest holds input for recording a POS payment.
 type RecordPaymentRequest struct {
 	TenantID     uuid.UUID
@@ -165,6 +173,12 @@ type RecordPaymentRequest struct {
 	// PaymentLabel names how the customer paid for the "other_manual" tender (for example
 	// "Equity cheque"). Stored in payment_data and sent to treasury in the intent metadata.
 	PaymentLabel string
+	// RoomID is the occupied room a room_charge tender charges; required for that tender only.
+	RoomID uuid.UUID
+	// RoomChargeKey is the client's idempotency key for one room charge (pos-ui sends one per
+	// Charge to Room confirmation). A retry with the same key returns the first result; without a
+	// key the server matches the order, room and amount (see findRoomCharge).
+	RoomChargeKey string
 }
 
 // CreateIntentResult is returned to the caller when a digital payment intent is created.
@@ -285,21 +299,23 @@ func (s *Service) SetPrintQueue(q *printing.Queue) {
 
 // CreatePaymentIntent creates a treasury payment intent and returns the intent ID + initiateUrl.
 //
-// Cash/manual/room_charge: creates a "cash" intent → treasury settles it immediately → records
-// the local payment as completed and returns IsCash=true.
+// Cash/manual: creates a "cash" intent → treasury settles it immediately → records the local
+// payment as completed and returns IsCash=true. Room charge: no intent; the folio line and the
+// payment are written together and the order completes (recordRoomCharge), IsCash=true.
 //
 // Digital (card, mpesa, etc.): creates a "pending" intent → returns intent ID + initiateUrl for
 // the pos-ui to open TreasuryPaymentModal. The local payment is recorded as pending and will be
 // completed by the treasury.payment.success NATS subscriber.
 func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequest) (*CreateIntentResult, error) {
-	if s.treasuryClient == nil {
-		return nil, fmt.Errorf("payments: treasury client not configured")
-	}
-
 	// Canonicalize the tender before anything reads it: payment_data.method must always be one of
 	// the advertised payment choices (legacy "manual" → "mpesa_manual"), for both online captures
 	// and queued offline replays from older tills.
 	req.TenderMethod = canonicalTenderMethod(req.TenderMethod)
+	roomCharge := req.TenderMethod == TenderRoomCharge
+	// A room charge never calls treasury from here (its GL comes from pos.sale.finalized).
+	if s.treasuryClient == nil && !roomCharge {
+		return nil, fmt.Errorf("payments: treasury client not configured")
+	}
 	if err := normalizeManualTender(&req); err != nil {
 		return nil, err
 	}
@@ -310,6 +326,27 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 		Only(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("payments: order not found: %w", err)
+	}
+
+	// A retried room charge (double tap, a lost response) finds the folio line it wrote and
+	// answers as the first call did, even though the first call already completed the order. The
+	// match is on the request, so a second room charge on the same order still posts.
+	if roomCharge {
+		prior, perr := findRoomCharge(ctx, s.client.RoomFolioItem, req)
+		if perr == nil && prior == nil && req.RoomChargeKey == "" && order.Status == orders.StatusCompleted {
+			// A keyless retry whose first call clamped the amount to the balance: the order is
+			// settled, so a room charge already on this room for it is that first call.
+			loose := req
+			loose.Amount = 0
+			prior, perr = findRoomCharge(ctx, s.client.RoomFolioItem, loose)
+		}
+		if perr != nil {
+			return nil, fmt.Errorf("payments: check room charge: %w", perr)
+		}
+		if prior != nil {
+			s.completeOrderIfFullyPaid(ctx, order)
+			return &CreateIntentResult{IsCash: true}, nil
+		}
 	}
 
 	if order.Status == orders.StatusCancelled || order.Status == orders.StatusVoided {
@@ -352,6 +389,12 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 	// balance in treasury (which enforces the credit limit), then settle the order on account.
 	if strings.EqualFold(req.TenderMethod, TenderOnAccount) {
 		return s.recordCreditSale(ctx, order, req, currency)
+	}
+
+	// Room charge: the folio line and the completed payment are written in one transaction and
+	// the order completes; the guest pays the folio at checkout.
+	if roomCharge {
+		return s.recordRoomCharge(ctx, order, req, currency)
 	}
 
 	// Complimentary (no-charge): close the bill without collecting cash or creating a debt.
@@ -792,6 +835,41 @@ func (s *Service) recordComplimentarySale(ctx context.Context, order *ent.POSOrd
 	if strings.TrimSpace(req.ComplimentaryReason) == "" {
 		return nil, fmt.Errorf("payments: complimentary sale requires a reason")
 	}
+	// A sale already partly charged to a room cannot be closed as complimentary (S2-20 review
+	// I-3): the room part sits on the guest receivable and the mixed posting would count it as cash.
+	// The check and the payment are written under the same order row lock recordRoomCharge takes
+	// (re-review R-3), so a room charge and a complimentary close sent at once from two tills
+	// cannot both pass.
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("payments: start transaction: %w", err)
+	}
+	if err := lockOrderRow(ctx, tx, order.TenantID, order.ID); err != nil {
+		_ = tx.Rollback()
+		return nil, fmt.Errorf("payments: lock order: %w", err)
+	}
+	if room, rerr := hasCompletedTender(ctx, tx.POSPayment, order.ID, TenderRoomCharge); rerr != nil {
+		_ = tx.Rollback()
+		return nil, fmt.Errorf("payments: check room charge: %w", rerr)
+	} else if room {
+		_ = tx.Rollback()
+		return nil, ErrRoomChargeWithComplimentary
+	}
+	if _, err := tx.POSPayment.Create().
+		SetOrderID(req.OrderID).
+		SetTenderID(req.TenderID).
+		SetAmount(req.Amount).
+		SetCurrency(currency).
+		SetStatus(StatusCompleted).
+		SetPaymentData(map[string]any{"method": TenderComplimentary, "reason": req.ComplimentaryReason}).
+		SetNillableExternalReference(nilIfEmpty(order.OrderNumber)).
+		Save(ctx); err != nil {
+		_ = tx.Rollback()
+		return nil, fmt.Errorf("payments: record complimentary payment: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("payments: commit complimentary payment: %w", err)
+	}
 
 	meta := order.Metadata
 	if meta == nil {
@@ -804,18 +882,6 @@ func (s *Service) recordComplimentarySale(ctx context.Context, order *ent.POSOrd
 	}
 	if merr := s.client.POSOrder.UpdateOneID(order.ID).SetMetadata(meta).Exec(ctx); merr != nil {
 		s.log.Warn("payments: failed to stamp complimentary metadata", zap.Error(merr))
-	}
-
-	if _, err := s.client.POSPayment.Create().
-		SetOrderID(req.OrderID).
-		SetTenderID(req.TenderID).
-		SetAmount(req.Amount).
-		SetCurrency(currency).
-		SetStatus(StatusCompleted).
-		SetPaymentData(map[string]any{"method": TenderComplimentary, "reason": req.ComplimentaryReason}).
-		SetNillableExternalReference(nilIfEmpty(order.OrderNumber)).
-		Save(ctx); err != nil {
-		return nil, fmt.Errorf("payments: record complimentary payment: %w", err)
 	}
 
 	s.completeOrderIfFullyPaid(ctx, order)
@@ -1485,8 +1551,12 @@ type saleTender struct {
 // (async event → GL routing) and signEtimsSync (sync ETR sign → KRA pmtTyCd) so both declare the
 // same mode of payment. Type falls back to the PaymentData method when the Tender catalog Type is
 // blank, so digital instruments (card/mpesa) are still identifiable.
+//
+// A room charge (S2-20) makes the scheme "room_charge" when it carries the whole sale and "mixed"
+// otherwise; its amount is roomChargeTotal(tenders).
 func (s *Service) resolveSaleSettlement(ctx context.Context, order *ent.POSOrder) (scheme string, onAccount, comp float64, compReason string, tenders []saleTender) {
 	scheme = "cash"
+	roomCharge := 0.0
 	if pays, perr := s.client.POSPayment.Query().Where(pospayment.OrderID(order.ID)).All(ctx); perr == nil {
 		// Preload every referenced tender in ONE query instead of a Tender.Get per payment
 		// (N+1 on the hot sign / sale-finalize path). Reuses the IDIn preload in manage.go.
@@ -1509,7 +1579,15 @@ func (s *Service) resolveSaleSettlement(ctx context.Context, order *ent.POSOrder
 			if typ == "" {
 				typ = method
 			}
+			// A room charge always reaches treasury as room_charge, whatever the tender row is
+			// called, so the GL and eTIMS can tell it from money taken at the till.
+			if strings.EqualFold(method, TenderRoomCharge) {
+				typ = TenderRoomCharge
+			}
 			tenders = append(tenders, saleTender{Type: typ, Amount: p.Amount, Status: p.Status})
+			if strings.EqualFold(typ, TenderRoomCharge) && p.Status == StatusCompleted {
+				roomCharge += p.Amount
+			}
 			// Use typ (falls back to PaymentData["method"] when the payment's tender_id doesn't
 			// resolve a row in the tenders table) — NOT the raw tenders-table-only tType. A tenant
 			// with no rows in `tenders` at all (confirmed live: boi-enterprises) would otherwise
@@ -1534,10 +1612,23 @@ func (s *Service) resolveSaleSettlement(ctx context.Context, order *ent.POSOrder
 		scheme = "complimentary"
 	case onAccount > 0 && onAccount >= order.TotalAmount-0.01:
 		scheme = "credit"
-	case onAccount > 0 || comp > 0:
+	case roomCharge > 0 && roomCharge >= order.TotalAmount-0.01:
+		scheme = "room_charge"
+	case onAccount > 0 || comp > 0 || roomCharge > 0:
 		scheme = "mixed"
 	}
 	return
+}
+
+// roomChargeTotal is the completed room-charged part of a sale, from its tender breakdown.
+func roomChargeTotal(tenders []saleTender) float64 {
+	total := 0.0
+	for _, t := range tenders {
+		if strings.EqualFold(t.Type, TenderRoomCharge) && t.Status == StatusCompleted {
+			total += t.Amount
+		}
+	}
+	return total
 }
 
 func (s *Service) signEtimsSync(ctx context.Context, order *ent.POSOrder) {
@@ -1931,8 +2022,11 @@ func (s *Service) publishSaleFinalized(ctx context.Context, order *ent.POSOrder)
 		"cost_total": costTotal,
 		// Selling scheme + tender breakdown for treasury GL routing (cash receipt vs AR vs
 		// complimentary expense). complimentary_reason feeds the treasury journal description.
-		"selling_scheme":       sellingScheme,
-		"on_account_amount":    onAccountAmount,
+		"selling_scheme":    sellingScheme,
+		"on_account_amount": onAccountAmount,
+		// room_charge_amount: the part charged to a guest's room (S2-20). Treasury books it to
+		// the guest receivable, which the folio payment at checkout clears.
+		"room_charge_amount":   roomChargeTotal(saleTenders),
 		"complimentary_amount": complimentaryAmount,
 		"complimentary_reason": complimentaryReason,
 		"tenders":              tenderBreakdown,

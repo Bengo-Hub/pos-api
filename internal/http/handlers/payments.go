@@ -96,7 +96,19 @@ type createIntentInput struct {
 	// PaymentLabel says how the customer paid for the "other_manual" tender. Required for that
 	// tender (2 to 40 characters), ignored for the rest.
 	PaymentLabel string `json:"paymentLabel,omitempty"`
+	// RoomID is the occupied room a room_charge tender charges (required for that tender). The
+	// server posts the folio line with the payment and completes the order.
+	RoomID string `json:"roomId,omitempty"`
+	// IdempotencyKey identifies one Charge to Room confirmation: a retry with the same key
+	// returns the first result, a new key posts a new charge (a bill split across rooms). At most
+	// maxRoomChargeKeyLen characters; a longer key is refused with 400, never dropped. Without a
+	// key a retry is matched on order, room and amount.
+	IdempotencyKey string `json:"idempotencyKey,omitempty"`
 }
+
+// maxRoomChargeKeyLen bounds the Charge to Room idempotency key (pos-ui sends a UUID plus the
+// room id, about 73 characters).
+const maxRoomChargeKeyLen = 100
 
 // CreatePaymentIntent handles POST /{tenantID}/pos/orders/{orderID}/payments/intent
 // Returns payment_intent_id + initiate_url for the pos-ui to open TreasuryPaymentModal.
@@ -167,6 +179,20 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 		ApplyStoreCredit: input.ApplyStoreCredit,
 		PaymentLabel:     input.PaymentLabel,
 	}
+	if strings.EqualFold(strings.TrimSpace(input.TenderMethod), payments.TenderRoomCharge) {
+		roomID, rerr := uuid.Parse(strings.TrimSpace(input.RoomID))
+		if rerr != nil || roomID == uuid.Nil {
+			jsonError(w, "choose the room to charge", http.StatusBadRequest)
+			return
+		}
+		req.RoomID = roomID
+		k := strings.TrimSpace(input.IdempotencyKey)
+		if len(k) > maxRoomChargeKeyLen {
+			jsonError(w, fmt.Sprintf("idempotencyKey must be at most %d characters", maxRoomChargeKeyLen), http.StatusBadRequest)
+			return
+		}
+		req.RoomChargeKey = k
+	}
 
 	// Complimentary (no-charge): mandatory reason + mandatory manager approval (live PIN/card
 	// step-up token, or a one-time code a manager generated remotely) — mirrors VoidOrder's dual
@@ -218,6 +244,10 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 	}
 
 	result, err := h.paymentSvc.CreatePaymentIntent(r.Context(), req)
+	if errors.Is(err, payments.ErrRoomChargeWithComplimentary) {
+		jsonError(w, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
 	if err != nil {
 		h.log.Error("create payment intent failed", zap.Error(err))
 		jsonError(w, err.Error(), http.StatusBadRequest)

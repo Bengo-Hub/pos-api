@@ -208,12 +208,14 @@ func seedRoomChargedOrder(t *testing.T, client *ent.Client, stayOpen bool) (*ent
 	client.RoomFolioItem.Create().
 		SetTenantID(order.TenantID).SetRoomID(guest.RoomID).SetRoomGuestID(guest.ID).SetDescription("Restaurant bill").
 		SetAmount(500).SetChargeType(roomfolioitem.ChargeTypeOther).SetCreatedBy(uuid.New()).SetPosOrderID(order.ID).
+		SetMetadata(map[string]any{"source": "pos_room_charge"}). // written by the till's room charge
 		SaveX(ctx)
 	return order, guest
 }
 
 // A room-charged sale returned while the stay is open is credited to the folio: no cash leaves
-// the drawer, and treasury reverses the sale the way it booked it (as cash).
+// the drawer, and treasury reverses the sale against the guest receivable the till booked it to
+// (S2-20: refund channel room_folio, not cash).
 func TestCompleteReturnRoomChargeOpenStayCreditsTheFolio(t *testing.T) {
 	svc, client, rec := newRefundTestService(t)
 	order, guest := seedRoomChargedOrder(t, client, true)
@@ -226,8 +228,11 @@ func TestCompleteReturnRoomChargeOpenStayCreditsTheFolio(t *testing.T) {
 	if _, ok := done.Metadata[MetaCashPaidOut]; ok {
 		t.Error("a folio credit is not cash out of the drawer")
 	}
-	if got := onlyRefund(t, rec).RefundChannel; got != "cash" {
-		t.Errorf("treasury refund_channel = %q, want cash (mirrors the room charge booking)", got)
+	if got := onlyRefund(t, rec).RefundChannel; got != "room_folio" {
+		t.Errorf("treasury refund_channel = %q, want room_folio (reduces the guest receivable)", got)
+	}
+	if p := svc.completedPayload(context.Background(), done, nil, ""); p["refund_channel"] != "room_folio" {
+		t.Errorf("return.completed refund_channel = %v, want room_folio so the GL backstop credits the receivable", p["refund_channel"])
 	}
 	credits := client.RoomFolioPayment.Query().AllX(context.Background())
 	if len(credits) != 1 || credits[0].Method != payments.FolioReturnCreditMethod || credits[0].Amount != 250 ||
@@ -253,6 +258,59 @@ func TestCompleteReturnRoomChargeClosedStayUsesTheChosenChannel(t *testing.T) {
 		if n := client.RoomFolioPayment.Query().CountX(context.Background()); n != 0 {
 			t.Errorf("override %q: %d folio credits on a closed stay, want 0", tc.override, n)
 		}
+	}
+}
+
+// A mixed sale (cash 200, room 300) returned in two parts while the stay is open: the folio is
+// credited at most the 300 that was charged to the room (S2-20 review I-1), so the second return
+// credits only the 50 left and refunds the other 200 in cash as a pos_return_rest portion. The
+// guest receivable is never credited more than the till debited it.
+func TestCompleteReturnFolioCreditCappedAtTheRoomCharge(t *testing.T) {
+	svc, client, rec := newRefundTestService(t)
+	ctx := context.Background()
+	order := seedOrder(t, client, uuid.New(), uuid.New(), "completed")
+	seedPayment(t, client, order.ID, "cash", 200)
+	seedPayment(t, client, order.ID, "room_charge", 300)
+	room := client.Room.Create().
+		SetTenantID(order.TenantID).SetOutletID(uuid.New()).SetRoomNumber("R" + uuid.NewString()[:6]).SetName("Room").
+		SetRatePerNight(1000).
+		SaveX(ctx)
+	guest := client.RoomGuest.Create().
+		SetTenantID(order.TenantID).SetRoomID(room.ID).SetGuestName("Jane").SetPhone("+254712345678").SetIDNumber("ID-1").
+		SetCheckInDate(time.Now()).SetNights(2).SetCheckOutDate(time.Now().AddDate(0, 0, 2)).
+		SetTotalRoomCharge(2000).SetCheckedInBy(uuid.New()).SetStatus(roomguest.StatusActive).
+		SaveX(ctx)
+	client.RoomFolioItem.Create().
+		SetTenantID(order.TenantID).SetRoomID(room.ID).SetRoomGuestID(guest.ID).SetDescription("Room").
+		SetAmount(2000).SetChargeType(roomfolioitem.ChargeTypeRoomCharge).SetCreatedBy(uuid.New()).
+		SaveX(ctx)
+	client.RoomFolioItem.Create().
+		SetTenantID(order.TenantID).SetRoomID(room.ID).SetRoomGuestID(guest.ID).SetDescription("POS bill").
+		SetAmount(300).SetChargeType(roomfolioitem.ChargeTypeRestaurant).SetCreatedBy(uuid.New()).SetPosOrderID(order.ID).
+		SetMetadata(map[string]any{"source": "pos_room_charge"}).
+		SaveX(ctx)
+
+	first := complete(t, svc, seedApprovedReturn(t, client, order, posreturn.ReturnTypeRefund, nil), CompleteReturnRequest{})
+	second := complete(t, svc, seedApprovedReturn(t, client, order, posreturn.ReturnTypeRefund, nil), CompleteReturnRequest{})
+
+	var credited float64
+	for _, c := range client.RoomFolioPayment.Query().Where(roomfoliopayment.Method(payments.FolioReturnCreditMethod)).AllX(ctx) {
+		credited += c.Amount
+	}
+	if credited != 300 {
+		t.Errorf("folio credits = %v, want 300 (250 then the 50 left of the room charge)", credited)
+	}
+	if first.Metadata[MetaFolioCredit] != 250.0 || second.Metadata[MetaFolioCredit] != 50.0 {
+		t.Errorf("folio credit per return = %v, %v; want 250, 50", first.Metadata[MetaFolioCredit], second.Metadata[MetaFolioCredit])
+	}
+	calls := rec.sent()
+	if len(calls) != 3 {
+		t.Fatalf("%d treasury refunds, want 3: %+v", len(calls), calls)
+	}
+	if calls[0].Amount != 250 || calls[0].RefundChannel != "room_folio" ||
+		calls[1].Amount != 50 || calls[1].RefundChannel != "room_folio" ||
+		calls[2].Amount != 200 || calls[2].RefundChannel != "cash" || calls[2].ReferenceType != RestRefundReferenceType {
+		t.Errorf("treasury refunds = %+v, want 250 room_folio, 50 room_folio, then 200 cash as %s", calls, RestRefundReferenceType)
 	}
 }
 
@@ -311,8 +369,8 @@ func TestCompleteReturnRoomChargePartSettledFolioSplits(t *testing.T) {
 		if len(calls) != 2 {
 			t.Fatalf("override %q: %d treasury refunds, want 2: %+v", tc.override, len(calls), calls)
 		}
-		if calls[0].Amount != 100 || calls[0].RefundChannel != "cash" || calls[1].Amount != 150 || calls[1].RefundChannel != tc.restChannel {
-			t.Errorf("override %q: portions = %v %q + %v %q, want 100 cash + 150 %q",
+		if calls[0].Amount != 100 || calls[0].RefundChannel != "room_folio" || calls[1].Amount != 150 || calls[1].RefundChannel != tc.restChannel {
+			t.Errorf("override %q: portions = %v %q + %v %q, want 100 room_folio + 150 %q",
 				tc.override, calls[0].Amount, calls[0].RefundChannel, calls[1].Amount, calls[1].RefundChannel, tc.restChannel)
 		}
 		if calls[0].ReferenceID == calls[1].ReferenceID {

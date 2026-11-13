@@ -470,7 +470,9 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 	// failed credit leaves the return approved; CreditRoomFolio is idempotent on the return number.
 	folioCredit, restAmount := 0.0, 0.0
 	if folioStay != nil && paidOut > 0.009 {
-		folioCredit, restAmount = payments.SplitFolioCredit(paidOut, payments.FolioOutstanding(ctx, tx.Client(), folioStay))
+		// Capped at what the folio owes and at the sale's room-charged part (S2-20 review I-1):
+		// a mixed cash and room sale credits the folio only for its room part.
+		folioCredit, restAmount = payments.SplitFolioCredit(paidOut, payments.FolioCreditLimit(ctx, tx.Client(), folioStay, ret.OrderID, ret.ReturnNumber))
 		if folioCredit == 0 {
 			// Nothing left to credit: the whole refund goes through the chosen channel.
 			folioStay, restAmount = nil, 0
@@ -738,8 +740,25 @@ func (s *Service) completedPayload(ctx context.Context, ret *ent.POSReturn, line
 	// A room-charged return refunds the part beyond the folio credit as its own treasury refund
 	// (RestRefundReferenceType). ledger_refund_amount is what is booked under the return id, so
 	// treasury's GL backstop reverses only that; refund_amount stays the customer's whole refund.
-	if rest, ok := ret.Metadata[MetaFolioRestAmount].(float64); ok && rest > 0.009 {
+	rest, _ := ret.Metadata[MetaFolioRestAmount].(float64)
+	if rest > 0.009 {
 		payload["ledger_refund_amount"] = ret.RefundAmount - rest
+	}
+	// The returned lines' VAT, so the GL backstop reverses output VAT with the revenue when it
+	// books the return before the S2S refund does (RR3-M2). Less the rest's share when a rest was
+	// refunded under its own reference.
+	if tax := s.resolveReturnTax(ctx, ret.OrderID, lines); tax > 0.009 {
+		if restTax, _ := ret.Metadata[MetaFolioRestTax].(float64); rest > 0.009 && restTax > 0 {
+			tax -= restTax
+		}
+		if tax > 0.009 {
+			payload["tax_amount"] = money.Round2(tax)
+		}
+	}
+	// A refund credited to the open room folio reduces the guest receivable the till booked the
+	// room charge to (S2-20); the backstop needs the channel to credit that account, not cash.
+	if ret.RefundChannel != nil && *ret.RefundChannel == posreturn.RefundChannelRoomFolio {
+		payload["refund_channel"] = string(posreturn.RefundChannelRoomFolio)
 	}
 	return events.WithRecipient(payload, "customer", events.Recipient{CrmContactID: crmContactID, Name: customerName, Phone: customerPhone})
 }

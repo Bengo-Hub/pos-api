@@ -61,23 +61,22 @@ func seedRoomStayFor(t *testing.T, client *ent.Client, order *ent.POSOrder, open
 	client.RoomFolioItem.Create().
 		SetTenantID(order.TenantID).SetRoomID(guest.RoomID).SetRoomGuestID(guest.ID).SetDescription("Restaurant bill").
 		SetAmount(order.TotalAmount).SetChargeType(roomfolioitem.ChargeTypeOther).SetCreatedBy(uuid.New()).SetPosOrderID(order.ID).
+		SetMetadata(map[string]any{"source": "pos_room_charge"}). // written by the till's room charge
 		SaveX(ctx)
 	return guest
 }
 
 // A voided or edited room-charged sale is credited to the open stay's folio, and treasury
-// reverses it as cash; once the stay is closed the channel resolves to cash.
+// reverses it against the guest receivable (refund channel room_folio, S2-20); once the stay is
+// closed the channel resolves to cash.
 func TestRoomChargedSaleReversalCreditsTheOpenStay(t *testing.T) {
 	rec, tc := newRecordingTreasuryServer(t)
 	svc, client := newTestReversalsService(t, tc)
 	ctx := context.Background()
 	tid := uuid.New()
 
-	order := setupOrderWithPayment(t, client, tid, 300)
-	p := client.POSPayment.Query().Where(entpospayment.OrderID(order.ID)).OnlyX(ctx)
-	client.POSPayment.UpdateOne(p).SetPaymentData(map[string]any{"method": "room_charge", "reversal": map[string]any{
-		"reversal_number": "REV-R1", "netted_from": 300.0, "netted_to": 100.0,
-	}}).ExecX(ctx)
+	// A 300 sale (3 x 100) wholly charged to the room; the edit removes 2 of the 3.
+	order, line := seedSaleWithLine(t, client, tid, 3, 100, pay{"room_charge", 300, 0})
 	guest := seedRoomStayFor(t, client, order, true)
 
 	if got := svc.resolveRefundChannel(ctx, tid, order.ID, ""); got != payments.RefundChannelRoomFolio {
@@ -86,10 +85,19 @@ func TestRoomChargedSaleReversalCreditsTheOpenStay(t *testing.T) {
 	rev := client.POSReversal.Create().
 		SetTenantID(tid).SetOrderID(order.ID).SetOrderNumber(order.OrderNumber).
 		SetReversalNumber("REV-R1").SetScope("partial").SetStatus("pending").SetReason("wrong item").
-		SetRefundChannel(payments.RefundChannelRoomFolio).SetLines([]entschema.ReversalLineJSON{}).
+		SetRefundChannel(payments.RefundChannelRoomFolio).
+		SetLines([]entschema.ReversalLineJSON{{LineID: line.ID, SKU: line.Sku, Name: line.Name, Quantity: 2, OfQuantity: 3, Amount: 200}}).
 		SetAmount(200).SetSteps([]entschema.ReversalStepJSON{}).SetRequestedBy(uuid.New()).
 		SaveX(ctx)
 
+	// The real order: stepPOSTotals nets the room_charge payment down to 100 first, then
+	// stepTreasuryGL credits the folio (re-review R-1: the limit must not shrink with it).
+	if _, _, _, err := svc.stepPOSTotals(ctx, rev); err != nil {
+		t.Fatalf("stepPOSTotals: %v", err)
+	}
+	if p := client.POSPayment.Query().Where(entpospayment.OrderID(order.ID)).OnlyX(ctx); p.Amount != 100 {
+		t.Fatalf("room_charge payment after stepPOSTotals = %v, want netted to 100", p.Amount)
+	}
 	for i := 0; i < 2; i++ { // a retried step never credits twice
 		if _, _, skip, err := svc.stepTreasuryGL(ctx, rev, "tenant-slug"); err != nil || skip {
 			t.Fatalf("stepTreasuryGL() error=%v skip=%v", err, skip)
@@ -101,8 +109,8 @@ func TestRoomChargedSaleReversalCreditsTheOpenStay(t *testing.T) {
 	}
 	rec.mu.Lock()
 	for _, c := range rec.calls {
-		if c.RefundChannel != "cash" {
-			t.Errorf("treasury refund_channel = %q, want cash", c.RefundChannel)
+		if c.RefundChannel != payments.RefundChannelRoomFolio || c.Amount != 200 {
+			t.Errorf("treasury refund = %v %q, want 200 room_folio", c.Amount, c.RefundChannel)
 		}
 	}
 	rec.mu.Unlock()
@@ -118,18 +126,25 @@ func TestRoomChargedSaleReversalCreditsTheOpenStay(t *testing.T) {
 
 // A folio already settled (or a stay that closed after the reversal was created) gets no
 // credit: the refund goes out in cash and the reversal records cash, not room_folio. A
-// part-settled folio is credited only what it still owes.
+// part-settled folio is credited only what it still owes: that part reaches treasury as
+// room_folio (it reduces the guest receivable) and the rest as its own cash portion.
 func TestRoomChargedSaleReversalCapsTheFolioCredit(t *testing.T) {
+	type call struct {
+		channel, refType string
+		amount           float64
+	}
 	for _, tc := range []struct {
 		name          string
 		paid          float64 // already paid on the 300 folio
 		open          bool
 		credit        float64
 		storedChannel string
+		calls         []call
 	}{
-		{"settled folio", 300, true, 0, "cash"},
-		{"part-settled folio", 250, true, 50, payments.RefundChannelRoomFolio},
-		{"stay closed since", 0, false, 0, "cash"},
+		{"settled folio", 300, true, 0, "cash", []call{{"cash", "pos_return", 200}}},
+		{"part-settled folio", 250, true, 50, payments.RefundChannelRoomFolio,
+			[]call{{payments.RefundChannelRoomFolio, "pos_return", 50}, {"cash", folioRestReferenceType, 150}}},
+		{"stay closed since", 0, false, 0, "cash", []call{{"cash", "pos_return", 200}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rec, trc := newRecordingTreasuryServer(t)
@@ -172,8 +187,17 @@ func TestRoomChargedSaleReversalCapsTheFolioCredit(t *testing.T) {
 			}
 			rec.mu.Lock()
 			defer rec.mu.Unlock()
-			if len(rec.calls) != 1 || rec.calls[0].RefundChannel != "cash" || rec.calls[0].Amount != 200 {
-				t.Errorf("treasury calls = %+v, want one cash refund of 200", rec.calls)
+			if len(rec.calls) != len(tc.calls) {
+				t.Fatalf("treasury calls = %+v, want %+v", rec.calls, tc.calls)
+			}
+			for i, want := range tc.calls {
+				got := rec.calls[i]
+				if got.RefundChannel != want.channel || got.ReferenceType != want.refType || got.Amount != want.amount {
+					t.Errorf("call %d = %v %q %q, want %v %q %q", i, got.Amount, got.RefundChannel, got.ReferenceType, want.amount, want.channel, want.refType)
+				}
+			}
+			if len(rec.calls) == 2 && rec.calls[0].ReferenceID == rec.calls[1].ReferenceID {
+				t.Error("the folio part and the cash rest need distinct reference ids")
 			}
 		})
 	}

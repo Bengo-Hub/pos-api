@@ -241,13 +241,13 @@ func (s *Service) netPayments(ctx context.Context, client *ent.Client, rev *ent.
 	// real cash/mpesa/card row — never the reverse. Sorting newest-payment-first (as this query
 	// already does) with no AR/cash distinction let a LATER real payment (e.g. a credit
 	// settlement collected after the sale, always newer than the sale-time on_account marker)
-	// get cut before the on_account row — cashNettedForReversal then saw a real row that
+	// get cut before the on_account row — tenderSplitForReversal then saw a real row that
 	// shrank, misclassified the whole reduction as "cash refunded", and stepTreasuryGL posted a
 	// phantom cash refund for money never physically returned while the customer's actual AR
 	// debt in treasury stayed untouched. Confirmed live: a partially-paid on-account BOI
 	// Enterprises order whose reduction should have shrunk balance_due instead posted a cash
 	// refund and left the debt exactly where it was. Re-ordering (on_account rows first, real
-	// payment rows only for any remainder) fixes this at the source — cashNettedForReversal and
+	// payment rows only for any remainder) fixes this at the source — tenderSplitForReversal and
 	// stepTreasuryGL need no changes; they already do the right thing once fed the right split.
 	onAccountRows := make([]*ent.POSPayment, 0, len(pays))
 	realRows := make([]*ent.POSPayment, 0, len(pays))
@@ -435,17 +435,41 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 		currency = origOrder.Currency
 	}
 
-	cashNetted := money.Round2(s.cashNettedForReversal(ctx, rev))
-	if cashNetted < 0 {
-		cashNetted = 0
+	// The reversal splits by what the reversed part of the sale was paid with (see
+	// tenderSplitForReversal): real money goes back through the refund channel, store and exchange
+	// credit back to the customer as store credit, a complimentary part goes back against the
+	// complimentary expense the sale debited (treasury's "complimentary" channel, no money moves),
+	// and whatever is left is written off against AR (on account, or an edit-added line never
+	// collected). A loyalty part goes with the money, because treasury booked it as cash at the till. Each bucket is capped at what
+	// is left of the amount, in that order; a sub-cent rest goes to the last refunded portion so the
+	// posted portions add up.
+	split := s.tenderSplitForReversal(ctx, rev)
+	left := rev.Amount
+	take := func(v float64) float64 {
+		v = money.Round2(v)
+		if v <= 0.009 {
+			return 0
+		}
+		if v > left {
+			v = money.Round2(left)
+		}
+		left = money.Round2(left - v)
+		return v
 	}
-	if cashNetted > rev.Amount {
-		cashNetted = rev.Amount
-	}
-	arPortion := money.Round2(rev.Amount - cashNetted)
-	ratio := 0.0
-	if rev.Amount > 0 {
-		ratio = cashNetted / rev.Amount
+	cashNetted := take(split.money)
+	storeCredit := take(split.storeCredit)
+	complimentary := take(split.complimentary)
+	arPortion := money.Round2(left)
+	if arPortion <= 0.009 {
+		arPortion = 0
+		switch {
+		case complimentary > 0:
+			complimentary = money.Round2(complimentary + left)
+		case storeCredit > 0:
+			storeCredit = money.Round2(storeCredit + left)
+		case cashNetted > 0:
+			cashNetted = money.Round2(cashNetted + left)
+		}
 	}
 	cashChannel := rev.RefundChannel
 	if cashChannel == "" || cashChannel == "offset_invoice" {
@@ -453,17 +477,16 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 	}
 	// A room-charged sale is credited back to the open stay's folio (owner decision
 	// 2026-11-12). The credit is idempotent on the reversal number, so a retried step never
-	// credits twice. Treasury reverses the sale as cash, the way it booked the room charge.
-	// When the stay closed after the reversal was created, the refund goes out as cash.
-	// The credit is capped at what the folio still owes, so a settled folio is never driven
-	// negative; the rest is paid out in cash. Treasury gets "cash" for both parts either way,
-	// so only the stored channel and the step detail change.
+	// credits twice. When the stay closed after the reversal was created, the refund goes out as
+	// cash. The credit is capped at what the folio still owes, so a settled folio is never driven
+	// negative; the rest is paid out in cash.
+	// Since S2-20 the till books a room charge to the guest receivable, so treasury gets the
+	// folio part as room_folio (it reduces the receivable) and any rest as its own cash portion
+	// under folioRestReferenceType (no second credit note), see postCash below.
 	folioNote := ""
+	folioPart, folioRest := 0.0, 0.0
 	if cashChannel == payments.RefundChannelRoomFolio {
 		credit := cashNetted
-		if arPortion <= 0.009 {
-			credit = rev.Amount
-		}
 		// A retried step finds the credit its first attempt made, whether or not the stay is still
 		// open, and keeps room_folio; only a stay that is open now takes a new credit.
 		folio, prior := 0.0, 0.0
@@ -475,7 +498,8 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 		case prior > 0:
 			folio = prior
 		case stay != nil && stay.Status == roomguest.StatusActive && credit > 0.009:
-			folio, _ = payments.SplitFolioCredit(credit, payments.FolioOutstanding(ctx, s.client, stay))
+			// Capped at what the folio owes and at the sale's room-charged part (review I-1).
+			folio, _ = payments.SplitFolioCredit(credit, payments.FolioCreditLimit(ctx, s.client, stay, rev.OrderID, rev.ReversalNumber))
 		}
 		if folio > 0 {
 			if prior == 0 {
@@ -484,8 +508,10 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 				}
 			}
 			folioNote = fmt.Sprintf("; %.2f credited to the room folio", folio)
+			folioPart = folio
 			if rest := money.Round2(credit - folio); rest > 0.009 {
 				folioNote += fmt.Sprintf(", %.2f paid out in cash", rest)
+				folioRest = rest
 			}
 		} else {
 			// The stay closed (or the folio owes nothing) after the reversal was created: the
@@ -536,23 +562,90 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 		return nil
 	}
 
-	if arPortion <= 0.009 {
-		// Fully cash-backed — the common case, identical to pre-fix behavior (single call).
-		if err := post("", "pos_return", cashChannel, rev.Amount, rev.TaxAmount, rev.CostAmount); err != nil {
+	// postCash books the money-backed part of the reversal. A room folio credit that the folio
+	// could only partly absorb goes as two portions: the credited part as room_folio under the
+	// usual id (it reduces the guest receivable), then the rest as cash under its own id and
+	// reference type, sent only after the first succeeded. Both ids are deterministic.
+	postCash := func(suffix string, amount, tax, cost float64) error {
+		if folioPart <= 0 || folioRest <= 0.009 || amount <= 0 {
+			return post(suffix, "pos_return", cashChannel, amount, tax, cost)
+		}
+		share := folioPart / (folioPart + folioRest)
+		fTax, fCost := money.Round2(tax*share), money.Round2(cost*share)
+		fAmount := money.Round2(amount * share)
+		if err := post(suffix, "pos_return", payments.RefundChannelRoomFolio, fAmount, fTax, fCost); err != nil {
+			return err
+		}
+		return post(suffix+"folio-rest", folioRestReferenceType, "cash", money.Round2(amount-fAmount), money.Round2(tax-fTax), money.Round2(cost-fCost))
+	}
+
+	// The portions go in a fixed order (money, store credit, complimentary, AR write-off), each only
+	// after the one before it went through. The first goes as pos_return (treasury raises the one
+	// credit-note document for it), the rest as ReversalRestReferenceType. A single portion keeps the
+	// reversal id; a split gives each portion its own deterministic id ("cash", "store-credit",
+	// "complimentary", "ar"), so a retry books each once. Tax and cost follow each portion's share of
+	// the amount and the last portion takes the rounding rest. The complimentary part of a wholly
+	// complimentary sale carries no tax, since treasury booked that sale without VAT
+	// (PostComplimentarySale); a part complimentary sale was booked with VAT on the whole sale
+	// (PostMixedSale), so its complimentary part takes its tax share like any other.
+	type portion struct {
+		suffix, name, channel string
+		amount, tax, cost     float64
+		untaxed               bool
+	}
+	var portions []portion
+	if cashNetted > 0 {
+		portions = append(portions, portion{suffix: "cash", name: "cash", amount: cashNetted})
+	}
+	if storeCredit > 0 {
+		portions = append(portions, portion{suffix: "store-credit", name: "store credit", channel: "store_credit", amount: storeCredit})
+	}
+	if complimentary > 0 {
+		portions = append(portions, portion{suffix: "complimentary", name: "complimentary", channel: "complimentary", amount: complimentary, untaxed: split.wholeComplimentary})
+	}
+	if arPortion > 0 {
+		portions = append(portions, portion{suffix: "ar", name: "AR write-off", channel: "offset_invoice", amount: arPortion})
+	}
+	if len(portions) == 0 {
+		return "", "nothing to post: the reversed amount is zero", true, nil
+	}
+	postedAmt, taxedAmt, sumTax, sumCost, lastTaxed := 0.0, 0.0, 0.0, 0.0, -1
+	for i := range portions {
+		p := &portions[i]
+		postedAmt += p.amount
+		p.cost = money.Round2(rev.CostAmount * p.amount / rev.Amount)
+		sumCost += p.cost
+		if !p.untaxed {
+			taxedAmt += p.amount
+			p.tax = money.Round2(rev.TaxAmount * p.amount / rev.Amount)
+			sumTax += p.tax
+			lastTaxed = i
+		}
+	}
+	last := &portions[len(portions)-1]
+	last.cost = money.Round2(last.cost + money.Round2(rev.CostAmount*money.Round2(postedAmt)/rev.Amount) - sumCost)
+	if lastTaxed >= 0 {
+		portions[lastTaxed].tax = money.Round2(portions[lastTaxed].tax + money.Round2(rev.TaxAmount*money.Round2(taxedAmt)/rev.Amount) - sumTax)
+	}
+	for i, p := range portions {
+		suffix, refType := p.suffix, "pos_return"
+		if len(portions) == 1 {
+			suffix = ""
+		}
+		if i > 0 {
+			refType = ReversalRestReferenceType
+		}
+		var err error
+		if p.channel == "" {
+			err = postCash(suffix, p.amount, p.tax, p.cost)
+		} else {
+			err = post(suffix, refType, p.channel, p.amount, p.tax, p.cost)
+		}
+		if err != nil {
+			if len(portions) > 1 {
+				return "", "", false, fmt.Errorf("%s portion: %w", p.name, err)
+			}
 			return "", "", false, err
-		}
-	} else if cashNetted <= 0.009 {
-		// Fully AR-backed (e.g. an on-account sale, or an edit-added line removed before any
-		// cash ever moved) — single call, same reference id as before, explicit channel only.
-		if err := post("", "pos_return", "offset_invoice", rev.Amount, rev.TaxAmount, rev.CostAmount); err != nil {
-			return "", "", false, err
-		}
-	} else {
-		if err := post("cash", "pos_return", cashChannel, cashNetted, money.Round2(rev.TaxAmount*ratio), money.Round2(rev.CostAmount*ratio)); err != nil {
-			return "", "", false, fmt.Errorf("cash portion: %w", err)
-		}
-		if err := post("ar", ReversalRestReferenceType, "offset_invoice", arPortion, money.Round2(rev.TaxAmount*(1-ratio)), money.Round2(rev.CostAmount*(1-ratio))); err != nil {
-			return "", "", false, fmt.Errorf("AR write-off portion: %w", err)
 		}
 	}
 
@@ -560,12 +653,34 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 	return strings.Join(ids, ","), detail, false, nil
 }
 
-// cashNettedForReversal sums how much real POSPayment amount stepPOSTotals actually netted
-// back for THIS reversal (matched via the reversal_number it stamps into each touched
-// payment's PaymentData — see netPayments). This is the ground truth for "how much of this
-// reversal's amount was ever real collected cash," independent of the order-level on_account
-// flag, so it correctly handles an order that mixes real cash with edit-added AR value.
+// tenderSplit is how the reversed amount divides by what that part of the sale was paid with.
+type tenderSplit struct {
+	money       float64 // real money (cash, M-Pesa, card, bank, room charge): back through the refund channel
+	storeCredit float64 // customer credit or exchange credit: back to the customer as store credit
+	// complimentary: no money came in; reversed against the complimentary expense the sale debited.
+	complimentary float64
+	// wholeComplimentary: the sale as it now stands was paid wholly with complimentary, the same
+	// test pos-api uses to send it as selling_scheme complimentary (booked without VAT).
+	wholeComplimentary bool
+}
+
+// tenderSplitForReversal works out which tenders back THIS reversal. On-account rows are left out
+// of every bucket: what no tender covers is the AR write-off.
 //
+//   - Partial scope: what stepPOSTotals actually netted back for this reversal (matched via the
+//     reversal_number it stamps into each touched payment's PaymentData, see netPayments). This is
+//     the ground truth independent of the order-level on_account flag, so it handles an order that
+//     mixes real cash with edit-added AR value.
+//   - Full scope: stepPOSTotals keeps the payment rows as they were, so there are no stamps and the
+//     split is what the completed rows paid. Before 2026-11-13 a full void read 0 here and went to
+//     treasury whole as an AR write-off, so a voided cash sale was booked Cr 1400, not Cr Cash.
+//
+// The payment rows are not changed by stepTreasuryGL, so a retry derives the same split.
+//
+// Non-money tenders (payments.IsNonMoneyTender) are never money: a complimentary part goes back
+// against the complimentary expense, and a customer or exchange credit part goes back as store
+// credit, never cash. A loyalty part counts as money: treasury has no loyalty account and booked
+// it as cash at the till, so reversing it as money is what undoes that booking.
 // An on-account (credit) payment row is explicitly EXCLUDED even when netPayments touched it —
 // its "netted_from - netted_to" delta is a shrinking treasury AR debt, not cash the till ever
 // held, so counting it here misclassified the whole reversed amount as cash-backed and made
@@ -575,29 +690,54 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 // 1,400 — treasury booked a phantom Dr 4400 Sales Revenue / Cr 1000 Cash for money that was
 // never collected, while the customer's treasury customer_balances row stayed permanently
 // stuck at balance_due 1,400 for stock that had actually been returned/removed from the sale.
-func (s *Service) cashNettedForReversal(ctx context.Context, rev *ent.POSReversal) float64 {
+func (s *Service) tenderSplitForReversal(ctx context.Context, rev *ent.POSReversal) tenderSplit {
+	var out tenderSplit
 	pays, err := s.client.POSPayment.Query().Where(entpospayment.OrderID(rev.OrderID)).All(ctx)
 	if err != nil {
-		return 0
+		return out
 	}
-	var total float64
+	compPaid := 0.0
 	for _, p := range pays {
 		method, _ := p.PaymentData["method"].(string)
 		if strings.EqualFold(method, payments.TenderOnAccount) {
 			continue
 		}
-		rmeta, ok := p.PaymentData["reversal"].(map[string]any)
-		if !ok {
-			continue
+		if strings.EqualFold(method, payments.TenderComplimentary) && p.Status == "completed" {
+			compPaid += p.Amount
 		}
-		if num, _ := rmeta["reversal_number"].(string); num != rev.ReversalNumber {
-			continue
+		amount := 0.0
+		if rev.Scope == entposreversal.ScopeFull {
+			if p.Status != "completed" {
+				continue
+			}
+			amount = p.Amount
+		} else {
+			rmeta, ok := p.PaymentData["reversal"].(map[string]any)
+			if !ok {
+				continue
+			}
+			if num, _ := rmeta["reversal_number"].(string); num != rev.ReversalNumber {
+				continue
+			}
+			from, _ := rmeta["netted_from"].(float64)
+			to, _ := rmeta["netted_to"].(float64)
+			amount = from - to
 		}
-		from, _ := rmeta["netted_from"].(float64)
-		to, _ := rmeta["netted_to"].(float64)
-		total += from - to
+		switch {
+		case payments.IsStoreCreditTender(method):
+			out.storeCredit += amount
+		case strings.EqualFold(method, payments.TenderComplimentary):
+			out.complimentary += amount
+		default:
+			out.money += amount
+		}
 	}
-	return total
+	if compPaid > 0 {
+		if order, oerr := s.client.POSOrder.Get(ctx, rev.OrderID); oerr == nil {
+			out.wholeComplimentary = compPaid >= order.TotalAmount-0.01
+		}
+	}
+	return out
 }
 
 // stepEtimsCreditNote raises the credit note for the reversed lines of a fiscalised sale, so the

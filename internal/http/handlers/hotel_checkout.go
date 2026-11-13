@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Bengo-Hub/httpware/money"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -346,31 +347,24 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 		status = "completed"
 	}
 
-	// Room-vs-ancillary revenue split for GL categorization (treasury's PostPaymentToLedgerItemized):
-	// proportional to the guest's overall room-vs-other charge mix across their whole folio to
-	// date. This is a simple, self-consistent model rather than a full waterfall against payment
-	// history (RoomFolioPayment doesn't track which charge_type each prior payment cleared) — see
-	// D:\Projects\Codevertex\.claude\plans\boi-multi-use-case-subscription-and-hospitality-audit-2026-08-18.md.
-	var roomRevenueAmount float64
+	// GL split of this payment (treasury's PostPaymentToLedgerItemized): the share that clears POS
+	// sales already charged to the room (pos_charge_amount, booked to the guest receivable at the
+	// till since S2-20, so it must not be revenue again), then the room-vs-ancillary split of the
+	// rest. See folioPaymentSplit.
+	var roomRevenueAmount, posChargeAmount float64
 	if folioItems, ferr := h.client.RoomFolioItem.Query().
-		Where(entroomfolioitem.RoomGuestID(guest.ID)).
+		Where(entroomfolioitem.TenantID(tid), entroomfolioitem.RoomGuestID(guest.ID)).
 		All(r.Context()); ferr == nil {
-		var totalCharges, roomCharges float64
-		for _, it := range folioItems {
-			totalCharges += it.Amount
-			if it.ChargeType == entroomfolioitem.ChargeTypeRoomCharge {
-				roomCharges += it.Amount
-			}
-		}
-		if totalCharges > 0 {
-			roomRevenueAmount = input.Amount * (roomCharges / totalCharges)
-		}
+		folioPays, _ := h.client.RoomFolioPayment.Query().
+			Where(entroomfoliopayment.TenantID(tid), entroomfoliopayment.RoomGuestID(guest.ID), entroomfoliopayment.Status("completed")).
+			All(r.Context())
+		posChargeAmount, roomRevenueAmount = folioPaymentSplit(folioItems, folioPays, input.Amount)
 	}
 
 	// Capture in treasury (immediate-settle for cash/card; pending intent for online gateways)
 	// and in the local payment ledger — shared with CheckIn's pay_upfront path.
 	recordedBy, _ := uuid.Parse(r.Header.Get("X-User-ID"))
-	intentID, initiateURL, _, perr := h.recordFolioPayment(r, tid, tenantSlug, room, guest.ID, guest.GuestName, input.Amount, tender, roomRevenueAmount, recordedBy)
+	intentID, initiateURL, _, perr := h.recordFolioPayment(r, tid, tenantSlug, room, guest.ID, guest.GuestName, input.Amount, tender, roomRevenueAmount, posChargeAmount, recordedBy)
 	if perr != nil {
 		if errors.Is(perr, errDeskCodeUsed) {
 			jsonError(w, perr.Error(), http.StatusConflict)
@@ -445,7 +439,7 @@ func immediateOrPending(immediate bool, method string) string {
 // behaviour instead of two copies drifting apart.
 func (h *HotelHandler) recordFolioPayment(
 	r *http.Request, tid uuid.UUID, tenantSlug string, room *ent.Room, guestID uuid.UUID, guestName string,
-	amount float64, tender deskTender, roomRevenueAmount float64, recordedBy uuid.UUID,
+	amount float64, tender deskTender, roomRevenueAmount, posChargeAmount float64, recordedBy uuid.UUID,
 ) (intentID, initiateURL, status string, err error) {
 	method, reference := tender.Method, tender.Reference
 	if err := h.recheckDeskCode(r.Context(), tid, tender); err != nil {
@@ -471,6 +465,11 @@ func (h *HotelHandler) recordFolioPayment(
 				"service": "pos", "room_id": room.ID.String(), "guest_id": guestID.String(), "entity_id": guestID.String(), "method": method,
 				"room_revenue_amount": fmt.Sprintf("%.2f", roomRevenueAmount),
 			},
+		}
+		// The share clearing POS sales charged to the room: treasury credits the guest
+		// receivable for it instead of revenue (S2-20).
+		if posChargeAmount > 0.009 {
+			intentReq.Metadata["pos_charge_amount"] = fmt.Sprintf("%.2f", posChargeAmount)
 		}
 		if reference != "" {
 			intentReq.Metadata["external_ref"] = reference
@@ -500,8 +499,17 @@ func (h *HotelHandler) recordFolioPayment(
 	if reference != "" {
 		create = create.SetReference(reference)
 	}
+	md := map[string]any{}
 	if tender.Label != "" {
-		create = create.SetMetadata(map[string]any{"payment_label": tender.Label})
+		md["payment_label"] = tender.Label
+	}
+	// Kept on the folio payment so the next payment's split knows how much of the POS
+	// receivable this one already cleared (folioPaymentSplit).
+	if posChargeAmount > 0.009 {
+		md[folioPOSChargeKey] = money.Round2(posChargeAmount)
+	}
+	if len(md) > 0 {
+		create = create.SetMetadata(md)
 	}
 	if intentID != "" {
 		create = create.SetTreasuryIntentID(intentID)
@@ -513,4 +521,73 @@ func (h *HotelHandler) recordFolioPayment(
 		return intentID, initiateURL, status, cerr
 	}
 	return intentID, initiateURL, status, nil
+}
+
+// folioPOSChargeKey is the RoomFolioPayment metadata key holding the share of that payment that
+// cleared POS sales charged to the room (the pos_charge_amount sent to treasury).
+const folioPOSChargeKey = "pos_charge_amount"
+
+// folioPaymentSplit works out, for a folio payment of amount, the share that clears POS sales
+// charged to the room (posShare) and the room-revenue share of the rest (roomShare).
+//
+// Since S2-20 the till books a room-charged sale to the guest receivable (Dr receivable / Cr
+// revenue), so at checkout treasury credits that receivable for posShare instead of booking the
+// revenue a second time. What the folio still owes on POS sales is their lines (the ones the
+// till's room charge wrote, payments.IsRoomChargeFolioLine) less the return credits already made against them (method return_credit, which
+// treasury booked against the same receivable) less what earlier payments already cleared
+// (their pos_charge_amount metadata). A payment is applied to the POS lines last: it clears POS
+// value only once the rest of the folio is paid, so a payment of the whole balance clears exactly
+// the POS receivable and a part payment clears none of it until it reaches the POS lines. The
+// rest splits room vs other charges in proportion to the non-POS lines, the same mix the room
+// split always used. Pending payments are not counted.
+func folioPaymentSplit(items []*ent.RoomFolioItem, pays []*ent.RoomFolioPayment, amount float64) (posShare, roomShare float64) {
+	if amount <= 0 {
+		return 0, 0
+	}
+	var total, room, pos float64
+	for _, it := range items {
+		total += it.Amount
+		switch {
+		case payments.IsRoomChargeFolioLine(it):
+			pos += it.Amount
+		case it.ChargeType == entroomfolioitem.ChargeTypeRoomCharge:
+			room += it.Amount
+		}
+	}
+	var paid, posCleared float64
+	for _, p := range pays {
+		if p.Status != "completed" {
+			continue
+		}
+		paid += p.Amount
+		if p.Method == payments.FolioReturnCreditMethod {
+			posCleared += p.Amount
+			continue
+		}
+		if v, ok := p.Metadata[folioPOSChargeKey].(float64); ok && v > 0 {
+			posCleared += v
+		}
+	}
+	outstanding := total - paid
+	posOwed := pos - posCleared
+	if posOwed > outstanding {
+		posOwed = outstanding
+	}
+	// The payment goes to the room nights and other lines first and to the POS lines last
+	// (review I-2): only what is left once everything else is paid clears the POS receivable. A
+	// part payment therefore never clears POS value that a later return credit also clears.
+	if posOwed > 0.009 {
+		posShare = amount - (outstanding - posOwed)
+		if posShare > posOwed {
+			posShare = posOwed
+		}
+		if posShare < 0 {
+			posShare = 0
+		}
+		posShare = money.Round2(posShare)
+	}
+	if nonPOS := total - pos; nonPOS > 0.009 {
+		roomShare = money.Round2((amount - posShare) * room / nonPOS)
+	}
+	return posShare, roomShare
 }

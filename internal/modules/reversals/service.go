@@ -50,6 +50,12 @@ const (
 // refunds, so the split raises one document instead of two; the GL booking is the same.
 const ReversalRestReferenceType = "pos_reversal_rest"
 
+// folioRestReferenceType is the treasury reference type of the cash paid out for the part of a
+// room-charged reversal the open folio no longer owed (S2-20). It is the returns module's
+// RestRefundReferenceType: no second credit note, and treasury's cash forecast counts it as a
+// trading refund.
+const folioRestReferenceType = "pos_return_rest"
+
 // Step statuses.
 const (
 	StatusPending   = "pending"

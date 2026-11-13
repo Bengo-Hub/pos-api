@@ -57,6 +57,23 @@ var nonMoneyTenders = map[string]bool{
 	"loyalty":            true,
 }
 
+// IsNonMoneyTender reports whether a tender method never brought money in (on account, store
+// credit, exchange credit, complimentary, loyalty), so a refund must never go back through it as
+// money.
+func IsNonMoneyTender(method string) bool {
+	return nonMoneyTenders[canonicalTenderMethod(method)]
+}
+
+// IsStoreCreditTender reports whether a tender paid from the customer's store credit (customer
+// credit or exchange credit). A refund of that part goes back to the customer as store credit.
+func IsStoreCreditTender(method string) bool {
+	switch canonicalTenderMethod(method) {
+	case TenderCustomerCredit, TenderExchangeCredit:
+		return true
+	}
+	return false
+}
+
 // OriginalRefundChannel is the refund channel for a sale's original payment method: the money
 // tender that carried the largest completed amount (a split sale refunds the way most of the
 // money came in). Credit, store credit, exchange credit, loyalty and complimentary tenders are

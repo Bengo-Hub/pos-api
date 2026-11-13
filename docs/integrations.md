@@ -83,6 +83,7 @@ was never part of `discount_total`.
   already took from it, so one tender can be refunded more than it received (a sale paid 600 by
   M-Pesa and 400 cash refunds a 700 return entirely by M-Pesa); the cashier picks another method
   when that is wrong.
+  Charge to Room (S2-20, 2026-11-12): `POST .../payments/intent` with `tenderMethod` `room_charge` and `roomId` writes the folio line (`pos_order_id` set, metadata `source: pos_room_charge`) and a completed payment in one transaction under the order and stay row locks, and completes the order with no treasury intent. It is idempotent per request: pos-ui sends `idempotencyKey` (one per Charge to Room screen plus the room, at most 100 characters; a longer key gets a 400). Without a key the server treats a request for the same order, room and amount as a retry, so an API client that splits one bill evenly onto one room must send keys. Either way a bill split across two rooms posts both and a hand-posted line never blocks it. A sale cannot carry both the complimentary payment method and a room charge (422 either way); the message tells the cashier to comp the free items as a discount (the manual discount, with its reason and manager approval) and charge the rest to the room, and a whole-bill comp still uses Complimentary. Treasury holds the room charge on the 1430 Guest Ledger until checkout, apart from the city ledger (1400 AR). It needs the till payment permission like any tender, and `paid_total` counts it as paid, since the debt sits on the folio. `pos.sale.finalized` carries `selling_scheme` `room_charge` (or `mixed`) and `room_charge_amount`, and a folio payment at checkout sends `pos_charge_amount`, the share clearing those lines, applied to the POS lines last (room nights first), so treasury credits the guest receivable instead of booking that revenue again. A folio credit for a return or reversal is capped at what the folio owes and at the sale's room-charged part (the till's folio lines for the order, which a reversal never nets) less earlier credits for the sale; a full void of a room-charged sale credits the folio for the room part too; the rest goes back as the `pos_return_rest` refund. `pos.return.completed` now carries `tax_amount` for every return.
   A sale charged to a room (`room_charge`) is credited back to the guest's room folio while the stay
   is open (owner decision 2026-11-12), whatever method was picked: the return or reversal stores the
   `room_folio` channel and writes a completed folio payment of method `return_credit`, referenced by
@@ -102,8 +103,10 @@ was never part of `discount_total`.
   so treasury's GL backstop must book that rather than `refund_amount` (treasury change pending).
   Only the rest counts as cash out of the drawer, and the return records `folio_credit`,
   `folio_rest_amount`, `folio_rest_channel`, `folio_rest_tax` and `folio_rest_cost` in its metadata. A folio that owes nothing gets no credit
-  and the whole refund goes through the picked method. Treasury reverses the credited part as cash,
-  the way it booked the room charge. The stay is found through the folio item carrying the sale's
+  and the whole refund goes through the picked method. Treasury gets the credited part as `room_folio`,
+  which reduces the guest receivable the room charge was booked to (S2-20); a reversal sends any rest
+  as its own cash refund under `pos_return_rest`, and `pos.return.completed` carries `refund_channel`
+  `room_folio` and the lines' `tax_amount` so the GL backstop books the same. The stay is found through the folio item carrying the sale's
   order id. Once the stay is checked out the refund goes through the chosen method, cash by default;
   a reversal whose stay closed before its treasury step records the cash it actually paid instead of
   `room_folio`, while a retried step that finds the credit its first attempt made keeps `room_folio`
@@ -194,6 +197,16 @@ integrated service, each step tracked on the `pos_reversals` row (steps JSON) an
    books the same refund GL. The write-off is sent only after the cash portion went through; a
    failure fails the step, and the retry books each portion once under its deterministic id.
    Reversals publish no GL backstop event, so nothing else books them.
+   The reversed amount splits by the tenders behind it (the payments netted for this reversal, or
+   for a full-scope reversal, which keeps its payment rows, what the order's completed payments
+   paid): real money goes back through the refund channel (cash, M-Pesa, card, room folio), customer
+   and exchange credit go back as `store_credit` (own id `"store-credit"` when split), a
+   complimentary part goes as channel `complimentary` (own id `"complimentary"`; treasury credits the
+   complimentary expense, no money moves; no tax when the sale was wholly complimentary), a loyalty
+   part goes with the money (treasury booked it as cash at the till), and the rest (on account, or
+   edit-added value never collected) goes as `offset_invoice` (fixed 2026-11-13; before, every full
+   void was written off against AR and non-money tenders were refunded as cash). The
+   `complimentary` channel needs the treasury-api release that adds it, so treasury ships first.
 4. `etims_credit_note` — when the sale was transmitted to KRA (`orders.IsFiscalized`), calls
    `RaiseReturnCreditNote` with the reversed lines, the sale's outlet and the order id; treasury keys the
    credit note on the reversal id, so a retry returns the same document. SKIPPED when the sale was never
@@ -379,6 +392,23 @@ X-API-Key: {INTERNAL_SERVICE_KEY}
 ```
 
 **Status:** ❌ Not yet implemented (requires hotel module — Sprint 3 + Sprint 6)
+
+### 2.2a Credit settlement sync to treasury AR (updated 2026-11-13)
+
+When a customer pays off a sale taken on account, `SettleCreditPayment` records the payment in POS and posts it to treasury with `POST /api/v1/s2s/{tenant}/ar/customers/{key}/payment`. The key is the customer's CRM contact id, else the phone, else `staff:<id>` for a staff credit sale; the phone also goes in `customer_identifier` as a fallback. On success I set `payment_data.treasury_synced_at` (plus `treasury_receipt_id` and `treasury_customer_key` when treasury returns a receipt), which takes the row out of the retry set for good.
+
+If that post fails, `CreditSettlementSyncReconciler` (`internal/modules/payments/credit_settlement_reconciler.go`) retries it every 2 minutes (one replica per period) with the same call. A row written in the last 2 minutes is left alone so the reconciler never races the live request. How a failure is handled depends on what treasury said:
+
+| Treasury answer | What the reconciler does |
+|---|---|
+| Network error, timeout or 5xx | Retries on the next tick. |
+| 400 `payment N exceeds outstanding debit X` | Terminal. Treasury already holds the money for that customer, so the same post is refused forever. I stamp `payment_data.treasury_sync_blocked` with `{reason: "exceeds_outstanding_debit", at, http_status: 400, detail}`, log one warning with the order number and payment id, and never post the row again. |
+| Any other 4xx | Sets `payment_data.last_sync_attempt_at` and waits 15 minutes before the next try. |
+| (no call) the order has no customer phone and no staff party | Terminal. Stamped `treasury_sync_blocked` with `reason: "no_customer_key"` and no `http_status`, logged once. |
+
+The candidate query skips any row carrying `treasury_synced_at`, `treasury_receipt_id` or `treasury_sync_blocked`. A blocked row is for the AR drift audit or a person to settle: check the customer's receipts in treasury (`GET /api/v1/{tenant}/ar/customers/{key}/receipts`), and if the matching receipt is there, set `treasury_synced_at` on the row by hand; if it is genuinely missing, record it in treasury and then set `treasury_synced_at`. Deleting `treasury_sync_blocked` puts the row back in the retry set.
+
+On 2026-11-13 I checked the eight boi-enterprises settlements that had been refused this way since August (orders 000278, 000304, 000187, 001252, 000228, 001976). Treasury held a matching receipt for every one, usually under a manual or backfill reference, which is why the post kept being refused.
 
 ### 2.3 Cash Drawer Close → Treasury Ledger
 

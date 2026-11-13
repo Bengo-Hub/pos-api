@@ -241,7 +241,7 @@ func TestRecordFolioPaymentRechecksTheCode(t *testing.T) {
 		SaveX(ctx)
 
 	req := hotelRoomRequest(t, http.MethodPost, tid, room.ID, nil)
-	_, _, _, perr := h.recordFolioPayment(req, tid, "acme", room, uuid.New(), "Jane", 100, tender, 0, uuid.Nil)
+	_, _, _, perr := h.recordFolioPayment(req, tid, "acme", room, uuid.New(), "Jane", 100, tender, 0, 0, uuid.Nil)
 	if !errors.Is(perr, errDeskCodeUsed) {
 		t.Fatalf("recordFolioPayment error = %v, want the code-used error", perr)
 	}

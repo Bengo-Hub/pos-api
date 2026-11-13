@@ -697,7 +697,8 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		tenantSlug := chi.URLParam(r, "tenantID")
 		// recordFolioPayment checks the code again before it writes anything; a code taken in the
 		// meantime records nothing for the payment, and the desk is told to take payment again.
-		if _, _, _, perr := h.recordFolioPayment(r, tid, tenantSlug, room, guest.ID, guest.GuestName, amount, upfront, amount, checkedInBy); perr != nil {
+		// No POS sale can be on the folio yet at check-in, so nothing clears the guest receivable.
+		if _, _, _, perr := h.recordFolioPayment(r, tid, tenantSlug, room, guest.ID, guest.GuestName, amount, upfront, amount, 0, checkedInBy); perr != nil {
 			paymentRecorded = false
 			paymentMessage = upfrontPaymentFailureMessage(perr)
 			h.log.Error("check-in: pay_upfront payment recording failed", zap.Error(perr))
