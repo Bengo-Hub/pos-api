@@ -16,6 +16,7 @@ import (
 	enttender "github.com/bengobox/pos-service/internal/ent/tender"
 	"github.com/bengobox/pos-service/internal/modules/inventory"
 	"github.com/bengobox/pos-service/internal/modules/orders"
+	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 )
 
@@ -236,7 +237,21 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 
 	glScheme := "credit"
 	glCredit := incrementalAmount
-	if settlement.scheme == "collectNow" {
+	if settlement.scheme == "roomCharge" {
+		// The extra goes on the folio of the stay the sale was charged to, exactly as the till's
+		// Charge to Room writes it (a source-marked folio line plus a completed room_charge
+		// payment), under the order lock, then the stay lock. Keyed on this edit, so it is written
+		// once. The GL posting below goes as selling scheme room_charge: treasury books Dr guest
+		// receivable (1430) / Cr revenue, and checkout clears it as POS share.
+		if err := payments.ChargeSaleEditToRoom(ctx, s.client, order, incrementalAmount, "sale_edit:"+editID.String(), settlement.tenderID); err != nil {
+			return err
+		}
+		if err := s.recomputePaidTotal(ctx, order.ID); err != nil {
+			return fmt.Errorf("recompute paid total: %w", err)
+		}
+		glScheme = payments.TenderRoomCharge
+		glCredit = 0
+	} else if settlement.scheme == "collectNow" {
 		// Collected immediately — record it as a REAL payment (mirrors payments.
 		// SettleCreditPayment's own creation shape) so paid_total/amount_due correctly show
 		// this portion as settled, and post GL as a plain payment (Dr Cash-equivalent / Cr
@@ -373,8 +388,8 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 
 // increaseSettlement is resolveIncreaseSettlement's resolved decision.
 type increaseSettlement struct {
-	scheme   string // "credit" | "collectNow"
-	method   string // tender type, only set when scheme == "collectNow"
+	scheme   string // "credit" | "collectNow" | "roomCharge"
+	method   string // tender type, set when scheme is "collectNow" or "roomCharge"
 	tenderID uuid.UUID
 	// noTenderFallback is true when scheme=="credit" was chosen only because no active
 	// tender matching the silent "cash" default could be found for this tenant — NOT because
@@ -395,6 +410,25 @@ type increaseSettlement struct {
 func (s *Service) resolveIncreaseSettlement(ctx context.Context, tenantID uuid.UUID, req EditSaleRequest, onAccount bool) (increaseSettlement, error) {
 	if req.IncreaseSettlement == "credit" {
 		return increaseSettlement{scheme: "credit"}, nil
+	}
+	if req.IncreaseSettlement == payments.TenderRoomCharge {
+		// Charge to Room (review M-5, owner decision 2026-11-14): only for a sale charged to a
+		// room whose stay is still open. Checked here, before any line is written, so a refusal
+		// leaves the sale as it was; ChargeSaleEditToRoom checks again under the locks.
+		stay, err := payments.RoomChargeStayOpen(ctx, s.client, tenantID, req.OrderID)
+		if err != nil {
+			return increaseSettlement{}, fmt.Errorf("find the sale's room stay: %w", err)
+		}
+		if stay == nil {
+			return increaseSettlement{}, payments.ErrRoomStayClosed
+		}
+		var tenderID uuid.UUID
+		if t, terr := s.client.Tender.Query().
+			Where(enttender.TenantID(tenantID), enttender.TypeEQ(payments.TenderRoomCharge), enttender.IsActive(true)).
+			First(ctx); terr == nil {
+			tenderID = t.ID
+		}
+		return increaseSettlement{scheme: "roomCharge", method: payments.TenderRoomCharge, tenderID: tenderID}, nil
 	}
 	method := req.IncreaseSettlement
 	explicit := method != ""
@@ -417,10 +451,10 @@ func (s *Service) resolveIncreaseSettlement(ctx context.Context, tenantID uuid.U
 	return increaseSettlement{scheme: "collectNow", method: method, tenderID: t.ID}, nil
 }
 
-// recomputePaidTotal is payments.Service.RecomputePaidTotal's logic, inlined here rather than
-// wiring a cross-package dependency for one small query+update (saleedit has no other reason to
-// depend on the payments package, and payments doesn't depend on saleedit either — keep it that
-// way). Sums completed, non-on_account payments and persists the total onto the order.
+// recomputePaidTotal is payments.Service.RecomputePaidTotal's logic, inlined here because
+// saleedit holds no payments.Service (it uses only the payments package's room charge helpers,
+// and payments never imports saleedit). Sums completed, non-on_account payments and persists the
+// total onto the order.
 func (s *Service) recomputePaidTotal(ctx context.Context, orderID uuid.UUID) error {
 	rows, err := s.client.POSPayment.Query().
 		Where(pospayment.OrderID(orderID), pospayment.Status("completed")).

@@ -388,8 +388,8 @@ func (h *PINAuthHandler) checkMaintenanceGate(w http.ResponseWriter, r *http.Req
 // ── POST /{tenant}/pos/auth/pin — validate PIN, return terminal JWT ────────────
 
 type pinLoginInput struct {
-	// UserID is deprecated: the public lists no longer hand out user ids, and pos-ui signs in
-	// by staff_id. Kept one release for older terminals; remove after that.
+	// UserID is no longer accepted (removed 2026-11-14, one release after pos-ui moved to
+	// staff_id). It is still read only to log a till that sends it, so stragglers are visible.
 	UserID string `json:"user_id"`
 	// StaffID is the opaque staff id the public staff and PIN profile lists return.
 	StaffID string `json:"staff_id"`
@@ -404,8 +404,15 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input pinLoginInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || (input.UserID == "" && input.StaffID == "") || input.PIN == "" {
-		jsonError(w, "user_id or staff_id, and pin, are required", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.StaffID == "" || input.PIN == "" {
+		if input.StaffID == "" && input.UserID != "" {
+			// An old till build still signing in by user id: it must reload to update.
+			h.log.Warn("pin login refused: user_id sign-in is no longer accepted, the till must reload",
+				zap.String("tenant_id", tid.String()))
+			jsonError(w, "This till is running an old version. Reload the page to update, then sign in again.", http.StatusBadRequest)
+			return
+		}
+		jsonError(w, "staff_id and pin are required", http.StatusBadRequest)
 		return
 	}
 
@@ -413,22 +420,12 @@ func (h *PINAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	who := []predicate.StaffMember{entstaff.TenantID(tid), entstaff.IsActive(true)}
-	if input.StaffID != "" {
-		staffID, perr := uuid.Parse(input.StaffID)
-		if perr != nil {
-			jsonError(w, "invalid staff_id", http.StatusBadRequest)
-			return
-		}
-		who = append(who, entstaff.ID(staffID))
-	} else {
-		userID, perr := uuid.Parse(input.UserID)
-		if perr != nil {
-			jsonError(w, "invalid user_id", http.StatusBadRequest)
-			return
-		}
-		who = append(who, entstaff.UserID(userID))
+	staffID, perr := uuid.Parse(input.StaffID)
+	if perr != nil {
+		jsonError(w, "invalid staff_id", http.StatusBadRequest)
+		return
 	}
+	who := []predicate.StaffMember{entstaff.TenantID(tid), entstaff.IsActive(true), entstaff.ID(staffID)}
 
 	member, err := h.client.StaffMember.Query().
 		Where(who...).

@@ -178,6 +178,10 @@ func allSalesOrderFilters(r *http.Request, client *ent.Client, tid uuid.UUID, lo
 		paymentStatusFilter = "due"
 	}
 	switch paymentStatusFilter {
+	case "owed":
+		// Every completed sale with money still owed (due, partial and overdue together): what the
+		// dashboard's Sales due card counts, so the card can open exactly that list.
+		filters = append(filters, posorder.Status(orders.StatusCompleted), paidBelowTotal())
 	case "paid", "partial", "due", "overdue":
 		filters = append(filters, posorder.StatusNotIn("refunded", "voided", "cancelled", "draft"))
 	case "refunded", "voided", "cancelled", "draft":
@@ -487,7 +491,7 @@ func (h *ReportPDFHandler) AllSalesDocument(w http.ResponseWriter, r *http.Reque
 		st := orders.ComputeSettlement(o, completedReturns)
 		// Exact payment-status match (see allSalesOrderFilters' doc comment) — the SQL predicate
 		// above only narrowed to a coarse candidate set for paid/partial/due/overdue.
-		if paymentStatusFilter != "" && st.PaymentStatus != paymentStatusFilter {
+		if !orders.PaymentStatusMatches(paymentStatusFilter, st.PaymentStatus) {
 			continue
 		}
 		paid := st.Collected

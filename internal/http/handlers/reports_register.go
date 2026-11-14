@@ -31,6 +31,12 @@ type registerDetailsResponse struct {
 	RefundByMethod  []paymentMethodRow `json:"refund_by_method"`
 	TotalPayment    float64            `json:"total_payment"`
 	CreditSales     float64            `json:"credit_sales"`
+	// SalesDue is what is still owed now on every committed sale dated up to `to` (not only
+	// this window's sales), with SalesDueAgeing splitting it by sale age as of `to`. Same
+	// figure as the dashboard summary's sales_due (openSalesDue).
+	SalesDue        float64            `json:"sales_due"`
+	SalesDueCount   int                `json:"sales_due_count"`
+	SalesDueAgeing  salesDueAgeing     `json:"sales_due_ageing"`
 	TotalExpense    float64            `json:"total_expense"`
 	OrderTax        float64            `json:"order_tax"`
 	ShippingTotal   float64            `json:"shipping_total"`
@@ -265,6 +271,20 @@ func (h *ReportsHandler) RegisterDetails(w http.ResponseWriter, r *http.Request)
 	sort.Slice(resp.ProductsByBrand, func(i, j int) bool {
 		return resp.ProductsByBrand[i].TotalAmount > resp.ProductsByBrand[j].TotalAmount
 	})
+
+	// Sales due and its ageing, outlet-scoped like the rest of this report. Best-effort: a query
+	// hiccup leaves them at 0 rather than failing the whole register report.
+	var dueScope []predicate.POSOrder
+	if oid := outletmw.RequestOutletScope(r); oid != nil {
+		dueScope = append(dueScope, posorder.OutletID(*oid))
+	}
+	if due, derr := openSalesDue(r.Context(), h.db, h.log, tid, dueScope, to); derr == nil {
+		resp.SalesDue = due.Amount
+		resp.SalesDueCount = due.Count
+		resp.SalesDueAgeing = due.Ageing
+	} else {
+		h.log.Warn("register-details sales due query failed", zap.String("tenant_id", tid.String()), zap.Error(derr))
+	}
 
 	resp.GrandTotal = resp.TotalSales + resp.ShippingTotal
 	jsonOK(w, resp)

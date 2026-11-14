@@ -603,8 +603,8 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 	}
 
 	// The portions go in a fixed order (money, store credit, complimentary, AR write-off), each only
-	// after the one before it went through. The first goes as pos_return (treasury raises the one
-	// credit-note document for it), the rest as ReversalRestReferenceType. A single portion keeps the
+	// after the one before it went through. The money portion goes as pos_return (treasury raises the
+	// one credit-note document for it), every other portion as ReversalRestReferenceType. A single portion keeps the
 	// reversal id; a split gives each portion its own deterministic id ("cash", "store-credit",
 	// "complimentary", "ar"), so a retry books each once. Tax and cost follow each portion's share of
 	// the amount and the last portion takes the rounding rest. The complimentary part of a wholly
@@ -650,13 +650,19 @@ func (s *Service) stepTreasuryGL(ctx context.Context, rev *ent.POSReversal, tena
 	if lastTaxed >= 0 {
 		portions[lastTaxed].tax = money.Round2(portions[lastTaxed].tax + money.Round2(rev.TaxAmount*money.Round2(taxedAmt)/rev.Amount) - sumTax)
 	}
-	for i, p := range portions {
-		suffix, refType := p.suffix, "pos_return"
+	// The credit-note document goes with the first portion that gave the customer something real
+	// back: money, or an on-account debt reduced (owner decision 2026-11-14, review L-3). That
+	// portion goes as pos_return; every other portion goes as the rest type, which treasury books
+	// the same way but raises no credit-note document for, so a complimentary or store-credit-only
+	// void gets no refund document.
+	docTaken := false
+	for _, p := range portions {
+		suffix, refType := p.suffix, ReversalRestReferenceType
 		if len(portions) == 1 {
 			suffix = ""
 		}
-		if i > 0 {
-			refType = ReversalRestReferenceType
+		if !docTaken && (p.channel == "" || p.channel == "offset_invoice") {
+			refType, docTaken = "pos_return", true
 		}
 		var err error
 		if p.channel == "" {

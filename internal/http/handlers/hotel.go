@@ -698,7 +698,7 @@ func (h *HotelHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		// recordFolioPayment checks the code again before it writes anything; a code taken in the
 		// meantime records nothing for the payment, and the desk is told to take payment again.
 		// No POS sale can be on the folio yet at check-in, so nothing clears the guest receivable.
-		if _, _, _, perr := h.recordFolioPayment(r, tid, tenantSlug, room, guest.ID, guest.GuestName, amount, upfront, amount, 0, checkedInBy); perr != nil {
+		if _, _, _, perr := h.recordFolioPayment(r, h.client, tid, tenantSlug, room, guest.ID, guest.GuestName, amount, upfront, amount, 0, checkedInBy); perr != nil {
 			paymentRecorded = false
 			paymentMessage = upfrontPaymentFailureMessage(perr)
 			h.log.Error("check-in: pay_upfront payment recording failed", zap.Error(perr))
@@ -791,61 +791,34 @@ func (h *HotelHandler) CheckOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	totalFolio := 0.0
+	currency := "KES"
 	if summary != nil {
 		totalFolio = summary.ChargesTotal
+		currency = summary.Currency
 		if summary.Balance > 0.009 {
-			respondJSON(w, http.StatusConflict, map[string]any{
-				"error":         "outstanding_balance",
-				"message":       "Settle the outstanding bill before checking the guest out.",
-				"balance":       summary.Balance,
-				"charges_total": summary.ChargesTotal,
-				"paid_total":    summary.PaidTotal,
-				"currency":      summary.Currency,
-			})
+			writeFolioOwed(w, summary.Balance, currency)
 			return
 		}
 	}
 
+	// checkOutStay takes the stay lock, reads the balance again under it (a room charge or a
+	// folio line committed since the summary above is counted, review R-5) and keeps the
+	// conditional UPDATE: a double-click or a concurrent SettleFolio(checkout:true) checks the
+	// guest out once, so the cleaning and housekeeping side effects below fire once.
 	now := time.Now()
 	checkedOutBy, _ := uuid.Parse(input.CheckedBy)
-	tx, err := h.client.Tx(r.Context())
+	owed, done, err := h.checkOutStay(r.Context(), tid, guest.ID, checkedOutBy, now)
 	if err != nil {
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	// Mark guest as checked out — conditioned on the guest STILL being active, not just when read
-	// above (same double-submit/two-terminal race as CheckIn's room-status flip). Without this, a
-	// double-click or a concurrent SettleFolio(checkout:true) call racing this endpoint could both
-	// pass the earlier lookup and both fire the "mark room cleaning + create housekeeping task"
-	// side effects a second time.
-	affected, err := tx.RoomGuest.Update().
-		Where(entroomguest.ID(guest.ID), entroomguest.StatusEQ(entroomguest.StatusActive)).
-		SetStatus(entroomguest.StatusCheckedOut).
-		SetCheckedOutBy(checkedOutBy).
-		SetCheckedOutAt(now).
-		Save(r.Context())
-	if err != nil {
-		_ = tx.Rollback()
+		h.log.Error("check-out failed", zap.String("guest_id", guest.ID.String()), zap.Error(err))
 		jsonError(w, "failed to check out guest", http.StatusInternalServerError)
 		return
 	}
-	if affected == 0 {
-		_ = tx.Rollback()
+	if owed > 0.009 {
+		writeFolioOwed(w, owed, currency)
+		return
+	}
+	if !done {
 		jsonError(w, "guest was already checked out", http.StatusConflict)
-		return
-	}
-
-	// Mark room as cleaning
-	_, err = tx.Room.UpdateOneID(roomID).SetStatus(entroom.StatusCleaning).Save(r.Context())
-	if err != nil {
-		_ = tx.Rollback()
-		jsonError(w, "failed to update room status", http.StatusInternalServerError)
-		return
-	}
-
-	if err := tx.Commit(); err != nil {
-		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
@@ -1813,26 +1786,24 @@ func (h *HotelHandler) BatchCheckout(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Conditioned on the guest STILL being active (same race guarded in single-room CheckOut)
-		// and the errors are no longer discarded — previously a failed update here still reported
-		// the room as successfully checked out to the caller, while the guest stayed active and
-		// the room stayed occupied in the database with no indication anything went wrong.
-		affected, uerr := h.client.RoomGuest.Update().
-			Where(entroomguest.ID(guest.ID), entroomguest.StatusEQ(entroomguest.StatusActive)).
-			SetStatus(entroomguest.StatusCheckedOut).
-			SetCheckedOutBy(checkedOutBy).
-			SetCheckedOutAt(now).
-			Save(ctx)
+		// The same locked checkout as single-room CheckOut: the balance is read again under the
+		// stay lock and the conditional UPDATE checks the guest out once (review R-5).
+		owed, done, uerr := h.checkOutStay(ctx, tid, guest.ID, checkedOutBy, now)
 		if uerr != nil {
+			h.log.Error("batch check-out failed", zap.String("guest_id", guest.ID.String()), zap.Error(uerr))
 			results = append(results, batchResult{RoomID: ridStr, GuestName: guest.GuestName, Error: "failed to check out guest"})
 			continue
 		}
-		if affected == 0 {
-			results = append(results, batchResult{RoomID: ridStr, GuestName: guest.GuestName, Error: "guest was already checked out"})
+		if owed > 0.009 {
+			currency := "KES"
+			if summary != nil {
+				currency = summary.Currency
+			}
+			results = append(results, batchResult{RoomID: ridStr, GuestName: guest.GuestName, TotalFolio: totalFolio, Error: folioOwedMessage(owed, currency)})
 			continue
 		}
-		if _, uerr := h.client.Room.UpdateOneID(roomID).SetStatus(entroom.StatusCleaning).Save(ctx); uerr != nil {
-			results = append(results, batchResult{RoomID: ridStr, GuestName: guest.GuestName, Error: "guest checked out, but failed to update room status"})
+		if !done {
+			results = append(results, batchResult{RoomID: ridStr, GuestName: guest.GuestName, Error: "guest was already checked out"})
 			continue
 		}
 

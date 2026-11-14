@@ -107,6 +107,7 @@ func TestFullVoidRefundsTheRealTendersThroughTheRefundChannel(t *testing.T) {
 		},
 		{
 			name: "credit sale", onAccount: true, pays: []pay{{payments.TenderOnAccount, 300, 0}},
+			// An on-account debt reduced keeps the credit-note document: pos_return (owner, L-3).
 			want: []wantPortion{{"offset_invoice", "pos_return", "", 300, 60}},
 		},
 		{
@@ -171,7 +172,8 @@ func TestReversalNeverRefundsNonMoneyTendersAsCash(t *testing.T) {
 			// Treasury booked a wholly complimentary sale without VAT, so its reversal carries none.
 			name: "full: wholly complimentary", scope: "full", qty: 3,
 			pays: []pay{{payments.TenderComplimentary, 300, 0}},
-			want: []wantPortion{{"complimentary", "pos_return", "", 300, 0}},
+			// No money came in, so no credit-note document: the rest type (L-3).
+			want: []wantPortion{{"complimentary", ReversalRestReferenceType, "", 300, 0}},
 		},
 		{
 			// Treasury has no loyalty account and booked the loyalty part as cash at the till, so it
@@ -198,7 +200,7 @@ func TestReversalNeverRefundsNonMoneyTendersAsCash(t *testing.T) {
 		{
 			name: "full: customer credit 300", scope: "full", qty: 3,
 			pays: []pay{{payments.TenderCustomerCredit, 300, 0}},
-			want: []wantPortion{{"store_credit", "pos_return", "", 300, 60}},
+			want: []wantPortion{{"store_credit", ReversalRestReferenceType, "", 300, 60}},
 		},
 		{
 			name: "full: cash 100 + exchange credit 100 + on account 100", scope: "full", qty: 3, onAccount: true,

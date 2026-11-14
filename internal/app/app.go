@@ -82,6 +82,7 @@ type App struct {
 	returnsSvc                     *returns.Service
 	saleFinalizedReconciler        *paymentmodule.SaleFinalizedReconciler
 	treasuryIntentReconciler       *paymentmodule.TreasuryIntentReconciler
+	folioIntentRetry               *paymentmodule.Service // desk folio intents that failed (S2-20 M-10)
 	kdsHub                         *kdsmodule.Hub
 	printHub                       *printing.Hub
 	notifHub                       *notifmodule.Hub
@@ -916,6 +917,7 @@ func New(ctx context.Context) (*App, error) {
 		returnsSvc:                     returnsSvc,
 		saleFinalizedReconciler:        saleFinalizedReconciler,
 		treasuryIntentReconciler:       treasuryIntentReconciler,
+		folioIntentRetry:               paymentSvc,
 		kdsHub:                         kdsHub,
 		printHub:                       printHub,
 		notifHub:                       notifHub,
@@ -965,6 +967,10 @@ func (a *App) Run(ctx context.Context) error {
 	// (see pos-sale-close-async-fanout.md follow-up) for any payment left without one every 2 min
 	if a.treasuryIntentReconciler != nil {
 		go a.treasuryIntentReconciler.Start(ctx)
+	}
+	// Hotel folio payments taken at the desk whose treasury intent failed (S2-20 M-10), every 5 min.
+	if a.folioIntentRetry != nil {
+		go a.folioIntentRetry.StartFolioIntentRetry(ctx)
 	}
 
 	// Start credit-settlement sync reconciler — retries a failed treasury AR receipt for a

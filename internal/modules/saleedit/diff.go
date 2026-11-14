@@ -44,6 +44,10 @@ type EditSaleRequest struct {
 	//                    how the original sale was actually paid).
 	//   "credit"      — explicitly bill the increment to the customer's account regardless of
 	//                    the original tender (requires an identifiable customer).
+	//   "room_charge" — add the increment to the folio of the room stay the sale was charged
+	//                    to, as the till's Charge to Room does. Only while that stay is open
+	//                    (GET order room_stay_open); otherwise refused with
+	//                    payments.ErrRoomStayClosed (HTTP 409).
 	//   any other value (a tender type, e.g. "cash"/"mpesa_manual"/"card_manual") — collect the
 	//    increment immediately against that tender instead of extending credit. This is the
 	//    "collect the extra amount immediately" alternative the edit-sale error has always

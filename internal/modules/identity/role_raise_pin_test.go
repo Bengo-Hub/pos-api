@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/enttest"
 	"github.com/bengobox/pos-service/internal/ent/posuserroleassignment"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
+	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/user"
 )
 
@@ -425,5 +426,40 @@ func TestRevokeKeepsSSOOnlyAssignmentsElsewhere(t *testing.T) {
 	revoke(tA)
 	if assignmentsIn(tA) != 0 || userExists() {
 		t.Fatal("once nothing refers to the person, the User row goes")
+	}
+}
+
+// A tenant whose only outlet has no use case still gets the staff row from a PIN set: a NULL use
+// case counts as a selling outlet, not as a logistics or warehouse site (it used to fall out of
+// the SQL "<>" filter, so such tenants never got staff from auth events).
+func TestPINSetFindsAnOutletWithNoUseCase(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:posnulluse_%s?mode=memory&cache=shared", uuid.NewString()))
+	t.Cleanup(func() { _ = client.Close() })
+	ctx := context.Background()
+	h := &AuthEventHandler{client: client, logger: zap.NewNop()}
+	now := time.Now()
+	tid := uuid.New()
+	client.Tenant.Create().SetID(tid).SetName("nulluse").SetSlug("nulluse").SetStatus("active").
+		SetSyncStatus("synced").SetTimezone("Africa/Nairobi").SetCreatedAt(now).SetUpdatedAt(now).ExecX(ctx)
+	hq := client.Outlet.Create().SetTenantID(tid).SetTenantSlug("nulluse").SetCode("HQ").SetName("HQ").SetIsHq(true).SaveX(ctx)
+	// A warehouse is never a staff home outlet.
+	client.Outlet.Create().SetTenantID(tid).SetTenantSlug("nulluse").SetCode("WH").SetName("Store").SetUseCase("warehouse").ExecX(ctx)
+
+	person := uuid.New()
+	evt := sharedevents.NewEvent("pin_set", "auth.user", person, tid, map[string]any{
+		"user_id": person.String(), "service": "pos", "pin_hash": "h", "pin": "4821", "roles": []any{"cashier"},
+	})
+	if err := h.handleUserPINSet(ctx, evt); err != nil {
+		t.Fatalf("pin_set with an outlet that has no use case: %v", err)
+	}
+	m, err := client.StaffMember.Query().Where(staffmember.TenantID(tid), staffmember.UserID(person)).Only(ctx)
+	if err != nil {
+		t.Fatalf("no staff row created: %v", err)
+	}
+	links := client.StaffOutlet.Query().Where(staffoutlet.StaffMemberID(m.ID)).AllX(ctx)
+	for _, l := range links {
+		if l.OutletID != hq.ID {
+			t.Errorf("staff placed at %s, want only the HQ outlet %s", l.OutletID, hq.ID)
+		}
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
+	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/roomfolioitem"
 	"github.com/bengobox/pos-service/internal/ent/roomguest"
 )
@@ -119,9 +120,21 @@ func lockOrderRow(ctx context.Context, tx *ent.Tx, tenantID, orderID uuid.UUID) 
 // lockActiveGuest loads the room's checked-in guest under a row lock for the rest of tx, so a
 // checkout committing at the same moment cannot leave the charge on a closed stay (review M-2).
 func lockActiveGuest(ctx context.Context, tx *ent.Tx, tenantID, roomID uuid.UUID) (*ent.RoomGuest, error) {
+	return lockStay(ctx, tx, roomguest.TenantID(tenantID), roomguest.RoomID(roomID))
+}
+
+// LockActiveStay loads the checked-in stay guestID under a row lock for the rest of tx; a stay
+// that is no longer active is not found. Every path that adds to a folio, takes a folio payment or
+// checks a guest out holds this lock, so checkout reads a balance nothing can change under it
+// (review R-5, M-1). Lock order everywhere: the order row first (when there is one), then the
+// stay, never the reverse.
+func LockActiveStay(ctx context.Context, tx *ent.Tx, tenantID, guestID uuid.UUID) (*ent.RoomGuest, error) {
+	return lockStay(ctx, tx, roomguest.TenantID(tenantID), roomguest.ID(guestID))
+}
+
+func lockStay(ctx context.Context, tx *ent.Tx, where ...predicate.RoomGuest) (*ent.RoomGuest, error) {
 	q := func() *ent.RoomGuestQuery {
-		return tx.RoomGuest.Query().
-			Where(roomguest.TenantID(tenantID), roomguest.RoomID(roomID), roomguest.StatusEQ(roomguest.StatusActive))
+		return tx.RoomGuest.Query().Where(append(where, roomguest.StatusEQ(roomguest.StatusActive))...)
 	}
 	g, err := q().ForUpdate().Only(ctx)
 	if unsupportedLock(err) {
@@ -203,46 +216,9 @@ func (s *Service) recordRoomCharge(ctx context.Context, order *ent.POSOrder, req
 		return rollback(fmt.Errorf("payments: find the room's guest: %w", err))
 	}
 
-	createdBy := order.UserID
-	if order.ServedByUserID != nil && *order.ServedByUserID != uuid.Nil {
-		createdBy = *order.ServedByUserID
-	}
-	lineMeta := map[string]any{"source": roomChargeFolioSource}
-	if req.RoomChargeKey != "" {
-		lineMeta[roomChargeKeyMeta] = req.RoomChargeKey
-	}
-	item, err := tx.RoomFolioItem.Create().
-		SetTenantID(req.TenantID).
-		SetRoomID(guest.RoomID).
-		SetRoomGuestID(guest.ID).
-		SetDescription(fmt.Sprintf("POS bill %s", order.OrderNumber)).
-		SetAmount(amount).
-		SetCurrency(currency).
-		SetChargeType(roomfolioitem.ChargeTypeRestaurant).
-		SetCreatedBy(createdBy).
-		SetPosOrderID(order.ID).
-		SetMetadata(lineMeta).
-		Save(ctx)
+	item, err := writeRoomCharge(ctx, tx, order, guest, amount, currency, req.RoomChargeKey, req.TenderID, fmt.Sprintf("POS bill %s", order.OrderNumber), nil)
 	if err != nil {
-		return rollback(fmt.Errorf("payments: post the room folio line: %w", err))
-	}
-	// external_reference is the order number, as for an on-account sale, so the treasury intent
-	// reconciler never mistakes the row for a cash payment still waiting for its intent.
-	if _, err := tx.POSPayment.Create().
-		SetOrderID(order.ID).
-		SetTenderID(req.TenderID).
-		SetAmount(amount).
-		SetCurrency(currency).
-		SetStatus(StatusCompleted).
-		SetPaymentData(map[string]any{
-			"method":        TenderRoomCharge,
-			"room_id":       guest.RoomID.String(),
-			"room_guest_id": guest.ID.String(),
-			"folio_item_id": item.ID.String(),
-		}).
-		SetNillableExternalReference(nilIfEmpty(order.OrderNumber)).
-		Save(ctx); err != nil {
-		return rollback(fmt.Errorf("payments: record room charge payment: %w", err))
+		return rollback(err)
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("payments: commit room charge: %w", err)
@@ -263,4 +239,127 @@ func (s *Service) recordRoomCharge(ctx context.Context, order *ent.POSOrder, req
 		}
 	}
 	return &CreateIntentResult{IsCash: true}, nil
+}
+
+// writeRoomCharge writes, in tx, one till room charge: the folio line on the guest's stay (charge
+// type restaurant, the order id and the source marker, so checkout clears it from the guest
+// receivable) and the completed room_charge payment that settles that part of the order. key is
+// the request's idempotency key (findRoomCharge), extra is merged into the payment's data. The
+// caller holds the order and stay locks.
+func writeRoomCharge(ctx context.Context, tx *ent.Tx, order *ent.POSOrder, guest *ent.RoomGuest, amount float64, currency, key string, tenderID uuid.UUID, description string, extra map[string]any) (*ent.RoomFolioItem, error) {
+	createdBy := order.UserID
+	if order.ServedByUserID != nil && *order.ServedByUserID != uuid.Nil {
+		createdBy = *order.ServedByUserID
+	}
+	lineMeta := map[string]any{"source": roomChargeFolioSource}
+	if key != "" {
+		lineMeta[roomChargeKeyMeta] = key
+	}
+	item, err := tx.RoomFolioItem.Create().
+		SetTenantID(order.TenantID).
+		SetRoomID(guest.RoomID).
+		SetRoomGuestID(guest.ID).
+		SetDescription(description).
+		SetAmount(amount).
+		SetCurrency(currency).
+		SetChargeType(roomfolioitem.ChargeTypeRestaurant).
+		SetCreatedBy(createdBy).
+		SetPosOrderID(order.ID).
+		SetMetadata(lineMeta).
+		Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("payments: post the room folio line: %w", err)
+	}
+	data := map[string]any{
+		"method":        TenderRoomCharge,
+		"room_id":       guest.RoomID.String(),
+		"room_guest_id": guest.ID.String(),
+		"folio_item_id": item.ID.String(),
+	}
+	for k, v := range extra {
+		data[k] = v
+	}
+	// external_reference is the order number, as for an on-account sale, so the treasury intent
+	// reconciler never mistakes the row for a cash payment still waiting for its intent.
+	if _, err := tx.POSPayment.Create().
+		SetOrderID(order.ID).
+		SetTenderID(tenderID).
+		SetAmount(amount).
+		SetCurrency(currency).
+		SetStatus(StatusCompleted).
+		SetPaymentData(data).
+		SetNillableExternalReference(nilIfEmpty(order.OrderNumber)).
+		Save(ctx); err != nil {
+		return nil, fmt.Errorf("payments: record room charge payment: %w", err)
+	}
+	return item, nil
+}
+
+// ErrRoomStayClosed refuses Charge to Room for a sale edit's extra amount when the sale was not
+// charged to a room or its stay is already checked out (owner decision 2026-11-14). The HTTP layer
+// answers 409 with this message; collect now and credit stay available.
+var ErrRoomStayClosed = errors.New("This sale was not charged to a room that is still occupied, so the extra amount cannot go on the folio. Collect it now or put it on credit.")
+
+// RoomChargeStayOpen returns the open stay a sale was charged to, or nil when the sale has no
+// completed room charge or its stay is over. Edit Sale offers Charge to Room for an increase only
+// then. A lookup failure is an error.
+func RoomChargeStayOpen(ctx context.Context, client *ent.Client, tenantID, orderID uuid.UUID) (*ent.RoomGuest, error) {
+	charged, err := hasCompletedTender(ctx, client.POSPayment, orderID, TenderRoomCharge)
+	if err != nil || !charged {
+		return nil, err
+	}
+	return OpenRoomStayForOrder(ctx, client, tenantID, orderID)
+}
+
+// ChargeSaleEditToRoom puts a sale edit's extra amount on the folio of the stay the sale was
+// charged to, the same way the till's Charge to Room does (writeRoomCharge): a source-marked folio
+// line, so checkout clears it from the guest receivable as POS share, and a completed room_charge
+// payment on the order. It runs in one transaction under the order lock, then the stay lock. key
+// makes it idempotent: a retry with the same key writes nothing. The ledger side is the caller's
+// sale-edit GL posting with selling scheme room_charge (Dr guest receivable). A sale with no open
+// room stay is refused with ErrRoomStayClosed.
+func ChargeSaleEditToRoom(ctx context.Context, client *ent.Client, order *ent.POSOrder, amount float64, key string, tenderID uuid.UUID) error {
+	if amount <= 0.009 {
+		return nil
+	}
+	stay, err := RoomChargeStayOpen(ctx, client, order.TenantID, order.ID)
+	if err != nil {
+		return fmt.Errorf("payments: find the sale's room stay: %w", err)
+	}
+	if stay == nil {
+		return ErrRoomStayClosed
+	}
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("payments: start transaction: %w", err)
+	}
+	rollback := func(e error) error {
+		_ = tx.Rollback()
+		return e
+	}
+	if err := lockOrderRow(ctx, tx, order.TenantID, order.ID); err != nil {
+		return rollback(fmt.Errorf("payments: lock order: %w", err))
+	}
+	guest, err := LockActiveStay(ctx, tx, order.TenantID, stay.ID)
+	if ent.IsNotFound(err) {
+		return rollback(ErrRoomStayClosed)
+	}
+	if err != nil {
+		return rollback(fmt.Errorf("payments: lock the room stay: %w", err))
+	}
+	prior, err := findRoomCharge(ctx, tx.RoomFolioItem, RecordPaymentRequest{TenantID: order.TenantID, OrderID: order.ID, RoomChargeKey: key})
+	if err != nil {
+		return rollback(fmt.Errorf("payments: check room charge: %w", err))
+	}
+	if prior != nil {
+		return rollback(nil)
+	}
+	desc := fmt.Sprintf("POS bill %s (edit)", order.OrderNumber)
+	if _, err := writeRoomCharge(ctx, tx, order, guest, amount, order.Currency, key, tenderID, desc, map[string]any{"sale_edit_increase": true}); err != nil {
+		return rollback(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("payments: commit room charge: %w", err)
+	}
+	return nil
 }

@@ -393,7 +393,7 @@ func (h *POSOrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	matched := make([]orderListItem, 0, len(candidates))
 	for _, it := range h.enrichOrderList(r.Context(), tid, candidates) {
-		if it.PaymentStatus == paymentStatusFilter {
+		if orders.PaymentStatusMatches(paymentStatusFilter, it.PaymentStatus) {
 			matched = append(matched, it)
 		}
 	}
@@ -541,6 +541,11 @@ type orderListItem struct {
 	// does NOT set this — Edit Sale explicitly still allows repeat partial corrections. Lets
 	// pos-ui disable Edit Sale only for a row that would genuinely be refused.
 	HasFullReversal bool `json:"has_full_reversal"`
+	// RoomStayOpen is set on the single-order read when the sale was charged to a room whose stay
+	// is still open (payments.RoomChargeStayOpen); Edit Sale may then offer increase_settlement
+	// "room_charge". RoomNumber is that stay's room. Not filled on list reads.
+	RoomStayOpen bool   `json:"room_stay_open,omitempty"`
+	RoomNumber   string `json:"room_number,omitempty"`
 }
 
 // returnAgg is the per-order sell-return rollup. completedTotal is the subset of total that has
@@ -679,6 +684,18 @@ func (h *POSOrderHandler) enrichSingleOrder(ctx context.Context, tenantID uuid.U
 		item.ReturnCount = retAgg.count
 		item.ReturnTotal = retAgg.total
 		item.ReturnStatus = retAgg.status
+	}
+	if _, ok := methods[payments.TenderRoomCharge]; ok {
+		// Display hint only: Edit Sale checks the stay again before it charges the room.
+		stay, serr := payments.RoomChargeStayOpen(ctx, h.client, tenantID, order.ID)
+		if serr != nil {
+			h.log.Warn("get order: room stay lookup failed", zap.String("order_id", order.ID.String()), zap.Error(serr))
+		} else if stay != nil {
+			item.RoomStayOpen = true
+			if room, rerr := h.client.Room.Get(ctx, stay.RoomID); rerr == nil {
+				item.RoomNumber = room.RoomNumber
+			}
+		}
 	}
 	return item
 }

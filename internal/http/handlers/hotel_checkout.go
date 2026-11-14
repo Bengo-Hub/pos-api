@@ -74,18 +74,23 @@ func (h *HotelHandler) loadFolioSummary(r *http.Request, tid, roomID uuid.UUID) 
 	if err != nil {
 		return nil, nil // no active guest
 	}
+	return h.folioSummaryFor(r.Context(), h.client, tid, roomID, guest)
+}
 
-	items, err := h.client.RoomFolioItem.Query().
+// folioSummaryFor builds the bill for guest from db (the plain client, or a transaction's client
+// so SettleFolio can read the payment it has not committed yet).
+func (h *HotelHandler) folioSummaryFor(ctx context.Context, db *ent.Client, tid, roomID uuid.UUID, guest *ent.RoomGuest) (*folioSummaryResponse, error) {
+	items, err := db.RoomFolioItem.Query().
 		Where(entroomfolioitem.TenantID(tid), entroomfolioitem.RoomGuestID(guest.ID)).
 		Order(ent.Desc(entroomfolioitem.FieldCreatedAt)).
-		All(r.Context())
+		All(ctx)
 	if err != nil {
 		return nil, err
 	}
-	folioPays, err := h.client.RoomFolioPayment.Query().
+	folioPays, err := db.RoomFolioPayment.Query().
 		Where(entroomfoliopayment.TenantID(tid), entroomfoliopayment.RoomGuestID(guest.ID)).
 		Order(ent.Desc(entroomfoliopayment.FieldCreatedAt)).
-		All(r.Context())
+		All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +123,7 @@ func (h *HotelHandler) loadFolioSummary(r *http.Request, tid, roomID uuid.UUID) 
 	currency := "KES"
 	rate := 0.0
 	roomNumber := ""
-	if room, rerr := h.client.Room.Get(r.Context(), roomID); rerr == nil {
+	if room, rerr := db.Room.Get(ctx, roomID); rerr == nil {
 		rate = room.RatePerNight
 		roomNumber = room.RoomNumber
 		if room.Currency != "" {
@@ -253,12 +258,12 @@ func deskCodeUsedError(codeMethod, ref string) error {
 // recheckDeskCode runs the duplicate check again right before a desk payment is written, which
 // closes most of the window between checkDeskTender and the write (the pay upfront check-in runs
 // the CRM link and the check-in transaction in between). Like the till's check it is not a lock.
-func (h *HotelHandler) recheckDeskCode(ctx context.Context, tid uuid.UUID, tender deskTender) error {
+func (h *HotelHandler) recheckDeskCode(ctx context.Context, db *ent.Client, tid uuid.UUID, tender deskTender) error {
 	codeMethod := deskCodeMethod(tender.Method)
 	if codeMethod == "" || tender.Reference == "" {
 		return nil
 	}
-	used, err := payments.ManualCodeUsed(ctx, h.client, tid, codeMethod, tender.Reference)
+	used, err := payments.ManualCodeUsed(ctx, db, tid, codeMethod, tender.Reference)
 	if err != nil {
 		return fmt.Errorf("check the payment code: %w", err)
 	}
@@ -347,25 +352,59 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 		status = "completed"
 	}
 
+	// One transaction under the stay lock (review M-1): the split below reads the folio, and the
+	// payment row it writes is the next payment's input, so two payments taken at the same moment
+	// (a double submit, or two desks) are serialized and never both claim the POS share. A room
+	// charge or checkout on the same stay waits for this to commit. Lock order: stay only, no
+	// order row is taken here.
+	ctx := r.Context()
+	tx, err := h.client.Tx(ctx)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	rollback := func() { _ = tx.Rollback() }
+	guest, err = payments.LockActiveStay(ctx, tx, tid, guest.ID)
+	if err != nil {
+		rollback()
+		if ent.IsNotFound(err) {
+			jsonError(w, "no active guest for this room", http.StatusNotFound)
+			return
+		}
+		h.log.Error("hotel folio: lock stay failed", zap.String("room_id", roomID.String()), zap.Error(err))
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	// GL split of this payment (treasury's PostPaymentToLedgerItemized): the share that clears POS
 	// sales already charged to the room (pos_charge_amount, booked to the guest receivable at the
 	// till since S2-20, so it must not be revenue again), then the room-vs-ancillary split of the
-	// rest. See folioPaymentSplit.
-	var roomRevenueAmount, posChargeAmount float64
-	if folioItems, ferr := h.client.RoomFolioItem.Query().
+	// rest. Pending payments are read too: their POS share is reserved (folioPaymentSplit).
+	folioItems, err := tx.RoomFolioItem.Query().
 		Where(entroomfolioitem.TenantID(tid), entroomfolioitem.RoomGuestID(guest.ID)).
-		All(r.Context()); ferr == nil {
-		folioPays, _ := h.client.RoomFolioPayment.Query().
-			Where(entroomfoliopayment.TenantID(tid), entroomfoliopayment.RoomGuestID(guest.ID), entroomfoliopayment.Status("completed")).
-			All(r.Context())
-		posChargeAmount, roomRevenueAmount = folioPaymentSplit(folioItems, folioPays, input.Amount)
+		All(ctx)
+	if err != nil {
+		rollback()
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
 	}
+	folioPays, err := tx.RoomFolioPayment.Query().
+		Where(entroomfoliopayment.TenantID(tid), entroomfoliopayment.RoomGuestID(guest.ID),
+			entroomfoliopayment.StatusIn("completed", "pending")).
+		All(ctx)
+	if err != nil {
+		rollback()
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	posChargeAmount, roomRevenueAmount := folioPaymentSplit(folioItems, folioPays, input.Amount)
 
 	// Capture in treasury (immediate-settle for cash/card; pending intent for online gateways)
 	// and in the local payment ledger — shared with CheckIn's pay_upfront path.
 	recordedBy, _ := uuid.Parse(r.Header.Get("X-User-ID"))
-	intentID, initiateURL, _, perr := h.recordFolioPayment(r, tid, tenantSlug, room, guest.ID, guest.GuestName, input.Amount, tender, roomRevenueAmount, posChargeAmount, recordedBy)
+	intentID, initiateURL, _, perr := h.recordFolioPayment(r, tx.Client(), tid, tenantSlug, room, guest.ID, guest.GuestName, input.Amount, tender, roomRevenueAmount, posChargeAmount, recordedBy)
 	if perr != nil {
+		rollback()
 		if errors.Is(perr, errDeskCodeUsed) {
 			jsonError(w, perr.Error(), http.StatusConflict)
 			return
@@ -380,40 +419,53 @@ func (h *HotelHandler) SettleFolio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summary, _ := h.loadFolioSummary(r, tid, roomID)
-
-	// Auto-checkout when settled in full and requested.
+	// Auto-checkout when requested and the payment cleared the folio: under the same stay lock,
+	// after the payment above, with the balance read again in this transaction (review R-5). A
+	// folio that still owes anything stays checked in and the payment is kept.
 	checkedOut := false
-	if input.Checkout && immediate && summary != nil && summary.Balance <= 0.009 {
-		now := time.Now()
-		// Conditioned on the guest STILL being active — same double-submit/concurrent-CheckOut
-		// race guarded in CheckOut itself (hotel.go). affected==0 means another request already
-		// checked this guest out; skip the room-status flip and housekeeping task below rather
-		// than firing them a second time.
-		affected, uerr := h.client.RoomGuest.Update().
-			Where(entroomguest.ID(guest.ID), entroomguest.StatusEQ(entroomguest.StatusActive)).
-			SetStatus(entroomguest.StatusCheckedOut).
-			SetNillableCheckedOutBy(&recordedBy).
-			SetCheckedOutAt(now).Save(r.Context())
-		if uerr == nil && affected > 0 {
-			_, _ = h.client.Room.UpdateOneID(roomID).SetStatus(entroom.StatusCleaning).Save(r.Context())
-			checkedOut = true
-			if h.publisher != nil {
-				_ = h.publisher.PublishHotelCheckOut(r.Context(), tid, withGuestRecipient(map[string]any{
-					"room_id": roomID, "guest_id": guest.ID,
-					"total_folio": summary.ChargesTotal, "checked_out_at": now,
-				}, guest, guest.GuestName))
-			}
-			// context.WithoutCancel: see CheckOut's identical detached task-creation comment in
-			// hotel.go — r.Context() would otherwise race the server's post-handler cancellation.
-			bgCtx := context.WithoutCancel(r.Context())
-			go func() {
-				gid := guest.ID
-				_, _ = h.client.HousekeepingTask.Create().
-					SetTenantID(tid).SetRoomID(roomID).SetNillableRoomGuestID(&gid).
-					SetTaskType("checkout_clean").SetPriority("urgent").Save(bgCtx)
-			}()
+	now := time.Now()
+	if input.Checkout && immediate {
+		_, done, cerr := checkOutLocked(ctx, tx, guest, recordedBy, now)
+		if cerr != nil {
+			rollback()
+			h.log.Error("hotel folio: settle and check out failed", zap.String("guest_id", guest.ID.String()), zap.Error(cerr))
+			jsonError(w, "failed to record payment", http.StatusInternalServerError)
+			return
 		}
+		checkedOut = done
+	}
+	// Read in the transaction: after a checkout the stay is no longer active, so the summary
+	// lookup by room would find nothing once this commits.
+	summary, serr := h.folioSummaryFor(ctx, tx.Client(), tid, roomID, guest)
+	if serr != nil {
+		h.log.Warn("hotel folio: summary after payment failed", zap.String("guest_id", guest.ID.String()), zap.Error(serr))
+	}
+	if err := tx.Commit(); err != nil {
+		h.log.Error("hotel folio: commit failed", zap.String("guest_id", guest.ID.String()), zap.Error(err))
+		jsonError(w, "failed to record payment", http.StatusInternalServerError)
+		return
+	}
+
+	if checkedOut {
+		total := 0.0
+		if summary != nil {
+			total = summary.ChargesTotal
+		}
+		if h.publisher != nil {
+			_ = h.publisher.PublishHotelCheckOut(r.Context(), tid, withGuestRecipient(map[string]any{
+				"room_id": roomID, "guest_id": guest.ID,
+				"total_folio": total, "checked_out_at": now,
+			}, guest, guest.GuestName))
+		}
+		// context.WithoutCancel: see CheckOut's identical detached task-creation comment in
+		// hotel.go — r.Context() would otherwise race the server's post-handler cancellation.
+		bgCtx := context.WithoutCancel(r.Context())
+		go func() {
+			gid := guest.ID
+			_, _ = h.client.HousekeepingTask.Create().
+				SetTenantID(tid).SetRoomID(roomID).SetNillableRoomGuestID(&gid).
+				SetTaskType("checkout_clean").SetPriority("urgent").Save(bgCtx)
+		}()
 	}
 
 	jsonOK(w, map[string]any{
@@ -436,16 +488,18 @@ func immediateOrPending(immediate bool, method string) string {
 // intent (when a treasury client is configured, outlet-attributed for correct per-outlet GL
 // posting) plus a local RoomFolioPayment row. Shared by SettleFolio (checkout) and CheckIn's
 // pay_upfront booking-policy path so every hotel settlement point gets identical treasury/GL
-// behaviour instead of two copies drifting apart.
+// behaviour instead of two copies drifting apart. db is where the folio payment is written: the
+// plain client, or SettleFolio's transaction (which holds the stay lock).
 func (h *HotelHandler) recordFolioPayment(
-	r *http.Request, tid uuid.UUID, tenantSlug string, room *ent.Room, guestID uuid.UUID, guestName string,
+	r *http.Request, db *ent.Client, tid uuid.UUID, tenantSlug string, room *ent.Room, guestID uuid.UUID, guestName string,
 	amount float64, tender deskTender, roomRevenueAmount, posChargeAmount float64, recordedBy uuid.UUID,
 ) (intentID, initiateURL, status string, err error) {
 	method, reference := tender.Method, tender.Reference
-	if err := h.recheckDeskCode(r.Context(), tid, tender); err != nil {
+	if err := h.recheckDeskCode(r.Context(), db, tid, tender); err != nil {
 		return "", "", "", err
 	}
 	immediate := isImmediateHotelMethod(method)
+	var pendingIntent map[string]any
 	status = "pending"
 	if immediate {
 		status = "completed"
@@ -483,13 +537,16 @@ func (h *HotelHandler) recordFolioPayment(
 			if !immediate {
 				return "", "", "", ierr
 			}
+			// The money is in hand, so the folio records it; the intent is kept and sent again by
+			// payments.RetryPendingFolioIntents with the same reference id (S2-20 review M-10).
+			pendingIntent = payments.PendingFolioIntent(intentReq)
 		} else {
 			intentID = intent.ResolvedID()
 			initiateURL = intent.InitiateURL
 		}
 	}
 
-	create := h.client.RoomFolioPayment.Create().
+	create := db.RoomFolioPayment.Create().
 		SetTenantID(tid).
 		SetRoomID(room.ID).
 		SetRoomGuestID(guestID).
@@ -507,6 +564,9 @@ func (h *HotelHandler) recordFolioPayment(
 	// receivable this one already cleared (folioPaymentSplit).
 	if posChargeAmount > 0.009 {
 		md[folioPOSChargeKey] = money.Round2(posChargeAmount)
+	}
+	if pendingIntent != nil {
+		md[payments.MetaFolioIntentPending] = pendingIntent
 	}
 	if len(md) > 0 {
 		create = create.SetMetadata(md)
@@ -539,7 +599,14 @@ const folioPOSChargeKey = "pos_charge_amount"
 // value only once the rest of the folio is paid, so a payment of the whole balance clears exactly
 // the POS receivable and a part payment clears none of it until it reaches the POS lines. The
 // rest splits room vs other charges in proportion to the non-POS lines, the same mix the room
-// split always used. Pending payments are not counted.
+// split always used.
+//
+// A pending payment (an online payment still in flight) counts as if it will succeed (review
+// M-1): its amount is taken off what the folio owes and its pos_charge_amount is reserved. A
+// payment taken while another is pending therefore never claims the same POS share; if the
+// pending one fails, treasury books nothing for it, the row turns failed, and the next payment
+// claims what it had reserved. Failed payments are not counted. SettleFolio holds the stay lock
+// while it computes this and writes the payment, so two payments never read the same state.
 func folioPaymentSplit(items []*ent.RoomFolioItem, pays []*ent.RoomFolioPayment, amount float64) (posShare, roomShare float64) {
 	if amount <= 0 {
 		return 0, 0
@@ -556,7 +623,7 @@ func folioPaymentSplit(items []*ent.RoomFolioItem, pays []*ent.RoomFolioPayment,
 	}
 	var paid, posCleared float64
 	for _, p := range pays {
-		if p.Status != "completed" {
+		if p.Status != "completed" && p.Status != "pending" {
 			continue
 		}
 		paid += p.Amount
@@ -590,4 +657,74 @@ func folioPaymentSplit(items []*ent.RoomFolioItem, pays []*ent.RoomFolioPayment,
 		roomShare = money.Round2((amount - posShare) * room / nonPOS)
 	}
 	return posShare, roomShare
+}
+
+// folioOwedMessage is the refusal shown when a guest is checked out with something still owed.
+func folioOwedMessage(owed float64, currency string) string {
+	return fmt.Sprintf("This guest still owes %s %.2f on the folio. Take payment before checking out.", currency, owed)
+}
+
+// writeFolioOwed answers a checkout refused because the folio still owes owed (owner decision
+// 2026-11-14: no checkout unless settled).
+func writeFolioOwed(w http.ResponseWriter, owed float64, currency string) {
+	respondJSON(w, http.StatusConflict, map[string]any{
+		"error":    "outstanding_balance",
+		"message":  folioOwedMessage(owed, currency),
+		"balance":  money.Round2(owed),
+		"currency": currency,
+	})
+}
+
+// checkOutLocked checks guest out. The caller holds the stay row lock in tx
+// (payments.LockActiveStay), so no room charge, folio line or folio payment can change the
+// balance while it is read here (review R-5). It refuses while anything is owed (owed > 0, done
+// false) and keeps the conditional UPDATE, so a stay another request already checked out reports
+// done false. The room goes to cleaning in the same transaction.
+func checkOutLocked(ctx context.Context, tx *ent.Tx, guest *ent.RoomGuest, by uuid.UUID, now time.Time) (owed float64, done bool, err error) {
+	owed, err = payments.FolioOutstanding(ctx, tx.Client(), guest)
+	if err != nil {
+		return 0, false, err
+	}
+	if owed > 0.009 {
+		return owed, false, nil
+	}
+	affected, err := tx.RoomGuest.Update().
+		Where(entroomguest.ID(guest.ID), entroomguest.StatusEQ(entroomguest.StatusActive)).
+		SetStatus(entroomguest.StatusCheckedOut).
+		SetCheckedOutBy(by).
+		SetCheckedOutAt(now).
+		Save(ctx)
+	if err != nil || affected == 0 {
+		return 0, false, err
+	}
+	if _, err := tx.Room.UpdateOneID(guest.RoomID).SetStatus(entroom.StatusCleaning).Save(ctx); err != nil {
+		return 0, false, fmt.Errorf("room status: %w", err)
+	}
+	return 0, true, nil
+}
+
+// checkOutStay runs checkOutLocked in its own transaction under the stay lock (CheckOut and
+// BatchCheckout). A stay that is no longer active reports done false.
+func (h *HotelHandler) checkOutStay(ctx context.Context, tid, guestID, by uuid.UUID, now time.Time) (owed float64, done bool, err error) {
+	tx, err := h.client.Tx(ctx)
+	if err != nil {
+		return 0, false, err
+	}
+	guest, err := payments.LockActiveStay(ctx, tx, tid, guestID)
+	if err != nil {
+		_ = tx.Rollback()
+		if ent.IsNotFound(err) {
+			return 0, false, nil
+		}
+		return 0, false, err
+	}
+	owed, done, err = checkOutLocked(ctx, tx, guest, by, now)
+	if err != nil || !done {
+		_ = tx.Rollback()
+		return owed, false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, false, err
+	}
+	return 0, true, nil
 }

@@ -62,6 +62,8 @@ type fakeAuthAPI struct {
 	members        map[string]bool // tenant/user
 	provisioned    uuid.UUID
 	memberLookups  atomic.Int32
+	// invite makes member provisioning answer 202 (the person already has an account elsewhere).
+	invite bool
 }
 
 func newFakeAuthAPI(t *testing.T) *fakeAuthAPI {
@@ -84,6 +86,10 @@ func newFakeAuthAPI(t *testing.T) *fakeAuthAPI {
 				return
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"outlet_ids": []string{}})
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/members") && f.invite:
+			w.WriteHeader(http.StatusAccepted)
+			_ = json.NewEncoder(w).Encode(map[string]any{"user_id": f.provisioned.String(), "status": "invited",
+				"message": "This person already has an account. They were emailed an invitation and join once they accept."})
 		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/members"):
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(map[string]any{"user_id": f.provisioned.String()})
@@ -474,5 +480,36 @@ func TestRepairTokenScopedToTenant(t *testing.T) {
 	}
 	if code := call(adminToken, underRepair.ID); code != http.StatusServiceUnavailable {
 		t.Fatalf("ordinary admin during maintenance: status = %d; want 503", code)
+	}
+}
+
+// Adding staff whose email already has an account in another business: auth-api emails an
+// invitation and answers 202. POS passes that on as 202 "invited" with auth's message and writes
+// no staff row; the row appears when the person accepts (owner decision 2026-11-14). It used to
+// show the admin a 502.
+func TestCreateStaffInvitedMemberIsAccepted(t *testing.T) {
+	auth := newFakeAuthAPI(t)
+	auth.invite = true
+	client := openSQLiteTestClient(t, "secinvite")
+	h := NewStaffHandler(zap.NewNop(), client, auth.srv.URL, "internal-key")
+	tid := uuid.New()
+	seedTenant(t, client, tid)
+	outlet := seedOutlet(t, client, tid, "A")
+	tenantAdmin := secClaims(tid, uuid.New(), "https://sso.example", false, "admin")
+
+	rec := httptest.NewRecorder()
+	h.CreateStaff(rec, secRequest(t, http.MethodPost, tid, map[string]any{
+		"email": "known@example.com", "name": "Known Person", "role": "cashier", "outlet_id": outlet.ID.String(),
+	}, tenantAdmin, nil))
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body = %s; want 202", rec.Code, rec.Body.String())
+	}
+	var body map[string]string
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if body["status"] != "invited" || !strings.Contains(body["message"], "invitation") {
+		t.Errorf("body = %v", body)
+	}
+	if n := client.StaffMember.Query().Where(entstaff.TenantID(tid)).CountX(context.Background()); n != 0 {
+		t.Errorf("%d staff rows, want none until the person accepts", n)
 	}
 }

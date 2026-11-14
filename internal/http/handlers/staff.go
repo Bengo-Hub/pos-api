@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -307,6 +308,15 @@ func (h *StaffHandler) provisionAuthMember(ctx context.Context, tenantID uuid.UU
 		return uuid.Nil, nil, fmt.Errorf("auth member provision: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusAccepted {
+		// The person already has an account elsewhere: auth-api emailed them an invitation and
+		// they join once they accept. No staff row yet; auth's member events create it then.
+		var inv struct {
+			Message string `json:"message"`
+		}
+		_ = json.NewDecoder(resp.Body).Decode(&inv)
+		return uuid.Nil, nil, &memberInvitedError{message: inv.Message}
+	}
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		return uuid.Nil, nil, fmt.Errorf("auth member provision: HTTP %d", resp.StatusCode)
 	}
@@ -324,26 +334,30 @@ func (h *StaffHandler) provisionAuthMember(ctx context.Context, tenantID uuid.UU
 // authTenantMemberRoles finds a person among the tenant's members in auth-api (S2S member list,
 // GET /api/v1/s2s/{tenant}/users) by user id or by email (either may be empty), and returns the
 // first match's membership roles. CreateStaff may fall back from a user id to the email, so both
-// are checked and the roles of every match are returned together. found is false when neither
-// names a member. Any failure is an error, so the caller fails closed.
-func (h *StaffHandler) authTenantMemberRoles(ctx context.Context, tenantID, userID uuid.UUID, email string) (roles []string, found bool, err error) {
+// are checked and the roles of every match are returned together, whatever the membership's
+// status (active, suspended or invited), so a suspended admin still counts as an admin. Any
+// failure is an error, so the caller fails closed.
+func (h *StaffHandler) authTenantMemberRoles(ctx context.Context, tenantID, userID uuid.UUID, email string) (roles []string, err error) {
 	authBase := h.authBaseURL()
 	if authBase == "" || h.internalKey == "" {
-		return nil, false, fmt.Errorf("auth S2S not configured (AUTH_SERVICE_URL / INTERNAL_SERVICE_KEY)")
+		return nil, fmt.Errorf("auth S2S not configured (AUTH_SERVICE_URL / INTERNAL_SERVICE_KEY)")
 	}
-	url := strings.TrimRight(authBase, "/") + "/api/v1/s2s/" + tenantID.String() + "/users"
+	// status=all: suspended and invited members are listed too, so an admin's roles still count
+	// while they are suspended or have not accepted yet. An auth-api without the parameter
+	// ignores it and lists active members, as before.
+	url := strings.TrimRight(authBase, "/") + "/api/v1/s2s/" + tenantID.String() + "/users?status=all"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	req.Header.Set("X-API-Key", h.internalKey)
 	resp, err := h.http.Do(req)
 	if err != nil {
-		return nil, false, fmt.Errorf("auth member list: %w", err)
+		return nil, fmt.Errorf("auth member list: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, false, fmt.Errorf("auth member list: HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("auth member list: HTTP %d", resp.StatusCode)
 	}
 	var members []struct {
 		ID    string   `json:"id"`
@@ -351,7 +365,7 @@ func (h *StaffHandler) authTenantMemberRoles(ctx context.Context, tenantID, user
 		Roles []string `json:"roles"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&members); err != nil {
-		return nil, false, fmt.Errorf("auth member list: decode: %w", err)
+		return nil, fmt.Errorf("auth member list: decode: %w", err)
 	}
 	email = strings.ToLower(strings.TrimSpace(email))
 	for _, m := range members {
@@ -362,10 +376,9 @@ func (h *StaffHandler) authTenantMemberRoles(ctx context.Context, tenantID, user
 		if (userID != uuid.Nil && id == userID) ||
 			(email != "" && strings.EqualFold(strings.TrimSpace(m.Email), email)) {
 			roles = append(roles, m.Roles...)
-			found = true
 		}
 	}
-	return roles, found, nil
+	return roles, nil
 }
 
 // authUserIsPlatformOwner asks auth-api (S2S) whether the user is a platform owner. Unlike the
@@ -606,13 +619,14 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 		overrideID = parsed
 	}
 	if !callerIsAdmin {
-		roles, found, lerr := h.authTenantMemberRoles(r.Context(), tid, overrideID, input.Email)
+		roles, lerr := h.authTenantMemberRoles(r.Context(), tid, overrideID, input.Email)
 		if lerr != nil {
 			h.log.Error("verify staff bind target tier", zap.Error(lerr))
 			jsonError(w, "could not verify the person with auth-service", http.StatusBadGateway)
 			return
 		}
-		if found && posrole.IsAdminLevelAny(roles) {
+		// Roles of a suspended or invited membership count too: an admin stays an admin.
+		if posrole.IsAdminLevelAny(roles) {
 			jsonError(w, "only an admin can add a staff record for an admin or manager", http.StatusForbidden)
 			return
 		}
@@ -646,6 +660,15 @@ func (h *StaffHandler) CreateStaff(w http.ResponseWriter, r *http.Request) {
 	}
 	if !useOverride {
 		userID, provisionedRoles, err = h.provisionAuthMember(r.Context(), tid, input.Email, input.Name, input.Role, input.Phone, input.OutletID)
+		var invited *memberInvitedError
+		if errors.As(err, &invited) {
+			// Owner decision 2026-11-14: tell the admin the invitation went out; the staff row
+			// appears when the person accepts (auth.user events), not before.
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "invited", "message": invited.Message()})
+			return
+		}
 		if err != nil {
 			h.log.Error("provision auth member", zap.Error(err))
 			jsonError(w, "could not provision user in auth-service", http.StatusBadGateway)
@@ -967,4 +990,19 @@ func (h *StaffHandler) DeactivateStaff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// memberInvitedError means auth-api accepted the member as an invitation (HTTP 202): the person
+// already has an account in another business, was emailed an invitation, and joins this tenant
+// once they accept. It is not a failure.
+type memberInvitedError struct{ message string }
+
+func (e *memberInvitedError) Error() string { return "auth member provision: invitation sent" }
+
+// Message is what the admin sees: auth's own text, or a plain default.
+func (e *memberInvitedError) Message() string {
+	if strings.TrimSpace(e.message) != "" {
+		return e.message
+	}
+	return "This person already has an account. They were emailed an invitation and join once they accept."
 }

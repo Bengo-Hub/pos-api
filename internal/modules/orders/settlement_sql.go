@@ -170,7 +170,7 @@ func buildSummaryQuery(tenantID uuid.UUID, preds []predicate.POSOrder, paymentSt
 	pastDuePH := bind(pastDue)
 	psFilter := ""
 	if paymentStatus != "" {
-		psFilter = "WHERE ps = " + bind(paymentStatus)
+		psFilter = "WHERE ps = ANY(" + bind(PaymentStatusesFor(paymentStatus)) + ")"
 	}
 	query := strings.NewReplacer(
 		"{{orders}}", ordersSQL,

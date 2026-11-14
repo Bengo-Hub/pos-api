@@ -13,6 +13,7 @@ import (
 
 	"github.com/bengobox/pos-service/internal/ent"
 	"github.com/bengobox/pos-service/internal/ent/outlet"
+	"github.com/bengobox/pos-service/internal/ent/predicate"
 	"github.com/bengobox/pos-service/internal/ent/staffmember"
 	"github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	"github.com/bengobox/pos-service/internal/ent/tenant"
@@ -432,21 +433,18 @@ func (h *AuthEventHandler) handleUserPINSet(ctx context.Context, evt *sharedeven
 		tenantSlug, _ := evt.Payload["tenant_slug"].(string)
 
 		homeOutlet, oErr := h.client.Outlet.Query().
-			Where(outlet.TenantID(tenantID), outlet.IsHq(true), outlet.StatusEQ("active"),
-				outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
+			Where(outlet.TenantID(tenantID), outlet.IsHq(true), outlet.StatusEQ("active"), staffHomeOutlet()).
 			First(ctx)
 		if oErr != nil {
 			homeOutlet, oErr = h.client.Outlet.Query().
-				Where(outlet.TenantID(tenantID), outlet.StatusEQ("active"),
-					outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
+				Where(outlet.TenantID(tenantID), outlet.StatusEQ("active"), staffHomeOutlet()).
 				First(ctx)
 		}
 		// No outlet yet — try syncing from auth-api then retry once.
 		if oErr != nil && tenantSlug != "" && h.tenantSyncer != nil {
 			if syncErr := h.tenantSyncer.SyncOutlets(ctx, tenantID, tenantSlug); syncErr == nil {
 				homeOutlet, oErr = h.client.Outlet.Query().
-					Where(outlet.TenantID(tenantID), outlet.StatusEQ("active"),
-						outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
+					Where(outlet.TenantID(tenantID), outlet.StatusEQ("active"), staffHomeOutlet()).
 					First(ctx)
 			}
 		}
@@ -768,13 +766,11 @@ func (h *AuthEventHandler) upsertStaffMember(ctx context.Context, userID, tenant
 	// Fallback: use HQ outlet if no outlet_ids in event.
 	if len(outletIDs) == 0 {
 		homeOutlet, err := h.client.Outlet.Query().
-			Where(outlet.TenantID(tenantID), outlet.IsHq(true), outlet.StatusEQ("active"),
-				outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
+			Where(outlet.TenantID(tenantID), outlet.IsHq(true), outlet.StatusEQ("active"), staffHomeOutlet()).
 			First(ctx)
 		if err != nil {
 			homeOutlet, err = h.client.Outlet.Query().
-				Where(outlet.TenantID(tenantID), outlet.StatusEQ("active"),
-					outlet.UseCaseNEQ("logistics"), outlet.UseCaseNEQ("warehouse")).
+				Where(outlet.TenantID(tenantID), outlet.StatusEQ("active"), staffHomeOutlet()).
 				First(ctx)
 		}
 		if err == nil {
@@ -924,4 +920,12 @@ func mapSSORoleToPOSIn(payload map[string]interface{}, onPlatformTenant bool) st
 		}
 	}
 	return mapSSORoleToPOS(map[string]interface{}{"roles": named})
+}
+
+// staffHomeOutlet matches an outlet staff can be placed at from an auth event: any outlet that is
+// not a logistics or warehouse site. A NULL use case counts as a selling outlet. Written as a
+// plain NOT IN it would be false for NULL in SQL, so a tenant whose outlets carry no use case
+// never got staff rows from auth events.
+func staffHomeOutlet() predicate.Outlet {
+	return outlet.Or(outlet.UseCaseIsNil(), outlet.UseCaseNotIn("logistics", "warehouse"))
 }

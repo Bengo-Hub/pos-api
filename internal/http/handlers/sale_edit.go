@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
@@ -9,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/saleedit"
 )
 
@@ -92,6 +94,11 @@ func (h *SaleEditHandler) Edit(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		status := http.StatusUnprocessableEntity
+		if errors.Is(err, payments.ErrRoomStayClosed) {
+			// Charge to Room after the stay closed (or on a sale never charged to a room): the
+			// UI shows the message and falls back to Collect now or credit.
+			status = http.StatusConflict
+		}
 		if result != nil {
 			// A partial failure (one sub-step succeeded, the other failed) still returns the
 			// result the caller needs (e.g. a linked reversal/return id) alongside the error —

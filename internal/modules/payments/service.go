@@ -980,10 +980,19 @@ func staffCreditFromOrder(order *ent.POSOrder) (staffID uuid.UUID, months int, o
 // corrected so paid_total only ever counts money that was really collected — an intent
 // opened for the full total but partially captured must not flip the order to paid.
 func (s *Service) ConfirmPaymentByIntentID(ctx context.Context, tenantID uuid.UUID, intentID string, settledAmount float64, payerName string) error {
+	// A hotel desk payment (SettleFolio) carries the intent on its folio payment, not on a till
+	// payment row.
+	folio, ferr := resolveFolioPaymentsByIntent(ctx, s.client, intentID, StatusCompleted, settledAmount)
+	if ferr != nil {
+		return fmt.Errorf("payments: confirm folio payment: %w", ferr)
+	}
 	payments, err := s.client.POSPayment.Query().
 		Where(pospayment.ExternalReference(intentID)).
 		WithOrder().
 		All(ctx)
+	if err == nil && len(payments) == 0 && folio {
+		return nil
+	}
 	if err != nil || len(payments) == 0 {
 		return fmt.Errorf("payments: no pending payment found for intent %s", intentID)
 	}
@@ -1025,6 +1034,9 @@ func (s *Service) ConfirmPaymentByIntentID(ctx context.Context, tenantID uuid.UU
 
 // FailPaymentByIntentID marks a pending payment as failed (called by treasury.payment.failed subscriber).
 func (s *Service) FailPaymentByIntentID(ctx context.Context, intentID string) error {
+	if _, err := resolveFolioPaymentsByIntent(ctx, s.client, intentID, StatusFailed, 0); err != nil {
+		return fmt.Errorf("payments: fail folio payment: %w", err)
+	}
 	payments, err := s.client.POSPayment.Query().
 		Where(pospayment.ExternalReference(intentID)).
 		All(ctx)

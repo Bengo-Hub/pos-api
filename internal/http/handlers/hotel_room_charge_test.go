@@ -37,6 +37,12 @@ func folioPay(amount float64, method string, posCharge float64) *ent.RoomFolioPa
 	return p
 }
 
+func pendingPay(amount, posCharge float64) *ent.RoomFolioPayment {
+	p := folioPay(amount, "mpesa_stk", posCharge)
+	p.Status = "pending"
+	return p
+}
+
 // The folio payment's POS share is what the folio still owes on till room charges, in
 // proportion to the balance; the rest splits room vs other the way the room split always did.
 // Worked example: room 1000, a till room charge of 500, minibar 100 (folio 1600).
@@ -64,8 +70,14 @@ func TestFolioPaymentSplit(t *testing.T) {
 		{"after a 200 folio return credit", []*ent.RoomFolioPayment{folioPay(200, payments.FolioReturnCreditMethod, 0)}, 1400, 300, 1000},
 		// Nothing left on the POS sales: the payment is all room/other.
 		{"pos already cleared", []*ent.RoomFolioPayment{folioPay(500, "cash", 500)}, 1100, 0, 1000},
-		// A pending payment does not count as cleared.
-		{"pending ignored", []*ent.RoomFolioPayment{{Amount: 800, Method: "mpesa", Status: "pending", Metadata: map[string]any{folioPOSChargeKey: 250.0}}}, 1600, 500, 1000},
+		// Review M-1: a pending payment counts as if it will succeed. An STK push for the whole
+		// folio has reserved the POS share, so a desk payment taken meanwhile claims none of it.
+		{"pending whole folio reserves the POS share", []*ent.RoomFolioPayment{pendingPay(1600, 500)}, 1600, 0, 1454.55},
+		// A pending part payment of 800 (no POS share) is taken off what is owed, so a desk payment
+		// of the other 800 reaches the POS lines and clears all of them, as if the 800 had completed.
+		{"pending first half", []*ent.RoomFolioPayment{pendingPay(800, 0)}, 800, 500, 272.73},
+		// A failed payment counts for nothing: the next payment claims the share it had reserved.
+		{"failed ignored", []*ent.RoomFolioPayment{{Amount: 1600, Method: "mpesa_stk", Status: "failed", Metadata: map[string]any{folioPOSChargeKey: 500.0}}}, 1600, 500, 1000},
 	} {
 		pos, room := folioPaymentSplit(items, tc.pays, tc.amount)
 		if pos != tc.wantPOS || room != tc.wantRm {

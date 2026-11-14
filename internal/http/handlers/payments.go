@@ -110,6 +110,9 @@ type createIntentInput struct {
 // room id, about 73 characters).
 const maxRoomChargeKeyLen = 100
 
+// roomRequiredCode is the error code of a room_charge payment sent without a valid roomId.
+const roomRequiredCode = "room_required"
+
 // CreatePaymentIntent handles POST /{tenantID}/pos/orders/{orderID}/payments/intent
 // Returns payment_intent_id + initiate_url for the pos-ui to open TreasuryPaymentModal.
 // For cash/manual/room_charge the payment is settled immediately (IsCash=true).
@@ -182,7 +185,9 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 	if strings.EqualFold(strings.TrimSpace(input.TenderMethod), payments.TenderRoomCharge) {
 		roomID, rerr := uuid.Parse(strings.TrimSpace(input.RoomID))
 		if rerr != nil || roomID == uuid.Nil {
-			jsonError(w, "choose the room to charge", http.StatusBadRequest)
+			// A stable code so an offline queue can mark the entry as failed for good: a retry
+			// of the same body can never succeed (review M-4).
+			jsonErrorWithCode(w, "choose the room to charge", roomRequiredCode, http.StatusBadRequest)
 			return
 		}
 		req.RoomID = roomID

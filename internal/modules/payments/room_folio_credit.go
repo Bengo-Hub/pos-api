@@ -268,3 +268,31 @@ func SplitFolioCredit(amount, outstanding float64) (folio, rest float64) {
 	}
 	return folio, amount - folio
 }
+
+// resolveFolioPaymentsByIntent moves the pending folio payments of a treasury intent (an online
+// payment taken at the hotel desk, SettleFolio) to status: completed when treasury reports the
+// payment succeeded, failed when it failed. Before this the rows stayed pending for good, so the
+// folio never counted an online payment and a pending row's POS share was never settled either way
+// (review M-1). settled, when positive, corrects the amount as ConfirmPaymentByIntentID does for a
+// till payment. It reports whether any folio payment carries the intent.
+func resolveFolioPaymentsByIntent(ctx context.Context, client *ent.Client, intentID, status string, settled float64) (bool, error) {
+	rows, err := client.RoomFolioPayment.Query().
+		Where(roomfoliopayment.TreasuryIntentID(intentID)).
+		All(ctx)
+	if err != nil {
+		return false, fmt.Errorf("folio payments for intent: %w", err)
+	}
+	for _, p := range rows {
+		if p.Status != StatusPending {
+			continue
+		}
+		upd := client.RoomFolioPayment.UpdateOne(p).SetStatus(status)
+		if status == StatusCompleted && settled > 0 && settled != p.Amount {
+			upd = upd.SetAmount(settled)
+		}
+		if _, err := upd.Save(ctx); err != nil {
+			return true, fmt.Errorf("folio payment %s: %w", p.ID, err)
+		}
+	}
+	return len(rows) > 0, nil
+}

@@ -39,6 +39,7 @@ type bindFakeAuth struct {
 	provisions        atomic.Int32
 	failList          bool
 	failPlatformOwner bool
+	listStatus        atomic.Value // the ?status= the last member-list call asked for
 }
 
 func newBindFakeAuth(t *testing.T) *bindFakeAuth {
@@ -50,6 +51,7 @@ func newBindFakeAuth(t *testing.T) *bindFakeAuth {
 		switch {
 		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/users"):
 			// /api/v1/s2s/{tenant}/users
+			f.listStatus.Store(r.URL.Query().Get("status"))
 			if f.failList {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -170,6 +172,10 @@ func TestManagerCannotBindStaffToAdminTierMember(t *testing.T) {
 		if rowsFor(m.ID) != 0 {
 			t.Fatalf("manager binding %s by user_id must not write a staff row", name)
 		}
+	}
+	// The member list is asked for every status, so a suspended or invited admin still counts.
+	if got, _ := auth.listStatus.Load().(string); got != "all" {
+		t.Fatalf("member list asked for status %q, want all", got)
 	}
 
 	// By email: refused before auth-api is asked to provision anything.
@@ -571,5 +577,10 @@ func TestPINLoginByStaffID(t *testing.T) {
 	client.StaffMember.UpdateOne(foreign).SetPinHash(string(hash)).ExecX(ctx)
 	if rec := login(map[string]any{"staff_id": foreign.ID.String(), "pin": "4829"}); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("another tenant's staff_id: status = %d; want 401", rec.Code)
+	}
+	// The old user_id sign-in is gone (2026-11-14): an old till is told to reload, never signed in.
+	if rec := login(map[string]any{"user_id": staff.UserID.String(), "pin": "4829"}); rec.Code != http.StatusBadRequest ||
+		!strings.Contains(rec.Body.String(), "Reload") {
+		t.Fatalf("user_id sign-in: status = %d, body = %s; want 400 asking to reload", rec.Code, rec.Body.String())
 	}
 }
