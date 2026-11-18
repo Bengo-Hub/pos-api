@@ -52,15 +52,16 @@ td.r,th.r{text-align:right}
 .ftr{font-size:14px;margin:12px 0 4px;white-space:pre-wrap}
 .prov{font-size:10px;text-align:center;color:#000;margin-top:10px;line-height:1.4}
 .copy{font-size:18px;font-weight:700;text-align:center;letter-spacing:3px;border:2px solid #000;padding:3px 0;margin-bottom:6px}
-.copy-wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:190px;font-weight:700;letter-spacing:16px;color:rgba(0,0,0,.13);white-space:nowrap;pointer-events:none;z-index:0}
+.copy-wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-54.7deg);font-family:Helvetica,Arial,sans-serif;font-size:95mm;font-weight:700;line-height:1;color:rgba(51,51,51,.15);white-space:nowrap;pointer-events:none;z-index:0}
 @media print{body{max-width:100%}}
 </style></head><body>`)
 
-	// A reprint carries a large diagonal COPY watermark (position:fixed repeats it on every
-	// printed page) plus a COPY banner above the header (KRA copy marking).
+	// A copy carries a diagonal COPY watermark along the page diagonal, about three quarters of it
+	// (95mm letters on A4; position:fixed repeats it on every printed page), plus the RECEIPT COPY
+	// title above the header (KRA copy marking).
 	if rec.IsCopy {
 		buf.WriteString(fmt.Sprintf(`<div class="copy-wm">%s</div>`, escape(printing.CopyWatermark)))
-		buf.WriteString(fmt.Sprintf(`<div class="copy">%s</div>`, escape(printing.CopyBanner)))
+		buf.WriteString(fmt.Sprintf(`<div class="copy">%s</div>`, escape(printing.CopyBanner(rec.IsReturn))))
 	}
 
 	// ── Boxed business header ──

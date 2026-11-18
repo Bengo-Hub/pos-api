@@ -47,7 +47,7 @@ func TestBuildReceiptView_IsCopy(t *testing.T) {
 // the original carries no banner and the label NS.
 func TestBuildReceipt_EscposCopyMarking(t *testing.T) {
 	original := string(BuildReceipt(OrderReceiptDataOpts(copyTestOrder(0), nil, nil, nil, ReceiptViewOpts{})))
-	if strings.Contains(original, CopyBanner) {
+	if strings.Contains(original, CopyBanner(false)) {
 		t.Errorf("original ESC/POS: must not print the COPY banner")
 	}
 	if !strings.Contains(original, formatLine("Receipt Type", "NS")) {
@@ -55,12 +55,19 @@ func TestBuildReceipt_EscposCopyMarking(t *testing.T) {
 	}
 
 	// A plain reprint stays the original; only Print copy (Copy) marks it.
-	if reprint := string(BuildReceipt(OrderReceiptDataOpts(copyTestOrder(1), nil, nil, nil, ReceiptViewOpts{}))); strings.Contains(reprint, CopyBanner) {
+	if reprint := string(BuildReceipt(OrderReceiptDataOpts(copyTestOrder(1), nil, nil, nil, ReceiptViewOpts{}))); strings.Contains(reprint, CopyBanner(false)) {
 		t.Errorf("plain reprint ESC/POS: must not print the COPY banner")
 	}
 	copyBytes := string(BuildReceipt(OrderReceiptDataOpts(copyTestOrder(1), nil, nil, nil, ReceiptViewOpts{Copy: true})))
-	if n := strings.Count(copyBytes, CopyBanner); n != 2 {
-		t.Errorf("copy ESC/POS: COPY banner printed %d times, want 2 (top and bottom)", n)
+	if n := strings.Count(copyBytes, CopyBanner(false)); n != 2 {
+		t.Errorf("copy ESC/POS: COPY title printed %d times, want 2 (top and bottom)", n)
+	}
+	// The COPY block prints white on black (GS B 1), the strongest mark a thermal head can make.
+	if n := strings.Count(copyBytes, string(escReverseOn)); n != 2 {
+		t.Errorf("copy ESC/POS: reversed COPY block printed %d times, want 2", n)
+	}
+	if strings.Contains(original, string(escReverseOn)) {
+		t.Errorf("original ESC/POS: must not print the reversed COPY block")
 	}
 	if !strings.Contains(copyBytes, formatLine("Receipt Type", "CS")) {
 		t.Errorf("copy ESC/POS: missing KRA receipt label CS")
@@ -70,7 +77,11 @@ func TestBuildReceipt_EscposCopyMarking(t *testing.T) {
 	}
 
 	refundCopy := ReceiptData{Type: "customer", IsCopy: true, IsReturn: true, EtimsCuInvNo: "KRACU0300003541/340369"}
-	if got := string(BuildReceipt(refundCopy)); !strings.Contains(got, formatLine("Receipt Type", "CC")) {
+	got := string(BuildReceipt(refundCopy))
+	if !strings.Contains(got, formatLine("Receipt Type", "CC")) {
 		t.Errorf("refund copy ESC/POS: missing KRA receipt label CC")
+	}
+	if !strings.Contains(got, CopyBanner(true)) {
+		t.Errorf("refund copy ESC/POS: missing the REFUND RECEIPT COPY title")
 	}
 }

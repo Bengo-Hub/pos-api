@@ -27,6 +27,10 @@ var (
 	escDoubleHW  = []byte{0x1D, 0x21, 0x11} // double width + double height
 	escDoubleH   = []byte{0x1D, 0x21, 0x01} // double height only
 	escSizeReset = []byte{0x1D, 0x21, 0x00} // back to 1x
+	// GS B n: white on black printing. A thermal head cannot shade a watermark, so a copy's
+	// COPY block prints reversed instead, the strongest mark the printer can make.
+	escReverseOn  = []byte{0x1D, 0x42, 0x01}
+	escReverseOff = []byte{0x1D, 0x42, 0x00}
 )
 
 // ReceiptData holds all data needed to render a receipt.
@@ -145,12 +149,18 @@ func BuildReceipt(d ReceiptData) []byte {
 	writeln := func(s string) { buf.WriteString(s); buf.Write(escLF) }
 	separator := func() { writeln(strings.Repeat("-", 32)) }
 	isCopy := d.Type == "customer" && d.IsCopy
-	// copyBanner prints the KRA COPY marking in double height, centred, so a reprint can never
-	// pass for the original.
+	// copyBanner prints the KRA COPY marking, centred: a white-on-black double-size COPY block,
+	// then the document title (RECEIPT COPY) in double height, so a copy can never pass for the
+	// original (KRA review 2026-11-18).
 	copyBanner := func() {
 		write(escCenter)
+		write(escReverseOn)
+		write(escDoubleHW)
+		writeln("  " + CopyWatermark + "  ")
+		write(escSizeReset)
+		write(escReverseOff)
 		write(escDoubleH)
-		writeln(CopyBanner)
+		writeln(CopyBanner(d.IsReturn))
 		write(escSizeReset)
 	}
 

@@ -31,7 +31,7 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 	pdf.AddPage()
 	if rec.IsCopy {
 		pdf.SetFont("Helvetica", "B", 14)
-		pdf.CellFormat(contentW, 8, printing.CopyBanner, "1", 1, "C", false, 0, "")
+		pdf.CellFormat(contentW, 8, printing.CopyBanner(rec.IsReturn), "1", 1, "C", false, 0, "")
 		pdf.Ln(2)
 	}
 
@@ -279,18 +279,52 @@ func renderA4PDF(rec Receipt, brand Brand) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// drawCopyWatermark draws the large light-grey diagonal COPY mark across the middle of the
-// current page. It runs as the page header, before any content, so the receipt prints over it.
+// drawCopyWatermark draws the diagonal COPY mark across the current page, along the page
+// diagonal and about three quarters of its length, dark grey at 15% opacity. It runs as the page
+// header, before any content, so the receipt prints over it.
 func drawCopyWatermark(pdf *fpdf.Fpdf) {
 	pageW, pageH := pdf.GetPageSize()
-	cx, cy := pageW/2, pageH/2
-	pdf.SetFont("Helvetica", "B", 120)
-	pdf.SetTextColor(215, 215, 215)
+	diag := math.Hypot(pageW, pageH)
+	angle := math.Atan2(pageH, pageW) * 180 / math.Pi
+	drawWatermarkAt(pdf, pageW/2, pageH/2, angle, copyWatermarkSize(pdf, diag*printing.CopyWatermarkDiagonalShare))
+}
+
+// copyWatermarkSize returns the font size (points) at which the COPY mark is width mm wide.
+func copyWatermarkSize(pdf *fpdf.Fpdf, width float64) float64 {
+	pdf.SetFont("Helvetica", "B", 100)
+	w100 := pdf.GetStringWidth(printing.CopyWatermark)
+	if w100 <= 0 {
+		return 100
+	}
+	return 100 * width / w100
+}
+
+// thermalCopyBand is the length of roll (mm) that carries one COPY mark.
+const thermalCopyBand = 74.25 // a quarter of the 297 mm page, so four marks per page
+
+// drawThermalCopyWatermarks repeats the COPY mark down a roll page of the given size: one mark per
+// band, each along its band's diagonal and about three quarters of it.
+func drawThermalCopyWatermarks(pdf *fpdf.Fpdf, pageW, pageH float64) {
+	diag := math.Hypot(pageW, thermalCopyBand)
+	angle := math.Atan2(thermalCopyBand, pageW) * 180 / math.Pi
+	size := copyWatermarkSize(pdf, diag*printing.CopyWatermarkDiagonalShare)
+	for cy := thermalCopyBand / 2; cy < pageH; cy += thermalCopyBand {
+		drawWatermarkAt(pdf, pageW/2, cy, angle, size)
+	}
+}
+
+// drawWatermarkAt draws the COPY mark centred on (cx, cy), rotated by angle degrees, at size points.
+func drawWatermarkAt(pdf *fpdf.Fpdf, cx, cy, angle, size float64) {
+	g := printing.CopyWatermarkGrey
+	pdf.SetFont("Helvetica", "B", size)
 	w := pdf.GetStringWidth(printing.CopyWatermark)
+	capH := size * 0.3528 * 0.72 // Helvetica cap height in mm, to centre the word vertically
+	pdf.SetAlpha(printing.CopyWatermarkAlpha, "Normal")
+	pdf.SetTextColor(g, g, g)
 	pdf.TransformBegin()
-	pdf.TransformRotate(40, cx, cy)
-	// Baseline sits about a third of the glyph height below the centre so the word is centred.
-	pdf.Text(cx-w/2, cy+14, printing.CopyWatermark)
+	pdf.TransformRotate(angle, cx, cy)
+	pdf.Text(cx-w/2, cy+capH/2, printing.CopyWatermark)
 	pdf.TransformEnd()
+	pdf.SetAlpha(1.0, "Normal")
 	pdf.SetTextColor(0, 0, 0)
 }

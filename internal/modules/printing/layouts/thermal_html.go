@@ -80,12 +80,21 @@ h1{font-size:17px;letter-spacing:.5px;text-align:center;margin:3px 0}
 .gtable td.r,.gtable th.r{text-align:right}
 .gserved{display:flex;justify-content:space-between;border-bottom:1.5px solid #000;padding:2px 1px;font-size:10px;margin-bottom:3px}
 .copy{font-size:17px;font-weight:bold;text-align:center;letter-spacing:2px;border:2px solid #000;padding:2px 0;margin:3px 0}
+body.is-copy{position:relative}
+body.is-copy>*:not(.copy-roll){position:relative;z-index:1}
+.copy-roll{position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;pointer-events:none;z-index:0;display:flex;flex-direction:column;align-items:center}
+.copy-roll span{display:block;flex-shrink:0;transform:rotate(-43deg);font:700 26mm Helvetica,Arial,sans-serif;line-height:1;margin:24mm 0;white-space:nowrap}
+.copy-roll,.copy-roll span{color:rgba(51,51,51,.15)!important}
 @media print{body{width:100%%}}
-</style></head><body>`, pageWidth, family, weight, bodyWidth))
-	// A reprint is marked COPY at the top and the bottom (KRA copy marking).
+</style></head><body%s>`, pageWidth, family, weight, bodyWidth, copyBodyClass(rec.IsCopy)))
+	// A copy is titled RECEIPT COPY at the top and the bottom and carries the COPY mark behind
+	// the content all the way down the roll (KRA copy marking, review of 2026-11-18). The marks
+	// are a fixed run of words in a layer clipped to the receipt's own height.
 	copyBanner := ""
 	if rec.IsCopy {
-		copyBanner = fmt.Sprintf(`<p class="copy">%s</p>`, escape(printing.CopyBanner))
+		copyBanner = fmt.Sprintf(`<p class="copy">%s</p>`, escape(printing.CopyBanner(rec.IsReturn)))
+		buf.WriteString(`<div class="copy-roll" aria-hidden="true">` +
+			strings.Repeat(`<span>`+escape(printing.CopyWatermark)+`</span>`, 20) + `</div>`)
 	}
 	buf.WriteString(copyBanner)
 	// Logo prints only when the Receipt & Printing "show logo" setting allows it.
@@ -346,4 +355,13 @@ func providerFooter(rec Receipt) (lead, contact string) {
 		contact = d.Contact
 	}
 	return lead, contact
+}
+
+// copyBodyClass is the body tag attribute of a copy: it lifts the receipt content above the
+// COPY mark layer (.copy-roll).
+func copyBodyClass(isCopy bool) string {
+	if isCopy {
+		return ` class="is-copy"`
+	}
+	return ""
 }

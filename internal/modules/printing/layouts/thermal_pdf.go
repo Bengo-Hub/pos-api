@@ -46,6 +46,11 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 	pdf.SetCompression(true) // zlib/FlateDecode the content streams
 	pdf.SetMargins(margin, 6, margin)
 	pdf.SetAutoPageBreak(true, 6)
+	// A copy carries the COPY mark behind the content all the way down the roll (KRA review
+	// 2026-11-18), drawn by the page header so every page of a long receipt has it.
+	if rec.IsCopy {
+		pdf.SetHeaderFuncMode(func() { drawThermalCopyWatermarks(pdf, pageW, 297) }, true)
+	}
 	pdf.AddPage()
 
 	moneyLine := func(v float64) string { return money(rec.Currency, v) }
@@ -66,14 +71,14 @@ func renderThermalPDF(rec Receipt, brand Brand, layout string) ([]byte, error) {
 		pdf.Line(margin, y, pageW-margin, y)
 		pdf.SetY(y + 1.2)
 	}
-	// A reprint is marked COPY at the top and the bottom (KRA copy marking), boxed so it reads
-	// as a stamp rather than another receipt line.
+	// A copy is titled RECEIPT COPY at the top and the bottom (KRA copy marking), boxed so it
+	// reads as a stamp rather than another receipt line.
 	copyBanner := func() {
 		if !rec.IsCopy {
 			return
 		}
 		pdf.SetFont(font, "B", 13)
-		pdf.CellFormat(contentW, 7, printing.CopyBanner, "1", 1, "C", false, 0, "")
+		pdf.CellFormat(contentW, 7, printing.CopyBanner(rec.IsReturn), "1", 1, "C", false, 0, "")
 		pdf.Ln(1)
 	}
 	copyBanner()

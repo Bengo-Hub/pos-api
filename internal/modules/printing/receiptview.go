@@ -245,11 +245,27 @@ type ReceiptView struct {
 	IsCopy bool
 }
 
-// CopyBanner is the line every thermal renderer prints at the top and bottom of a COPY receipt.
-const CopyBanner = "*** COPY ***"
+// CopyBanner is the boxed title every renderer prints at the top and bottom of a COPY receipt. It
+// names the document, as KRA's eTIMS team asked at the 2026-11-18 review ("RECEIPT COPY", or
+// "REFUND RECEIPT COPY" for a return), so the word COPY is in the title and not only in the mark.
+func CopyBanner(isReturn bool) string {
+	if isReturn {
+		return "REFUND RECEIPT COPY"
+	}
+	return "RECEIPT COPY"
+}
 
-// CopyWatermark is the large diagonal mark the A4 renderers draw on a COPY receipt.
+// CopyWatermark is the large diagonal mark drawn behind the content of a COPY receipt: across the
+// page on A4, repeated down the roll on thermal layouts.
 const CopyWatermark = "COPY"
+
+// Watermark look shared by every renderer: dark grey at 15% opacity, sized to cover about three
+// quarters of the page diagonal on A4 (KRA review 2026-11-18: the first mark was too faint).
+const (
+	CopyWatermarkAlpha         = 0.15
+	CopyWatermarkGrey          = 51 // RGB 51,51,51
+	CopyWatermarkDiagonalShare = 0.75
+)
 
 // KRAReceiptLabel is the KRA receipt label printed in the fiscal block (OSCU spec 4.3): the
 // receipt type, N for a normal print or C for a copy, then the transaction type, S for a sale or

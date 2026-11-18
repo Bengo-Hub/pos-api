@@ -1,8 +1,11 @@
 package layouts
 
 import (
+	"math"
 	"strings"
 	"testing"
+
+	"github.com/go-pdf/fpdf"
 
 	"github.com/bengobox/pos-service/internal/modules/printing"
 )
@@ -15,8 +18,8 @@ func TestThermalHTMLMarksCopy(t *testing.T) {
 		rec.Layout = layout
 
 		original := string(RenderHTML(rec, ""))
-		if strings.Contains(original, printing.CopyBanner) {
-			t.Errorf("%s original: must not print the COPY banner", layout)
+		if strings.Contains(original, printing.CopyBanner(false)) || strings.Contains(original, `class="copy-roll"`) {
+			t.Errorf("%s original: must not print the COPY title or mark", layout)
 		}
 		if !strings.Contains(original, "<span>Receipt Type:</span><span>NS</span>") {
 			t.Errorf("%s original: missing KRA receipt label NS", layout)
@@ -24,8 +27,12 @@ func TestThermalHTMLMarksCopy(t *testing.T) {
 
 		rec.IsCopy = true
 		copyHTML := string(RenderHTML(rec, ""))
-		if n := strings.Count(copyHTML, printing.CopyBanner); n != 2 {
-			t.Errorf("%s copy: COPY banner printed %d times, want 2 (top and bottom)", layout, n)
+		if n := strings.Count(copyHTML, printing.CopyBanner(false)); n != 2 {
+			t.Errorf("%s copy: RECEIPT COPY title printed %d times, want 2 (top and bottom)", layout, n)
+		}
+		// The COPY mark runs down the roll behind the content.
+		if !strings.Contains(copyHTML, `<body class="is-copy">`) || strings.Count(copyHTML, "<span>COPY</span>") < 10 {
+			t.Errorf("%s copy: missing the COPY mark down the roll", layout)
 		}
 		if !strings.Contains(copyHTML, "<span>Receipt Type:</span><span>CS</span>") {
 			t.Errorf("%s copy: missing KRA receipt label CS", layout)
@@ -46,7 +53,7 @@ func TestA4HTMLMarksCopy(t *testing.T) {
 	rec.Layout = A4Invoice
 
 	original := string(RenderHTML(rec, ""))
-	if strings.Contains(original, `class="copy-wm"`) || strings.Contains(original, printing.CopyBanner) {
+	if strings.Contains(original, `class="copy-wm"`) || strings.Contains(original, printing.CopyBanner(false)) {
 		t.Errorf("A4 original: must not carry the COPY watermark or banner")
 	}
 	if !strings.Contains(original, "<b>Receipt Type:</b> NS") {
@@ -58,8 +65,12 @@ func TestA4HTMLMarksCopy(t *testing.T) {
 	if !strings.Contains(copyHTML, `<div class="copy-wm">COPY</div>`) {
 		t.Errorf("A4 copy: missing the diagonal COPY watermark")
 	}
-	if !strings.Contains(copyHTML, printing.CopyBanner) {
-		t.Errorf("A4 copy: missing the COPY banner")
+	if !strings.Contains(copyHTML, printing.CopyBanner(false)) {
+		t.Errorf("A4 copy: missing the RECEIPT COPY title")
+	}
+	// The mark is sized for the A4 diagonal, not the old 190px word.
+	if !strings.Contains(copyHTML, "font-size:95mm") || !strings.Contains(copyHTML, "rgba(51,51,51,.15)") {
+		t.Errorf("A4 copy: watermark not at the agreed size and colour")
 	}
 	if !strings.Contains(copyHTML, "<b>Receipt Type:</b> CS") {
 		t.Errorf("A4 copy: missing KRA receipt label CS")
@@ -77,8 +88,25 @@ func TestRefundCopyLabel(t *testing.T) {
 		t.Errorf("refund original: missing KRA receipt label NC")
 	}
 	rec.IsCopy = true
-	if html := string(RenderHTML(rec, "")); !strings.Contains(html, "<span>Receipt Type:</span><span>CC</span>") {
+	html := string(RenderHTML(rec, ""))
+	if !strings.Contains(html, "<span>Receipt Type:</span><span>CC</span>") {
 		t.Errorf("refund copy: missing KRA receipt label CC")
+	}
+	if !strings.Contains(html, printing.CopyBanner(true)) {
+		t.Errorf("refund copy: missing the REFUND RECEIPT COPY title")
+	}
+}
+
+// The A4 PDF mark spans about three quarters of the page diagonal (KRA review 2026-11-18).
+func TestA4CopyWatermarkSize(t *testing.T) {
+	pdf := fpdf.New("P", "mm", "A4", "")
+	pageW, pageH := pdf.GetPageSize()
+	diag := math.Hypot(pageW, pageH)
+	size := copyWatermarkSize(pdf, diag*printing.CopyWatermarkDiagonalShare)
+	pdf.SetFont("Helvetica", "B", size)
+	share := pdf.GetStringWidth(printing.CopyWatermark) / diag
+	if share < 0.5 || share > 0.8 {
+		t.Errorf("COPY spans %.0f%% of the A4 diagonal, want 50 to 80", share*100)
 	}
 }
 
