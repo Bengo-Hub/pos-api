@@ -278,7 +278,7 @@ func (h *ReportsHandler) RegisterDetails(w http.ResponseWriter, r *http.Request)
 	if oid := outletmw.RequestOutletScope(r); oid != nil {
 		dueScope = append(dueScope, posorder.OutletID(*oid))
 	}
-	if due, derr := openSalesDue(r.Context(), h.db, h.log, tid, dueScope, to); derr == nil {
+	if due, derr := openSalesDue(r.Context(), h.db, h.log, tid, dueScope, from, to); derr == nil {
 		resp.SalesDue = due.Amount
 		resp.SalesDueCount = due.Count
 		resp.SalesDueAgeing = due.Ageing

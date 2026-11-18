@@ -40,14 +40,14 @@ func paidBelowTotal() predicate.POSOrder {
 	})
 }
 
-// openSalesDue sums what is still owed on completed POS sales dated on or before asOf. Every row
-// goes through
-// orders.ComputeSettlement with its completed returns from returnsRollupFor (one batched
-// query, no per-order lookups), so it can never disagree with the sales list or the export.
+// openSalesDue sums what is still owed on completed POS sales dated from `from` up to asOf. Every
+// row goes through orders.ComputeSettlement with its completed returns from returnsRollupFor (one
+// batched query, no per-order lookups), so it can never disagree with the sales list or the export.
 //
-// The period is deliberately open at the start: owners want what is still owed now, so a sale
-// made before the selected period that is still unpaid counts too. Amounts are today's
-// balances (payments taken after asOf already reduce them); no historical balance is rebuilt.
+// A zero `from` leaves the period open at the start (every sale still owed up to asOf). The
+// dashboard passes the selected period so Sales due follows the same day, week, month or year as
+// the other cards (owner, 2026-11-18), and reports the all-open figure alongside it. Amounts are
+// today's balances (payments taken after asOf already reduce them); no historical balance is rebuilt.
 //
 // Only completed sales count (owner decision 2026-11-14): a running tab or a held order (open,
 // pending payment) is not a debt yet, so it never shows as owed here, while All-Sales' Sell Due
@@ -55,7 +55,7 @@ func paidBelowTotal() predicate.POSOrder {
 //
 // scope carries the caller's outlet and own-sales predicates; the tenant, completed status and
 // paid-below-total predicates are added here.
-func openSalesDue(ctx context.Context, client *ent.Client, log *zap.Logger, tid uuid.UUID, scope []predicate.POSOrder, asOf time.Time) (salesDueTotals, error) {
+func openSalesDue(ctx context.Context, client *ent.Client, log *zap.Logger, tid uuid.UUID, scope []predicate.POSOrder, from, asOf time.Time) (salesDueTotals, error) {
 	var out salesDueTotals
 	preds := append([]predicate.POSOrder{
 		posorder.TenantID(tid),
@@ -63,6 +63,9 @@ func openSalesDue(ctx context.Context, client *ent.Client, log *zap.Logger, tid 
 		paidBelowTotal(),
 		effectiveDateLTE(asOf),
 	}, scope...)
+	if !from.IsZero() {
+		preds = append(preds, effectiveDateGTE(from))
+	}
 	list, err := client.POSOrder.Query().Where(preds...).
 		Select(
 			posorder.FieldID,

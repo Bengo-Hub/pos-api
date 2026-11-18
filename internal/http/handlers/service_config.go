@@ -25,34 +25,10 @@ const ConfigKeyScreensaverIdleTimeoutSeconds = "pos.screensaver_idle_timeout_sec
 // platform default (tenant_id IS NULL). It returns 0 when no valid config exists
 // (callers should then apply their own app default).
 func resolveScreensaverTimeoutSeconds(ctx context.Context, client *ent.Client, tenantID uuid.UUID) int {
-	rows, err := client.ServiceConfig.Query().
-		Where(
-			serviceconfig.ConfigKey(ConfigKeyScreensaverIdleTimeoutSeconds),
-			serviceconfig.Or(
-				serviceconfig.TenantID(tenantID),
-				serviceconfig.TenantIDIsNil(),
-			),
-		).
-		All(ctx)
-	if err != nil || len(rows) == 0 {
+	chosen, found := serviceConfigValue(ctx, client, tenantID, ConfigKeyScreensaverIdleTimeoutSeconds)
+	if !found {
 		return 0
 	}
-
-	var platformValue string
-	var tenantValue string
-	for _, row := range rows {
-		if row.TenantID != nil && *row.TenantID == tenantID {
-			tenantValue = row.ConfigValue
-		} else if row.TenantID == nil {
-			platformValue = row.ConfigValue
-		}
-	}
-
-	chosen := platformValue
-	if tenantValue != "" {
-		chosen = tenantValue
-	}
-
 	v, err := strconv.Atoi(strings.TrimSpace(chosen))
 	if err != nil || v <= 0 {
 		return 0

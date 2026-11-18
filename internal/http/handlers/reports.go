@@ -274,18 +274,24 @@ func (h *ReportsHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 				grossProfitGrowth = growthPct(curTotals.Profit, prevTotals.Profit)
 			}
 
-			// Sales due: what customers still owe on POS sales, in the same outlet and own-sales
-			// scope as the figures above. It covers every open sale dated up to the period end,
-			// not only sales made inside the period, because owners want what is still owed now
-			// (see openSalesDue). Best-effort like items_sold: a query hiccup yields 0.
-			salesDue, dueErr := openSalesDue(ctx, h.db, h.log, tid, outletFilters, curTo)
+			// Sales due: what customers still owe on POS sales made in the selected period, in the
+			// same outlet and own-sales scope as the figures above. sales_due_all_open keeps the
+			// figure for every unpaid sale up to the period end. Best-effort like items_sold: a
+			// query hiccup yields 0.
+			salesDue, dueErr := openSalesDue(ctx, h.db, h.log, tid, outletFilters, curFrom, curTo)
 			if dueErr != nil {
 				h.log.Warn("summary: sales due query failed", zap.String("tenant_id", tid.String()), zap.Error(dueErr))
+			}
+			allOpen, openErr := openSalesDue(ctx, h.db, h.log, tid, outletFilters, time.Time{}, curTo)
+			if openErr != nil {
+				h.log.Warn("summary: open sales due query failed", zap.String("tenant_id", tid.String()), zap.Error(openErr))
 			}
 
 			return map[string]any{
 				"sales_due":           salesDue.Amount,
 				"sales_due_count":     salesDue.Count,
+				"sales_due_all_open":  allOpen.Amount,
+				"sales_due_all_count": allOpen.Count,
 				"total_revenue":       curRev,
 				"total_orders":        curOrders,
 				"avg_ticket":          avgTicket,

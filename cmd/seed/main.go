@@ -1379,6 +1379,7 @@ func seedServiceConfigs(ctx context.Context, client *ent.Client) error {
 		{"pos.tax_rate_percent", "16.0", "float", "Default VAT rate percentage", false},
 		{"pos.order_prefix", "POS", "string", "Prefix for auto-generated order numbers", false},
 		{"pos.session_timeout_minutes", "480", "int", "Device session timeout in minutes (8 hours)", false},
+		{"pos.idle_timeout_by_role", `{"kitchen":3600,"bar":3600,"barista":3600}`, "json", "Idle sign-out seconds per POS role (0 = never); outlets override in settings", false},
 		{"pos.cash_drawer_variance_threshold", "500", "float", "Cash drawer variance alert threshold", false},
 		{"pos.max_discount_percent", "50", "float", "Maximum discount percentage allowed", false},
 		{"pos.require_manager_approval_void", "true", "bool", "Require manager approval for voids", false},

@@ -82,7 +82,7 @@ func TestOpenSalesDue_SumsAndAgesOpenSales(t *testing.T) {
 	// Another outlet: counted tenant-wide, left out when scoped.
 	seedDueOrder(t, client, tid, dueSeed{outlet: uuid.New(), status: "completed", total: 40, onAccount: true, created: asOf.Add(-3 * day)})
 
-	got, err := openSalesDue(ctx, client, zap.NewNop(), tid, []predicate.POSOrder{posorder.OutletID(outlet)}, asOf)
+	got, err := openSalesDue(ctx, client, zap.NewNop(), tid, []predicate.POSOrder{posorder.OutletID(outlet)}, time.Time{}, asOf)
 	if err != nil {
 		t.Fatalf("openSalesDue: %v", err)
 	}
@@ -95,12 +95,21 @@ func TestOpenSalesDue_SumsAndAgesOpenSales(t *testing.T) {
 		t.Errorf("ageing = %+v, want %+v", got.Ageing, want)
 	}
 
-	all, err := openSalesDue(ctx, client, zap.NewNop(), tid, nil, asOf)
+	all, err := openSalesDue(ctx, client, zap.NewNop(), tid, nil, time.Time{}, asOf)
 	if err != nil {
 		t.Fatalf("openSalesDue tenant-wide: %v", err)
 	}
 	if !approxEqual(all.Amount, 340) || all.Count != 4 {
 		t.Errorf("tenant-wide amount/count = %v/%v, want 340/4", all.Amount, all.Count)
+	}
+
+	// A period start drops older unpaid sales: only the ones dated inside the last 30 days stay.
+	recent, err := openSalesDue(ctx, client, zap.NewNop(), tid, []predicate.POSOrder{posorder.OutletID(outlet)}, asOf.Add(-30*day), asOf)
+	if err != nil {
+		t.Fatalf("openSalesDue in period: %v", err)
+	}
+	if !approxEqual(recent.Amount, want.Days0To30) {
+		t.Errorf("in-period amount = %v, want %v", recent.Amount, want.Days0To30)
 	}
 }
 

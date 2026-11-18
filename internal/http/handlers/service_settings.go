@@ -72,6 +72,8 @@ func NewServiceSettingsHandler(log *zap.Logger, db *ent.Client) *ServiceSettings
 type settingsResponse struct {
 	OutletID string `json:"outlet_id"`
 	UseCase  string `json:"use_case"`
+	// idle sign-out per role (session_timeouts.go); filled by GetSettings, flattened into the JSON.
+	sessionTimeouts
 	// display
 	DisplayMode        string `json:"display_mode"`
 	ShowImages         bool   `json:"show_images"`
@@ -525,6 +527,7 @@ func (h *ServiceSettingsHandler) GetSettings(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	resp := toSettingsResponse(outlet, setting)
+	resp.sessionTimeouts = resolveSessionTimeouts(r.Context(), h.db, tid, setting)
 	resp.PrintAgentOnline = h.printAgentOnline(r.Context(), tid, outlet.ID)
 	ro := orders.RoundOffFor(r.Context(), tid)
 	resp.RoundOff, resp.RoundOffStep = ro.Mode, ro.Step
@@ -1417,6 +1420,7 @@ func (h *ServiceSettingsHandler) RegisterRoutes(r chi.Router) {
 	r.Put("/pos/settings", h.PutSettings)
 	r.Patch("/pos/settings/modules", h.PatchModules)
 	r.Patch("/pos/settings/shifts", h.PatchShiftSettings)
+	r.Patch("/pos/settings/session-timeouts", h.PatchSessionTimeouts)
 	r.Patch("/pos/settings/tables", h.PatchTableSettings)
 	r.Patch("/pos/settings/outlet", h.PatchOutletConfig)
 	r.Get("/pos/settings/booking-policy", h.GetBookingPolicy)
