@@ -211,11 +211,17 @@ func (h *LoyaltyHandler) S2SBalance(w http.ResponseWriter, r *http.Request) {
 		jsonOK(w, map[string]any{"customer_phone": phone, "balance": 0, "exists": false})
 		return
 	}
+	// The level the lifetime points reach on the active programme (empty when none is set up).
+	tier := ""
+	if p, perr := activeLoyaltyProgram(r.Context(), h.db, tid); perr == nil && p != nil {
+		tier = loyaltyTierFor(loyaltyTiers(p.TierThresholds), acc.LifetimePoints)
+	}
 	jsonOK(w, map[string]any{
 		"account_id":      acc.ID,
 		"customer_phone":  acc.CustomerPhone,
 		"balance":         acc.PointsBalance,
 		"lifetime_points": acc.LifetimePoints,
+		"tier":            tier,
 		"exists":          true,
 	})
 }

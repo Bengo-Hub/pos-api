@@ -68,6 +68,18 @@ func TestNormalizeDefaultView(t *testing.T) {
 	}
 }
 
+func TestNormalizeRefreshSeconds(t *testing.T) {
+	cases := []struct {
+		in   any
+		want int
+	}{{nil, 60}, {"x", 60}, {float64(5), 60}, {float64(120), 120}, {900, 300}, {int64(300), 300}}
+	for _, c := range cases {
+		if got := NormalizeRefreshSeconds(c.in); got != c.want {
+			t.Fatalf("%v -> %d, want %d", c.in, got, c.want)
+		}
+	}
+}
+
 func TestSortItemTally(t *testing.T) {
 	items := []ItemTally{{Name: "b", Served: 1, Total: 3}, {Name: "a", Served: 5, Total: 5}, {Name: "c", Served: 1, Total: 3}}
 	SortItemTally(items)

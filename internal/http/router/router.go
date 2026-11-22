@@ -254,6 +254,11 @@ func New(
 				// True-PDF variant (same tokenless data path) for DocPreview + sharing.
 				pub.Get("/{tenantID}/pos/outlets/{outletID}/menu.pdf", menu.GetMenuPDF)
 			}
+			// Public loyalty programme terms for a tenant website (rates and levels only, no
+			// account data). Customers' own points go through the website's server and S2S balance.
+			if loyalty != nil {
+				pub.Get("/{tenantID}/pos/loyalty/program", loyalty.PublicProgram)
+			}
 			// Public reservation endpoints - used by the embeddable table-booking widget
 			if tables != nil {
 				pub.Get("/{tenantID}/pos/reservations/available", tables.GetAvailableSlots)

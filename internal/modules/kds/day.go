@@ -25,7 +25,34 @@ const (
 
 	ViewDay  = "day"
 	ViewLive = "live"
+
+	// MetaKeyRefreshSeconds is how often a board screen reloads its tickets, in seconds.
+	MetaKeyRefreshSeconds = "kds_refresh_seconds"
+	RefreshSecondsMin     = 60
+	RefreshSecondsMax     = 300
+	RefreshSecondsDefault = 60
 )
+
+// NormalizeRefreshSeconds clamps a stored or submitted reload interval to 60..300 seconds
+// (60 when unset or not a number).
+func NormalizeRefreshSeconds(v any) int {
+	n := RefreshSecondsDefault
+	switch x := v.(type) {
+	case float64:
+		n = int(x)
+	case int:
+		n = x
+	case int64:
+		n = int(x)
+	}
+	if n < RefreshSecondsMin {
+		return RefreshSecondsMin
+	}
+	if n > RefreshSecondsMax {
+		return RefreshSecondsMax
+	}
+	return n
+}
 
 // NormalizeDefaultView maps a stored or submitted view to ViewDay or ViewLive (day when unknown).
 func NormalizeDefaultView(v string) string {

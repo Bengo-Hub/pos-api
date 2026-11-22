@@ -216,7 +216,9 @@ type settingsResponse struct {
 	// stay on the day view, crossed out, for the shift tally (metadata, kds.MetaKey*).
 	KDSDefaultView string `json:"kds_default_view"`
 	KDSKeepServed  bool   `json:"kds_keep_served"`
-	UpdatedAt      string `json:"updated_at"`
+	// How often each board screen reloads, 60..300 seconds (default 60).
+	KDSRefreshSeconds int    `json:"kds_refresh_seconds"`
+	UpdatedAt         string `json:"updated_at"`
 }
 
 func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsResponse {
@@ -302,6 +304,7 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		HideProfitMarginForCashier: metaBoolDefault(s.Metadata, outletmw.MetaKeyHideProfitMarginForCashier, false),
 		KDSDefaultView:             kdsmod.NormalizeDefaultView(metaString(s.Metadata, kdsmod.MetaKeyDefaultView)),
 		KDSKeepServed:              metaBoolDefault(s.Metadata, kdsmod.MetaKeyKeepServed, true),
+		KDSRefreshSeconds:          kdsmod.NormalizeRefreshSeconds(s.Metadata[kdsmod.MetaKeyRefreshSeconds]),
 		UpdatedAt:                  s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	if profile, ok := outletpolicy.ServiceProfileFromMetadata(s.Metadata); ok &&
@@ -628,6 +631,8 @@ type updateSettingsInput struct {
 	// KDS board: "day" | "live", and keep served tickets on the day view.
 	KDSDefaultView *string `json:"kds_default_view"`
 	KDSKeepServed  *bool   `json:"kds_keep_served"`
+	// Board reload interval in seconds, clamped to 60..300.
+	KDSRefreshSeconds *int `json:"kds_refresh_seconds"`
 }
 
 // PutSettings handles PUT /{tenantID}/pos/settings and PUT /{tenantID}/pos/outlets/{outletID}/settings
@@ -813,7 +818,7 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	if input.ShowLogoOnReceipt != nil || input.ShowTenantEmailOnReceipt != nil || input.RestrictCreditSaleRefundToOffset != nil || input.ShowTenantNameOnReceipt != nil ||
 		input.HideDraftDeleteForCashier != nil || input.HideDraftResumeForCashier != nil || input.HideProfitMarginForCashier != nil ||
 		input.ReturnNoRestockReasons != nil || input.FallbackTaxCode != nil ||
-		input.KDSDefaultView != nil || input.KDSKeepServed != nil {
+		input.KDSDefaultView != nil || input.KDSKeepServed != nil || input.KDSRefreshSeconds != nil {
 		meta := map[string]any{}
 		for k, v := range setting.Metadata {
 			meta[k] = v
@@ -847,6 +852,9 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 		}
 		if input.KDSKeepServed != nil {
 			meta[kdsmod.MetaKeyKeepServed] = *input.KDSKeepServed
+		}
+		if input.KDSRefreshSeconds != nil {
+			meta[kdsmod.MetaKeyRefreshSeconds] = kdsmod.NormalizeRefreshSeconds(*input.KDSRefreshSeconds)
 		}
 		if input.FallbackTaxCode != nil {
 			if code := strings.TrimSpace(*input.FallbackTaxCode); code != "" {
