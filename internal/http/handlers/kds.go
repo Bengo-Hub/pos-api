@@ -34,6 +34,8 @@ type KDSHandler struct {
 	hub       *kdsmod.Hub
 	notifHub  *notifmod.Hub
 	kdsTrees  *kdsroute.Source
+	// summaryDB runs the day view's hourly aggregation (read replica when configured).
+	summaryDB kdsmod.Querier
 }
 
 // SetKDSCategorySource wires the cached inventory category tree (shared with the orders
@@ -230,8 +232,7 @@ func (h *KDSHandler) ListTickets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := h.client.KDSTicket.Query().
-		Where(entkdsticket.TenantID(tid)).
-		Order(ent.Asc(entkdsticket.FieldPriority), ent.Asc(entkdsticket.FieldReceivedAt))
+		Where(entkdsticket.TenantID(tid))
 
 	// Scope to the active outlet via the ticket's station (tickets have no outlet_id of
 	// their own). Prevents one outlet's KDS from listing another outlet's tickets.
@@ -250,6 +251,37 @@ func (h *KDSHandler) ListTickets(w http.ResponseWriter, r *http.Request) {
 		q = q.Where(entkdsticket.StatusEQ(entkdsticket.Status(status)))
 	}
 
+	// Day view: ?date= (tenant-local YYYY-MM-DD, "today" when empty) and/or ?hour=0..23 return every
+	// ticket received in that day or hour, served and voided included, so staff can tally the shift.
+	if dayView(r) {
+		w2, werr := kdsmod.ResolveDayWindow(r.URL.Query().Get("date"), r.URL.Query().Get("hour"),
+			tenantLocation(r.Context(), h.client, tid), time.Now())
+		if werr != nil {
+			jsonError(w, werr.Error(), http.StatusBadRequest)
+			return
+		}
+		limit := kdsDayTicketLimit(r)
+		// Oldest first, the order the day happened, so a capped page keeps the start of the window.
+		tickets, err := q.Where(entkdsticket.ReceivedAtGTE(w2.From), entkdsticket.ReceivedAtLT(w2.To)).
+			Order(ent.Asc(entkdsticket.FieldReceivedAt), ent.Asc(entkdsticket.FieldID)).
+			Limit(limit + 1).All(r.Context())
+		if err != nil {
+			h.log.Error("list day tickets failed", zap.Error(err))
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		truncated := len(tickets) > limit
+		if truncated {
+			tickets = tickets[:limit]
+		}
+		views := h.withOrderSource(r.Context(), tickets)
+		jsonOK(w, map[string]any{
+			"data": views, "total": len(views), "truncated": truncated,
+			"date": w2.Date, "timezone": w2.Location.String(), "hour": w2.Hour,
+		})
+		return
+	}
+
 	// Default to active tickets only unless status explicitly requested
 	if r.URL.Query().Get("status") == "" {
 		q = q.Where(entkdsticket.StatusIn(
@@ -263,7 +295,7 @@ func (h *KDSHandler) ListTickets(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tickets, err := q.All(r.Context())
+	tickets, err := q.Order(ent.Asc(entkdsticket.FieldPriority), ent.Asc(entkdsticket.FieldReceivedAt)).All(r.Context())
 	if err != nil {
 		h.log.Error("list tickets failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)

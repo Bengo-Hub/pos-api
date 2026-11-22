@@ -873,6 +873,8 @@ func New(
 							k.Use(outletmw.GateUnlessUseCase(subscriptions.RequireFeature(subscriptions.FeatureKDS), "services"))
 							k.Get("/kds/stream", kds.StreamKDS)
 							k.Get("/kds/tickets", kds.ListTickets)
+							// Day view: 24 hourly buckets and the item tally for shift close.
+							k.Get("/kds/tickets/day-summary", kds.DaySummary)
 							k.Post("/kds/tickets/{id}/start", kds.StartTicket)
 							k.Post("/kds/tickets/{id}/ready", kds.ReadyTicket)
 							k.Post("/kds/tickets/{id}/serve", kds.ServeTicket)

@@ -902,6 +902,11 @@ var (
 				Columns: []*schema.Column{KdsTicketsColumns[2]},
 			},
 			{
+				Name:    "kdsticket_day_window",
+				Unique:  false,
+				Columns: []*schema.Column{KdsTicketsColumns[1], KdsTicketsColumns[8]},
+			},
+			{
 				Name:    "kdsticket_live_board",
 				Unique:  false,
 				Columns: []*schema.Column{KdsTicketsColumns[1], KdsTicketsColumns[8]},

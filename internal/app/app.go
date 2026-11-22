@@ -429,6 +429,7 @@ func New(ctx context.Context) (*App, error) {
 	hotelHandler.SetCustomerResolver(customerResolver)
 	kdsHandler := handlers.NewKDSHandler(log, entClient)
 	kdsHandler.SetKDSCategorySource(kdsCategorySource)
+	kdsHandler.SetSummaryDB(readSQLDB)
 	kdsHandler.Hub().SetRelay(relay)
 	kdsHub := kdsHandler.Hub()
 	deviceHandler := handlers.NewDeviceHandler(log, entClient)

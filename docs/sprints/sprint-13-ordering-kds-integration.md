@@ -110,6 +110,22 @@ Expected shape of `ordering.order.status.changed` from ordering-backend:
 
 ---
 
+## Day view and shift tally (2026-11-22)
+
+Urban Loft asked for served orders to stay on the board, crossed out, so baristas and chefs can count what they sold against the system when they close a shift. Before this, the board listed only pending, in progress and ready tickets from the last 24 hours, so a served ticket vanished the moment it was bumped and the only record left was the sales report.
+
+How tickets are handled now:
+
+- Tickets are created per station when a sale or online order reaches the kitchen (`orders` routing through `kdsroute`) and move pending, in progress, ready, served, or voided. `POST .../kds/tickets/clear` serves every active ticket of the outlet in one tap. Served and voided rows were always kept in `kds_tickets`; only the board hid them.
+- `GET .../pos/kds/tickets` keeps its live behaviour by default. With `view=day`, `date=YYYY-MM-DD` or `hour=0..23` it returns every ticket received in that tenant-local day or hour, all statuses, oldest first, capped by `limit` (default 500, max 2000) with `truncated` set when more exist. The day is the tenant's calendar day from the local tenants projection (Africa/Nairobi by default), never the pod's UTC day.
+- `GET .../pos/kds/tickets/day-summary?date=&hour=&station_id=` (`kds.BuildDaySummary`) returns all 24 hourly buckets (tickets, open, served, voided, item quantities) and the item tally of the day or the chosen hour. It runs two grouped SQL reads on the read replica, so its cost follows the number of hours and distinct items, not the number of tickets. Every value is a bound parameter.
+- Index `kdsticket_day_window (tenant_id, received_at)` (migration `20261122120000`) serves both reads; the partial `kdsticket_live_board` index still serves the live board.
+- Outlet settings, in `OutletSetting.metadata` with no new column: `kds_default_view` (`day` by default, or `live`) and `kds_keep_served` (default true). Both go through `PUT .../pos/settings` and show on the KDS Stations settings tab.
+
+The pos-ui board opens on the day view: an hour strip with all 24 hours (quiet hours muted, All hours selected by default, tap an hour to drill down), an item tally table (served, open, voided, total) for the station being viewed, and the ticket cards. Finished cards sit after the live rail with an X across them, struck-through items and their frozen prep time. Every elapsed timer in pos-ui (KDS cards, table occupancy, open sales on the sales list) now reads `YYYY:MM:DD:HH:mm:ss` from one helper, `src/lib/time/elapsed.ts`.
+
+---
+
 ## Partial Implementation (updated 2026-05-25)
 
 ### Live Endpoints (`online_orders.go` handler)

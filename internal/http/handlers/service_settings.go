@@ -19,6 +19,7 @@ import (
 	entstaff "github.com/bengobox/pos-service/internal/ent/staffmember"
 	entstaffoutlet "github.com/bengobox/pos-service/internal/ent/staffoutlet"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
+	kdsmod "github.com/bengobox/pos-service/internal/modules/kds"
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
 	"github.com/bengobox/pos-service/internal/modules/printing"
@@ -210,8 +211,12 @@ type settingsResponse struct {
 	HideDraftResumeForCashier bool `json:"hide_draft_resume_for_cashier"`
 	// Hides profit, margin and unit cost from non-manager callers across order and report
 	// responses and documents (middleware.HideProfitForCashier). Absent means shown.
-	HideProfitMarginForCashier bool   `json:"hide_profit_margin_for_cashier"`
-	UpdatedAt                  string `json:"updated_at"`
+	HideProfitMarginForCashier bool `json:"hide_profit_margin_for_cashier"`
+	// KDS board: the view it opens on ("day" or "live") and whether served and voided tickets
+	// stay on the day view, crossed out, for the shift tally (metadata, kds.MetaKey*).
+	KDSDefaultView string `json:"kds_default_view"`
+	KDSKeepServed  bool   `json:"kds_keep_served"`
+	UpdatedAt      string `json:"updated_at"`
 }
 
 func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsResponse {
@@ -295,6 +300,8 @@ func toSettingsResponse(outlet *ent.Outlet, s *ent.OutletSetting) settingsRespon
 		HideDraftDeleteForCashier:  metaBoolDefault(s.Metadata, metaKeyHideDraftDeleteForCashier, false),
 		HideDraftResumeForCashier:  metaBoolDefault(s.Metadata, metaKeyHideDraftResumeForCashier, false),
 		HideProfitMarginForCashier: metaBoolDefault(s.Metadata, outletmw.MetaKeyHideProfitMarginForCashier, false),
+		KDSDefaultView:             kdsmod.NormalizeDefaultView(metaString(s.Metadata, kdsmod.MetaKeyDefaultView)),
+		KDSKeepServed:              metaBoolDefault(s.Metadata, kdsmod.MetaKeyKeepServed, true),
 		UpdatedAt:                  s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	if profile, ok := outletpolicy.ServiceProfileFromMetadata(s.Metadata); ok &&
@@ -618,6 +625,9 @@ type updateSettingsInput struct {
 	HideDraftResumeForCashier *bool `json:"hide_draft_resume_for_cashier"`
 	// Quick config: hide profit, margin and unit cost from non-manager callers.
 	HideProfitMarginForCashier *bool `json:"hide_profit_margin_for_cashier"`
+	// KDS board: "day" | "live", and keep served tickets on the day view.
+	KDSDefaultView *string `json:"kds_default_view"`
+	KDSKeepServed  *bool   `json:"kds_keep_served"`
 }
 
 // PutSettings handles PUT /{tenantID}/pos/settings and PUT /{tenantID}/pos/outlets/{outletID}/settings
@@ -802,7 +812,8 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 	// merge of both). Any FUTURE freeform-metadata setting must be added to THIS block.
 	if input.ShowLogoOnReceipt != nil || input.ShowTenantEmailOnReceipt != nil || input.RestrictCreditSaleRefundToOffset != nil || input.ShowTenantNameOnReceipt != nil ||
 		input.HideDraftDeleteForCashier != nil || input.HideDraftResumeForCashier != nil || input.HideProfitMarginForCashier != nil ||
-		input.ReturnNoRestockReasons != nil || input.FallbackTaxCode != nil {
+		input.ReturnNoRestockReasons != nil || input.FallbackTaxCode != nil ||
+		input.KDSDefaultView != nil || input.KDSKeepServed != nil {
 		meta := map[string]any{}
 		for k, v := range setting.Metadata {
 			meta[k] = v
@@ -830,6 +841,12 @@ func (h *ServiceSettingsHandler) PutSettings(w http.ResponseWriter, r *http.Requ
 		}
 		if input.HideProfitMarginForCashier != nil {
 			meta[outletmw.MetaKeyHideProfitMarginForCashier] = *input.HideProfitMarginForCashier
+		}
+		if input.KDSDefaultView != nil {
+			meta[kdsmod.MetaKeyDefaultView] = kdsmod.NormalizeDefaultView(*input.KDSDefaultView)
+		}
+		if input.KDSKeepServed != nil {
+			meta[kdsmod.MetaKeyKeepServed] = *input.KDSKeepServed
 		}
 		if input.FallbackTaxCode != nil {
 			if code := strings.TrimSpace(*input.FallbackTaxCode); code != "" {

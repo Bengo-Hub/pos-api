@@ -50,6 +50,10 @@ func (KDSTicket) Indexes() []ent.Index {
 		// The live board (polled every few seconds by each screen) reads only active tickets for a
 		// tenant inside a recency window. Served and voided tickets are kept for reports, so a
 		// partial index keeps that read the size of the live board, not the ticket history.
+		// The day view lists and aggregates every ticket of one tenant-local day (served and voided
+		// included), so it reads the full history by tenant and time window.
+		index.Fields("tenant_id", "received_at").
+			StorageKey("kdsticket_day_window"),
 		index.Fields("tenant_id", "received_at").
 			StorageKey("kdsticket_live_board").
 			Annotations(entsql.IndexWhere("status IN ('pending', 'in_progress', 'ready')")),
