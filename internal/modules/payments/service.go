@@ -534,7 +534,7 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, req RecordPaymentRequ
 			collected += p.Amount
 		}
 	}
-	freshOutstanding := order.TotalAmount - collected - completedReturns
+	freshOutstanding := order.TotalAmount - collected - completedReturns - onlinePrepaidCredit(order)
 	if freshOutstanding < 0 {
 		freshOutstanding = 0
 	}
@@ -1144,7 +1144,7 @@ func (s *Service) outstandingBalance(ctx context.Context, order *ent.POSOrder) f
 		return order.TotalAmount
 	}
 	completedReturns, _ := s.completedReturnsTotal(ctx, order.ID)
-	remaining := order.TotalAmount - collected - completedReturns
+	remaining := order.TotalAmount - collected - completedReturns - onlinePrepaidCredit(order)
 	if remaining > 0 {
 		return remaining
 	}

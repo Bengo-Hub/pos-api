@@ -199,7 +199,7 @@ func (s *Service) recordRoomCharge(ctx context.Context, order *ent.POSOrder, req
 			collected += p.Amount
 		}
 	}
-	outstanding := order.TotalAmount - collected - completedReturns
+	outstanding := order.TotalAmount - collected - completedReturns - onlinePrepaidCredit(order)
 	if outstanding <= 0.009 {
 		return rollback(fmt.Errorf("payments: order %s is already fully paid", order.OrderNumber))
 	}
