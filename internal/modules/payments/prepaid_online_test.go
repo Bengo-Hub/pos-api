@@ -30,3 +30,27 @@ func TestOnlinePrepaidCredit(t *testing.T) {
 		}
 	}
 }
+
+// The part of an online order's sale no till payment covers was collected by ordering and reaches
+// treasury as an online_<method> tender, which draws Customer Deposits instead of booking cash.
+func TestOnlineCollectedTender(t *testing.T) {
+	online := map[string]any{"online_order_id": "x", "payment_method": "mpesa", "prepaid": true}
+	paid := []saleTender{{Type: "cash", Amount: 200, Status: StatusCompleted}}
+
+	if got, ok := onlineCollectedTender(&ent.POSOrder{Metadata: online, TotalAmount: 700}, nil); !ok || got.Type != "online_mpesa" || got.Amount != 700 {
+		t.Errorf("prepaid online order: got %+v %v, want online_mpesa 700", got, ok)
+	}
+	if got, ok := onlineCollectedTender(&ent.POSOrder{Metadata: online, TotalAmount: 900}, paid); !ok || got.Amount != 700 {
+		t.Errorf("200 added and paid at the till: got %+v %v, want 700 online", got, ok)
+	}
+	cod := map[string]any{"online_order_id": "x", "payment_method": "mpesa", "collected_payment_method": "cash"}
+	if got, ok := onlineCollectedTender(&ent.POSOrder{Metadata: cod, TotalAmount: 500}, nil); !ok || got.Type != "online_cash" {
+		t.Errorf("cash collected on delivery: got %+v %v, want online_cash", got, ok)
+	}
+	if _, ok := onlineCollectedTender(&ent.POSOrder{Metadata: online, TotalAmount: 200}, paid); ok {
+		t.Error("fully paid at the till: no online tender")
+	}
+	if _, ok := onlineCollectedTender(&ent.POSOrder{TotalAmount: 700}, nil); ok {
+		t.Error("till order: no online tender")
+	}
+}

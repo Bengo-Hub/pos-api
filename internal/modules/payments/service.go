@@ -1619,6 +1619,9 @@ func (s *Service) resolveSaleSettlement(ctx context.Context, order *ent.POSOrder
 			}
 		}
 	}
+	if t, ok := onlineCollectedTender(order, tenders); ok {
+		tenders = append(tenders, t)
+	}
 	switch {
 	case comp > 0 && comp >= order.TotalAmount-0.01:
 		scheme = "complimentary"
