@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,12 +14,16 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/pos-service/internal/audit"
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/ent/outletsetting"
 	"github.com/bengobox/pos-service/internal/ent/poslinemodifier"
 	"github.com/bengobox/pos-service/internal/ent/posorder"
 	"github.com/bengobox/pos-service/internal/ent/posorderevent"
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	outletmw "github.com/bengobox/pos-service/internal/http/middleware"
+	"github.com/bengobox/pos-service/internal/modules/inventory"
+	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
+	"github.com/bengobox/pos-service/internal/modules/tableseat"
 )
 
 // bulkOrderIDCap bounds one bulk request so a single call can't hold a request-scoped
@@ -75,6 +80,51 @@ func voidSkipReason(status string) string {
 	return ""
 }
 
+// voidOptions carries the structured part of a void: the outlet void reason code (which decides
+// whether stock is consumed as wastage) and, for a duplicate, the order it duplicated.
+type voidOptions struct {
+	ReasonCode  string
+	DuplicateOf string
+}
+
+// recordVoidWastage consumes a voided bill's prepared items from stock with reason
+// "pos_void_wastage". The order never reached pos.sale.finalized, so nothing was deducted
+// before. Idempotent on the order id in inventory-api; best effort, a failure is logged for
+// the manager to record the wastage by hand.
+func (h *POSOrderHandler) recordVoidWastage(ctx context.Context, tid uuid.UUID, order *ent.POSOrder) {
+	if h.inventoryClient == nil {
+		return
+	}
+	lines, err := h.client.POSOrderLine.Query().Where(posorderline.OrderID(order.ID)).All(ctx)
+	if err != nil {
+		h.log.Warn("void wastage: load lines failed", zap.Stringer("order_id", order.ID), zap.Error(err))
+		return
+	}
+	items := make([]inventory.ConsumptionItem, 0, len(lines))
+	for _, l := range lines {
+		qty := l.Quantity
+		if l.VoidedQty != nil {
+			qty -= *l.VoidedQty
+		}
+		if l.Sku == "" || qty <= 0 {
+			continue
+		}
+		items = append(items, inventory.ConsumptionItem{SKU: l.Sku, Quantity: qty})
+	}
+	if len(items) == 0 {
+		return
+	}
+	if _, err := h.inventoryClient.RecordConsumption(ctx, tid.String(), inventory.ConsumptionRequest{
+		OrderID:        order.ID.String(),
+		Items:          items,
+		OutletID:       order.OutletID.String(),
+		Reason:         "pos_void_wastage",
+		IdempotencyKey: "pos-void-wastage-" + order.ID.String(),
+	}); err != nil {
+		h.log.Warn("void wastage: inventory consumption failed", zap.Stringer("order_id", order.ID), zap.Error(err))
+	}
+}
+
 // voidNeedsApproval reports whether a void action must be rejected with 422 approval_required —
 // true only when the caller is not manager-tier AND no valid approval (live token, void code, or
 // generic approval code) was captured. Shared by VoidOrder and VoidOrderLine so a cashier can
@@ -90,16 +140,54 @@ func voidNeedsApproval(callerIsManager bool, approverID *uuid.UUID) bool {
 // endpoint does: status flip + voided_reason/by/at, voiding the order's still-open KDS
 // tickets, and the centralized audit entry. Eligibility (voidSkipReason) must be checked
 // by the caller first.
-func (h *POSOrderHandler) applyVoid(ctx context.Context, tid uuid.UUID, order *ent.POSOrder, callerID uuid.UUID, approverID *uuid.UUID, reason string) (*ent.POSOrder, error) {
+//
+// opts.ReasonCode picks an entry from the outlet's void reason list (outletpolicy.VoidReason);
+// when that entry records wastage the order's unvoided lines are consumed from stock as wastage.
+// The table the bill sat at is released either way.
+func (h *POSOrderHandler) applyVoid(ctx context.Context, tid uuid.UUID, order *ent.POSOrder, callerID uuid.UUID, approverID *uuid.UUID, reason string, opts voidOptions) (*ent.POSOrder, error) {
 	now := time.Now()
+	var vr outletpolicy.VoidReason
+	var known bool
+	if opts.ReasonCode != "" {
+		if setting, sErr := h.client.OutletSetting.Query().
+			Where(outletsetting.OutletID(order.OutletID)).
+			Select(outletsetting.FieldMetadata).
+			Only(ctx); sErr == nil {
+			vr, known = outletpolicy.FindVoidReason(setting.Metadata, opts.ReasonCode)
+		} else {
+			vr, known = outletpolicy.FindVoidReason(nil, opts.ReasonCode)
+		}
+	}
+	meta := order.Metadata
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	if known {
+		meta["void_reason_code"] = vr.Code
+		meta["void_record_wastage"] = vr.RecordWastage
+		if strings.TrimSpace(reason) == "" {
+			reason = vr.Label
+		}
+	}
+	if d := strings.TrimSpace(opts.DuplicateOf); d != "" {
+		meta["void_duplicate_of"] = d
+	}
 	updated, err := order.Update().
 		SetStatus("voided").
 		SetVoidedReason(reason).
 		SetVoidedBy(callerID).
 		SetVoidedAt(now).
+		SetMetadata(meta).
 		Save(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	if rerr := tableseat.ReleaseOrder(ctx, h.client, tid, order.ID); rerr != nil {
+		h.log.Warn("void: release table failed", zap.Stringer("order_id", order.ID), zap.Error(rerr))
+	}
+	if known && vr.RecordWastage {
+		h.recordVoidWastage(ctx, tid, order)
 	}
 
 	h.log.Info("order voided",
@@ -370,7 +458,7 @@ func (h *POSOrderHandler) BulkVoidOrders(w http.ResponseWriter, r *http.Request)
 			skipped = append(skipped, bulkSkippedItem{ID: raw, Reason: reason})
 			continue
 		}
-		if _, verr := h.applyVoid(r.Context(), tid, order, callerID, nil, input.Reason); verr != nil {
+		if _, verr := h.applyVoid(r.Context(), tid, order, callerID, nil, input.Reason, voidOptions{ReasonCode: input.ReasonCode}); verr != nil {
 			h.log.Error("bulk void orders: void failed", zap.Stringer("order_id", orderID), zap.Error(verr))
 			skipped = append(skipped, bulkSkippedItem{ID: raw, Reason: "internal_error"})
 			continue
@@ -385,10 +473,32 @@ func (h *POSOrderHandler) BulkVoidOrders(w http.ResponseWriter, r *http.Request)
 type bulkVoidOrdersInput struct {
 	OrderIDs []string `json:"order_ids"`
 	Reason   string   `json:"reason"`
+	// ReasonCode is an outlet void reason code (see outletpolicy.VoidReason); optional.
+	ReasonCode string `json:"reason_code"`
 }
 
 // bulkVoidOrdersResult reports how many orders were voided and which ids were skipped (and why).
 type bulkVoidOrdersResult struct {
 	Voided  int               `json:"voided"`
 	Skipped []bulkSkippedItem `json:"skipped"`
+}
+
+// ListVoidReasons handles GET /{tenantID}/pos/void-reasons?outlet_id=: the outlet's void reason
+// list (outlet settings metadata void_reasons, else the defaults) for the till's void dialog.
+// Admins edit the list through the outlet settings metadata like every other outlet policy.
+func (h *POSOrderHandler) ListVoidReasons(w http.ResponseWriter, r *http.Request) {
+	if _, err := parseTenantUUID(r); err != nil {
+		jsonError(w, "invalid tenant_id", http.StatusBadRequest)
+		return
+	}
+	var meta map[string]any
+	if outletID := parseOptionalUUID(r.URL.Query().Get("outlet_id"), r); outletID != uuid.Nil {
+		if setting, sErr := h.client.OutletSetting.Query().
+			Where(outletsetting.OutletID(outletID)).
+			Select(outletsetting.FieldMetadata).
+			Only(r.Context()); sErr == nil {
+			meta = setting.Metadata
+		}
+	}
+	jsonOK(w, map[string]any{"data": outletpolicy.VoidReasonsFromMetadata(meta)})
 }

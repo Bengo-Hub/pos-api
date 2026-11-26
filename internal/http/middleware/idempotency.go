@@ -155,9 +155,12 @@ func Idempotency(client *ent.Client) func(http.Handler) http.Handler {
 			next.ServeHTTP(cw, r)
 			completed = true
 
-			// Cache 2xx and client-error 4xx (terminal — replaying won't change the outcome),
-			// but never 5xx: a transient server error must be retryable by the client.
-			if cw.status >= 500 {
+			// Cache 2xx and terminal client errors (replaying won't change the outcome), but never
+			// 5xx or a 4xx the caller is expected to resolve and resend under the SAME key: the till
+			// keeps one key per sale attempt, so an approval_required 422 answered with a manager
+			// token, a table_has_open_order 409 answered with "separate bill", an expired 401 or a
+			// 429 must reach the handler again instead of replaying the first refusal.
+			if cw.status >= 500 || retryableClientStatus(cw.status) {
 				_, _ = client.IdempotencyKey.Delete().
 					Where(idempotencykey.TenantID(tid), idempotencykey.Key(key)).
 					Exec(ctx)
@@ -171,4 +174,15 @@ func Idempotency(client *ent.Client) func(http.Handler) http.Handler {
 				Save(ctx)
 		})
 	}
+}
+
+// retryableClientStatus lists the 4xx answers that depend on state or extra input the client
+// supplies on a retry (auth, approval, a conflict choice, rate limit), so they are never stored.
+func retryableClientStatus(status int) bool {
+	switch status {
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusConflict,
+		http.StatusPreconditionRequired, http.StatusUnprocessableEntity, http.StatusTooManyRequests:
+		return true
+	}
+	return false
 }

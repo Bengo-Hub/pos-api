@@ -136,12 +136,15 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 		}()
 		evt, err := sharedevents.FromJSON(msg.Data)
 		if err != nil {
+			// A body that does not parse never will: drop it instead of redelivering.
 			h.logger.Error("catalog sync: unmarshal event failed", zap.Error(err))
-			_ = msg.Nak()
+			_ = msg.Term()
 			return
 		}
 		var handleErr error
 		switch evt.EventType {
+		case "consumption.costed":
+			handleErr = h.onConsumptionCosted(context.Background(), evt)
 		case "bundle.created", "bundle.updated":
 			handleErr = h.syncBundle(context.Background(), evt)
 		case "stock.updated":
@@ -158,7 +161,8 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 		if handleErr != nil {
 			h.logger.Error("catalog sync: handler failed",
 				zap.String("event_type", evt.EventType), zap.Error(handleErr))
-			_ = msg.Nak()
+			// Spaced retries (MaxDeliver bounds them), never an immediate redelivery loop.
+			_ = msg.NakWithDelay(inventoryEventRetryDelay(msg))
 			return
 		}
 		_ = msg.Ack()
@@ -197,6 +201,9 @@ func (h *InventoryEventHandler) SubscribeToInventoryEvents(nc *nats.Conn) error 
 		// version so the terminal auto-refreshes its stock within ~45s instead of showing a stale
 		// out-of-stock row until the 5-min sweep.
 		{"inventory.stock.updated", "pos-inv-stock-updated"},
+		// The actual cost inventory charged for a sale's stock (lot cost / running average):
+		// replaces the till's standard-cost estimate on the order lines (onConsumptionCosted).
+		{"inventory.consumption.costed", "pos-inv-consumption-costed"},
 	}
 	for _, s := range subs {
 		// Multi-layer rebind: settle buffer + retry-on-"already bound" so a

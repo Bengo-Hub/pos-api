@@ -31,6 +31,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/orderchannel"
 	"github.com/bengobox/pos-service/internal/modules/outletpolicy"
 	"github.com/bengobox/pos-service/internal/modules/printing"
+	"github.com/bengobox/pos-service/internal/modules/tableseat"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/shorttoken"
 )
@@ -952,8 +953,27 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 	if meta == nil {
 		meta = map[string]any{}
 	}
+	var seatTableID uuid.UUID
 	if req.TableID != "" {
 		meta["table_id"] = req.TableID
+		if parsed, perr := uuid.Parse(req.TableID); perr == nil {
+			seatTableID = parsed
+		}
+	}
+	// One open bill per table (outlet setting table_guard, default warn). A sale synced from an
+	// offline queue is never rejected here: it was already rung up, maybe paid, and nobody is at
+	// the till to answer. It is seated anyway and flagged so a manager can review the overlap.
+	if seatTableID != uuid.Nil && !req.HoldForAcceptance {
+		separate, _ := meta["separate_bill"].(bool)
+		if gerr := tableseat.CheckGuard(ctx, s.client, req.TenantID, req.OutletID, seatTableID, separate); gerr != nil {
+			var conflict *tableseat.ConflictError
+			if req.OfflineCreatedAt != nil && errors.As(gerr, &conflict) {
+				meta["table_conflict_order_id"] = conflict.OrderID.String()
+				meta["table_conflict_order_number"] = conflict.OrderNumber
+			} else {
+				return nil, gerr
+			}
+		}
 	}
 	// Services job orders: validate the job header (due date, brief, attachments) and stamp the
 	// first production stage of the outlet's service profile.
@@ -1185,6 +1205,16 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*ent
 
 	if err = tx.Commit(); err != nil {
 		return nil, fmt.Errorf("orders: commit: %w", err)
+	}
+
+	// Seat the order at its table on the server, so an order synced from an offline queue lands on
+	// the table exactly like one placed online. Seat is idempotent, so the till's own assign call
+	// (older builds) cannot stack a second assignment. Best effort: seating never fails the sale.
+	if seatTableID != uuid.Nil {
+		if _, serr := tableseat.Seat(ctx, s.client, req.TenantID, seatTableID, order.ID); serr != nil {
+			s.log.Warn("seat order at table failed", zap.Error(serr),
+				zap.String("order_id", order.ID.String()), zap.String("table_id", seatTableID.String()))
+		}
 	}
 
 	// Audit the applied auto-discount (PromotionApplication) now that the order id exists — one row
@@ -2003,6 +2033,14 @@ func (s *Service) AddOrderLines(ctx context.Context, tenantID uuid.UUID, tenantS
 	switch order.Status {
 	case StatusCompleted, StatusCancelled, StatusVoided, StatusRefunded:
 		return nil, fmt.Errorf("orders: cannot add items to a %s order", order.Status)
+	}
+
+	// Exactly-once add-to-bill: the till stamps every new line with metadata.client_line_id, so a
+	// retry after a lost reply (or a replay from the offline queue) skips lines already on the
+	// bill instead of adding them twice. Lines without the id (older builds) are always added.
+	lines = dropKnownClientLines(order.Edges.Lines, lines)
+	if len(lines) == 0 {
+		return order, nil
 	}
 
 	s.StampLineVariants(ctx, tenantID, lines)

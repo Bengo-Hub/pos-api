@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	enttable "github.com/bengobox/pos-service/internal/ent/table"
 	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	entreservation "github.com/bengobox/pos-service/internal/ent/tablereservation"
+	"github.com/bengobox/pos-service/internal/modules/tableseat"
 	"github.com/bengobox/pos-service/internal/platform/events"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
@@ -202,11 +204,11 @@ func (h *TableHandler) ListTables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Live orders are resolved per table by tableseat.LiveOrderIDs below. The old eager load put
+	// .Limit(1) inside WithAssignments, which limits the WHOLE eager query in ent, so only one
+	// table per outlet ever showed its bill and "+ Add to bill".
 	query := h.client.Table.Query().Where(enttable.TenantID(tid)).
-		WithSection().
-		WithAssignments(func(q *ent.TableAssignmentQuery) {
-			q.Where(tableassignment.ReleasedAtIsNil()).Limit(1)
-		})
+		WithSection()
 
 	if status := r.URL.Query().Get("status"); status != "" {
 		query = query.Where(enttable.Status(status))
@@ -227,59 +229,30 @@ func (h *TableHandler) ListTables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Collect order IDs from active assignments so we can fetch order info in one query.
-	orderIDSet := make(map[uuid.UUID]struct{})
+	// Each table's newest open seated order, in two queries for the whole page.
+	tableIDs := make([]uuid.UUID, 0, len(tables))
 	for _, t := range tables {
-		if t.Status == "occupied" && len(t.Edges.Assignments) > 0 {
-			asgn := t.Edges.Assignments[0]
-			if asgn.OrderID != nil {
-				orderIDSet[*asgn.OrderID] = struct{}{}
-			}
+		if t.Status == "occupied" {
+			tableIDs = append(tableIDs, t.ID)
 		}
 	}
-	orderIDs := make([]uuid.UUID, 0, len(orderIDSet))
-	for id := range orderIDSet {
-		orderIDs = append(orderIDs, id)
-	}
-
-	type orderSummary struct {
-		OrderNumber string
-		TotalAmount float64
-		Covers      int
-	}
-	orderSummaries := make(map[uuid.UUID]orderSummary)
-	if len(orderIDs) > 0 {
-		orders, qErr := h.client.POSOrder.Query().
-			Where(entposorder.IDIn(orderIDs...)).
-			Select("id", "order_number", "total_amount", "covers_count").
-			All(r.Context())
-		if qErr == nil {
-			for _, o := range orders {
-				orderSummaries[o.ID] = orderSummary{
-					OrderNumber: o.OrderNumber,
-					TotalAmount: o.TotalAmount,
-					Covers:      o.CoversCount,
-				}
-			}
-		}
+	live, since, lerr := tableseat.LiveOrderIDs(r.Context(), h.client, tid, tableIDs)
+	if lerr != nil {
+		h.log.Warn("list tables: live orders lookup failed", zap.Error(lerr))
 	}
 
 	rows := make([]tableRow, len(tables))
 	for i, t := range tables {
 		row := tableRow{Table: t}
-		if t.Status == "occupied" && len(t.Edges.Assignments) > 0 {
-			asgn := t.Edges.Assignments[0]
-			ts := asgn.AssignedAt.UTC().Format(time.RFC3339)
+		if o, ok := live[t.ID]; ok {
+			ts := since[t.ID].UTC().Format(time.RFC3339)
 			row.OccupiedSince = &ts
-			if asgn.OrderID != nil {
-				if s, ok := orderSummaries[*asgn.OrderID]; ok {
-					oidStr := asgn.OrderID.String()
-					row.OrderID = &oidStr
-					row.OrderNumber = &s.OrderNumber
-					row.OrderTotal = &s.TotalAmount
-					row.Covers = &s.Covers
-				}
-			}
+			oidStr := o.ID.String()
+			number, total, covers := o.OrderNumber, o.TotalAmount, o.CoversCount
+			row.OrderID = &oidStr
+			row.OrderNumber = &number
+			row.OrderTotal = &total
+			row.Covers = &covers
 		}
 		rows[i] = row
 	}
@@ -494,29 +467,46 @@ func (h *TableHandler) AssignTable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		OrderID uuid.UUID `json:"orderId"`
+		OrderID      uuid.UUID `json:"orderId"`
+		SeparateBill bool      `json:"separateBill"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	// Update table status to occupied
-	_, err = h.client.Table.Update().
-		Where(enttable.ID(tableID), enttable.TenantID(tid)).
-		SetStatus("occupied").
-		Save(r.Context())
+	// The order must be a real order of this tenant. An offline till used to send its local uuid
+	// here, leaving an assignment that matched no order and hid the bill from the table.
+	order, err := h.client.POSOrder.Query().
+		Where(entposorder.ID(input.OrderID), entposorder.TenantID(tid)).
+		Select(entposorder.FieldID, entposorder.FieldOutletID).
+		Only(r.Context())
 	if err != nil {
-		jsonError(w, "failed to update table", http.StatusInternalServerError)
+		jsonErrorWithCode(w, "order not found", "order_not_found", http.StatusNotFound)
 		return
 	}
+	// Already seated here (CreateOrder seats on the server): idempotent success, no guard.
+	if existing, _ := tableseat.OpenOrderOnTable(r.Context(), h.client, tid, tableID, uuid.Nil); existing == nil || existing.ID != order.ID {
+		if gerr := tableseat.CheckGuard(r.Context(), h.client, tid, order.OutletID, tableID, input.SeparateBill); gerr != nil {
+			var conflict *tableseat.ConflictError
+			if errors.As(gerr, &conflict) && conflict.OrderID != order.ID {
+				respondJSON(w, http.StatusConflict, map[string]any{
+					"error":                 "This table already has an open bill (" + conflict.OrderNumber + ").",
+					"code":                  "table_has_open_order",
+					"existing_order_id":     conflict.OrderID.String(),
+					"existing_order_number": conflict.OrderNumber,
+					"guard_mode":            string(conflict.Mode),
+				})
+				return
+			}
+		}
+	}
 
-	// Create assignment
-	assignment, err := h.client.TableAssignment.Create().
-		SetTableID(tableID).
-		SetOrderID(input.OrderID).
-		SetAssignedAt(time.Now()).
-		Save(r.Context())
+	assignment, err := tableseat.Seat(r.Context(), h.client, tid, tableID, order.ID)
+	if errors.Is(err, tableseat.ErrTableNotFound) {
+		jsonError(w, "table not found", http.StatusNotFound)
+		return
+	}
 	if err != nil {
 		h.log.Error("create assignment failed", zap.Error(err))
 		jsonError(w, "failed to assign table", http.StatusInternalServerError)
@@ -623,7 +613,7 @@ func (h *TableHandler) TransferTable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update table statuses
-	h.client.Table.Update().Where(enttable.ID(fromTableID)).SetStatus("available").Exec(ctx)  //nolint
+	h.client.Table.Update().Where(enttable.ID(fromTableID)).SetStatus("available").Exec(ctx)    //nolint
 	h.client.Table.Update().Where(enttable.ID(input.ToTableID)).SetStatus("occupied").Exec(ctx) //nolint
 
 	// Update order metadata with new table name
@@ -709,8 +699,8 @@ func (h *TableHandler) MergeTables(w http.ResponseWriter, r *http.Request) {
 	// Cancel the secondary order and release its table
 	now := time.Now()
 	h.client.POSOrder.Update().Where(entposorder.ID(*secondaryAsgn.OrderID), entposorder.TenantID(tid)).SetStatus("merged").Exec(ctx) //nolint
-	secondaryAsgn.Update().SetReleasedAt(now).Exec(ctx) //nolint
-	h.client.Table.Update().Where(enttable.ID(input.SecondaryTableID), enttable.TenantID(tid)).SetStatus("available").Exec(ctx) //nolint
+	secondaryAsgn.Update().SetReleasedAt(now).Exec(ctx)                                                                               //nolint
+	h.client.Table.Update().Where(enttable.ID(input.SecondaryTableID), enttable.TenantID(tid)).SetStatus("available").Exec(ctx)       //nolint
 
 	jsonOK(w, map[string]any{
 		"status":            "merged",
@@ -940,9 +930,9 @@ func (h *TableHandler) SplitOrder(w http.ResponseWriter, r *http.Request) {
 	order.Update().SetSubtotal(remSubtotal).SetTaxTotal(remTaxTotal).SetTotalAmount(remSubtotal).Exec(ctx) //nolint
 
 	jsonOK(w, map[string]any{
-		"split_order_id":    splitOrder.ID,
+		"split_order_id":     splitOrder.ID,
 		"split_order_number": splitOrder.OrderNumber,
-		"lines_moved":       len(lines),
+		"lines_moved":        len(lines),
 	})
 }
 

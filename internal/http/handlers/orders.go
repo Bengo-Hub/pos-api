@@ -32,6 +32,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/payments"
 	"github.com/bengobox/pos-service/internal/modules/promotions"
+	"github.com/bengobox/pos-service/internal/modules/tableseat"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/platform/subscriptions"
 )
@@ -1380,6 +1381,20 @@ func (h *POSOrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		var conflict *tableseat.ConflictError
+		if errors.As(err, &conflict) {
+			// The till offers "Add to existing bill" (default) or, in warn mode, "Separate bill"
+			// which resends with metadata.separate_bill=true under the same Idempotency-Key.
+			respondJSON(w, http.StatusConflict, map[string]any{
+				"error":                 "This table already has an open bill (" + conflict.OrderNumber + ").",
+				"code":                  "table_has_open_order",
+				"existing_order_id":     conflict.OrderID.String(),
+				"existing_order_number": conflict.OrderNumber,
+				"table_id":              conflict.TableID.String(),
+				"guard_mode":            string(conflict.Mode),
+			})
+			return
+		}
 		h.log.Error("create order failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
@@ -1745,6 +1760,10 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 		// ApprovalCode is the generic outlet-scoped manager approval code (the same primitive
 		// the discount/price-override gates use), tried as a third fallback alongside VoidCode.
 		ApprovalCode string `json:"approval_code"`
+		// ReasonCode picks an outlet void reason (outletpolicy.VoidReason); it decides whether
+		// prepared items are consumed as wastage. DuplicateOf names the order a duplicate copied.
+		ReasonCode  string `json:"reason_code"`
+		DuplicateOf string `json:"duplicate_of"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.Reason == "" {
 		jsonError(w, "reason is required", http.StatusBadRequest)
@@ -1839,7 +1858,8 @@ func (h *POSOrderHandler) VoidOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, err := h.applyVoid(r.Context(), tid, order, callerID, approverID, input.Reason)
+	updated, err := h.applyVoid(r.Context(), tid, order, callerID, approverID, input.Reason,
+		voidOptions{ReasonCode: input.ReasonCode, DuplicateOf: input.DuplicateOf})
 	if err != nil {
 		h.log.Error("void order failed", zap.Error(err))
 		jsonError(w, "internal error", http.StatusInternalServerError)

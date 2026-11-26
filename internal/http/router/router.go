@@ -442,6 +442,8 @@ func New(
 						// manager-level authority — see VoidOrder's mandatory-approval gate.
 						pos.With(outletmw.RequireServicePermission(rbacSvc, "pos.orders.void", "pos.orders.manage")).
 							Patch("/orders/{orderID}/void", orders.VoidOrder)
+						// The outlet's void reasons (code, label, record_wastage) for the void dialog.
+						pos.Get("/void-reasons", orders.ListVoidReasons)
 						// Delete a DRAFT (saved-but-unpaid) sale. Route-gated to an order-write
 						// permission OR the dedicated pos.orders.delete_own (a custom role can hold
 						// delete_own without add/change_own); DeleteDraft then enforces the RBAC

@@ -22,8 +22,6 @@ import (
 	"github.com/bengobox/pos-service/internal/ent/posorderline"
 	"github.com/bengobox/pos-service/internal/ent/pospayment"
 	staffmemberent "github.com/bengobox/pos-service/internal/ent/staffmember"
-	enttable "github.com/bengobox/pos-service/internal/ent/table"
-	"github.com/bengobox/pos-service/internal/ent/tableassignment"
 	"github.com/bengobox/pos-service/internal/ent/tender"
 	entuser "github.com/bengobox/pos-service/internal/ent/user"
 	"github.com/bengobox/pos-service/internal/modules/customers"
@@ -33,6 +31,7 @@ import (
 	"github.com/bengobox/pos-service/internal/modules/printing"
 	"github.com/bengobox/pos-service/internal/modules/saletax"
 	"github.com/bengobox/pos-service/internal/modules/staffcredit"
+	"github.com/bengobox/pos-service/internal/modules/tableseat"
 	"github.com/bengobox/pos-service/internal/modules/treasury"
 	"github.com/bengobox/pos-service/internal/payref"
 	"github.com/bengobox/pos-service/internal/platform/events"
@@ -1483,7 +1482,11 @@ func (s *Service) runPostFinalize(ctx context.Context, order *ent.POSOrder) {
 	s.goSafe(&wg, order, "commissions", func() { s.calcCommissions(ctx, order) })
 	// Free the table once the bill is settled, regardless of which flow (waiter My Bills, cashier
 	// orders page, or async digital confirmation) closed it — mirrors the manual ReleaseTable endpoint.
-	s.goSafe(&wg, order, "release-table", func() { s.releaseTableForOrder(ctx, order.ID) })
+	s.goSafe(&wg, order, "release-table", func() {
+		if err := tableseat.ReleaseOrder(ctx, s.client, order.TenantID, order.ID); err != nil {
+			s.log.Warn("release table failed", zap.Error(err), zap.String("order_id", order.ID.String()))
+		}
+	})
 	// A settled order is done in the kitchen/bar regardless of whether staff ever bumped its tickets
 	// on the KDS board (quick-service counter sales skip the board entirely) — force-serve any that
 	// are still open so the live board doesn't show food for an order that's already been paid for.
@@ -1517,30 +1520,6 @@ func (s *Service) goSafe(wg *sync.WaitGroup, order *ent.POSOrder, step string, f
 		}()
 		fn()
 	}()
-}
-
-// releaseTableForOrder frees any table occupied by this order: it closes the
-// active table assignment and sets the table back to available. No-op when the
-// order isn't tied to a table (takeaway, delivery, retail).
-func (s *Service) releaseTableForOrder(ctx context.Context, orderID uuid.UUID) {
-	asgns, err := s.client.TableAssignment.Query().
-		Where(tableassignment.OrderID(orderID), tableassignment.ReleasedAtIsNil()).
-		All(ctx)
-	if err != nil || len(asgns) == 0 {
-		return
-	}
-	now := time.Now()
-	for _, a := range asgns {
-		if _, uerr := s.client.TableAssignment.UpdateOne(a).SetReleasedAt(now).Save(ctx); uerr != nil {
-			s.log.Warn("release table: close assignment failed", zap.Error(uerr))
-		}
-		if _, uerr := s.client.Table.Update().
-			Where(enttable.ID(a.TableID)).
-			SetStatus("available").
-			Save(ctx); uerr != nil {
-			s.log.Warn("release table: set available failed", zap.Error(uerr))
-		}
-	}
 }
 
 // signEtimsSync signs the sale with KRA eTIMS synchronously (treasury S2S) at checkout, so the
