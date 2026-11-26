@@ -64,13 +64,24 @@ inventory-ui:
 
 No schema migration. Everything new lives in metadata or JSON payloads.
 
+## Second pass (same day)
+
+- pos-api `df17f29`: reversals, returns and sale edits back out the cost the sale booked (`orders.LineUnitCosts`), falling back to the catalog cost only for lines without one.
+- inventory-api `8ea35ce`:
+  - Every stock-in path creates a cost layer: adjustments, opening stock and import, transfers on receipt, relocation, bulk adjust, job purchase, production.
+  - Reversals and return restocks put units back into the lot they came from.
+  - Reservation consumption is costed.
+  - Recipes recost after an ingredient's cost changes, including from a goods receipt.
+  - The dashboard inventory value is one SQL aggregate.
+- pos-ui `0c8f97a`:
+  - Offline chits print "Offline XXXXXX".
+  - Sync stores the server number and the Sync Monitor lists recently synced offline bills.
+  - Dine-in e2e case added.
+- pos-ui `4d6a00b`: `main` merged into `master`; deploys run from `master` only.
+
 ## Still open
 
-- Returns, reversals and sale edits still restock at the item's current cost and do not restore the original lot.
-- Transfers, relocations, bulk adjust destinations, direct job purchases, opening stock and return restocks create no cost layer.
-- A receipt that changes an ingredient's cost does not recost the recipes that use it.
-- `ConsumeReservation` writes no costed consumption line.
-- `EnhancedSummary.total_inventory_value` is always 0. No screen shows it yet; fixing it needs an SQL aggregate, not the in-memory valuation.
-- Offline kitchen chits still print a short local id; the Sync Monitor does not yet map it to the server number.
-- The Playwright offline spec does not cover dine-in add-to-bill yet.
-- Order 003392 at Urban Loft: a manager voids it from Bills with reason "Duplicate order" once pos-ui is deployed.
+- Run the dine-in e2e case against the demo restaurant outlet; its Tables page selectors may need a first-run adjustment.
+- Reservation consumption does not publish `inventory.consumption.costed` (to avoid a double COGS entry). Check the ordering channel's COGS path before enabling it.
+- The dashboard inventory value clamps negative stock and uses the item's cost per stock unit, so it can differ slightly from the Stock Valuation report.
+- Order 003392 at Urban Loft: a manager voids it from Bills with the reason "Duplicate order".
