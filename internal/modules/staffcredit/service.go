@@ -149,7 +149,11 @@ func (s *Service) Provision(ctx context.Context, tenantID uuid.UUID, in Provisio
 		})
 		if rerr != nil {
 			s.log.Warn("erp staff-purchase sync failed (link left pending/failed for retry)", zap.String("source_key", sourceKey), zap.Error(rerr))
-			link, _ = link.Update().SetSyncStatus("failed").SetSyncError(rerr.Error()).Save(ctx)
+			// The retry job resends it later with backoff (retry.go); the state rides in sync_error.
+			st := nextState(syncState{
+				InstallmentAmount: in.InstallmentAmount.StringFixed(2), InstallmentsTotal: in.InstallmentsTotal, EmployeeName: sm.Name,
+			}, rerr, time.Now())
+			link, _ = link.Update().SetSyncStatus("failed").SetSyncError(st.String()).Save(ctx)
 			return link, nil
 		}
 		upd := link.Update().SetSyncStatus("synced")

@@ -110,6 +110,12 @@ func (p *Publisher) PublishStockAlert(ctx context.Context, tenantID uuid.UUID, d
 	return p.publish(ctx, tenantID, "alert.stock_low", data)
 }
 
+// PublishAlert publishes a pos.alert.<type> event (alertType like "alert.staff_purchase_link_failed"),
+// the sibling of PublishStockAlert for alerts raised by pos itself.
+func (p *Publisher) PublishAlert(ctx context.Context, tenantID uuid.UUID, alertType string, data map[string]any) error {
+	return p.publish(ctx, tenantID, alertType, data)
+}
+
 // PublishReturnInitiated publishes a pos.return.initiated event (audit trail).
 func (p *Publisher) PublishReturnInitiated(ctx context.Context, tenantID uuid.UUID, data map[string]any) error {
 	return p.publish(ctx, tenantID, "return.initiated", data)

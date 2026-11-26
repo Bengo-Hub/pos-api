@@ -82,6 +82,7 @@ type App struct {
 	returnsSvc                     *returns.Service
 	saleFinalizedReconciler        *paymentmodule.SaleFinalizedReconciler
 	treasuryIntentReconciler       *paymentmodule.TreasuryIntentReconciler
+	staffPurchaseRetry             *staffcredit.RetryJob
 	folioIntentRetry               *paymentmodule.Service // desk folio intents that failed (S2-20 M-10)
 	kdsHub                         *kdsmodule.Hub
 	printHub                       *printing.Hub
@@ -474,6 +475,12 @@ func New(ctx context.Context) (*App, error) {
 	// Staff fund-from-salary (premium): pos→erp S2S client + provisioner/settler.
 	erpClient := erp.NewClient(cfg.ERP.ServiceURL, cfg.ERP.APIKey, cfg.ERP.RequestTimeout, log)
 	staffCreditSvc := staffcredit.NewService(entClient, erpClient, eventPub, subsClient, log)
+	// Staff purchases that failed to reach erp are re-sent with backoff, then alerted on.
+	var staffAlerts staffcredit.AlertPublisher
+	if eventPub != nil {
+		staffAlerts = eventPub
+	}
+	staffPurchaseRetry := staffcredit.NewRetryJob(entClient, erpClient, staffAlerts, log)
 	paymentSvc.SetStaffCredit(staffCreditSvc) // staff credit sales route the debt to ERP payroll
 	layawayHandler := handlers.NewLayawayHandler(log, entClient).WithStaffCredit(staffCreditSvc).WithFinalizer(paymentSvc).WithTreasuryClient(treasuryClient).
 		// Branding + platform-owner footer for the printable layaway deposit/instalment slips.
@@ -918,6 +925,7 @@ func New(ctx context.Context) (*App, error) {
 		returnsSvc:                     returnsSvc,
 		saleFinalizedReconciler:        saleFinalizedReconciler,
 		treasuryIntentReconciler:       treasuryIntentReconciler,
+		staffPurchaseRetry:             staffPurchaseRetry,
 		folioIntentRetry:               paymentSvc,
 		kdsHub:                         kdsHub,
 		printHub:                       printHub,
@@ -968,6 +976,10 @@ func (a *App) Run(ctx context.Context) error {
 	// (see pos-sale-close-async-fanout.md follow-up) for any payment left without one every 2 min
 	if a.treasuryIntentReconciler != nil {
 		go a.treasuryIntentReconciler.Start(ctx)
+	}
+	// Staff purchase links that failed to reach erp payroll: retried with backoff every 10 min.
+	if a.staffPurchaseRetry != nil {
+		go a.staffPurchaseRetry.Start(ctx)
 	}
 	// Hotel folio payments taken at the desk whose treasury intent failed (S2-20 M-10), every 5 min.
 	if a.folioIntentRetry != nil {
