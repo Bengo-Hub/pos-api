@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/bengobox/pos-service/internal/ent"
+	"github.com/bengobox/pos-service/internal/modules/orders"
 	"github.com/bengobox/pos-service/internal/modules/saletax"
 )
 
@@ -64,20 +65,10 @@ type AttributedLine struct {
 }
 
 // lineUnitCostSnapshot reads the point-in-time cost persisted at sale time (see UnitCostAtSale
-// above). Numbers decode as float64 after a JSON round-trip, but an int is accepted too in case a
-// caller ever writes one directly.
+// above). The parsing lives in orders.LineUnitCostAtSale so reports, reversals, returns and sale
+// edits all read a line's cost the same way.
 func lineUnitCostSnapshot(l *ent.POSOrderLine) *float64 {
-	if l.Metadata == nil {
-		return nil
-	}
-	switch v := l.Metadata["unit_cost_at_sale"].(type) {
-	case float64:
-		return &v
-	case int:
-		f := float64(v)
-		return &f
-	}
-	return nil
+	return orders.LineUnitCostAtSale(l)
 }
 
 // AttributeOrderLines prorates one order's net total_amount across its active lines. Orders with

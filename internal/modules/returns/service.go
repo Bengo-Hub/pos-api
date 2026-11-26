@@ -513,7 +513,7 @@ func (s *Service) CompleteReturn(ctx context.Context, tenantID uuid.UUID, tenant
 
 		// Sum the returned lines' VAT and COGS so treasury can reverse the exact tax + cost-of-goods.
 		taxAmount := s.resolveReturnTax(ctx, ret.OrderID, lines)
-		costAmount := s.resolveReturnCost(ctx, tenantID, lines)
+		costAmount := s.resolveReturnCost(ctx, tenantID, ret.OrderID, lines)
 		// Written-off goods never come back as an inventory asset, so their cost stays expensed:
 		// no COGS reversal.
 		if !restock {
@@ -906,30 +906,48 @@ func (s *Service) resolveReturnTax(ctx context.Context, orderID uuid.UUID, lines
 }
 
 // resolveReturnCost sums the COGS of the returned goods so treasury can reverse Cost-of-Goods-Sold and
-// trigger the restock reversal. It uses the same authoritative cost source as the sale.finalized COGS
-// posting: POSCatalogOverride.metadata["cost_price"] keyed by (tenant, inventory_sku). Missing cost => 0.
-func (s *Service) resolveReturnCost(ctx context.Context, tenantID uuid.UUID, lines []*ent.POSReturnLine) float64 {
+// trigger the restock reversal. Each returned line is costed at its original sale line's own unit
+// cost (orders.LineUnitCosts), so the return backs out what the sale booked rather than whatever the
+// catalog says today. A return line not tied to a sale line, or a sale line with no recorded cost,
+// uses the current catalog cost. Missing cost => 0.
+func (s *Service) resolveReturnCost(ctx context.Context, tenantID, orderID uuid.UUID, lines []*ent.POSReturnLine) float64 {
 	if len(lines) == 0 {
 		return 0
 	}
-	skus := make([]string, 0, len(lines))
-	seen := make(map[string]struct{}, len(lines))
+	ids := make([]uuid.UUID, 0, len(lines))
 	for _, l := range lines {
-		if l.Sku == "" {
-			continue
+		if l.OrderLineID != uuid.Nil {
+			ids = append(ids, l.OrderLineID)
 		}
-		if _, ok := seen[l.Sku]; ok {
-			continue
+	}
+	unitByLine := map[uuid.UUID]float64{}
+	if len(ids) > 0 {
+		orderLines, err := s.client.POSOrderLine.Query().
+			Where(entposorderline.OrderID(orderID), entposorderline.IDIn(ids...)).
+			All(ctx)
+		if err != nil {
+			s.log.Warn("return refund: failed to load sale lines for cost (using catalog cost)", zap.Error(err))
+		} else {
+			unitByLine = orders.LineUnitCosts(ctx, s.client, tenantID, orderLines)
 		}
-		seen[l.Sku] = struct{}{}
-		skus = append(skus, l.Sku)
 	}
-	if len(skus) == 0 {
-		return 0
+	// Whatever is still unpriced (no sale line, or the sale lines failed to load) uses the catalog.
+	var catalogSKUs []string
+	for _, l := range lines {
+		if _, ok := unitByLine[l.OrderLineID]; !ok && l.Sku != "" {
+			catalogSKUs = append(catalogSKUs, l.Sku)
+		}
 	}
-	costBySKU := orders.CatalogCostBySKU(ctx, s.client, tenantID, skus)
+	var costBySKU map[string]float64
+	if len(catalogSKUs) > 0 {
+		costBySKU = orders.CatalogCostBySKU(ctx, s.client, tenantID, catalogSKUs)
+	}
 	var total float64
 	for _, l := range lines {
+		if c, ok := unitByLine[l.OrderLineID]; ok {
+			total += c * l.Quantity
+			continue
+		}
 		total += costBySKU[l.Sku] * l.Quantity
 	}
 	return total

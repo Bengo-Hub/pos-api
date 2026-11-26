@@ -160,6 +160,11 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 		if v, ok := addedInputs[i].Metadata[orders.LineVariantKey]; ok {
 			lineMeta[orders.LineVariantKey] = v
 		}
+		// Stamp the cost booked for these units now, so a later reversal or return of this line
+		// backs out this same COGS instead of whatever the catalog says on that day.
+		if c := catalogBySKU[a.SKU].CostPrice; a.SKU != "" && c > 0 {
+			lineMeta[orders.LineUnitCostAtSaleKey] = c
+		}
 		create := s.client.POSOrderLine.Create().
 			SetOrderID(order.ID).
 			SetCatalogItemID(a.CatalogItemID).
@@ -214,6 +219,18 @@ func (s *Service) applyInPlaceIncrease(ctx context.Context, tenantID uuid.UUID, 
 			deltaTax := money.Round2(perUnitTax * inc.ByQty)
 			incrementalTax += deltaTax
 			upd = upd.SetTaxAmount(money.Round2(*inc.Line.TaxAmount + deltaTax))
+		}
+		// The new units are costed at today's catalog cost (booked below), while the line's
+		// snapshot holds the original units' cost. Blend the two so the snapshot still equals the
+		// total COGS booked for the line and a later reversal backs out exactly that.
+		if old := orders.LineUnitCostAtSale(inc.Line); old != nil && inc.Line.Sku != "" {
+			md := make(map[string]any, len(inc.Line.Metadata)+1)
+			for k, v := range inc.Line.Metadata {
+				md[k] = v
+			}
+			md[orders.LineUnitCostAtSaleKey] = orders.BlendedUnitCost(*old, inc.Line.Quantity,
+				catalogBySKU[inc.Line.Sku].CostPrice, inc.ByQty)
+			upd = upd.SetMetadata(md)
 		}
 		if _, err := upd.Save(ctx); err != nil {
 			return fmt.Errorf("bump line %s: %w", inc.Line.ID, err)

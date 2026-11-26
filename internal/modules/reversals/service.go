@@ -194,9 +194,9 @@ func (s *Service) Execute(ctx context.Context, tenantID uuid.UUID, req CreateReq
 		return nil, err
 	}
 
-	// COGS from the catalog cost source — symmetric with the sale-time COGS posting and the
-	// returns flow, so treasury never reverses cost that was never posted.
-	cost := s.catalogCost(ctx, tenantID, revLines)
+	// COGS from each line's own sale-time cost, so the reversal backs out exactly what the sale
+	// booked even if the catalog cost moved since. Lines without one use today's catalog cost.
+	cost := s.reversalCost(ctx, tenantID, lines, revLines)
 
 	steps := []entschema.ReversalStepJSON{
 		{Step: StepPOSTotals, Service: "pos", Status: StatusPending},
@@ -363,18 +363,13 @@ func (s *Service) resolveLines(order *ent.POSOrder, lines []*ent.POSOrderLine, r
 	return out, amount, tax, nil
 }
 
-// catalogCost sums the catalog COGS for the reversal lines (see orders.CatalogCostBySKU).
-func (s *Service) catalogCost(ctx context.Context, tenantID uuid.UUID, revLines []entschema.ReversalLineJSON) float64 {
-	skus := make([]string, 0, len(revLines))
-	for _, l := range revLines {
-		if l.SKU != "" {
-			skus = append(skus, l.SKU)
-		}
-	}
-	costBySKU := orders.CatalogCostBySKU(ctx, s.client, tenantID, skus)
+// reversalCost sums the COGS of the reversal lines at each original line's own unit cost (see
+// orders.LineUnitCosts), so a reversal mirrors the cost the sale posted.
+func (s *Service) reversalCost(ctx context.Context, tenantID uuid.UUID, lines []*ent.POSOrderLine, revLines []entschema.ReversalLineJSON) float64 {
+	unitCost := orders.LineUnitCosts(ctx, s.client, tenantID, lines)
 	var total float64
 	for _, l := range revLines {
-		total += costBySKU[l.SKU] * l.Quantity
+		total += unitCost[l.LineID] * l.Quantity
 	}
 	return total
 }
