@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -203,11 +205,16 @@ func (sp *spooler) run(ctx context.Context, cfg agentConfig) {
 			if ctx.Err() != nil {
 				return
 			}
-			log.Printf("print-agent: poll failed: %v (retrying in %s)", err, backoff)
+			wait := backoff
+			if errors.Is(err, errKeyRejected) {
+				wait = rejectedBackoff(backoff)
+				backoff = wait
+			}
+			log.Printf("print-agent: poll failed: %v (retrying in %s)", err, wait.Round(time.Second))
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(backoff):
+			case <-time.After(wait):
 			}
 			if backoff < 30*time.Second {
 				backoff *= 2
@@ -220,6 +227,30 @@ func (sp *spooler) run(ctx context.Context, cfg agentConfig) {
 		}
 		sp.printAndAck(ctx, cfg, job)
 	}
+}
+
+// errKeyRejected means pos-api refused the pairing key (401): the agent was unpaired or its key
+// rotated. Retrying fast cannot fix that, so both loops wait long (rejectedBackoff) until someone
+// re-pairs it. Before this, each unpaired agent sent two requests every 30 s forever (ingress logs,
+// 27 November 2026).
+var errKeyRejected = errors.New("pairing key rejected (re-pair from POS Settings)")
+
+const (
+	rejectedBackoffMin = 5 * time.Minute
+	rejectedBackoffMax = time.Hour
+)
+
+// rejectedBackoff doubles a wait from 5 minutes up to an hour, with up to 20% jitter so many agents
+// unpaired at once do not retry in step.
+func rejectedBackoff(prev time.Duration) time.Duration {
+	next := prev * 2
+	if next < rejectedBackoffMin {
+		next = rejectedBackoffMin
+	}
+	if next > rejectedBackoffMax {
+		next = rejectedBackoffMax
+	}
+	return next + time.Duration(rand.Int64N(int64(next/5)+1))
 }
 
 // drainJobs claims and prints every job currently ready for this agent's outlet, using an immediate
@@ -260,20 +291,25 @@ func (sp *spooler) wsLoop(ctx context.Context, cfg agentConfig, wake chan<- stru
 	wsURL := toWebSocketURL(cfg.Server) + "/api/v1/pos/printing/agent/ws?version=" + version
 	backoff := time.Second
 	for ctx.Err() == nil {
-		conn, _, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
+		conn, resp, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
 			HTTPHeader: http.Header{"X-Agent-Key": {cfg.Key}},
 		})
 		if err != nil {
 			if ctx.Err() != nil {
 				return
 			}
-			// Quietly retry — an old server (no /ws) or a transient network blip both land here, and
+			// Quietly retry: an old server (no /ws) or a transient network blip both land here, and
 			// the poll fallback is already covering printing. Cap the backoff so reconnection stays
-			// responsive once the endpoint becomes available.
+			// responsive once the endpoint becomes available. A rejected key waits long instead.
+			wait := backoff
+			if resp != nil && resp.StatusCode == http.StatusUnauthorized {
+				wait = rejectedBackoff(backoff)
+				backoff = wait
+			}
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(backoff):
+			case <-time.After(wait):
 			}
 			if backoff < 30*time.Second {
 				backoff *= 2
@@ -349,7 +385,7 @@ func (sp *spooler) nextJob(ctx context.Context, cfg agentConfig, wait int) (*age
 		}
 		return &job, nil
 	case http.StatusUnauthorized:
-		return nil, fmt.Errorf("pairing key rejected (re-pair from POS Settings)")
+		return nil, errKeyRejected
 	default:
 		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
